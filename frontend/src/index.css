@@ -1,0 +1,82 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* Color Palette - Mystical Alchemy */
+  /* Dark Void Background */
+  --color-background: hsl(240 20% 5%); 
+  /* Parchment Foreground */
+  --color-foreground: hsl(35 25% 85%);
+  
+  --color-card: hsl(240 18% 8%);
+  --color-card-foreground: hsl(35 25% 85%);
+  
+  --color-popover: hsl(240 18% 8%);
+  --color-popover-foreground: hsl(35 25% 85%);
+  
+  /* Alchemical Gold */
+  --color-primary: hsl(45 65% 52%);
+  --color-primary-foreground: hsl(240 20% 5%);
+  
+  /* Deep Lapis Blue */
+  --color-secondary: hsl(215 40% 20%);
+  --color-secondary-foreground: hsl(35 25% 85%);
+  
+  --color-muted: hsl(240 15% 15%);
+  --color-muted-foreground: hsl(240 10% 60%);
+  
+  --color-accent: hsl(45 65% 52%);
+  --color-accent-foreground: hsl(240 20% 5%);
+  
+  --color-destructive: hsl(0 60% 40%);
+  --color-destructive-foreground: hsl(0 0% 100%);
+
+  --color-border: hsl(240 15% 15%);
+  --color-input: hsl(240 15% 15%);
+  --color-ring: hsl(45 65% 52%);
+
+  /* Chart colors - adapted for dark mystical theme */
+  --color-chart-1: hsl(45 65% 52%); /* Gold */
+  --color-chart-2: hsl(215 40% 40%); /* Blue */
+  --color-chart-3: hsl(150 40% 40%); /* Emerald */
+  --color-chart-4: hsl(280 40% 40%); /* Purple */
+  --color-chart-5: hsl(0 50% 50%);   /* Ruby */
+
+  --color-sidebar: hsl(240 20% 4%);
+  --color-sidebar-foreground: hsl(35 25% 85%);
+  --color-sidebar-primary: hsl(45 65% 52%);
+  --color-sidebar-primary-foreground: hsl(240 20% 5%);
+  --color-sidebar-accent: hsl(240 15% 12%);
+  --color-sidebar-accent-foreground: hsl(35 25% 85%);
+  --color-sidebar-border: hsl(240 15% 15%);
+  --color-sidebar-ring: hsl(45 65% 52%);
+
+  --font-sans: 'Inter', sans-serif;
+  --font-serif: 'Cormorant Garamond', serif;
+  --font-body: 'Crimson Text', serif;
+  
+  --radius: 0.5rem;
+}
+
+* {
+  border-color: var(--color-border);
+}
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+}
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: 0.025em;
+}
