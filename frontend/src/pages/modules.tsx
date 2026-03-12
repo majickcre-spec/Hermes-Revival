@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Link } from "wouter";
-import { BookOpen, Star, Lock, Orbit, Brain } from "lucide-react";
+import { BookOpen, Star, Lock, Orbit, Brain, Lightbulb, Sunrise } from "lucide-react";
 
 const books = [
   { id: 1, title: "Book I", subtitle: "The Divine Pymander", desc: "Hermes' vision of the Great Mind and the structure of reality.", locked: false },
@@ -75,6 +75,52 @@ export default function Modules() {
               </CardContent>
               <CardFooter>
                 <Link href="/reader/the-mind">
+                  <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+                    <BookOpen className="w-4 h-4 mr-2" /> Begin Study
+                  </Button>
+                </Link>
+              </CardFooter>
+            </Card>
+
+            <Card className="bg-card border-white/10 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40">
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-start">
+                  <span className="text-xs font-bold tracking-widest text-primary/60 uppercase">Study Module</span>
+                  <Lightbulb className="w-4 h-4 text-primary" />
+                </div>
+                <h3 className="text-2xl font-serif text-foreground mt-2">The Heads of Things</h3>
+                <div className="text-sm font-medium text-muted-foreground">Book I</div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground/80 font-body leading-relaxed h-16 line-clamp-3">
+                  The 82 Aphorisms: Master the memory of all Divine knowledge (Dr. John Everard, 1650)
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Link href="/reader/heads-of-things">
+                  <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+                    <BookOpen className="w-4 h-4 mr-2" /> Begin Study
+                  </Button>
+                </Link>
+              </CardFooter>
+            </Card>
+
+            <Card className="bg-card border-white/10 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40">
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-start">
+                  <span className="text-xs font-bold tracking-widest text-primary/60 uppercase">Study Module</span>
+                  <Sunrise className="w-4 h-4 text-primary" />
+                </div>
+                <h3 className="text-2xl font-serif text-foreground mt-2">The Secret of Regeneration</h3>
+                <div className="text-sm font-medium text-muted-foreground">Book XIII</div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground/80 font-body leading-relaxed h-16 line-clamp-3">
+                  The 12 Torments and 10 Powers — transform vices into virtues through divine rebirth.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Link href="/reader/regeneration">
                   <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
                     <BookOpen className="w-4 h-4 mr-2" /> Begin Study
                   </Button>

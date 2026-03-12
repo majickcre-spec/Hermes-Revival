@@ -11,6 +11,8 @@ import Editor from "@/pages/editor";
 import Guide from "@/pages/guide";
 import SevenGovernors from "@/pages/seven-governors";
 import TheMind from "@/pages/the-mind";
+import HeadsOfThings from "@/pages/heads-of-things";
+import Regeneration from "@/pages/regeneration";
 
 function Router() {
   return (
@@ -19,6 +21,8 @@ function Router() {
       <Route path="/modules" component={Modules} />
       <Route path="/reader/seven-governors" component={SevenGovernors} />
       <Route path="/reader/the-mind" component={TheMind} />
+      <Route path="/reader/heads-of-things" component={HeadsOfThings} />
+      <Route path="/reader/regeneration" component={Regeneration} />
       <Route path="/reader/:id" component={Reader} />
       <Route path="/editor/:id" component={Editor} />
       <Route path="/editor" component={Editor} />
