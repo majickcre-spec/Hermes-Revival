@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Link } from "wouter";
-import { BookOpen, Star, Lock, Orbit, Brain, Lightbulb, Sunrise } from "lucide-react";
+import { BookOpen, Star, Lock, Orbit, Brain, Lightbulb, Sunrise, Sparkles } from "lucide-react";
 
 const books = [
   { id: 1, title: "Book I", subtitle: "The Divine Pymander", desc: "Hermes' vision of the Great Mind and the structure of reality.", locked: false },
@@ -36,6 +36,29 @@ export default function Modules() {
         <div className="container mx-auto px-4 pt-16 pb-8">
           <h2 className="text-2xl font-serif text-primary/80 mb-6">Study Modules</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <Card className="bg-gradient-to-br from-primary/10 to-card border-primary/30 transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 shadow-[0_0_20px_rgba(212,175,55,0.08)]">
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-start">
+                  <span className="text-xs font-bold tracking-widest text-primary uppercase">Deep Learning</span>
+                  <Sparkles className="w-4 h-4 text-primary" />
+                </div>
+                <h3 className="text-2xl font-serif text-foreground mt-2">Deep Learning System</h3>
+                <div className="text-sm font-medium text-primary/70">Multi-Perspective Wisdom Tool</div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground/80 font-body leading-relaxed h-16 line-clamp-3">
+                  Master the 82 Aphorisms through multiple perspectives, deep questions, real-world examples, and concept connections.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Link href="/learning">
+                  <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+                    <Sparkles className="w-4 h-4 mr-2" /> Start Learning
+                  </Button>
+                </Link>
+              </CardFooter>
+            </Card>
+
             <Card className="bg-card border-white/10 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40">
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">
