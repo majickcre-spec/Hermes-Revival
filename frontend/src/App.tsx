@@ -13,12 +13,18 @@ import SevenGovernors from "@/pages/seven-governors";
 import TheMind from "@/pages/the-mind";
 import HeadsOfThings from "@/pages/heads-of-things";
 import Regeneration from "@/pages/regeneration";
+import Dashboard from "@/pages/dashboard";
+import Journey from "@/pages/journey";
+import Achievements from "@/pages/achievements";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/modules" component={Modules} />
+      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/journey" component={Journey} />
+      <Route path="/achievements" component={Achievements} />
       <Route path="/reader/seven-governors" component={SevenGovernors} />
       <Route path="/reader/the-mind" component={TheMind} />
       <Route path="/reader/heads-of-things" component={HeadsOfThings} />

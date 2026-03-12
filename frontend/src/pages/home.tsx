@@ -3,10 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import heroBg from "/generated_images/mystical_dark_blue_background_with_golden_sacred_geometry.png";
 import logo from "/generated_images/golden_hermetic_caduceus_symbol.png";
+import { getSummaryStats } from "@/lib/gamification";
+import { ArrowRight, Flame, Trophy } from "lucide-react";
 
 export default function Home() {
+  const [stats, setStats] = useState<ReturnType<typeof getSummaryStats> | null>(null);
+  useEffect(() => { setStats(getSummaryStats()); }, []);
+
   return (
     <Layout>
       {/* Hero Section */}
@@ -95,6 +101,77 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Your Journey Widget */}
+      {stats && (
+        <section className="py-16 bg-gradient-to-b from-black/40 to-background">
+          <div className="container mx-auto px-4">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <div className="max-w-2xl mx-auto rounded-2xl p-8 border border-primary/20 bg-card/30 backdrop-blur-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-serif text-primary">Your Journey</h2>
+                  <Link href="/dashboard">
+                    <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80">
+                      Dashboard <ArrowRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </Link>
+                </div>
+
+                <div className="flex items-center gap-5 mb-5">
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center border-2" style={{
+                    borderColor: stats.rank.color,
+                    background: `${stats.rank.color}15`,
+                    boxShadow: `0 0 16px ${stats.rank.color}22`,
+                  }}>
+                    <span className="text-3xl" style={{ color: stats.rank.color }}>{stats.rank.badge}</span>
+                  </div>
+                  <div>
+                    <div className="font-serif text-xl" style={{ color: stats.rank.color }}>{stats.rank.name}</div>
+                    <div className="text-sm text-muted-foreground">{stats.rank.title}</div>
+                  </div>
+                </div>
+
+                {/* XP Bar */}
+                <div className="mb-5">
+                  <div className="flex justify-between text-sm text-muted-foreground mb-1.5">
+                    <span>{stats.xp} XP</span>
+                    <span>{stats.progress.percent}%</span>
+                  </div>
+                  <div className="w-full h-2.5 rounded-full bg-white/5">
+                    <div className="h-full rounded-full transition-all duration-1000" style={{
+                      width: `${stats.progress.percent}%`,
+                      background: `linear-gradient(90deg, ${stats.rank.color}, #d4af37)`,
+                    }} />
+                  </div>
+                </div>
+
+                {/* Quick Stats */}
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <Flame className="w-5 h-5 mx-auto mb-1 text-orange-400" />
+                    <div className="font-serif text-lg text-foreground">{stats.streak.currentStreak}</div>
+                    <div className="text-xs text-muted-foreground">Day Streak</div>
+                  </div>
+                  <div>
+                    <Trophy className="w-5 h-5 mx-auto mb-1 text-primary" />
+                    <div className="font-serif text-lg text-foreground">{stats.achievementsUnlocked}</div>
+                    <div className="text-xs text-muted-foreground">Achievements</div>
+                  </div>
+                  <div>
+                    <div className="text-xl mb-1" style={{ color: stats.rank.color }}>{stats.rank.badge}</div>
+                    <div className="font-serif text-lg text-foreground">{stats.xp}</div>
+                    <div className="text-xs text-muted-foreground">Total XP</div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+      )}
 
       {/* Featured Modules Preview */}
       <section className="py-24">
