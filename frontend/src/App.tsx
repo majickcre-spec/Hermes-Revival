@@ -16,6 +16,7 @@ import Regeneration from "@/pages/regeneration";
 import Dashboard from "@/pages/dashboard";
 import Journey from "@/pages/journey";
 import Achievements from "@/pages/achievements";
+import FlashcardLearning from "@/pages/flashcard-learning";
 
 function Router() {
   return (
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/achievements" component={Achievements} />
       <Route path="/reader/seven-governors" component={SevenGovernors} />
       <Route path="/reader/the-mind" component={TheMind} />
+      <Route path="/learning" component={FlashcardLearning} />
       <Route path="/reader/heads-of-things" component={HeadsOfThings} />
       <Route path="/reader/regeneration" component={Regeneration} />
       <Route path="/reader/:id" component={Reader} />

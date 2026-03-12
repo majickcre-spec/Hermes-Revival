@@ -90,6 +90,13 @@ const ACHIEVEMENT_DEFS: Omit<Achievement, "unlocked">[] = [
   { id: "streak-7",   title: "Daily Seeker",          description: "7-day practice streak",        category: "Dedication",        icon: "flame",    xp: 50  },
   { id: "streak-30",  title: "Devoted Student",       description: "30-day practice streak",       category: "Dedication",        icon: "flame",    xp: 150 },
   { id: "streak-100", title: "Hermetic Discipline",   description: "100-day practice streak",      category: "Dedication",        icon: "flame",    xp: 500 },
+
+  // Deep Learning (Flashcard System)
+  { id: "learn-perspectives", title: "Multi-Perspectival Thinker", description: "View all perspectives for 5 aphorisms",     category: "Deep Learning", icon: "search",  xp: 100 },
+  { id: "learn-contemplator", title: "Deep Contemplator",          description: "Spend 30+ min in Deep Questions mode",       category: "Deep Learning", icon: "message", xp: 150 },
+  { id: "learn-matcher",      title: "Wisdom in Action",           description: "Perfect score on 5 Example Matcher scenarios", category: "Deep Learning", icon: "globe",   xp: 100 },
+  { id: "learn-connections",   title: "Pattern Recognition",       description: "Explore all Concept Connection clusters",     category: "Deep Learning", icon: "link",    xp: 150 },
+  { id: "learn-master",       title: "Master of Aphorisms",        description: "Understand 10 aphorisms across all modes",   category: "Deep Learning", icon: "star",    xp: 500 },
 ];
 
 // ─── localStorage Readers ─────────────────────────────────────────────────────
@@ -176,6 +183,50 @@ function checkAchievement(id: string): boolean {
     case "streak-7":   return getStreakData().longestStreak >= 7;
     case "streak-30":  return getStreakData().longestStreak >= 30;
     case "streak-100": return getStreakData().longestStreak >= 100;
+
+    // Deep Learning
+    case "learn-perspectives": {
+      try {
+        const raw = localStorage.getItem("learning-perspectives-viewed");
+        if (!raw) return false;
+        const viewed = JSON.parse(raw) as string[];
+        // Count unique aphorism IDs that have all 4 perspectives viewed
+        const byAphorism: Record<string, number> = {};
+        for (const v of viewed) {
+          const aId = v.split("-")[0];
+          byAphorism[aId] = (byAphorism[aId] || 0) + 1;
+        }
+        return Object.values(byAphorism).filter(c => c >= 4).length >= 5;
+      } catch { return false; }
+    }
+    case "learn-contemplator": {
+      try {
+        const totalTime = parseInt(localStorage.getItem("learning-questions-total-time") || "0", 10);
+        return totalTime >= 1800; // 30 minutes in seconds
+      } catch { return false; }
+    }
+    case "learn-matcher": {
+      try {
+        const perfect = parseInt(localStorage.getItem("learning-examples-perfect") || "0", 10);
+        return perfect >= 5;
+      } catch { return false; }
+    }
+    case "learn-connections": {
+      try {
+        const raw = localStorage.getItem("learning-connections-explored");
+        if (!raw) return false;
+        const explored = JSON.parse(raw) as string[];
+        return explored.length >= 5;
+      } catch { return false; }
+    }
+    case "learn-master": {
+      try {
+        const raw = localStorage.getItem("learning-perspectives-understood");
+        if (!raw) return false;
+        const understood = JSON.parse(raw) as string[];
+        return understood.length >= 10;
+      } catch { return false; }
+    }
 
     default: return false;
   }
