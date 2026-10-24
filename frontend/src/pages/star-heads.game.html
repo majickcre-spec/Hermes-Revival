@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Star's Heads of Things</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Nunito+Sans:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,800&display=swap">
+<style>
+/* Layout: a cosmic study hall. Home with modes + persistent score; a focused play view
+   with a meditating figure whose aura grows with the streak. One dark theme by design. */
+:root{
+  --bg:#0a1628; --bg2:#0e1f39; --card:#15284a; --card2:#1d3358;
+  --gold:#e6c25c; --gold-deep:#d4af37; --cream:#f1ede1; --muted:#9bb0d0;
+  --rose:#e8a6bf; --violet:#9a8cf0; --teal:#57c9bd;
+  --good:#63d39a; --bad:#ef8f8c; --line:#28406a;
+  --maxw:660px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:
+    radial-gradient(1200px 600px at 50% -10%, #12254400 0%, #0a162800 60%),
+    var(--bg);
+  color:var(--cream);
+  font-family:"Nunito Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-weight:600;line-height:1.5;min-height:100%;position:relative;overflow-x:hidden;
+}
+#sky{position:fixed;inset:0;z-index:0;pointer-events:none}
+#fx{position:fixed;inset:0;z-index:40;pointer-events:none;overflow:hidden}
+.wrap{position:relative;z-index:1;max-width:var(--maxw);margin:0 auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:16px 44px;}
+h1,h2,h3,h4{font-family:"Marcellus",Georgia,serif;font-weight:400;margin:0;text-wrap:balance}
+.serif{font-family:"Marcellus",Georgia,serif}
+
+/* ---------- top score bar ---------- */
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:9px;min-width:0}
+.brand .sigil{font-size:1.25rem;color:var(--gold);line-height:1}
+.brand h1{font-size:1.02rem;letter-spacing:2px;color:var(--gold);text-transform:uppercase}
+.score{display:flex;align-items:center;gap:7px}
+.chip{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);
+  border-radius:999px;padding:6px 12px;font-weight:800;font-size:.92rem}
+.chip.star{color:var(--gold)} .chip.heart{color:var(--rose)}
+.chip.who{cursor:pointer;color:var(--cream);font:inherit;font-weight:800}
+.chip.who:hover{border-color:var(--gold-deep)}
+body.gated .chip.star,body.gated .chip.heart,body.gated .chip.who,body.gated .rankline{visibility:hidden}
+/* gate / profiles */
+.profiles{display:flex;flex-wrap:wrap;gap:12px;margin-top:6px}
+.pcard{cursor:pointer;color:inherit;font:inherit;background:var(--card);border:1px solid var(--line);
+  border-radius:16px;padding:16px 18px;min-width:118px;display:flex;flex-direction:column;align-items:center;gap:9px;
+  transition:transform .14s,border-color .14s;position:relative}
+.pcard:hover{transform:translateY(-2px);border-color:var(--gold-deep)}
+.pcard:focus-visible{outline:3px solid var(--violet);outline-offset:2px}
+.pcard .pav{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;font-family:"Marcellus",serif;
+  font-size:1.5rem;color:var(--gold);background:#0c1c36;border:1px solid var(--line)}
+.pcard .pnm{font-family:"Marcellus",serif;letter-spacing:.5px}
+.pcard .plock{position:absolute;top:10px;right:11px;font-size:.78rem}
+.pcard.add{border-style:dashed;color:var(--muted)}
+.unlock,.create{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-top:18px;max-width:360px}
+.ulabel{font-family:"Marcellus",serif;letter-spacing:1px;color:var(--muted);font-size:.76rem;text-transform:uppercase;margin:4px 0 8px}
+.pin-input{display:block;width:100%;background:#0c1c36;border:2px solid var(--line);border-radius:12px;color:var(--cream);
+  font:inherit;font-weight:800;font-size:1.2rem;letter-spacing:5px;text-align:center;padding:12px;margin-bottom:8px}
+.pin-input.name{letter-spacing:1px}
+.pin-input:focus{outline:none;border-color:var(--violet)}
+.rankline{width:100%;text-align:right;color:var(--muted);font-size:.74rem;letter-spacing:1.5px;
+  text-transform:uppercase;font-family:"Marcellus",serif;margin-top:-2px}
+
+/* ---------- home ---------- */
+.hero{margin:20px 0 22px}
+.hero .eyebrow{font-family:"Marcellus",serif;letter-spacing:3px;text-transform:uppercase;
+  font-size:.72rem;color:var(--muted);margin-bottom:8px}
+.hero h2{font-size:2rem;color:var(--cream);line-height:1.1}
+.hero h2 .nm{color:var(--gold)}
+.hero p{margin:12px 0 0;color:var(--muted);font-size:1rem;max-width:56ch;line-height:1.6}
+.hero p b{color:var(--cream);font-weight:700}
+
+.label{font-family:"Marcellus",serif;letter-spacing:2px;text-transform:uppercase;
+  font-size:.72rem;color:var(--muted);margin:22px 2px 12px}
+.primary-modes{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:460px){.primary-modes{grid-template-columns:1fr}}
+.mode{
+  text-align:left;cursor:pointer;color:inherit;font:inherit;position:relative;
+  background:linear-gradient(160deg,var(--card2),var(--card));
+  border:1px solid var(--line);border-radius:18px;padding:18px;
+  display:flex;flex-direction:column;gap:8px;transition:transform .14s,border-color .14s;
+}
+.mode:hover{transform:translateY(-2px);border-color:var(--gold-deep)}
+.mode:focus-visible{outline:3px solid var(--violet);outline-offset:2px}
+.mode .glyph{font-size:1.7rem}
+.mode h3{font-size:1.3rem;color:var(--cream)}
+.mode .sub{font-size:.9rem;color:var(--muted);font-weight:600;line-height:1.45}
+.mode .tag{position:absolute;top:14px;right:14px;font-family:"Marcellus",serif;font-size:.62rem;
+  letter-spacing:1.5px;text-transform:uppercase;color:#1c1400;background:var(--gold);
+  border-radius:999px;padding:3px 9px}
+.mode .meter{display:flex;align-items:center;gap:9px;margin-top:4px}
+.bar{flex:1;height:7px;border-radius:999px;background:#0c1c36;overflow:hidden;border:1px solid var(--line)}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-deep))}
+.meter .n{font-size:.78rem;color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums}
+.mode.recall{background:linear-gradient(160deg,#20224a,#152146)}
+
+.focus-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:9px}
+@media (max-width:560px){.focus-row{grid-template-columns:1fr 1fr}}
+.fbtn{cursor:pointer;color:inherit;font:inherit;background:var(--card);border:1px solid var(--line);
+  border-radius:14px;padding:13px 10px;display:flex;flex-direction:column;align-items:center;gap:6px;
+  transition:transform .12s,border-color .12s}
+.fbtn:hover{transform:translateY(-2px);border-color:var(--gold-deep)}
+.fbtn:focus-visible{outline:3px solid var(--violet);outline-offset:2px}
+.fbtn .g{font-size:1.3rem}
+.fbtn .t{font-family:"Marcellus",serif;font-size:.82rem;letter-spacing:.5px}
+.fbtn .c{font-size:.68rem;color:var(--muted);font-weight:700}
+.f1{border-top:3px solid var(--teal)}.f2{border-top:3px solid var(--violet)}
+.f3{border-top:3px solid var(--rose)}.f4{border-top:3px solid var(--gold)}
+
+.parent-link{margin:26px 0 0;text-align:center}
+.parent-link button{background:none;border:1px solid var(--line);color:var(--muted);
+  border-radius:999px;padding:8px 18px;font:inherit;font-weight:700;cursor:pointer;letter-spacing:.5px}
+.parent-link button:hover{color:var(--cream);border-color:var(--gold-deep)}
+
+/* ---------- play ---------- */
+.play-top{display:flex;align-items:center;gap:12px;margin:8px 0 6px}
+.back{flex:none;background:var(--card);border:1px solid var(--line);color:var(--cream);
+  border-radius:999px;width:40px;height:40px;font-size:1.1rem;cursor:pointer;line-height:1}
+.back:hover{border-color:var(--gold-deep)}
+.play-title{font-family:"Marcellus",serif;font-size:1.02rem;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase}
+.sess{margin-left:auto;font-size:.78rem;color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums}
+.pbar{height:6px;border-radius:999px;background:#0c1c36;border:1px solid var(--line);overflow:hidden;margin:4px 0 14px}
+.pbar i{display:block;height:100%;background:linear-gradient(90deg,var(--violet),var(--gold));transition:width .3s}
+
+/* meditating figure */
+.sage{display:flex;flex-direction:column;align-items:center;margin:4px 0 14px;position:relative;height:96px}
+.sage .halo{position:absolute;top:6px;width:84px;height:84px;border-radius:50%;
+  background:radial-gradient(circle,rgba(230,194,92,var(--glow,.25)) 0%,rgba(230,194,92,0) 70%);
+  transform:scale(var(--aura,1));transition:transform .4s,background .4s}
+.sage .fig{font-size:2.9rem;position:relative;z-index:2;animation:float 4s ease-in-out infinite}
+.sage .ring{position:absolute;top:6px;width:84px;height:84px;animation:spin 14s linear infinite}
+.sage .ring b{position:absolute;left:50%;top:-4px;font-size:.7rem;color:var(--gold)}
+.sage.cheer .fig{animation:cheer .7s ease}
+.sage.sway .fig{animation:sway .7s ease}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes cheer{0%{transform:translateY(0) scale(1)}40%{transform:translateY(-16px) scale(1.12)}100%{transform:translateY(0) scale(1)}}
+@keyframes sway{0%,100%{transform:rotate(0)}25%{transform:rotate(-6deg)}75%{transform:rotate(6deg)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.panel{background:linear-gradient(170deg,var(--card),var(--bg2));border:1px solid var(--line);
+  border-radius:20px;padding:22px 18px}
+.vicon{font-size:2.3rem;text-align:center;display:block;margin-bottom:2px}
+.vtag{text-align:center;font-family:"Marcellus",serif;color:var(--muted);font-size:.72rem;
+  letter-spacing:2px;text-transform:uppercase;margin-bottom:12px}
+.vtext{font-size:1.2rem;line-height:1.5;text-align:center;color:var(--cream);font-weight:700;
+  margin:6px auto;max-width:32ch}
+.ask{text-align:center;color:var(--gold);font-family:"Marcellus",serif;letter-spacing:1px;
+  margin:16px 0 12px;font-size:1rem}
+
+.opts{display:flex;flex-direction:column;gap:10px}
+.opt{text-align:left;background:var(--card2);border:2px solid var(--line);color:var(--cream);
+  border-radius:13px;padding:13px 15px;font:inherit;font-weight:700;cursor:pointer;line-height:1.4;
+  transition:border-color .12s,background .12s,transform .08s}
+.opt:hover{border-color:var(--violet)}.opt:active{transform:scale(.99)}
+.opt:disabled{cursor:default}
+.opt.correct{border-color:var(--good);background:rgba(99,211,154,.16);color:#d9ffe9}
+.opt.wrong{border-color:var(--bad);background:rgba(239,143,140,.14)}
+.opt:focus-visible{outline:3px solid var(--violet);outline-offset:2px}
+
+.fill-line{font-size:1.22rem;text-align:center;line-height:1.7;color:var(--cream);margin:8px auto;max-width:32ch}
+.blank{display:inline-block;min-width:92px;border-bottom:3px dashed var(--gold);color:var(--gold);font-weight:800;padding:0 6px}
+.fill-input{display:block;width:100%;max-width:300px;margin:18px auto 0;text-align:center;
+  background:#0c1c36;border:2px solid var(--line);border-radius:13px;color:var(--cream);
+  font:inherit;font-weight:800;font-size:1.15rem;padding:12px}
+.fill-input:focus{outline:none;border-color:var(--violet)}
+.hint{text-align:center;color:var(--muted);font-size:.84rem;margin-top:10px}
+.hint b{color:var(--gold);font-family:"Marcellus",serif;letter-spacing:2px}
+
+.match-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+.mcol{display:flex;flex-direction:column;gap:9px}
+.mcol h4{margin:0 0 2px;font-size:.68rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);text-align:center}
+.mitem{text-align:left;background:var(--card2);border:2px solid var(--line);color:var(--cream);
+  border-radius:11px;padding:11px 12px;font:inherit;font-weight:700;cursor:pointer;font-size:.88rem;
+  display:flex;gap:8px;align-items:flex-start;line-height:1.32}
+.mitem .mi{font-size:1.05rem;flex:none}
+.mitem:disabled{cursor:default}
+.mitem.sel{border-color:var(--violet);background:rgba(154,140,240,.18)}
+.mitem.matched{border-color:var(--good);background:rgba(99,211,154,.14);opacity:.7}
+.mitem.shake{animation:shake .4s}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+
+.answer-line{min-height:56px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;
+  background:#0c1c36;border:2px dashed var(--line);border-radius:13px;padding:12px;margin:6px 0 14px}
+.answer-line:empty::before{content:"Place the words in order";color:var(--muted);font-weight:600;font-size:.88rem}
+.pool{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.chipw{background:var(--card2);border:2px solid var(--line);color:var(--cream);border-radius:11px;
+  padding:9px 13px;font:inherit;font-weight:800;cursor:pointer;font-size:1.02rem;transition:transform .08s}
+.chipw:hover{border-color:var(--gold-deep)}.chipw:active{transform:scale(.95)}
+.chipw.placed{background:var(--card);border-color:var(--gold-deep);color:var(--gold)}
+
+/* recall */
+.recall-cue{text-align:center;color:var(--muted);font-size:1.05rem;max-width:34ch;margin:4px auto 2px;line-height:1.55}
+.recall-reveal{font-size:1.22rem;text-align:center;color:var(--cream);font-weight:700;line-height:1.5;
+  max-width:33ch;margin:14px auto 2px;animation:pop .35s ease}
+.rate{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-top:16px}
+.rate button{font:inherit;font-weight:800;cursor:pointer;border-radius:13px;padding:13px 8px;
+  display:flex;flex-direction:column;gap:3px;align-items:center;border:2px solid var(--line);background:var(--card2);color:var(--cream)}
+.rate .sm{font-size:.66rem;font-weight:700;color:var(--muted);letter-spacing:.5px}
+.rate .held:hover{border-color:var(--good)} .rate .almost:hover{border-color:var(--gold)} .rate .missed:hover{border-color:var(--rose)}
+
+.feedback{text-align:center;min-height:24px;margin:14px 0 2px;font-family:"Marcellus",serif;
+  letter-spacing:.5px;font-size:1.05rem}
+.feedback.good{color:var(--good)} .feedback.try{color:var(--gold)}
+.reveal-mean{text-align:center;color:var(--muted);font-size:.92rem;max-width:36ch;margin:6px auto 0;font-family:"Nunito Sans",sans-serif}
+.actions{display:flex;gap:10px;margin-top:16px}
+.btn{flex:1;background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#241800;border:none;
+  border-radius:13px;padding:14px;font-family:"Marcellus",serif;font-size:1.02rem;letter-spacing:1px;
+  cursor:pointer;transition:transform .08s,filter .12s}
+.btn:hover{filter:brightness(1.06)}.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.4;cursor:default;filter:none}
+.btn.ghost{background:none;border:2px solid var(--line);color:var(--cream);flex:0 0 auto;padding:14px 16px}
+.btn.ghost:hover{border-color:var(--gold-deep)}
+
+.done{text-align:center;padding:26px 12px}
+.done .big{font-size:3rem;animation:float 4s ease-in-out infinite}
+.done h2{font-size:1.7rem;color:var(--gold);margin:12px 0 6px}
+.done p{color:var(--muted);margin:0 auto 18px;max-width:38ch;line-height:1.6}
+.done .tally{display:flex;gap:16px;justify-content:center;margin:12px 0 18px}
+.done .tally div{font-family:"Marcellus",serif}
+.done .tally .v{font-size:1.5rem;color:var(--cream)} .done .tally .k{font-size:.68rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+
+/* parent sheet */
+.sheet{position:fixed;inset:0;z-index:50;background:rgba(4,9,20,.74);display:grid;place-items:end center}
+.sheet-inner{width:100%;max-width:var(--maxw);background:var(--bg2);border:1px solid var(--line);
+  border-radius:22px 22px 0 0;max-height:88vh;overflow:auto;
+  padding:22px max(16px,env(safe-area-inset-left,0px)) calc(26px + env(safe-area-inset-bottom,0px));position:relative}
+.sheet h2{font-size:1.3rem;color:var(--gold);letter-spacing:1px}
+.sheet p{color:var(--muted);font-size:.92rem;margin:9px 0;line-height:1.6}
+.sheet .note{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:10px 0;font-size:.88rem;line-height:1.55}
+.sheet .note b{color:var(--cream)}
+.sheet-close{position:absolute;top:16px;right:16px}
+.reset{background:none;border:2px solid var(--bad);color:var(--bad);border-radius:12px;padding:10px 16px;font:inherit;font-weight:800;cursor:pointer;margin-top:4px}
+.reset:hover{background:rgba(239,143,140,.12)}
+.attrib{font-size:.8rem;color:var(--muted);margin-top:16px;border-top:1px solid var(--line);padding-top:12px;line-height:1.6}
+
+.fxp{position:absolute;font-size:1.1rem;will-change:transform,opacity;
+  animation:rise var(--t,900ms) ease-out forwards}
+@keyframes rise{0%{transform:translate(-50%,-50%) scale(.6);opacity:0}
+  15%{opacity:1}100%{transform:translate(calc(-50% + var(--dx,0px)),calc(-50% + var(--dy,-110px))) rotate(var(--dr,0deg)) scale(1);opacity:0}}
+@keyframes pop{0%{transform:scale(.7);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+.shoot{position:absolute;width:2px;height:2px;background:#fff;border-radius:50%;
+  box-shadow:0 0 6px 1px #fff;opacity:0}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<div id="fx"></div>
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><span class="sigil">☿</span><h1>The Heads of Things</h1></div>
+    <div class="score">
+      <button class="chip who" id="switchProfile" title="Switch traveler">🪐 <span id="profileName">—</span></button>
+      <span class="chip star">⭐ <span id="starNum">0</span></span>
+      <span class="chip heart">♥ <span id="heartNum">0</span></span>
+    </div>
+    <div class="rankline" id="rankLine">Seeker</div>
+  </div>
+
+  <div id="gate"></div>
+
+  <div id="home" hidden>
+    <div class="hero">
+      <div class="eyebrow">Corpus Hermeticum · Book I</div>
+      <h2>Welcome, <span class="nm">Star</span>.</h2>
+      <p>These are the <b>Heads of Things</b> — Hermes' short, true sayings about what is. They are the keys: hold them, and the rest of the Corpus opens more easily. Choose how you want to carry them today.</p>
+    </div>
+
+    <div class="label">Ways to study</div>
+    <div class="primary-modes" id="primaryModes"></div>
+
+    <div class="label">Focused practice</div>
+    <div class="focus-row" id="focusRow"></div>
+
+    <div class="parent-link"><button id="openParent">Notes &amp; attribution</button></div>
+  </div>
+
+  <div id="play" hidden></div>
+</div>
+
+<div id="parentSheet" class="sheet" hidden>
+  <div class="sheet-inner">
+    <button class="back sheet-close" id="closeParent" aria-label="Close">✕</button>
+    <h2>Notes &amp; attribution</h2>
+    <p>A memory practice for the <b>Heads of Things</b> (Book I of the Divine Pymander), in <b>Majick's Modernization</b>. Original wording is John Everard's 1650 translation.</p>
+    <div class="note">The <b>59 finalized (locked)</b> heads are included. Parked, flagged and not-yet-worked verses (37–39, 43, 61–62, 69, 80–88) are left out until they're settled.</div>
+    <div class="note"><b>Mixed Path</b> shuffles every question type and leans on the heads missed most — the fullest way to carry them.<br>
+      <b>Recall</b> is active recall with honest self-rating; the strongest way to commit them to memory.<br>
+      <b>Focused practice</b> drills one style at a time: Choose, Fill, Match, Build.</div>
+    <div class="note"><b>Stars</b> ⭐ mark heads mastered. <b>Hearts</b> ♥ are earned for returning and trying again, and for turning a missed head into a mastered one. Progress saves on this device.</div>
+    <button class="reset" id="resetBtn">Reset all progress</button>
+    <p class="attrib">Label for published use: “Majick's Modernization.” Original wording: John Everard, 1650.</p>
+  </div>
+</div>
+
+<script>
+/* ===== DATA: 59 locked heads (Majick's Modernization) ===== */
+/* game: 1 Choose · 2 Fill · 3 Match · 4 Build. key = Fill blank word. */
+const HEADS=[
+ {n:14,game:1,icon:"🌀",text:"All things that are, are moved; only that which is not is immovable.",mean:"Everything real is always moving. Only nothing-at-all can hold perfectly still."},
+ {n:15,game:4,icon:"🔄",text:"Every body is changeable.",mean:"Anything with a body can change."},
+ {n:16,game:4,icon:"🧊",text:"Not every body is dissolvable.",mean:"Some bodies never fall apart."},
+ {n:17,game:4,icon:"💨",text:"Some bodies are dissolvable.",mean:"Some bodies do fall apart."},
+ {n:18,game:2,icon:"♾️",text:"Not every living being is mortal.",mean:"Some living things never die.",key:"mortal"},
+ {n:19,game:2,icon:"⏳",text:"Nor is every living thing immortal.",mean:"Some living things do die someday.",key:"immortal"},
+ {n:20,game:1,icon:"🍂",text:"That which may be dissolved is also corruptible.",mean:"If something can fall apart, it can also spoil."},
+ {n:21,game:1,icon:"🗿",text:"That which endures as the same is unchangeable.",mean:"What always stays the same can never change."},
+ {n:22,game:2,icon:"♾️",text:"That which is unchangeable is eternal.",mean:"What never changes lasts forever.",key:"eternal"},
+ {n:23,game:1,icon:"🔨",text:"That which is always made is always corrupted.",mean:"What is made over and over keeps wearing out."},
+ {n:24,game:1,icon:"💎",text:"That which is made but once is never corrupted, nor does it become any other thing.",mean:"What is made only once never spoils and never turns into anything else."},
+ {n:25,game:2,icon:"🥇",text:"Firstly, God; secondly, the World; thirdly, Humans.",mean:"The order of things: first God, then the World, then people.",key:"Humans"},
+ {n:26,game:2,icon:"🎁",text:"The World for Humans; Humans for God.",mean:"The World is made for people, and people are made for God.",key:"God"},
+ {n:27,game:2,icon:"🧠",text:"Of the Soul: the part that is ruled by the senses is mortal, but the part governed by Reason is immortal.",mean:"The part of the soul that feels can die; the part that reasons lives forever.",key:"immortal"},
+ {n:28,game:4,icon:"✨",text:"Every Essence is immortal.",mean:"Every true inner nature never dies."},
+ {n:29,game:4,icon:"🔒",text:"Every Essence is unchangeable.",mean:"Every true inner nature never changes."},
+ {n:30,game:3,icon:"☯️",text:"Everything that is, is twofold in nature.",mean:"Everything real has two sides to it."},
+ {n:31,game:4,icon:"🏃",text:"None of the things that are stand still.",mean:"Nothing that is real ever stands still."},
+ {n:32,game:1,icon:"🌬️",text:"Not all things are moved by a soul; but everything that is, is moved by a soul.",mean:"A soul is what moves everything that truly is."},
+ {n:33,game:3,icon:"😣",text:"Everything that suffers is sensible in its nature; everything sensible in its nature suffers.",mean:"Whatever can feel can hurt — and whatever can hurt can feel."},
+ {n:34,game:2,icon:"😊",text:"Everything that feels sorrow also feels joy, and is a mortal living creature.",mean:"Whoever can feel sorrow can feel joy — and that one is mortal.",key:"joy"},
+ {n:35,game:2,icon:"🌟",text:"Not everything that feels joy also feels sorrow, but is an eternal living thing.",mean:"Some feel joy without any sorrow — and those live forever.",key:"sorrow"},
+ {n:36,game:3,icon:"🤒",text:"Not all bodies are subject to sickness; every body that is sick is dissolvable.",mean:"Not every body can get sick, but a body that can get sick can fall apart."},
+ {n:40,game:4,icon:"🧘",text:"The Mind is free from suffering.",mean:"The Mind can never be hurt."},
+ {n:41,game:4,icon:"🎭",text:"No thing in a body is true.",mean:"Nothing held inside a body is fully true."},
+ {n:42,game:3,icon:"🕊️",text:"All that is not in a body (incorporeal) is devoid of lying.",mean:"Anything without a body never lies."},
+ {n:44,game:2,icon:"⬆️",text:"There is nothing good on Earth, and nothing evil in Heaven.",mean:"Earth holds no perfect good, and Heaven holds no evil.",key:"Heaven"},
+ {n:45,game:2,icon:"⚖️",text:"God is good, and Humans are evil.",mean:"God is wholly good; people still carry evil in them.",key:"evil"},
+ {n:46,game:2,icon:"🤲",text:"Good is voluntary, or of its own free Will.",mean:"Good is chosen freely.",key:"free"},
+ {n:47,game:2,icon:"⛓️",text:"Evil is involuntary, or against its Will.",mean:"Evil is not truly chosen — it goes against the true will.",key:"against"},
+ {n:48,game:2,icon:"😇",text:"The gods choose good things for having the nature of the good.",mean:"Good beings choose good, because good is their nature.",key:"gods"},
+ {n:49,game:4,icon:"⏰",text:"Time is a Divine thing.",mean:"Time is a divine thing."},
+ {n:50,game:4,icon:"📜",text:"Law is human.",mean:"Law is made by people."},
+ {n:51,game:3,icon:"🌍",text:"The World feeds off of Maliciousness.",mean:"The World is fed by maliciousness."},
+ {n:52,game:4,icon:"⌛",text:"Time is the corruption of Humans.",mean:"Time wears people out."},
+ {n:53,game:4,icon:"🌌",text:"Whatever is in Heaven is unchangeable.",mean:"Everything in Heaven stays the same."},
+ {n:54,game:4,icon:"🌦️",text:"All that is on Earth is changeable.",mean:"Everything on Earth can change."},
+ {n:55,game:3,icon:"🔓",text:"Nothing in Heaven is enslaved; nothing on Earth is free.",mean:"Heaven holds nothing in bondage; Earth holds nothing fully free."},
+ {n:56,game:3,icon:"❓",text:"In Heaven nothing is unknown; on Earth nothing is known.",mean:"Heaven knows all; Earth knows nothing all the way."},
+ {n:57,game:3,icon:"📵",text:"The things on Earth do not communicate with those in Heaven.",mean:"Earthly things cannot reach up to heavenly ones."},
+ {n:58,game:3,icon:"🏛️",text:"All things in Heaven are unblameable; all things on Earth are subject to judgment.",mean:"Heaven cannot be blamed; Earth is subject to judgment."},
+ {n:59,game:3,icon:"🔁",text:"That which is immortal is not mortal; that which is mortal is not immortal.",mean:"The deathless is not dying; the dying is not deathless."},
+ {n:60,game:2,icon:"🌱",text:"Every act is a karmic seed planted, but not every seed bears fruit; yet every fruit came from a seed that was planted.",mean:"Every act plants a seed. Not every seed bears fruit, but every fruit came from a seed.",key:"act"},
+ {n:63,game:1,icon:"📊",text:"Dissolvable bodies are increased and reduced.",mean:"Bodies that can fall apart grow and shrink."},
+ {n:64,game:3,icon:"🔀",text:"Dissolvable matter is changed into its opposites — namely, Corruption and Generation, but Eternal matter changes only into itself and what is of like quality.",mean:"Matter that falls apart turns into its opposite; eternal matter turns only into more of its own kind."},
+ {n:65,game:3,icon:"🌗",text:"The Generation of Humans is corruption; the Corruption of Humans is the start of Generation.",mean:"Being born begins the wearing-out; the wearing-out begins a new birth."},
+ {n:66,game:2,icon:"👶",text:"That which produces offspring or gives birth to another, is itself an offspring, birthed by another.",mean:"Whatever gives birth to another was itself born of another.",key:"birth"},
+ {n:67,game:3,icon:"💭",text:"Of things that are, some are in bodies, some in their IDEAS.",mean:"Of real things, some exist in bodies and some as ideas."},
+ {n:68,game:1,icon:"🛠️",text:"Whatsoever things belong to operation or working are in a body, for operations and workings need a body.",mean:"Doing and working always need a body."},
+ {n:70,game:3,icon:"⬇️",text:"That which is mortal does not enter an immortal body; but that which is immortal enters into that which is mortal.",mean:"The mortal cannot enter the immortal, but the immortal can enter the mortal."},
+ {n:71,game:1,icon:"🪂",text:"Operation or Workings are not carried upwards, but descend downwards.",mean:"Work flows downward, never upward."},
+ {n:72,game:3,icon:"🌧️",text:"Things on Earth give no advantage to those in Heaven; but all things in Heaven profit and benefit all things on Earth.",mean:"Earth gives Heaven nothing, but Heaven benefits all of Earth."},
+ {n:73,game:1,icon:"🏺",text:"Heaven is capable, and a fit receptacle of everlasting Bodies; the Earth of corruptible Bodies.",mean:"Heaven is the fit vessel for everlasting bodies; Earth for corruptible ones."},
+ {n:74,game:1,icon:"🌿",text:"The Earth is brutish; the Heaven is reasonable or rational.",mean:"Earth is brutish; Heaven is rational."},
+ {n:75,game:1,icon:"📍",text:"Those things that are in Heaven are subjected or placed under it, but the things on earth are placed upon it.",mean:"Heaven's things are set under it; Earth's things are set upon it."},
+ {n:76,game:4,icon:"🌠",text:"Heaven is the first element.",mean:"Heaven is the first element."},
+ {n:77,game:4,icon:"🗂️",text:"Providence is Divine order.",mean:"Providence is divine order."},
+ {n:78,game:1,icon:"🤝",text:"Necessity is the Minister or Servant of Providence.",mean:"Necessity is the servant of Providence."},
+ {n:79,game:1,icon:"🎲",text:"Fortune is the outcome of that which is without order; the idol of operation, a lying fantasy or opinion.",mean:"Fortune comes from what has no order — a false idol and a lying opinion."},
+];
+const byN=Object.fromEntries(HEADS.map(h=>[h.n,h]));
+
+/* ===== state (per traveler profile) ===== */
+function load(k,def){try{const r=localStorage.getItem(k);return r?JSON.parse(r):def;}catch(e){return def;}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+let activeId=null,done=new Set(),hearts=0,missed=new Set(),best=0,streak=0;
+function pkey(s){return "majick-p-"+activeId+"-"+s;}
+function loadProfileState(){done=new Set(load(pkey("done"),[]));hearts=load(pkey("hearts"),0);
+  missed=new Set(load(pkey("missed"),[]));best=load(pkey("best"),0);streak=0;}
+function persist(){save(pkey("done"),[...done]);save(pkey("hearts"),hearts);save(pkey("missed"),[...missed]);save(pkey("best"),best);}
+/* profiles */
+function getProfiles(){return load("majick-profiles",[]);}
+function setProfiles(p){save("majick-profiles",p);}
+function newId(){return "u"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+
+/* ===== helpers ===== */
+const $=s=>document.querySelector(s);
+const play=$("#play"),home=$("#home");
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+function norm(s){return s.trim().toLowerCase().replace(/^[^a-z0-9]+|[^a-z0-9]+$/g,"");}
+function wc(h){return h.text.split(" ").length;}
+function rankName(s){return s>=59?"Mistress of the Heads":s>=45?"Hermit of the Heads":s>=30?"Adept":s>=15?"Keeper of Keys":s>=5?"Student of the Heads":"Seeker";}
+const PRAISE=["Held.","That's the one.","Clear.","Exactly.","Carried.","Yes — held."];
+const AGAIN=["Not yet — look again.","Return and try. The attempt counts.","Almost. Once more.","Steady — try again."];
+function pick(a){return a[Math.floor(Math.random()*a.length)];}
+
+/* ===== scoring + fx ===== */
+function updateScore(){
+  $("#starNum").textContent=done.size;
+  $("#heartNum").textContent=hearts;
+  $("#rankLine").textContent=rankName(done.size);
+  const sg=document.querySelector(".sage");
+  if(sg){const k=Math.min(streak,10);sg.style.setProperty("--aura",1+k*0.06);sg.style.setProperty("--glow",(0.22+k*0.05).toFixed(2));}
+}
+function sageReact(ok){const sg=document.querySelector(".sage");if(!sg)return;
+  sg.classList.remove("cheer","sway");void sg.offsetWidth;sg.classList.add(ok?"cheer":"sway");
+  setTimeout(()=>sg.classList.remove("cheer","sway"),760);}
+function burst(el,kind,count){
+  const fx=$("#fx");if(!el)return;const r=el.getBoundingClientRect();
+  const cx=r.left+r.width/2,cy=r.top+r.height/2;
+  const set=kind==="heart"?["♥","💛","💗"]:["⭐","✨","🌟","💫"];
+  for(let i=0;i<count;i++){
+    const s=document.createElement("span");s.className="fxp";s.textContent=pick(set);
+    s.style.left=cx+"px";s.style.top=cy+"px";
+    s.style.setProperty("--dx",(Math.random()*160-80).toFixed(0)+"px");
+    s.style.setProperty("--dy",(-Math.random()*90-50).toFixed(0)+"px");
+    s.style.setProperty("--dr",(Math.random()*120-60).toFixed(0)+"deg");
+    s.style.setProperty("--t",(700+Math.random()*500).toFixed(0)+"ms");
+    s.style.fontSize=(0.9+Math.random()*0.8).toFixed(2)+"rem";
+    fx.appendChild(s);setTimeout(()=>s.remove(),1300);
+  }
+}
+const heartChip=()=>document.querySelector(".chip.heart");
+function award(n){ if(!done.has(n)){done.add(n);} }
+/* correct: master head, streak up, confetti; bonus hearts if it was previously missed */
+function onCorrect(h,anchor){
+  const wasMissed=missed.has(h.n)&&!done.has(h.n);
+  const fresh=!done.has(h.n);
+  award(h.n);streak++;if(streak>best)best=streak;
+  if(wasMissed){hearts+=2;missed.delete(h.n);}
+  persist();updateScore();sageReact(true);
+  burst(anchor||document.querySelector(".sage .fig"),"star",wasMissed?14:9);
+  if(wasMissed)burst(heartChip(),"heart",2);
+  return wasMissed;
+}
+/* wrong / retry: reward perseverance */
+function onRetry(h,anchor){
+  streak=0;hearts+=1;if(h)missed.add(h.n);persist();updateScore();sageReact(false);
+  burst(heartChip(),"heart",1);
+}
+
+/* ===== home ===== */
+const PRIMARY=[
+ {mode:"mix",glyph:"🜔",title:"Mixed Path",sub:"All question types, shuffled — leaning on the heads you've missed.",tag:"Start here"},
+ {mode:"recall",glyph:"🕯️",title:"Recall",sub:"Bring each head to mind, then judge yourself. The deepest way to remember.",tag:null},
+];
+const FOCUS=[
+ {id:1,key:"choose",t:"Choose",g:"🔭",cls:"f1"},
+ {id:2,key:"fill",t:"Fill",g:"✒️",cls:"f2"},
+ {id:3,key:"match",t:"Match",g:"🧩",cls:"f3"},
+ {id:4,key:"build",t:"Build",g:"🪄",cls:"f4"},
+];
+function renderHome(){
+  updateScore();
+  const mastered=done.size,total=HEADS.length,pct=Math.round(mastered/total*100);
+  const pm=$("#primaryModes");pm.innerHTML="";
+  PRIMARY.forEach(m=>{
+    const b=document.createElement("button");b.className="mode"+(m.mode==="recall"?" recall":"");
+    b.innerHTML=`${m.tag?`<span class="tag">${m.tag}</span>`:""}
+      <span class="glyph">${m.glyph}</span><h3>${m.title}</h3><span class="sub">${m.sub}</span>
+      <span class="meter"><span class="bar"><i style="width:${pct}%"></i></span><span class="n">${mastered}/${total}</span></span>`;
+    b.onclick=()=>startSession(m.mode);
+    pm.appendChild(b);
+  });
+  const fr=$("#focusRow");fr.innerHTML="";
+  FOCUS.forEach(f=>{
+    const set=HEADS.filter(h=>h.game===f.id),d=set.filter(h=>done.has(h.n)).length;
+    const b=document.createElement("button");b.className="fbtn "+f.cls;
+    b.innerHTML=`<span class="g">${f.g}</span><span class="t">${f.t}</span><span class="c">${d}/${set.length} ⭐</span>`;
+    b.onclick=()=>startFocused(f.id);
+    fr.appendChild(b);
+  });
+}
+function goHome(){play.hidden=true;home.hidden=false;renderHome();window.scrollTo(0,0);}
+
+/* ===== session model ===== */
+let S=null; // {label, items:[{h,type}], idx, requeued:Set, matchMode:false}
+function orderedHeads(all){
+  const miss=all.filter(h=>missed.has(h.n)&&!done.has(h.n));
+  const todo=all.filter(h=>!done.has(h.n)&&!missed.has(h.n));
+  const dn=all.filter(h=>done.has(h.n));
+  return [...shuffle(miss),...shuffle(todo),...shuffle(dn)];
+}
+function typeForMix(h){ // match can't be single-item → becomes choose
+  return h.game===2?"fill":h.game===4?"build":h.game===3?"choose":"choose";
+}
+function startSession(mode){
+  if(mode==="mix"){
+    S={label:"Mixed Path",items:orderedHeads(HEADS).map(h=>({h,type:typeForMix(h)})),idx:0,requeued:new Set()};
+  }else{ // recall
+    S={label:"Recall",items:orderedHeads(HEADS).map(h=>({h,type:"recall"})),idx:0,requeued:new Set()};
+  }
+  enterPlay();
+}
+function startFocused(id){
+  const set=HEADS.filter(h=>h.game===id);
+  if(id===3){S={label:"Match",matchMode:true,set:orderedHeads(set),idx:0,requeued:new Set()};}
+  else{
+    const type=id===1?"choose":id===2?"fill":"build";
+    const q=orderedHeads(set);
+    S={label:FOCUS.find(f=>f.id===id).t,items:q.map(h=>({h,type})),idx:0,requeued:new Set()};
+  }
+  enterPlay();
+}
+function enterPlay(){home.hidden=true;play.hidden=false;window.scrollTo(0,0);renderStep();}
+function sessionCount(){return S.matchMode?S.set.length:S.items.length;}
+function reenqueue(h,type){ if(S.requeued.has(h.n))return; S.requeued.add(h.n); S.items.push({h,type}); }
+
+function header(){
+  const total=sessionCount(),cur=Math.min(S.idx+1,total),pct=Math.round(S.idx/total*100);
+  return `<div class="play-top"><button class="back" id="backBtn" aria-label="Home">←</button>
+    <span class="play-title">${S.label}</span><span class="sess">${cur} / ${total}</span></div>
+    <div class="pbar"><i style="width:${pct}%"></i></div>
+    <div class="sage"><div class="halo"></div><div class="ring"><b>✦</b></div><div class="fig">🧘‍♀️</div></div>`;
+}
+function advance(){S.idx++;const total=S.matchMode?S.set.length:S.items.length;
+  if(S.idx>=total){renderDone();return;}renderStep();}
+function renderStep(){
+  if(S.matchMode){renderMatch();}
+  else{const it=S.items[S.idx];
+    if(it.type==="choose")renderChoose(it.h);
+    else if(it.type==="fill")renderFill(it.h);
+    else if(it.type==="build")renderBuild(it.h);
+    else renderRecall(it.h);
+  }
+  const b=$("#backBtn");if(b)b.onclick=goHome;updateScore();window.scrollTo(0,0);
+}
+
+/* ===== Choose ===== */
+function renderChoose(h){
+  const opts=shuffle([h.mean,...shuffle(HEADS.filter(x=>x.n!==h.n)).slice(0,3).map(x=>x.mean)]);
+  play.innerHTML=header()+`<div class="panel">
+    <span class="vicon">${h.icon}</span><div class="vtag">Head ${h.n}</div>
+    <div class="vtext">${esc(h.text)}</div>
+    <div class="ask">What does it mean?</div>
+    <div class="opts" id="opts"></div>
+    <div class="feedback" id="fb"></div>
+    <div class="actions"><button class="btn" id="next" disabled>Continue</button></div></div>`;
+  const box=$("#opts");
+  opts.forEach(t=>{const b=document.createElement("button");b.className="opt";b.textContent=t;
+    b.onclick=()=>{if(box.dataset.lock)return;
+      if(t===h.mean){box.dataset.lock="1";b.classList.add("correct");[...box.children].forEach(c=>c.disabled=true);
+        const imp=onCorrect(h,b);$("#fb").textContent=imp?"Recovered — that one's yours now. ♥":pick(PRAISE);$("#fb").className="feedback good";
+        $("#next").disabled=false;$("#next").focus();}
+      else{b.classList.add("wrong");b.disabled=true;onRetry(h,b);
+        $("#fb").textContent=pick(AGAIN)+"  +1 ♥";$("#fb").className="feedback try";}};
+    box.appendChild(b);});
+  $("#next").onclick=advance;
+}
+
+/* ===== Fill ===== */
+function renderFill(h){
+  const re=new RegExp("\\b"+h.key.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b");
+  play.innerHTML=header()+`<div class="panel">
+    <span class="vicon">${h.icon}</span><div class="vtag">Head ${h.n}</div>
+    <div class="ask">Fill the missing word</div>
+    <div class="fill-line" id="fl">${esc(h.text).replace(re,'<span class="blank">?</span>')}</div>
+    <input class="fill-input" id="fin" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="the word" aria-label="missing word">
+    <div class="hint">begins with <b>${h.key[0].toUpperCase()}</b> · ${h.key.length} letters</div>
+    <div class="feedback" id="fb"></div>
+    <div class="actions"><button class="btn" id="check">Check</button><button class="btn" id="next" disabled>Continue</button></div></div>`;
+  const inp=$("#fin");let solved=false;
+  function check(){if(solved)return;
+    if(norm(inp.value)===norm(h.key)){solved=true;
+      $("#fl").innerHTML=esc(h.text).replace(re,'<span class="blank" style="color:var(--good);border-color:var(--good)">'+esc(h.key)+'</span>');
+      const imp=onCorrect(h,$("#check"));$("#fb").textContent=imp?"Recovered — held now. ♥":pick(PRAISE);$("#fb").className="feedback good";
+      $("#next").disabled=false;$("#check").disabled=true;inp.disabled=true;$("#next").focus();}
+    else{onRetry(h,$("#check"));$("#fb").textContent=pick(AGAIN)+"  +1 ♥";$("#fb").className="feedback try";inp.select();}}
+  $("#check").onclick=check;
+  inp.addEventListener("keydown",e=>{if(e.key==="Enter")check();});
+  $("#next").onclick=advance;setTimeout(()=>inp.focus(),80);
+}
+
+/* ===== Build (scramble) ===== */
+function renderBuild(h){
+  const words=h.text.split(" ").map((w,i)=>({id:i,w}));let pool=shuffle(words);
+  if(pool.length>1&&pool.every((c,i)=>c.id===i))pool=shuffle(pool);
+  play.innerHTML=header()+`<div class="panel">
+    <span class="vicon">${h.icon}</span><div class="vtag">Head ${h.n}</div>
+    <div class="ask">Set the words in order</div>
+    <div class="answer-line" id="ans"></div><div class="pool" id="pool"></div>
+    <div class="feedback" id="fb"></div>
+    <div class="actions"><button class="btn ghost" id="peek">Peek</button><button class="btn" id="check">Check</button><button class="btn" id="next" disabled>Continue</button></div></div>`;
+  const ansEl=$("#ans"),poolEl=$("#pool"),fb=$("#fb");let placed=[],solved=false;
+  function draw(){ansEl.innerHTML="";placed.forEach(c=>{const b=document.createElement("button");b.className="chipw placed";b.textContent=c.w;
+      b.onclick=()=>{if(solved)return;placed=placed.filter(x=>x!==c);pool.push(c);draw();};ansEl.appendChild(b);});
+    poolEl.innerHTML="";pool.forEach(c=>{const b=document.createElement("button");b.className="chipw";b.textContent=c.w;
+      b.onclick=()=>{if(solved)return;pool=pool.filter(x=>x!==c);placed.push(c);draw();};poolEl.appendChild(b);});}
+  draw();
+  $("#check").onclick=()=>{if(solved)return;
+    if(pool.length){fb.textContent="Use every word.";fb.className="feedback try";return;}
+    if(placed.map(c=>c.w).join(" ")===h.text){solved=true;
+      const imp=onCorrect(h,$("#check"));fb.textContent=imp?"Recovered — held now. ♥":pick(PRAISE);fb.className="feedback good";
+      [...ansEl.children].forEach(c=>c.style.borderColor="var(--good)");
+      $("#next").disabled=false;$("#check").disabled=true;$("#peek").disabled=true;$("#next").focus();}
+    else{onRetry(h,$("#check"));fb.textContent=pick(AGAIN)+"  +1 ♥";fb.className="feedback try";}};
+  $("#peek").onclick=()=>{fb.innerHTML='<span class="reveal-mean">'+esc(h.text)+'</span>';fb.className="feedback";
+    setTimeout(()=>{if(fb.querySelector(".reveal-mean"))fb.textContent="";},2600);};
+  $("#next").onclick=advance;
+}
+
+/* ===== Recall (active recall + self-rate) ===== */
+function renderRecall(h){
+  play.innerHTML=header()+`<div class="panel">
+    <span class="vicon">${h.icon}</span><div class="vtag">Head ${h.n}</div>
+    <div class="ask">Bring the head to mind</div>
+    <div class="recall-cue">${esc(h.mean)}</div>
+    <div id="revealZone"></div>
+    <div class="actions" id="revealAct"><button class="btn" id="reveal">Reveal the head</button></div></div>`;
+  $("#reveal").onclick=()=>{
+    $("#revealZone").innerHTML=`<div class="recall-reveal">${esc(h.text)}</div>`;
+    $("#revealAct").outerHTML=`<div class="rate" id="rate">
+      <button class="held">Held<span class="sm">I knew it</span></button>
+      <button class="almost">Almost<span class="sm">nearly</span></button>
+      <button class="missed">Missed<span class="sm">not yet</span></button></div>`;
+    const rt=$("#rate");
+    rt.querySelector(".held").onclick=e=>{const imp=onCorrect(h,e.currentTarget);
+      flash(imp?"Recovered — held. ♥":"Held. ⭐");setTimeout(advance,520);};
+    rt.querySelector(".almost").onclick=e=>{onRetry(h,e.currentTarget);reenqueue(h,"recall");
+      flash("Noted — it returns soon. +1 ♥");setTimeout(advance,560);};
+    rt.querySelector(".missed").onclick=e=>{onRetry(h,e.currentTarget);reenqueue(h,"recall");
+      flash("Honest — it returns soon. +1 ♥");setTimeout(advance,560);};
+  };
+  function flash(msg){const p=document.querySelector(".panel");const d=document.createElement("div");
+    d.className="feedback good";d.textContent=msg;p.appendChild(d);}
+}
+
+/* ===== Match (focused only) ===== */
+function renderMatch(){
+  const BATCH=4,start=Math.floor(S.idx/BATCH)*BATCH,batch=S.set.slice(start,start+BATCH);
+  const right=shuffle(batch);
+  play.innerHTML=header()+`<div class="panel">
+    <div class="ask">Join each head to its meaning</div>
+    <div class="match-grid"><div class="mcol"><h4>Heads</h4><div id="ml"></div></div>
+      <div class="mcol"><h4>Meanings</h4><div id="mr"></div></div></div>
+    <div class="feedback" id="fb"></div>
+    <div class="actions"><button class="btn" id="next" disabled>Continue</button></div></div>`;
+  const L=$("#ml"),R=$("#mr");[L,R].forEach(c=>{c.style.display="flex";c.style.flexDirection="column";c.style.gap="9px";});
+  let sel=null,got=0;
+  batch.forEach(x=>{const b=document.createElement("button");b.className="mitem";b.dataset.n=x.n;
+    b.innerHTML=`<span class="mi">${x.icon}</span><span>${esc(x.text)}</span>`;
+    b.onclick=()=>{if(b.classList.contains("matched"))return;[...L.children].forEach(c=>c.classList.remove("sel"));b.classList.add("sel");sel=x.n;};
+    L.appendChild(b);});
+  right.forEach(x=>{const b=document.createElement("button");b.className="mitem";b.dataset.n=x.n;
+    b.innerHTML=`<span>${esc(x.mean)}</span>`;
+    b.onclick=()=>{if(b.classList.contains("matched"))return;
+      if(sel==null){$("#fb").textContent="Choose a head first.";$("#fb").className="feedback try";return;}
+      if(sel===x.n){b.classList.add("matched");const lb=[...L.children].find(c=>+c.dataset.n===x.n);lb.classList.add("matched");lb.classList.remove("sel");
+        onCorrect(byN[x.n],b);sel=null;got++;$("#fb").textContent=pick(PRAISE);$("#fb").className="feedback good";
+        if(got===batch.length){$("#fb").textContent="Set complete.";$("#next").disabled=false;$("#next").focus();}}
+      else{const h=byN[sel];b.classList.add("shake");setTimeout(()=>b.classList.remove("shake"),420);
+        onRetry(h,b);$("#fb").textContent=pick(AGAIN)+"  +1 ♥";$("#fb").className="feedback try";}};
+    R.appendChild(b);});
+  $("#next").onclick=()=>{const ns=start+BATCH;if(ns>=S.set.length)renderDone();else{S.idx=ns;renderStep();}};
+}
+
+/* ===== done ===== */
+function renderDone(){
+  const label=S.label;
+  play.innerHTML=`<div class="play-top"><button class="back" id="backBtn" aria-label="Home">←</button>
+    <span class="play-title">${label}</span></div>
+    <div class="panel done"><div class="big">🌟</div>
+    <h2>The session is complete, Star.</h2>
+    <p>You moved through ${sessionCount()} heads. What you held is kept; what slipped will return.</p>
+    <div class="tally"><div><div class="v">⭐ ${done.size}</div><div class="k">mastered</div></div>
+      <div><div class="v">♥ ${hearts}</div><div class="k">perseverance</div></div>
+      <div><div class="v">${rankName(done.size)}</div><div class="k">rank</div></div></div>
+    <div class="actions"><button class="btn" id="homeBtn">Return</button></div></div>`;
+  $("#backBtn").onclick=goHome;$("#homeBtn").onclick=goHome;
+  burst(document.querySelector(".done .big"),"star",16);
+}
+
+/* ===== parent sheet ===== */
+$("#openParent").onclick=()=>{$("#parentSheet").hidden=false;};
+$("#closeParent").onclick=()=>{$("#parentSheet").hidden=true;};
+$("#parentSheet").addEventListener("click",e=>{if(e.target.id==="parentSheet")$("#parentSheet").hidden=true;});
+$("#resetBtn").onclick=()=>{done=new Set();hearts=0;missed=new Set();best=0;streak=0;persist();$("#parentSheet").hidden=true;renderHome();};
+
+/* ===== traveler profiles (soft login) ===== */
+const gate=$("#gate");
+function renderGate(){
+  document.body.classList.add("gated");
+  home.hidden=true;play.hidden=true;gate.hidden=false;
+  const ps=getProfiles();
+  gate.innerHTML=`<div class="hero"><div class="eyebrow">The Heads of Things</div>
+    <h2>Who is studying?</h2>
+    <p>Each traveler keeps their own stars, hearts and progress. Choose yours, or begin a new one.</p></div>
+    <div class="profiles" id="profiles"></div><div id="gateForm"></div>`;
+  const list=$("#profiles");
+  ps.forEach(p=>{const b=document.createElement("button");b.className="pcard";
+    b.innerHTML=`<span class="pav">${esc(p.name.slice(0,1).toUpperCase())}</span><span class="pnm">${esc(p.name)}</span>${p.pin?'<span class="plock">🔒</span>':''}`;
+    b.onclick=()=>selectProfile(p);list.appendChild(b);});
+  const add=document.createElement("button");add.className="pcard add";
+  add.innerHTML=`<span class="pav">＋</span><span class="pnm">New traveler</span>`;
+  add.onclick=showCreate;list.appendChild(add);
+}
+function selectProfile(p){
+  if(p.pin){$("#gateForm").innerHTML=`<div class="unlock"><div class="ulabel">${esc(p.name)}'s code</div>
+    <input class="pin-input" id="pinIn" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="code" placeholder="••••">
+    <div class="feedback try" id="pinfb"></div>
+    <div class="actions"><button class="btn ghost" id="pinBack">Back</button><button class="btn" id="pinGo">Enter</button></div></div>`;
+    const go=()=>{if($("#pinIn").value===p.pin)activate(p.id);else{$("#pinfb").textContent="Not quite — try again.";$("#pinIn").value="";$("#pinIn").focus();}};
+    $("#pinGo").onclick=go;$("#pinBack").onclick=()=>{$("#gateForm").innerHTML="";};
+    $("#pinIn").addEventListener("keydown",e=>{if(e.key==="Enter")go();});
+    setTimeout(()=>$("#pinIn").focus(),60);
+  } else activate(p.id);
+}
+function showCreate(){
+  $("#gateForm").innerHTML=`<div class="create"><div class="ulabel">Name</div>
+    <input class="pin-input name" id="newName" maxlength="18" placeholder="your name" aria-label="name">
+    <div class="ulabel">Secret code — optional, 4 digits</div>
+    <input class="pin-input" id="newPin" inputmode="numeric" maxlength="4" placeholder="leave blank for none" aria-label="code">
+    <div class="feedback try" id="newfb"></div>
+    <div class="actions"><button class="btn ghost" id="newCancel">Cancel</button><button class="btn" id="newGo">Begin</button></div></div>`;
+  $("#newCancel").onclick=()=>{$("#gateForm").innerHTML="";};
+  $("#newGo").onclick=()=>{const name=$("#newName").value.trim(),pin=$("#newPin").value.trim();
+    if(!name){$("#newfb").textContent="Please enter a name.";return;}
+    if(pin&&!/^\d{4}$/.test(pin)){$("#newfb").textContent="The code must be 4 digits, or left blank.";return;}
+    const ps=getProfiles();const id=newId();ps.push({id,name,pin:pin||null});setProfiles(ps);activate(id);};
+  setTimeout(()=>$("#newName").focus(),60);
+}
+function activate(id){activeId=id;save("majick-active",id);loadProfileState();showHome();}
+function showHome(){document.body.classList.remove("gated");gate.hidden=true;play.hidden=true;home.hidden=false;
+  const p=getProfiles().find(x=>x.id===activeId);$("#profileName").textContent=p?p.name:"—";
+  renderHome();window.scrollTo(0,0);}
+$("#switchProfile").onclick=()=>{activeId=null;renderGate();window.scrollTo(0,0);};
+
+/* ===== starfield + shooting stars ===== */
+(function(){const c=$("#sky"),x=c.getContext("2d");let w,hh,stars;
+  const reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;
+  function size(){w=c.width=innerWidth;hh=c.height=innerHeight;
+    stars=Array.from({length:Math.min(100,Math.floor(w*hh/13000))},()=>({x:Math.random()*w,y:Math.random()*hh,r:Math.random()*1.4+0.3,a:Math.random(),s:Math.random()*0.02+0.004}));}
+  let shoot=null,next=Date.now()+4000;
+  function frame(){x.clearRect(0,0,w,hh);
+    for(const st of stars){st.a+=st.s;x.globalAlpha=0.35+0.4*Math.sin(st.a);x.fillStyle="#e6c25c";x.beginPath();x.arc(st.x,st.y,st.r,0,7);x.fill();}
+    if(!reduce){if(!shoot&&Date.now()>next){shoot={x:Math.random()*w*0.6,y:Math.random()*hh*0.4,p:0};}
+      if(shoot){shoot.p+=0.03;const len=140,px=shoot.x+shoot.p*260,py=shoot.y+shoot.p*180;
+        const g=x.createLinearGradient(px-len,py-len*0.7,px,py);g.addColorStop(0,"rgba(255,255,255,0)");g.addColorStop(1,"rgba(255,255,255,0.9)");
+        x.globalAlpha=Math.max(0,1-shoot.p);x.strokeStyle=g;x.lineWidth=2;x.beginPath();x.moveTo(px-len,py-len*0.7);x.lineTo(px,py);x.stroke();
+        if(shoot.p>=1){shoot=null;next=Date.now()+5000+Math.random()*6000;}}}
+    x.globalAlpha=1;requestAnimationFrame(frame);}
+  size();frame();addEventListener("resize",size);
+})();
+
+renderGate();
+</script>
+</body>
+</html>
