@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Teaching Atlas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Nunito+Sans:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,800&display=swap">
+<style>
+/* A holistic map of all 17 Books across two tracks. Click a status pill to cycle it. */
+:root{
+  --bg:#0a1628; --bg2:#0e1f39; --card:#15284a; --card2:#1d3358;
+  --gold:#e6c25c; --gold-deep:#d4af37; --cream:#f1ede1; --muted:#9bb0d0;
+  --rose:#e8a6bf; --violet:#9a8cf0; --teal:#57c9bd;
+  --built:#63d39a; --partial:#e6c25c; --building:#9a8cf0; --planned:#6f86ab; --none:#3a4f73;
+  --line:#28406a; --maxw:900px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--cream);font-family:"Nunito Sans",system-ui,-apple-system,sans-serif;
+  font-weight:600;line-height:1.5;min-height:100%;position:relative;overflow-x:hidden}
+#sky{position:fixed;inset:0;z-index:0;pointer-events:none}
+.wrap{position:relative;z-index:1;max-width:var(--maxw);margin:0 auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:18px 48px}
+h1,h2,h3,h4{font-family:"Marcellus",Georgia,serif;font-weight:400;margin:0;text-wrap:balance}
+
+.head{margin-bottom:6px}
+.eyebrow{font-family:"Marcellus",serif;letter-spacing:3px;text-transform:uppercase;font-size:.72rem;color:var(--muted);margin-bottom:8px}
+.head h1{font-size:1.9rem;color:var(--gold)}
+.head p{margin:8px 0 0;color:var(--muted);font-size:.98rem;max-width:62ch;line-height:1.6}
+
+/* progress summary */
+.summary{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}
+@media (max-width:520px){.summary{grid-template-columns:1fr}}
+.sumcard{background:linear-gradient(160deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:16px;padding:16px 18px}
+.sumcard h3{font-size:.76rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.sumcard .big{font-family:"Marcellus",serif;font-size:1.7rem;color:var(--cream)}
+.sumcard .big b{color:var(--gold)}
+.sbar{height:9px;border-radius:999px;background:#0c1c36;border:1px solid var(--line);overflow:hidden;margin:10px 0 4px;display:flex}
+.sbar i{display:block;height:100%}
+.sbar .b-built{background:var(--built)} .sbar .b-partial{background:var(--partial)} .sbar .b-building{background:var(--building)}
+.sumcard .sl{font-size:.76rem;color:var(--muted)}
+
+.focus{background:#161a3a;border:1px solid #2c2f5e;border-radius:14px;padding:12px 16px;margin:4px 0 16px;display:flex;gap:10px;align-items:flex-start}
+.focus .fi{font-size:1.1rem}
+.focus .ft{font-size:.9rem;color:var(--cream)}
+.focus .ft b{color:var(--violet)}
+.focus .empty{color:var(--muted)}
+
+/* tabs */
+.tabs{display:flex;gap:8px;margin:0 0 16px}
+.tab{cursor:pointer;font:inherit;font-weight:700;background:var(--card);border:1px solid var(--line);color:var(--muted);
+  border-radius:999px;padding:9px 18px;letter-spacing:.3px}
+.tab.on{background:var(--gold);color:#241800;border-color:var(--gold)}
+
+/* legend */
+.legend{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 16px;font-size:.78rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:11px;height:11px;border-radius:50%;flex:none}
+.dot.built{background:var(--built)}.dot.partial{background:var(--partial)}.dot.building{background:var(--building)}
+.dot.planned{background:transparent;border:1.5px solid var(--planned)}.dot.none{background:var(--none)}
+
+/* book cards */
+.books{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:640px){.books{grid-template-columns:1fr}}
+.book{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:15px;display:flex;flex-direction:column;gap:10px;position:relative}
+.book.focused{border-color:var(--building);box-shadow:0 0 16px rgba(154,140,240,.18)}
+.book .bk-top{display:flex;align-items:baseline;gap:10px}
+.book .bk-n{font-family:"Marcellus",serif;font-size:1.2rem;color:var(--gold-deep);flex:none;min-width:1.6em}
+.book .bk-title{font-family:"Marcellus",serif;font-size:1.08rem;color:var(--cream);line-height:1.25}
+.book .bk-theme{font-size:.82rem;color:var(--muted);line-height:1.45}
+.track{border-top:1px solid var(--line);padding-top:9px}
+.track .tk-label{font-family:"Marcellus",serif;letter-spacing:1px;text-transform:uppercase;font-size:.64rem;color:var(--muted);margin-bottom:7px;display:flex;align-items:center;gap:6px}
+.track .tk-label .ic{font-size:.85rem}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill{cursor:pointer;font:inherit;font-weight:700;font-size:.78rem;border-radius:999px;padding:6px 11px;
+  border:1.5px solid var(--none);background:#0c1c36;color:var(--cream);display:inline-flex;align-items:center;gap:6px;line-height:1.2}
+.pill .pdot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--none)}
+.pill[data-s="built"]{border-color:var(--built)} .pill[data-s="built"] .pdot{background:var(--built)}
+.pill[data-s="partial"]{border-color:var(--partial)} .pill[data-s="partial"] .pdot{background:var(--partial)}
+.pill[data-s="building"]{border-color:var(--building);background:rgba(154,140,240,.14)} .pill[data-s="building"] .pdot{background:var(--building);animation:blink 1.1s infinite}
+.pill[data-s="planned"]{border-style:dashed;border-color:var(--planned);color:var(--muted)} .pill[data-s="planned"] .pdot{background:transparent;border:1.5px solid var(--planned)}
+.pill[data-s="none"]{border-color:var(--none);color:var(--muted);opacity:.8} .pill[data-s="none"] .pdot{background:var(--none)}
+.pill .pst{font-size:.66rem;opacity:.85;text-transform:uppercase;letter-spacing:.5px}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+.track .none-note{font-size:.78rem;color:var(--muted);font-style:italic}
+
+/* sections view */
+.sections{display:flex;flex-direction:column;gap:11px}
+.secgroup h2{font-family:"Marcellus",serif;font-size:.74rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:10px 2px 4px}
+.sec{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 15px;display:flex;gap:12px;align-items:flex-start}
+.sec .sec-ic{font-size:1.4rem;flex:none}
+.sec .sec-main{flex:1;min-width:0}
+.sec .sec-name{font-family:"Marcellus",serif;font-size:1.04rem;color:var(--cream)}
+.sec .sec-cov{font-size:.82rem;color:var(--muted);margin-top:3px;line-height:1.5}
+.sec .sec-cov .bk{color:var(--cream)}
+.sec .sec-status{flex:none}
+
+.toolbar{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}
+.tbtn{font:inherit;font-weight:700;cursor:pointer;border-radius:12px;padding:10px 16px;background:var(--card2);border:1px solid var(--line);color:var(--cream)}
+.tbtn:hover{border-color:var(--gold-deep)}
+.tbtn.warn{border-color:var(--rose);color:var(--rose)}
+.hintline{font-size:.8rem;color:var(--muted);margin-top:14px;text-align:center}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<div class="wrap">
+  <div class="head">
+    <div class="eyebrow">Hermes Revival · Holistic View</div>
+    <h1>The Teaching Atlas</h1>
+    <p>All 17 Books of the Divine Pymander, and how far each is built — across the adult study modules and Star's teaching sections. Tap any status to update it as the work moves.</p>
+  </div>
+
+  <div class="summary" id="summary"></div>
+  <div class="focus" id="focus"></div>
+
+  <div class="tabs">
+    <button class="tab on" id="tabBooks">By Book</button>
+    <button class="tab" id="tabSections">By Section</button>
+  </div>
+
+  <div class="legend">
+    <span><i class="dot built"></i> Built</span>
+    <span><i class="dot partial"></i> Partial</span>
+    <span><i class="dot building"></i> Working now</span>
+    <span><i class="dot planned"></i> Planned</span>
+    <span><i class="dot none"></i> Not started</span>
+  </div>
+
+  <div id="booksView"><div class="books" id="books"></div></div>
+  <div id="sectionsView" hidden><div class="sections" id="sections"></div></div>
+
+  <div class="toolbar">
+    <button class="tbtn warn" id="resetBtn">Reset to current state</button>
+  </div>
+  <div class="hintline">Changes save on this device. Set a section to “Working now” to flag what's in progress at the top.</div>
+</div>
+
+<script>
+/* ===== seed data ===== */
+const BOOKS=[
+ {n:1,title:"The First Book",theme:"Piety; the soul's war (one against two); the Heads of Things",
+  adult:[{m:"Heads of Things",s:"built"},{m:"Deep Learning",s:"partial"}],
+  star:[{m:"Star's Heads",s:"built"},{m:"Reading Path — Opening (vv.1–13)",s:"partial"}]},
+ {n:2,title:"The Second Book — Pymander",theme:"The vision of creation; the seven Governors; the descent of Man",
+  adult:[{m:"Seven Governors",s:"built"}],
+  star:[{m:"Reading Path — Pymander Vision (vv.1–19)",s:"partial"}]},
+ {n:3,title:"The Third Book — the Holy Sermon",theme:"The glory of the works of God",adult:[],star:[]},
+ {n:4,title:"The Fourth Book — the Key",theme:"The basin of Mind sent down; who is reborn",
+  adult:[{m:"Correspondence map notes",s:"planned"}],star:[]},
+ {n:5,title:"The Fifth Book",theme:"God unmanifest, yet most manifest in all things",adult:[],star:[]},
+ {n:6,title:"The Sixth Book",theme:"In God alone is good; the nature of Good and Evil",adult:[],star:[]},
+ {n:7,title:"The Seventh Book — Regeneration",theme:"The 12 Torments & 10 Powers; the Secret Song; rebirth",
+  adult:[{m:"Regeneration",s:"built"}],star:[{m:"Kids' Regeneration",s:"planned"}]},
+ {n:8,title:"The Eighth Book",theme:"The greatest evil in man is the not knowing God",adult:[],star:[]},
+ {n:9,title:"The Ninth Book",theme:"A universal sermon to Asclepius; thought and sense",adult:[],star:[]},
+ {n:10,title:"The Tenth Book — the Mind to Hermes",theme:"The Key: God ⊃ Eternity ⊃ World ⊃ Time ⊃ Generation",
+  adult:[{m:"The Mind",s:"built"},{m:"The Architecture",s:"planned"}],star:[]},
+ {n:11,title:"The Eleventh Book — the Common Mind",theme:"Mind, Fate, and the one Life",
+  adult:[{m:"The Mind",s:"partial"}],star:[]},
+ {n:12,title:"The Twelfth Book — Crater or Monas",theme:"The cup of Mind; speech and reason",adult:[],star:[]},
+ {n:13,title:"The Thirteenth Book — Sense & Understanding",theme:"How sense and understanding operate",adult:[],star:[]},
+ {n:14,title:"The Fourteenth Book — Operation & Sense",theme:"Action, passion, and sense",adult:[],star:[]},
+ {n:15,title:"The Fifteenth Book — of Truth",theme:"What is true; the eternal bodies",adult:[],star:[]},
+ {n:16,title:"The Sixteenth Book",theme:"None of the things that are can perish",adult:[],star:[]},
+ {n:17,title:"The Seventeenth Book",theme:"To Asclepius, to be truly wise; matter, making, wisdom",adult:[],star:[]},
+];
+/* app-wide systems (not tied to one Book) */
+const SYSTEMS=[
+ {ic:"🏆",m:"Gamification (XP, ranks, achievements)",s:"built"},
+ {ic:"🫘",m:"Beans economy + Shop",s:"built"},
+ {ic:"🧠",m:"Deep Learning System",s:"partial"},
+ {ic:"📖",m:"Reading Path framework",s:"built"},
+ {ic:"🪐",m:"Traveler profiles (soft login)",s:"built"},
+ {ic:"💡",m:"Hints + half-credit (all questions)",s:"built"},
+];
+const STATUSES=["none","planned","building","partial","built"];
+const SLABEL={none:"Not started",planned:"Planned",building:"Working",partial:"Partial",built:"Built"};
+
+/* ===== state ===== */
+const $=s=>document.querySelector(s);
+function load(k,d){try{const r=localStorage.getItem(k);return r?JSON.parse(r):d;}catch(e){return d;}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+const LS="hermes-atlas-status-v1";
+let overrides=load(LS,{}); // id -> status
+function idFor(n,track,i){return "b"+n+"-"+track+"-"+i;}
+function statusOf(n,track,i,seed){const id=idFor(n,track,i);return overrides[id]!==undefined?overrides[id]:seed;}
+function setStatus(id,s){overrides[id]=s;save(LS,overrides);}
+function sysId(i){return "sys-"+i;}
+function sysStatus(i,seed){const id=sysId(i);return overrides[id]!==undefined?overrides[id]:seed;}
+function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+function cycle(s){return STATUSES[(STATUSES.indexOf(s)+1)%STATUSES.length];}
+
+/* ===== compute ===== */
+function trackItems(track){return BOOKS.map(b=>({b,items:(track==="adult"?b.adult:b.star)}));}
+function bookTrackState(b,track){ // best status among a book's items in a track
+  const items=(track==="adult"?b.adult:b.star);
+  if(!items.length)return "none";
+  const order={built:4,partial:3,building:2,planned:1,none:0};
+  let best="none";items.forEach((it,i)=>{const s=statusOf(b.n,track,i,it.s);if(order[s]>order[best])best=s;});
+  return best;
+}
+function countTrack(track){
+  let built=0,partial=0,building=0;
+  BOOKS.forEach(b=>{const st=bookTrackState(b,track);if(st==="built")built++;else if(st==="partial")partial++;else if(st==="building")building++;});
+  return {built,partial,building,total:BOOKS.length};
+}
+function focusList(){ // all items currently "building"
+  const out=[];
+  BOOKS.forEach(b=>{["adult","star"].forEach(track=>{const items=track==="adult"?b.adult:b.star;
+    items.forEach((it,i)=>{if(statusOf(b.n,track,i,it.s)==="building")out.push({book:b,track,m:it.m});});});});
+  SYSTEMS.forEach((sy,i)=>{if(sysStatus(i,sy.s)==="building")out.push({system:true,m:sy.m});});
+  return out;
+}
+
+/* ===== render: summary + focus ===== */
+function renderSummary(){
+  const a=countTrack("adult"),s=countTrack("star");
+  function card(title,ic,c){
+    const pb=Math.round(c.built/c.total*100),pp=Math.round(c.partial/c.total*100),pg=Math.round(c.building/c.total*100);
+    return `<div class="sumcard"><h3>${ic} ${title}</h3>
+      <div class="big"><b>${c.built}</b> / ${c.total} <span style="font-size:1rem;color:var(--muted)">built</span></div>
+      <div class="sbar"><i class="b-built" style="width:${pb}%"></i><i class="b-partial" style="width:${pp}%"></i><i class="b-building" style="width:${pg}%"></i></div>
+      <div class="sl">${c.partial} partial · ${c.building} working · ${c.total-c.built-c.partial-c.building} to start</div></div>`;
+  }
+  $("#summary").innerHTML=card("Adult study","📚",a)+card("Star's path","✨",s);
+}
+function renderFocus(){
+  const f=focusList();const el=$("#focus");
+  if(!f.length){el.innerHTML=`<span class="fi">🎯</span><span class="ft empty">Nothing flagged as “Working now.” Tap a status pill until it reads <b style="color:var(--building)">Working</b> to mark what's in progress.</span>`;return;}
+  const parts=f.map(x=>x.system?`<b>${esc(x.m)}</b> (system)`:`<b>${esc(x.m)}</b> — Book ${x.book.n} <span style="color:var(--muted)">(${x.track==="adult"?"adult":"Star"})</span>`);
+  el.innerHTML=`<span class="fi">🎯</span><span class="ft">Working now: ${parts.join(" · ")}</span>`;
+}
+
+/* ===== render: books ===== */
+function pill(id,s,label){
+  return `<button class="pill" data-id="${id}" data-s="${s}"><span class="pdot"></span>${esc(label)}<span class="pst">${SLABEL[s]}</span></button>`;
+}
+function renderBooks(){
+  const wrap=$("#books");wrap.innerHTML="";
+  BOOKS.forEach(b=>{
+    const focused=bookTrackState(b,"adult")==="building"||bookTrackState(b,"star")==="building";
+    const el=document.createElement("div");el.className="book"+(focused?" focused":"");
+    function trackHtml(track,ic,label){
+      const items=track==="adult"?b.adult:b.star;
+      let inner;
+      if(!items.length)inner=`<span class="none-note">— not yet planned —</span>`;
+      else inner=`<div class="pills">`+items.map((it,i)=>pill(idFor(b.n,track,i),statusOf(b.n,track,i,it.s),it.m)).join("")+`</div>`;
+      return `<div class="track"><div class="tk-label"><span class="ic">${ic}</span> ${label}</div>${inner}</div>`;
+    }
+    el.innerHTML=`<div class="bk-top"><span class="bk-n">${b.n}</span><span class="bk-title">${esc(b.title)}</span></div>
+      <div class="bk-theme">${esc(b.theme)}</div>
+      ${trackHtml("adult","📚","Adult study")}
+      ${trackHtml("star","✨","Star's path")}`;
+    wrap.appendChild(el);
+  });
+  bindPills();
+}
+
+/* ===== render: sections ===== */
+function renderSections(){
+  const wrap=$("#sections");wrap.innerHTML="";
+  // aggregate modules across books per track
+  function group(track,ic,label){
+    const map={};
+    BOOKS.forEach(b=>{(track==="adult"?b.adult:b.star).forEach((it,i)=>{
+      (map[it.m]=map[it.m]||[]).push({n:b.n,id:idFor(b.n,track,i),s:statusOf(b.n,track,i,it.s)});});});
+    const names=Object.keys(map);
+    let html=`<div class="secgroup"><h2>${ic} ${label}</h2>`;
+    if(!names.length)html+=`<div class="sec"><div class="sec-main"><div class="sec-cov">Nothing yet.</div></div></div>`;
+    names.forEach(nm=>{
+      const covs=map[nm];
+      const books=covs.map(c=>`<span class="bk">Book ${c.n}</span> <button class="pill" data-id="${c.id}" data-s="${c.s}"><span class="pdot"></span>${SLABEL[c.s]}</button>`).join(" &nbsp; ");
+      html+=`<div class="sec"><span class="sec-ic">${track==="adult"?"📘":"🌟"}</span>
+        <div class="sec-main"><div class="sec-name">${esc(nm)}</div><div class="sec-cov">${books}</div></div></div>`;
+    });
+    html+=`</div>`;return html;
+  }
+  let html=group("adult","📚","Adult study sections")+group("star","✨","Star's teaching sections");
+  // systems
+  html+=`<div class="secgroup"><h2>⚙️ App-wide systems</h2>`;
+  SYSTEMS.forEach((sy,i)=>{
+    html+=`<div class="sec"><span class="sec-ic">${sy.ic}</span><div class="sec-main"><div class="sec-name">${esc(sy.m)}</div>
+      <div class="sec-cov"><button class="pill" data-id="${sysId(i)}" data-s="${sysStatus(i,sy.s)}"><span class="pdot"></span>${SLABEL[sysStatus(i,sy.s)]}</button></div></div></div>`;
+  });
+  html+=`</div>`;
+  wrap.innerHTML=html;
+  bindPills();
+}
+
+/* ===== pill behavior ===== */
+function bindPills(){
+  document.querySelectorAll(".pill").forEach(p=>{
+    p.onclick=()=>{const id=p.dataset.id;const next=cycle(p.dataset.s);setStatus(id,next);renderAll();};
+  });
+}
+function renderAll(){renderSummary();renderFocus();
+  if(view==="books")renderBooks();else renderSections();}
+
+/* ===== tabs ===== */
+let view="books";
+$("#tabBooks").onclick=()=>{view="books";$("#tabBooks").classList.add("on");$("#tabSections").classList.remove("on");
+  $("#booksView").hidden=false;$("#sectionsView").hidden=true;renderAll();};
+$("#tabSections").onclick=()=>{view="sections";$("#tabSections").classList.add("on");$("#tabBooks").classList.remove("on");
+  $("#booksView").hidden=true;$("#sectionsView").hidden=false;renderAll();};
+$("#resetBtn").onclick=()=>{overrides={};save(LS,overrides);renderAll();};
+
+/* ===== starfield ===== */
+(function(){const c=$("#sky"),x=c.getContext("2d");let w,hh,stars;
+  const reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;
+  function size(){w=c.width=innerWidth;hh=c.height=innerHeight;
+    stars=Array.from({length:Math.min(90,Math.floor(w*hh/15000))},()=>({x:Math.random()*w,y:Math.random()*hh,r:Math.random()*1.3+0.3,a:Math.random(),s:Math.random()*0.016+0.004}));}
+  function frame(){x.clearRect(0,0,w,hh);for(const st of stars){st.a+=st.s;x.globalAlpha=0.28+0.4*Math.sin(st.a);
+    x.fillStyle="#e6c25c";x.beginPath();x.arc(st.x,st.y,st.r,0,7);x.fill();}x.globalAlpha=1;if(!reduce)requestAnimationFrame(frame);}
+  size();frame();addEventListener("resize",size);})();
+
+renderAll();
+</script>
+</body>
+</html>
