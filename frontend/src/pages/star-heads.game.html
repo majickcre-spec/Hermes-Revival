@@ -318,6 +318,17 @@ body.gated .chip.bean{visibility:hidden}
 .minibtn.gold{background:var(--gold);color:#241800;border:none}
 .chkrow{display:flex;gap:14px;margin-bottom:10px;font-size:.88rem;color:var(--muted)}
 .chkrow label{display:flex;align-items:center;gap:6px;cursor:pointer}
+/* ---------- hints ---------- */
+.hintwrap{display:flex;flex-direction:column;align-items:center;gap:9px;margin-top:14px}
+.hint-btn{background:none;border:1px dashed var(--line);color:var(--gold);font:inherit;font-weight:800;
+  border-radius:999px;padding:8px 16px;cursor:pointer;font-size:.86rem;letter-spacing:.3px}
+.hint-btn:hover{border-color:var(--gold-deep)}
+.hint-btn:disabled{opacity:.5;cursor:default}
+.hint-box{background:#0c1c36;border:1px solid var(--line);border-radius:12px;padding:11px 14px;color:var(--muted);
+  font-size:.92rem;line-height:1.5;max-width:42ch;text-align:center}
+.hint-box b{color:var(--gold)}
+.mitem.hintflash{border-color:var(--gold);background:rgba(230,194,92,.18);animation:pulse .55s ease 2}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -371,6 +382,7 @@ body.gated .chip.bean{visibility:hidden}
       <b>Recall</b> is active recall with honest self-rating; the strongest way to commit them to memory.<br>
       <b>Focused practice</b> drills one style at a time: Choose, Fill, Match, Build.</div>
     <div class="note"><b>Stars</b> ⭐ mark heads mastered. <b>Hearts</b> ♥ are earned for returning and trying again. <b>Beans</b> 🫘 are earned from stars and spent in the shop. Progress saves on this device.</div>
+    <div class="note"><b>Hints:</b> every question has a “Need a hint?” If she uses one, the head still masters (keeps its ⭐) but earns <b>half the Beans</b> — so help is always there, with a small, fair cost.</div>
 
     <div class="gsec">
       <h3>Beans &amp; rewards</h3>
@@ -404,65 +416,65 @@ body.gated .chip.bean{visibility:hidden}
 /* ===== DATA: 59 locked heads (Majick's Modernization) ===== */
 /* game: 1 Choose · 2 Fill · 3 Match · 4 Build. key = Fill blank word. */
 const HEADS=[
- {n:14,game:1,icon:"🌀",text:"All things that are, are moved; only that which is not is immovable.",mean:"Everything real is always moving. Only nothing-at-all can hold perfectly still."},
- {n:15,game:4,icon:"🔄",text:"Every body is changeable.",mean:"Anything with a body can change."},
- {n:16,game:4,icon:"🧊",text:"Not every body is dissolvable.",mean:"Some bodies never fall apart."},
- {n:17,game:4,icon:"💨",text:"Some bodies are dissolvable.",mean:"Some bodies do fall apart."},
- {n:18,game:2,icon:"♾️",text:"Not every living being is mortal.",mean:"Some living things never die.",key:"mortal"},
- {n:19,game:2,icon:"⏳",text:"Nor is every living thing immortal.",mean:"Some living things do die someday.",key:"immortal"},
- {n:20,game:1,icon:"🍂",text:"That which may be dissolved is also corruptible.",mean:"If something can fall apart, it can also spoil."},
- {n:21,game:1,icon:"🗿",text:"That which endures as the same is unchangeable.",mean:"What always stays the same can never change."},
- {n:22,game:2,icon:"♾️",text:"That which is unchangeable is eternal.",mean:"What never changes lasts forever.",key:"eternal"},
- {n:23,game:1,icon:"🔨",text:"That which is always made is always corrupted.",mean:"What is made over and over keeps wearing out."},
- {n:24,game:1,icon:"💎",text:"That which is made but once is never corrupted, nor does it become any other thing.",mean:"What is made only once never spoils and never turns into anything else."},
- {n:25,game:2,icon:"🥇",text:"Firstly, God; secondly, the World; thirdly, Humans.",mean:"The order of things: first God, then the World, then people.",key:"Humans"},
- {n:26,game:2,icon:"🎁",text:"The World for Humans; Humans for God.",mean:"The World is made for people, and people are made for God.",key:"God"},
- {n:27,game:2,icon:"🧠",text:"Of the Soul: the part that is ruled by the senses is mortal, but the part governed by Reason is immortal.",mean:"The part of the soul that feels can die; the part that reasons lives forever.",key:"immortal"},
- {n:28,game:4,icon:"✨",text:"Every Essence is immortal.",mean:"Every true inner nature never dies."},
- {n:29,game:4,icon:"🔒",text:"Every Essence is unchangeable.",mean:"Every true inner nature never changes."},
- {n:30,game:3,icon:"☯️",text:"Everything that is, is twofold in nature.",mean:"Everything real has two sides to it."},
- {n:31,game:4,icon:"🏃",text:"None of the things that are stand still.",mean:"Nothing that is real ever stands still."},
- {n:32,game:1,icon:"🌬️",text:"Not all things are moved by a soul; but everything that is, is moved by a soul.",mean:"A soul is what moves everything that truly is."},
- {n:33,game:3,icon:"😣",text:"Everything that suffers is sensible in its nature; everything sensible in its nature suffers.",mean:"Whatever can feel can hurt — and whatever can hurt can feel."},
- {n:34,game:2,icon:"😊",text:"Everything that feels sorrow also feels joy, and is a mortal living creature.",mean:"Whoever can feel sorrow can feel joy — and that one is mortal.",key:"joy"},
- {n:35,game:2,icon:"🌟",text:"Not everything that feels joy also feels sorrow, but is an eternal living thing.",mean:"Some feel joy without any sorrow — and those live forever.",key:"sorrow"},
- {n:36,game:3,icon:"🤒",text:"Not all bodies are subject to sickness; every body that is sick is dissolvable.",mean:"Not every body can get sick, but a body that can get sick can fall apart."},
- {n:40,game:4,icon:"🧘",text:"The Mind is free from suffering.",mean:"The Mind can never be hurt."},
- {n:41,game:4,icon:"🎭",text:"No thing in a body is true.",mean:"Nothing held inside a body is fully true."},
- {n:42,game:3,icon:"🕊️",text:"All that is not in a body (incorporeal) is devoid of lying.",mean:"Anything without a body never lies."},
- {n:44,game:2,icon:"⬆️",text:"There is nothing good on Earth, and nothing evil in Heaven.",mean:"Earth holds no perfect good, and Heaven holds no evil.",key:"Heaven"},
- {n:45,game:2,icon:"⚖️",text:"God is good, and Humans are evil.",mean:"God is wholly good; people still carry evil in them.",key:"evil"},
- {n:46,game:2,icon:"🤲",text:"Good is voluntary, or of its own free Will.",mean:"Good is chosen freely.",key:"free"},
- {n:47,game:2,icon:"⛓️",text:"Evil is involuntary, or against its Will.",mean:"Evil is not truly chosen — it goes against the true will.",key:"against"},
- {n:48,game:2,icon:"😇",text:"The gods choose good things for having the nature of the good.",mean:"Good beings choose good, because good is their nature.",key:"gods"},
- {n:49,game:4,icon:"⏰",text:"Time is a Divine thing.",mean:"Time is a divine thing."},
- {n:50,game:4,icon:"📜",text:"Law is human.",mean:"Law is made by people."},
- {n:51,game:3,icon:"🌍",text:"The World feeds off of Maliciousness.",mean:"The World is fed by maliciousness."},
- {n:52,game:4,icon:"⌛",text:"Time is the corruption of Humans.",mean:"Time wears people out."},
- {n:53,game:4,icon:"🌌",text:"Whatever is in Heaven is unchangeable.",mean:"Everything in Heaven stays the same."},
- {n:54,game:4,icon:"🌦️",text:"All that is on Earth is changeable.",mean:"Everything on Earth can change."},
- {n:55,game:3,icon:"🔓",text:"Nothing in Heaven is enslaved; nothing on Earth is free.",mean:"Heaven holds nothing in bondage; Earth holds nothing fully free."},
- {n:56,game:3,icon:"❓",text:"In Heaven nothing is unknown; on Earth nothing is known.",mean:"Heaven knows all; Earth knows nothing all the way."},
- {n:57,game:3,icon:"📵",text:"The things on Earth do not communicate with those in Heaven.",mean:"Earthly things cannot reach up to heavenly ones."},
- {n:58,game:3,icon:"🏛️",text:"All things in Heaven are unblameable; all things on Earth are subject to judgment.",mean:"Heaven cannot be blamed; Earth is subject to judgment."},
- {n:59,game:3,icon:"🔁",text:"That which is immortal is not mortal; that which is mortal is not immortal.",mean:"The deathless is not dying; the dying is not deathless."},
- {n:60,game:2,icon:"🌱",text:"Every act is a karmic seed planted, but not every seed bears fruit; yet every fruit came from a seed that was planted.",mean:"Every act plants a seed. Not every seed bears fruit, but every fruit came from a seed.",key:"act"},
- {n:63,game:1,icon:"📊",text:"Dissolvable bodies are increased and reduced.",mean:"Bodies that can fall apart grow and shrink."},
- {n:64,game:3,icon:"🔀",text:"Dissolvable matter is changed into its opposites — namely, Corruption and Generation, but Eternal matter changes only into itself and what is of like quality.",mean:"Matter that falls apart turns into its opposite; eternal matter turns only into more of its own kind."},
- {n:65,game:3,icon:"🌗",text:"The Generation of Humans is corruption; the Corruption of Humans is the start of Generation.",mean:"Being born begins the wearing-out; the wearing-out begins a new birth."},
- {n:66,game:2,icon:"👶",text:"That which produces offspring or gives birth to another, is itself an offspring, birthed by another.",mean:"Whatever gives birth to another was itself born of another.",key:"birth"},
- {n:67,game:3,icon:"💭",text:"Of things that are, some are in bodies, some in their IDEAS.",mean:"Of real things, some exist in bodies and some as ideas."},
- {n:68,game:1,icon:"🛠️",text:"Whatsoever things belong to operation or working are in a body, for operations and workings need a body.",mean:"Doing and working always need a body."},
- {n:70,game:3,icon:"⬇️",text:"That which is mortal does not enter an immortal body; but that which is immortal enters into that which is mortal.",mean:"The mortal cannot enter the immortal, but the immortal can enter the mortal."},
- {n:71,game:1,icon:"🪂",text:"Operation or Workings are not carried upwards, but descend downwards.",mean:"Work flows downward, never upward."},
- {n:72,game:3,icon:"🌧️",text:"Things on Earth give no advantage to those in Heaven; but all things in Heaven profit and benefit all things on Earth.",mean:"Earth gives Heaven nothing, but Heaven benefits all of Earth."},
- {n:73,game:1,icon:"🏺",text:"Heaven is capable, and a fit receptacle of everlasting Bodies; the Earth of corruptible Bodies.",mean:"Heaven is the fit vessel for everlasting bodies; Earth for corruptible ones."},
- {n:74,game:1,icon:"🌿",text:"The Earth is brutish; the Heaven is reasonable or rational.",mean:"Earth is brutish; Heaven is rational."},
- {n:75,game:1,icon:"📍",text:"Those things that are in Heaven are subjected or placed under it, but the things on earth are placed upon it.",mean:"Heaven's things are set under it; Earth's things are set upon it."},
- {n:76,game:4,icon:"🌠",text:"Heaven is the first element.",mean:"Heaven is the first element."},
- {n:77,game:4,icon:"🗂️",text:"Providence is Divine order.",mean:"Providence is divine order."},
- {n:78,game:1,icon:"🤝",text:"Necessity is the Minister or Servant of Providence.",mean:"Necessity is the servant of Providence."},
- {n:79,game:1,icon:"🎲",text:"Fortune is the outcome of that which is without order; the idol of operation, a lying fantasy or opinion.",mean:"Fortune comes from what has no order — a false idol and a lying opinion."},
+ {n:14,game:1,icon:"🌀",text:"All things that are, are moved; only that which is not is immovable.",mean:"Everything real is always moving. Only nothing-at-all can hold perfectly still.",hint:"What kind of 'thing' could never move? Only something that isn't even really there."},
+ {n:15,game:4,icon:"🔄",text:"Every body is changeable.",mean:"Anything with a body can change.",hint:"If it has a body, what can always happen to it?"},
+ {n:16,game:4,icon:"🧊",text:"Not every body is dissolvable.",mean:"Some bodies never fall apart.",hint:"The words are 'not every' — so some bodies resist this."},
+ {n:17,game:4,icon:"💨",text:"Some bodies are dissolvable.",mean:"Some bodies do fall apart.",hint:"'Some' — not all, not none. A portion of bodies do this."},
+ {n:18,game:2,icon:"♾️",text:"Not every living being is mortal.",mean:"Some living things never die.",key:"mortal",hint:"'Not every' living thing shares the fate of dying."},
+ {n:19,game:2,icon:"⏳",text:"Nor is every living thing immortal.",mean:"Some living things do die someday.",key:"immortal",hint:"The flip side of the one before — not all living things last forever either."},
+ {n:20,game:1,icon:"🍂",text:"That which may be dissolved is also corruptible.",mean:"If something can fall apart, it can also spoil.",hint:"If a thing can come apart, it can also go bad."},
+ {n:21,game:1,icon:"🗿",text:"That which endures as the same is unchangeable.",mean:"What always stays the same can never change.",hint:"Staying exactly the same means it never does this."},
+ {n:22,game:2,icon:"♾️",text:"That which is unchangeable is eternal.",mean:"What never changes lasts forever.",key:"eternal",hint:"What never changes isn't bound by time at all."},
+ {n:23,game:1,icon:"🔨",text:"That which is always made is always corrupted.",mean:"What is made over and over keeps wearing out.",hint:"Made again and again — so it keeps doing what to itself?"},
+ {n:24,game:1,icon:"💎",text:"That which is made but once is never corrupted, nor does it become any other thing.",mean:"What is made only once never spoils and never turns into anything else.",hint:"Made only once — so it never spoils and never becomes something else."},
+ {n:25,game:2,icon:"🥇",text:"Firstly, God; secondly, the World; thirdly, Humans.",mean:"The order of things: first God, then the World, then people.",key:"Humans",hint:"It's an order from the top down: the highest comes first."},
+ {n:26,game:2,icon:"🎁",text:"The World for Humans; Humans for God.",mean:"The World is made for people, and people are made for God.",key:"God",hint:"Each is made for the one above it — the World for people, people for…"},
+ {n:27,game:2,icon:"🧠",text:"Of the Soul: the part that is ruled by the senses is mortal, but the part governed by Reason is immortal.",mean:"The part of the soul that feels can die; the part that reasons lives forever.",key:"immortal",hint:"Two parts: one tied to feeling (it dies), one tied to thinking (it lasts)."},
+ {n:28,game:4,icon:"✨",text:"Every Essence is immortal.",mean:"Every true inner nature never dies.",hint:"Essence means true inner nature. Does it ever die?"},
+ {n:29,game:4,icon:"🔒",text:"Every Essence is unchangeable.",mean:"Every true inner nature never changes.",hint:"Essence again — does it ever change?"},
+ {n:30,game:3,icon:"☯️",text:"Everything that is, is twofold in nature.",mean:"Everything real has two sides to it.",hint:"Everything real has how many sides to it?"},
+ {n:31,game:4,icon:"🏃",text:"None of the things that are stand still.",mean:"Nothing that is real ever stands still.",hint:"Real things are never caught doing this — holding still."},
+ {n:32,game:1,icon:"🌬️",text:"Not all things are moved by a soul; but everything that is, is moved by a soul.",mean:"A soul is what moves everything that truly is.",hint:"What is the one thing that moves everything that truly is?"},
+ {n:33,game:3,icon:"😣",text:"Everything that suffers is sensible in its nature; everything sensible in its nature suffers.",mean:"Whatever can feel can hurt — and whatever can hurt can feel.",hint:"Feeling and hurting go together — both directions."},
+ {n:34,game:2,icon:"😊",text:"Everything that feels sorrow also feels joy, and is a mortal living creature.",mean:"Whoever can feel sorrow can feel joy — and that one is mortal.",key:"joy",hint:"If you can feel sadness you can feel gladness — and you're the kind that dies."},
+ {n:35,game:2,icon:"🌟",text:"Not everything that feels joy also feels sorrow, but is an eternal living thing.",mean:"Some feel joy without any sorrow — and those live forever.",key:"sorrow",hint:"Joy with no sorrow belongs to the kind that lasts forever."},
+ {n:36,game:3,icon:"🤒",text:"Not all bodies are subject to sickness; every body that is sick is dissolvable.",mean:"Not every body can get sick, but a body that can get sick can fall apart.",hint:"Not all bodies can get sick — but one that can get sick can also do what?"},
+ {n:40,game:4,icon:"🧘",text:"The Mind is free from suffering.",mean:"The Mind can never be hurt.",hint:"Can the Mind ever be hurt?"},
+ {n:41,game:4,icon:"🎭",text:"No thing in a body is true.",mean:"Nothing held inside a body is fully true.",hint:"Full truth doesn't fit inside a body."},
+ {n:42,game:3,icon:"🕊️",text:"All that is not in a body (incorporeal) is devoid of lying.",mean:"Anything without a body never lies.",hint:"With no body, there's no room for lying."},
+ {n:44,game:2,icon:"⬆️",text:"There is nothing good on Earth, and nothing evil in Heaven.",mean:"Earth holds no perfect good, and Heaven holds no evil.",key:"Heaven",hint:"Earth lacks perfect good; Heaven lacks the opposite."},
+ {n:45,game:2,icon:"⚖️",text:"God is good, and Humans are evil.",mean:"God is wholly good; people still carry evil in them.",key:"evil",hint:"One is wholly good; the other still carries evil."},
+ {n:46,game:2,icon:"🤲",text:"Good is voluntary, or of its own free Will.",mean:"Good is chosen freely.",key:"free",hint:"Good is something you do by choosing it."},
+ {n:47,game:2,icon:"⛓️",text:"Evil is involuntary, or against its Will.",mean:"Evil is not truly chosen — it goes against the true will.",key:"against",hint:"Evil isn't truly chosen — it works against what you really want."},
+ {n:48,game:2,icon:"😇",text:"The gods choose good things for having the nature of the good.",mean:"Good beings choose good, because good is their nature.",key:"gods",hint:"Good beings choose good because of their very nature."},
+ {n:49,game:4,icon:"⏰",text:"Time is a Divine thing.",mean:"Time is a divine thing.",hint:"Time belongs to the divine side of things."},
+ {n:50,game:4,icon:"📜",text:"Law is human.",mean:"Law is made by people.",hint:"Law is made by whom?"},
+ {n:51,game:3,icon:"🌍",text:"The World feeds off of Maliciousness.",mean:"The World is fed by maliciousness.",hint:"What does the World feed on? (not something kind)"},
+ {n:52,game:4,icon:"⌛",text:"Time is the corruption of Humans.",mean:"Time wears people out.",hint:"Time slowly does what to people?"},
+ {n:53,game:4,icon:"🌌",text:"Whatever is in Heaven is unchangeable.",mean:"Everything in Heaven stays the same.",hint:"Heaven's things never do this — never change."},
+ {n:54,game:4,icon:"🌦️",text:"All that is on Earth is changeable.",mean:"Everything on Earth can change.",hint:"Earth's things always can do this."},
+ {n:55,game:3,icon:"🔓",text:"Nothing in Heaven is enslaved; nothing on Earth is free.",mean:"Heaven holds nothing in bondage; Earth holds nothing fully free.",hint:"Heaven: nothing in bondage. Earth: nothing fully this."},
+ {n:56,game:3,icon:"❓",text:"In Heaven nothing is unknown; on Earth nothing is known.",mean:"Heaven knows all; Earth knows nothing all the way.",hint:"Heaven knows all; Earth knows nothing all the way."},
+ {n:57,game:3,icon:"📵",text:"The things on Earth do not communicate with those in Heaven.",mean:"Earthly things cannot reach up to heavenly ones.",hint:"Earthly things can't reach up and speak to heavenly ones."},
+ {n:58,game:3,icon:"🏛️",text:"All things in Heaven are unblameable; all things on Earth are subject to judgment.",mean:"Heaven cannot be blamed; Earth is subject to judgment.",hint:"Heaven can't be blamed; Earth gets this."},
+ {n:59,game:3,icon:"🔁",text:"That which is immortal is not mortal; that which is mortal is not immortal.",mean:"The deathless is not dying; the dying is not deathless.",hint:"Deathless and dying are simply opposites — neither one is the other."},
+ {n:60,game:2,icon:"🌱",text:"Every act is a karmic seed planted, but not every seed bears fruit; yet every fruit came from a seed that was planted.",mean:"Every act plants a seed. Not every seed bears fruit, but every fruit came from a seed.",key:"act",hint:"Every act plants a seed; not all grow, but fruit always came from one."},
+ {n:63,game:1,icon:"📊",text:"Dissolvable bodies are increased and reduced.",mean:"Bodies that can fall apart grow and shrink.",hint:"Bodies that can fall apart can grow and also do this."},
+ {n:64,game:3,icon:"🔀",text:"Dissolvable matter is changed into its opposites — namely, Corruption and Generation, but Eternal matter changes only into itself and what is of like quality.",mean:"Matter that falls apart turns into its opposite; eternal matter turns only into more of its own kind.",hint:"Fall-apart matter flips to its opposite; forever-matter stays its own kind."},
+ {n:65,game:3,icon:"🌗",text:"The Generation of Humans is corruption; the Corruption of Humans is the start of Generation.",mean:"Being born begins the wearing-out; the wearing-out begins a new birth.",hint:"Being born starts the wearing-out; the wearing-out starts a new birth."},
+ {n:66,game:2,icon:"👶",text:"That which produces offspring or gives birth to another, is itself an offspring, birthed by another.",mean:"Whatever gives birth to another was itself born of another.",key:"birth",hint:"Whatever gives birth to another was itself once born."},
+ {n:67,game:3,icon:"💭",text:"Of things that are, some are in bodies, some in their IDEAS.",mean:"Of real things, some exist in bodies and some as ideas.",hint:"Some real things live in bodies; some live as these — thoughts and forms."},
+ {n:68,game:1,icon:"🛠️",text:"Whatsoever things belong to operation or working are in a body, for operations and workings need a body.",mean:"Doing and working always need a body.",hint:"Doing and working always need one of these."},
+ {n:70,game:3,icon:"⬇️",text:"That which is mortal does not enter an immortal body; but that which is immortal enters into that which is mortal.",mean:"The mortal cannot enter the immortal, but the immortal can enter the mortal.",hint:"The dying can't climb into the deathless — but the deathless can come down."},
+ {n:71,game:1,icon:"🪂",text:"Operation or Workings are not carried upwards, but descend downwards.",mean:"Work flows downward, never upward.",hint:"Work flows which way — up, or down?"},
+ {n:72,game:3,icon:"🌧️",text:"Things on Earth give no advantage to those in Heaven; but all things in Heaven profit and benefit all things on Earth.",mean:"Earth gives Heaven nothing, but Heaven benefits all of Earth.",hint:"Earth gives Heaven nothing; Heaven helps all of Earth."},
+ {n:73,game:1,icon:"🏺",text:"Heaven is capable, and a fit receptacle of everlasting Bodies; the Earth of corruptible Bodies.",mean:"Heaven is the fit vessel for everlasting bodies; Earth for corruptible ones.",hint:"Heaven holds the forever-bodies; Earth holds the ones that fall apart."},
+ {n:74,game:1,icon:"🌿",text:"The Earth is brutish; the Heaven is reasonable or rational.",mean:"Earth is brutish; Heaven is rational.",hint:"Earth is rough and wild; Heaven is wise and thinking."},
+ {n:75,game:1,icon:"📍",text:"Those things that are in Heaven are subjected or placed under it, but the things on earth are placed upon it.",mean:"Heaven's things are set under it; Earth's things are set upon it.",hint:"Heaven's things sit under it; Earth's things sit on top of it."},
+ {n:76,game:4,icon:"🌠",text:"Heaven is the first element.",mean:"Heaven is the first element.",hint:"Heaven comes first among the elements."},
+ {n:77,game:4,icon:"🗂️",text:"Providence is Divine order.",mean:"Providence is divine order.",hint:"Providence is God's good ______ ."},
+ {n:78,game:1,icon:"🤝",text:"Necessity is the Minister or Servant of Providence.",mean:"Necessity is the servant of Providence.",hint:"Necessity serves Providence — the servant that carries it out."},
+ {n:79,game:1,icon:"🎲",text:"Fortune is the outcome of that which is without order; the idol of operation, a lying fantasy or opinion.",mean:"Fortune comes from what has no order — a false idol and a lying opinion.",hint:"Luck comes from things with no order — a false idol, a lying belief."},
 ];
 const byN=Object.fromEntries(HEADS.map(h=>[h.n,h]));
 
@@ -542,17 +554,25 @@ function burst(el,kind,count){
 const heartChip=()=>document.querySelector(".chip.heart");
 function award(n){ if(!done.has(n)){done.add(n);} }
 /* correct: master head, streak up, confetti; bonus hearts if it was previously missed */
-function onCorrect(h,anchor){
+function onCorrect(h,anchor,hinted){
   const wasMissed=missed.has(h.n)&&!done.has(h.n);
   const fresh=!done.has(h.n);
   award(h.n);streak++;if(streak>best)best=streak;
   if(wasMissed){hearts+=2;missed.delete(h.n);}
-  if(fresh){const g=getRate();beans+=g;beansLife+=g;}
+  let earned=0;
+  if(fresh){earned=hinted?Math.max(1,Math.floor(getRate()/2)):getRate();beans+=earned;beansLife+=earned;}
   persist();updateScore();sageReact(true);
   burst(anchor||document.querySelector(".sage .fig"),"star",wasMissed?14:9);
   if(wasMissed)burst(heartChip(),"heart",2);
-  if(fresh)burst(document.querySelector(".chip.bean"),"bean",4);
-  return wasMissed;
+  if(fresh&&earned)burst(document.querySelector(".chip.bean"),"bean",hinted?2:4);
+  return {wasMissed,fresh,earned,hinted};
+}
+/* feedback text for a correct answer */
+function praiseText(r){
+  if(r.wasMissed)return "Recovered — that one's yours now. ♥";
+  let t=pick(PRAISE);
+  if(r.fresh&&r.earned)t+=r.hinted?"  +"+r.earned+" 🫘 (½ — hint used)":"  +"+r.earned+" 🫘";
+  return t;
 }
 /* wrong / retry: reward perseverance */
 function onRetry(h,anchor){
@@ -662,13 +682,16 @@ function renderChoose(h){
     <div class="vtext">${esc(h.text)}</div>
     <div class="ask">What does it mean?</div>
     <div class="opts" id="opts"></div>
+    <div class="hintwrap"><button class="hint-btn" id="hintBtn">💡 Need a hint?</button><div class="hint-box" id="hintBox" hidden></div></div>
     <div class="feedback" id="fb"></div>
     <div class="actions"><button class="btn" id="next" disabled>Continue</button></div></div>`;
-  const box=$("#opts");
+  const box=$("#opts");let hinted=false;
+  $("#hintBtn").onclick=()=>{hinted=true;$("#hintBox").hidden=false;$("#hintBox").textContent=h.hint;$("#hintBtn").disabled=true;};
   opts.forEach(t=>{const b=document.createElement("button");b.className="opt";b.textContent=t;
     b.onclick=()=>{if(box.dataset.lock)return;
       if(t===h.mean){box.dataset.lock="1";b.classList.add("correct");[...box.children].forEach(c=>c.disabled=true);
-        const imp=onCorrect(h,b);$("#fb").textContent=imp?"Recovered — that one's yours now. ♥":pick(PRAISE);$("#fb").className="feedback good";
+        $("#hintBtn").disabled=true;
+        const r=onCorrect(h,b,hinted);$("#fb").textContent=praiseText(r);$("#fb").className="feedback good";
         $("#next").disabled=false;$("#next").focus();}
       else{b.classList.add("wrong");b.disabled=true;onRetry(h,b);
         $("#fb").textContent=pick(AGAIN)+"  +1 ♥";$("#fb").className="feedback try";}};
@@ -684,14 +707,16 @@ function renderFill(h){
     <div class="ask">Fill the missing word</div>
     <div class="fill-line" id="fl">${esc(h.text).replace(re,'<span class="blank">?</span>')}</div>
     <input class="fill-input" id="fin" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="the word" aria-label="missing word">
-    <div class="hint">begins with <b>${h.key[0].toUpperCase()}</b> · ${h.key.length} letters</div>
+    <div class="hintwrap"><button class="hint-btn" id="hintBtn">💡 Need a hint?</button><div class="hint-box" id="hintBox" hidden></div></div>
     <div class="feedback" id="fb"></div>
     <div class="actions"><button class="btn" id="check">Check</button><button class="btn" id="next" disabled>Continue</button></div></div>`;
-  const inp=$("#fin");let solved=false;
+  const inp=$("#fin");let solved=false,hinted=false;
+  $("#hintBtn").onclick=()=>{hinted=true;$("#hintBox").hidden=false;
+    $("#hintBox").innerHTML='begins with <b>'+h.key[0].toUpperCase()+'</b> · '+h.key.length+' letters';$("#hintBtn").disabled=true;};
   function check(){if(solved)return;
-    if(norm(inp.value)===norm(h.key)){solved=true;
+    if(norm(inp.value)===norm(h.key)){solved=true;$("#hintBtn").disabled=true;
       $("#fl").innerHTML=esc(h.text).replace(re,'<span class="blank" style="color:var(--good);border-color:var(--good)">'+esc(h.key)+'</span>');
-      const imp=onCorrect(h,$("#check"));$("#fb").textContent=imp?"Recovered — held now. ♥":pick(PRAISE);$("#fb").className="feedback good";
+      const r=onCorrect(h,$("#check"),hinted);$("#fb").textContent=praiseText(r);$("#fb").className="feedback good";
       $("#next").disabled=false;$("#check").disabled=true;inp.disabled=true;$("#next").focus();}
     else{onRetry(h,$("#check"));$("#fb").textContent=pick(AGAIN)+"  +1 ♥";$("#fb").className="feedback try";inp.select();}}
   $("#check").onclick=check;
@@ -708,8 +733,8 @@ function renderBuild(h){
     <div class="ask">Set the words in order</div>
     <div class="answer-line" id="ans"></div><div class="pool" id="pool"></div>
     <div class="feedback" id="fb"></div>
-    <div class="actions"><button class="btn ghost" id="peek">Peek</button><button class="btn" id="check">Check</button><button class="btn" id="next" disabled>Continue</button></div></div>`;
-  const ansEl=$("#ans"),poolEl=$("#pool"),fb=$("#fb");let placed=[],solved=false;
+    <div class="actions"><button class="btn ghost" id="peek">💡 Hint</button><button class="btn" id="check">Check</button><button class="btn" id="next" disabled>Continue</button></div></div>`;
+  const ansEl=$("#ans"),poolEl=$("#pool"),fb=$("#fb");let placed=[],solved=false,hinted=false;
   function draw(){ansEl.innerHTML="";placed.forEach(c=>{const b=document.createElement("button");b.className="chipw placed";b.textContent=c.w;
       b.onclick=()=>{if(solved)return;placed=placed.filter(x=>x!==c);pool.push(c);draw();};ansEl.appendChild(b);});
     poolEl.innerHTML="";pool.forEach(c=>{const b=document.createElement("button");b.className="chipw";b.textContent=c.w;
@@ -718,12 +743,12 @@ function renderBuild(h){
   $("#check").onclick=()=>{if(solved)return;
     if(pool.length){fb.textContent="Use every word.";fb.className="feedback try";return;}
     if(placed.map(c=>c.w).join(" ")===h.text){solved=true;
-      const imp=onCorrect(h,$("#check"));fb.textContent=imp?"Recovered — held now. ♥":pick(PRAISE);fb.className="feedback good";
+      const r=onCorrect(h,$("#check"),hinted);fb.textContent=praiseText(r);fb.className="feedback good";
       [...ansEl.children].forEach(c=>c.style.borderColor="var(--good)");
       $("#next").disabled=false;$("#check").disabled=true;$("#peek").disabled=true;$("#next").focus();}
     else{onRetry(h,$("#check"));fb.textContent=pick(AGAIN)+"  +1 ♥";fb.className="feedback try";}};
-  $("#peek").onclick=()=>{fb.innerHTML='<span class="reveal-mean">'+esc(h.text)+'</span>';fb.className="feedback";
-    setTimeout(()=>{if(fb.querySelector(".reveal-mean"))fb.textContent="";},2600);};
+  $("#peek").onclick=()=>{hinted=true;fb.innerHTML='<span class="reveal-mean">'+esc(h.text)+'</span>';fb.className="feedback";
+    setTimeout(()=>{if(fb.querySelector(".reveal-mean"))fb.textContent="";},2800);};
   $("#next").onclick=advance;
 }
 
@@ -733,17 +758,22 @@ function renderRecall(h){
     <span class="vicon">${h.icon}</span><div class="vtag">Head ${h.n}</div>
     <div class="ask">Bring the head to mind</div>
     <div class="recall-cue">${esc(h.mean)}</div>
+    <div class="hintwrap"><button class="hint-btn" id="hintBtn">💡 Need a hint?</button><div class="hint-box" id="hintBox" hidden></div></div>
     <div id="revealZone"></div>
     <div class="actions" id="revealAct"><button class="btn" id="reveal">Reveal the head</button></div></div>`;
+  let hinted=false;
+  $("#hintBtn").onclick=()=>{hinted=true;$("#hintBox").hidden=false;
+    $("#hintBox").textContent="It begins: “"+h.text.split(" ").slice(0,3).join(" ")+"…”";$("#hintBtn").disabled=true;};
   $("#reveal").onclick=()=>{
+    $("#hintBtn").disabled=true;
     $("#revealZone").innerHTML=`<div class="recall-reveal">${esc(h.text)}</div>`;
     $("#revealAct").outerHTML=`<div class="rate" id="rate">
       <button class="held">Held<span class="sm">I knew it</span></button>
       <button class="almost">Almost<span class="sm">nearly</span></button>
       <button class="missed">Missed<span class="sm">not yet</span></button></div>`;
     const rt=$("#rate");
-    rt.querySelector(".held").onclick=e=>{const imp=onCorrect(h,e.currentTarget);
-      flash(imp?"Recovered — held. ♥":"Held. ⭐");setTimeout(advance,520);};
+    rt.querySelector(".held").onclick=e=>{const r=onCorrect(h,e.currentTarget,hinted);
+      flash(r.wasMissed?"Recovered — held. ♥":"Held. ⭐"+(r.fresh&&r.earned?"  +"+r.earned+" 🫘"+(r.hinted?" (½)":""):""));setTimeout(advance,560);};
     rt.querySelector(".almost").onclick=e=>{onRetry(h,e.currentTarget);reenqueue(h,"recall");
       flash("Noted — it returns soon. +1 ♥");setTimeout(advance,560);};
     rt.querySelector(".missed").onclick=e=>{onRetry(h,e.currentTarget);reenqueue(h,"recall");
@@ -762,9 +792,14 @@ function renderMatch(){
     <div class="match-grid"><div class="mcol"><h4>Heads</h4><div id="ml"></div></div>
       <div class="mcol"><h4>Meanings</h4><div id="mr"></div></div></div>
     <div class="feedback" id="fb"></div>
-    <div class="actions"><button class="btn" id="next" disabled>Continue</button></div></div>`;
+    <div class="actions"><button class="btn ghost" id="mHint">💡 Hint</button><button class="btn" id="next" disabled>Continue</button></div></div>`;
   const L=$("#ml"),R=$("#mr");[L,R].forEach(c=>{c.style.display="flex";c.style.flexDirection="column";c.style.gap="9px";});
-  let sel=null,got=0;
+  let sel=null,got=0;const hintedSet=new Set();
+  $("#mHint").onclick=()=>{
+    if(sel==null){$("#fb").textContent="Choose a head first, then ask for a hint.";$("#fb").className="feedback try";return;}
+    const rb=[...R.children].find(c=>+c.dataset.n===sel&&!c.classList.contains("matched"));
+    if(rb){rb.classList.add("hintflash");setTimeout(()=>rb.classList.remove("hintflash"),1150);hintedSet.add(sel);
+      $("#fb").textContent="There it is — half beans for a hinted match.";$("#fb").className="feedback try";}};
   batch.forEach(x=>{const b=document.createElement("button");b.className="mitem";b.dataset.n=x.n;
     b.innerHTML=`<span class="mi">${x.icon}</span><span>${esc(x.text)}</span>`;
     b.onclick=()=>{if(b.classList.contains("matched"))return;[...L.children].forEach(c=>c.classList.remove("sel"));b.classList.add("sel");sel=x.n;};
@@ -774,7 +809,7 @@ function renderMatch(){
     b.onclick=()=>{if(b.classList.contains("matched"))return;
       if(sel==null){$("#fb").textContent="Choose a head first.";$("#fb").className="feedback try";return;}
       if(sel===x.n){b.classList.add("matched");const lb=[...L.children].find(c=>+c.dataset.n===x.n);lb.classList.add("matched");lb.classList.remove("sel");
-        onCorrect(byN[x.n],b);sel=null;got++;$("#fb").textContent=pick(PRAISE);$("#fb").className="feedback good";
+        const r=onCorrect(byN[x.n],b,hintedSet.has(x.n));sel=null;got++;$("#fb").textContent=praiseText(r);$("#fb").className="feedback good";
         if(got===batch.length){$("#fb").textContent="Set complete.";$("#next").disabled=false;$("#next").focus();}}
       else{const h=byN[sel];b.classList.add("shake");setTimeout(()=>b.classList.remove("shake"),420);
         onRetry(h,b);$("#fb").textContent=pick(AGAIN)+"  +1 ♥";$("#fb").className="feedback try";}};
