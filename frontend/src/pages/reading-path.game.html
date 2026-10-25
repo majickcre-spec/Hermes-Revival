@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Reading Path</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Nunito+Sans:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,800&display=swap">
+<style>
+/* A quiet reading hall: one passage at a time — authentic text, a plain reading, then questions. */
+:root{
+  --bg:#0a1628; --bg2:#0e1f39; --card:#15284a; --card2:#1d3358;
+  --gold:#e6c25c; --gold-deep:#d4af37; --cream:#f1ede1; --muted:#9bb0d0;
+  --rose:#e8a6bf; --violet:#9a8cf0; --teal:#57c9bd;
+  --good:#63d39a; --bad:#ef8f8c; --line:#28406a; --maxw:680px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--cream);font-family:"Nunito Sans",system-ui,-apple-system,sans-serif;
+  font-weight:600;line-height:1.5;min-height:100%;position:relative;overflow-x:hidden}
+#sky{position:fixed;inset:0;z-index:0;pointer-events:none}
+#fx{position:fixed;inset:0;z-index:40;pointer-events:none;overflow:hidden}
+.wrap{position:relative;z-index:1;max-width:var(--maxw);margin:0 auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:16px 48px}
+h1,h2,h3,h4{font-family:"Marcellus",Georgia,serif;font-weight:400;margin:0;text-wrap:balance}
+
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brand{display:flex;align-items:center;gap:9px;min-width:0}
+.brand .sigil{font-size:1.25rem;color:var(--gold)}
+.brand h1{font-size:1.02rem;letter-spacing:2px;color:var(--gold);text-transform:uppercase}
+.chip{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);
+  border-radius:999px;padding:6px 12px;font-weight:800;font-size:.9rem;color:var(--gold)}
+
+.hero{margin:20px 0 20px}
+.hero .eyebrow{font-family:"Marcellus",serif;letter-spacing:3px;text-transform:uppercase;font-size:.72rem;color:var(--muted);margin-bottom:8px}
+.hero h2{font-size:1.9rem;color:var(--cream)}
+.hero h2 .nm{color:var(--gold)}
+.hero p{margin:12px 0 0;color:var(--muted);font-size:1rem;max-width:58ch;line-height:1.65}
+.label{font-family:"Marcellus",serif;letter-spacing:2px;text-transform:uppercase;font-size:.72rem;color:var(--muted);margin:22px 2px 12px}
+
+.chapter{width:100%;text-align:left;cursor:pointer;color:inherit;font:inherit;
+  background:linear-gradient(160deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:18px;
+  padding:18px;display:flex;align-items:center;gap:14px;transition:transform .14s,border-color .14s}
+.chapter:hover{transform:translateY(-2px);border-color:var(--gold-deep)}
+.chapter:focus-visible{outline:3px solid var(--violet);outline-offset:2px}
+.chapter .cg{font-size:1.9rem;flex:none}
+.chapter .cmain{flex:1;min-width:0}
+.chapter .ct{font-family:"Marcellus",serif;font-size:1.25rem;color:var(--cream)}
+.chapter .cs{font-size:.86rem;color:var(--muted);margin-top:2px}
+.chapter .cmeter{display:flex;align-items:center;gap:9px;margin-top:9px}
+.chapter .bar{flex:1;height:7px;border-radius:999px;background:#0c1c36;border:1px solid var(--line);overflow:hidden}
+.chapter .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-deep))}
+.chapter .cn{font-size:.76rem;color:var(--muted);font-weight:700}
+.chapter.soon{opacity:.6;cursor:default}
+.chapter.soon:hover{transform:none;border-color:var(--line)}
+.soon-tag{font-family:"Marcellus",serif;font-size:.62rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 9px;flex:none}
+
+/* reader */
+.play-top{display:flex;align-items:center;gap:12px;margin:8px 0 6px}
+.back{flex:none;background:var(--card);border:1px solid var(--line);color:var(--cream);border-radius:999px;width:40px;height:40px;font-size:1.1rem;cursor:pointer;line-height:1}
+.back:hover{border-color:var(--gold-deep)}
+.rtitle{font-family:"Marcellus",serif;font-size:1rem;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase}
+.rcount{margin-left:auto;font-size:.78rem;color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums}
+.pbar{height:6px;border-radius:999px;background:#0c1c36;border:1px solid var(--line);overflow:hidden;margin:4px 0 16px}
+.pbar i{display:block;height:100%;background:linear-gradient(90deg,var(--violet),var(--gold));transition:width .3s}
+
+.ref-tag{font-family:"Marcellus",serif;letter-spacing:2px;text-transform:uppercase;font-size:.7rem;color:var(--muted);margin-bottom:8px}
+.passage{background:linear-gradient(170deg,var(--card),var(--bg2));border:1px solid var(--line);border-radius:18px;padding:22px 20px}
+.src-label{font-family:"Marcellus",serif;letter-spacing:1px;text-transform:uppercase;font-size:.66rem;color:var(--gold-deep);margin-bottom:8px}
+.auth{font-family:"Marcellus",Georgia,serif;font-size:1.22rem;line-height:1.62;color:var(--cream);max-width:60ch}
+.plain-wrap{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+.plain-toggle{background:none;border:none;color:var(--gold);font:inherit;font-weight:800;cursor:pointer;font-family:"Marcellus",serif;letter-spacing:1px;font-size:.78rem;text-transform:uppercase;display:flex;align-items:center;gap:7px;padding:0}
+.plain{margin-top:10px;color:var(--muted);font-size:1rem;line-height:1.65;max-width:60ch}
+
+.qblock{margin-top:16px}
+.ask{font-family:"Marcellus",serif;color:var(--gold);letter-spacing:.5px;font-size:1.02rem;margin:14px 0 10px}
+.opts{display:flex;flex-direction:column;gap:9px}
+.opt{text-align:left;background:var(--card2);border:2px solid var(--line);color:var(--cream);border-radius:12px;
+  padding:12px 14px;font:inherit;font-weight:700;cursor:pointer;line-height:1.4;transition:border-color .12s,background .12s}
+.opt:hover{border-color:var(--violet)}
+.opt:disabled{cursor:default}
+.opt.correct{border-color:var(--good);background:rgba(99,211,154,.16);color:#d9ffe9}
+.opt.wrong{border-color:var(--bad);background:rgba(239,143,140,.14)}
+.opt:focus-visible{outline:3px solid var(--violet);outline-offset:2px}
+.why{margin-top:12px;background:#0c1c36;border:1px solid var(--line);border-radius:12px;padding:12px 14px;color:var(--muted);font-size:.92rem;line-height:1.55}
+.why b{color:var(--cream)}
+
+.reflect{margin-top:16px}
+.reflect .rl{font-family:"Marcellus",serif;color:var(--cream);letter-spacing:.3px;font-size:.98rem;margin-bottom:8px}
+.reflect textarea{width:100%;min-height:76px;background:#0c1c36;border:2px solid var(--line);border-radius:12px;
+  color:var(--cream);font:inherit;font-weight:600;padding:12px;resize:vertical;line-height:1.5}
+.reflect textarea:focus{outline:none;border-color:var(--violet)}
+.reflect .saved{font-size:.74rem;color:var(--teal);margin-top:6px;height:14px}
+
+.actions{display:flex;gap:10px;margin-top:18px}
+.btn{flex:1;background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#241800;border:none;border-radius:13px;
+  padding:14px;font-family:"Marcellus",serif;font-size:1.02rem;letter-spacing:1px;cursor:pointer;transition:transform .08s,filter .12s}
+.btn:hover{filter:brightness(1.06)}.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.4;cursor:default;filter:none}
+.btn.ghost{background:none;border:2px solid var(--line);color:var(--cream);flex:0 0 auto;padding:14px 16px}
+.btn.ghost:hover{border-color:var(--gold-deep)}
+
+.done{text-align:center;padding:30px 12px}
+.done .big{font-size:3rem;animation:float 4s ease-in-out infinite}
+.done h2{font-size:1.6rem;color:var(--gold);margin:12px 0 6px}
+.done p{color:var(--muted);margin:0 auto 18px;max-width:40ch;line-height:1.6}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.fxp{position:absolute;font-size:1.1rem;animation:rise var(--t,900ms) ease-out forwards}
+@keyframes rise{0%{transform:translate(-50%,-50%) scale(.6);opacity:0}15%{opacity:1}
+  100%{transform:translate(calc(-50% + var(--dx,0px)),calc(-50% + var(--dy,-110px))) rotate(var(--dr,0deg));opacity:0}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<div id="fx"></div>
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><span class="sigil">☿</span><h1>The Reading Path</h1></div>
+    <span class="chip">📖 <span id="readCount">0</span></span>
+  </div>
+
+  <div id="home">
+    <div class="hero">
+      <div class="eyebrow">Corpus Hermeticum</div>
+      <h2>Read it slowly, <span class="nm">Star</span>.</h2>
+      <p>One passage at a time. First the old words as Hermes set them down, then the same thing in plainer speech, then a question or two to carry it deeper. There is no hurry — understanding comes from dwelling, not rushing.</p>
+    </div>
+    <div class="label">Chapters</div>
+    <div id="chapterList"></div>
+  </div>
+
+  <div id="reader" hidden></div>
+</div>
+
+<script>
+/* ===== DATA ===== authentic text: Dr. John Everard, 1650 (public domain), lightly de-typo'd.
+   "plain" = plain-language reading. Questions test understanding, not trivia. */
+const CHAPTERS=[
+{
+ id:"pymander-vision",
+ glyph:"🌌",
+ title:"Pymander — The Vision",
+ sub:"Book II · verses 1–19 · the creation seen in a waking dream",
+ passages:[
+  {ref:"Pymander 1",
+   auth:"My thoughts being once seriously busied about things that are, and my understanding lifted up, all my bodily senses being exceedingly held back — as it is with them that are heavy of sleep by reason of fullness of meat, or of bodily labour — methought I saw one of an exceeding great stature, and of an infinite greatness, call me by my name, and say unto me: What wouldst thou hear and see? What wouldst thou understand, to learn and know?",
+   plain:"Hermes is deep in thought about the nature of things. His mind is lifted up and his bodily senses have gone still — the way they quiet in deep sleep. In that stillness a vast being appears, calls him by name, and asks what he wishes to understand.",
+   q:[{q:"What had to happen to Hermes' senses before the vision came?",a:1,opts:["They grew sharper than ever before","They went still and quiet, as in deep sleep","He lost them completely and forever"],why:"The senses are <b>held back</b> — quieted. Stilling them is what lets the inner sight open."}],
+   reflect:"Why might the senses need to quiet down before deeper understanding can arrive?"},
+  {ref:"Pymander 2–3",
+   auth:"Then said I, Who art thou? I am, quoth he, Pymander, the Mind of the great Lord, the most mighty and absolute Emperor: I know what thou wouldst have, and I am always present with thee. Then I said, I would learn the things that are, and understand the nature of them, and know God.",
+   plain:"Hermes asks who the being is. It answers: ‘I am Pymander, the Mind of the great Lord — and I am always with you.’ Hermes names his longing: to learn what truly is, to understand its nature, and to know God.",
+   q:[{q:"Who does the being say he is?",a:1,opts:["A messenger sent from far away","Pymander, the Mind of the great Lord","Hermes' own shadow"],why:"Pymander names himself the <b>Mind</b> of God — divine Mind itself, not a messenger."},
+      {q:"What three things does Hermes ask for?",a:0,opts:["To learn what is, understand its nature, and know God","Power, riches, and a long life","To travel to heaven and come back"],why:"His whole desire is knowledge — of what truly is, and of God. That is the aim of the teaching."}],
+   reflect:null},
+  {ref:"Pymander 4–5",
+   auth:"When he had thus said, he was changed in his form, and straightway, in the twinkling of an eye, all things were opened unto me. And I saw an infinite sight: all things were become light, both sweet and exceeding pleasant; and I was wonderfully delighted in beholding it. But after a little while there was a darkness made in part, coming down obliquely, fearful and hideous, which seemed to be changed into a certain moist nature, unspeakably troubled, which yielded a smoke as from fire, and from whence proceeded a voice unutterable and very mournful.",
+   plain:"In an instant everything opens to him. First: endless Light, sweet and full of joy. Then a darkness slides down, fearful and hideous, turning into a restless, watery nature that smokes like fire and gives a mournful, wordless cry.",
+   q:[{q:"Which came first in the vision?",a:1,opts:["The darkness came first","The Light came first; the darkness came after","They appeared at the very same instant"],why:"Light is first and original. The troubled darkness only comes ‘after a little while.’ The order matters."}],
+   reflect:"The Light comes first, and the darkness only after. What might that order be telling us?"},
+  {ref:"Pymander 6–7",
+   auth:"Then from that Light a certain holy Word joined itself unto Nature, and out flew the pure and unmixed Fire from the moist nature upwards on high; it was exceeding light, and sharp, and operative withal. And the Air, being light, followed the Spirit and mounted up to the Fire, insomuch that it seemed to hang and depend upon it. And the Earth and the Water stayed by themselves, so mingled together that the Earth could not be seen for the Water; and they were moved, because of the Word that was carried upon them.",
+   plain:"A holy Word joins itself to Nature. The pure Fire leaps upward, bright and sharp. The Air rises after it. Earth and Water settle below, so mixed that the land can't be seen for the water — and all of it stirs and moves because the Word is carried over it.",
+   q:[{q:"What sets the earth and water moving?",a:2,opts:["A strong wind","The fire pulling them upward","The Word carried over them"],why:"It is the <b>Word</b> — not force from below — that sets Nature moving. Movement follows the Word."}],
+   reflect:null},
+  {ref:"Pymander 8–9",
+   auth:"Then said Pymander unto me: Dost thou understand this vision, and what it meaneth? Then said he: I am that Light, the Mind, thy God, who am before the moist nature that appeared out of darkness; and that bright and lightful Word from the Mind is the Son of God. How is that? quoth I. Thus understand it: that which in thee seeth and heareth is the Word of the Lord; and the Mind is the Father, God. They differ not one from the other; and the union of these is Life.",
+   plain:"Pymander explains: ‘I am that Light — the Mind, your God — who was there before the watery darkness ever appeared. The bright Word that comes from the Mind is the Son of God.’ And within you: the part that sees and hears is the Word; the Mind behind it is the Father. They are not separate — and their union is Life itself.",
+   q:[{q:"What does Pymander call the union of the Mind and the Word?",a:1,opts:["Light","Life","Sleep"],why:"‘The union of these is <b>Life</b>.’ Life is what their oneness brings forth."}],
+   reflect:"Pymander says the part that sees and the mind behind it are one. Can you notice both in yourself right now?"},
+  {ref:"Pymander 12–13",
+   auth:"But whence, quoth I, are the elements of Nature made? Of the Will and counsel of God, said he, which, taking the Word and beholding the beautiful World, imitated it, and so made this World by the seeds and soul-like productions of itself. For the Mind, being God, male and female, Life and Light, brought forth by his Word another Mind, a Workman; which, being God of the Fire and the Spirit, fashioned seven Governors, that in their circles contain the Sensible World; and their government is called Fate or Destiny.",
+   plain:"Where did the elements come from? From the Will of God. God's Mind — both male and female, Life and Light — beholds the beautiful pattern and, through the Word, brings forth a second Mind: a Workman. This Workman shapes seven Governors (the planetary powers) whose circling rule over the world is what people call Fate.",
+   q:[{q:"What is the rule of the seven Governors called?",a:2,opts:["Luck","Freedom","Fate or Destiny"],why:"Their circling government is named <b>Fate</b> — the ordered necessity that runs the sensible world."},
+      {q:"The Workman is best described as…",a:1,opts:["The one and only God","A second Mind, brought forth to shape the world","One of the seven Governors himself"],why:"The Workman is a <b>second Mind</b>, made through the Word — the maker of the Governors, not one of them."}],
+   reflect:null},
+  {ref:"Pymander 16–17",
+   auth:"And the circling of these, as the Mind willed, brought forth out of the lower elements the unreasonable, brutish creatures — for they had no reason: the Air its flying things, the Water such as swim. And the Earth and the Water were separated, each from the other, as the Mind would; and the Earth brought forth from herself the living creatures she had, four-footed and creeping, wild and tame.",
+   plain:"As the Governors wheel around, the lower elements bring forth animals that have no reason — birds for the air, fish for the water. Then earth and water part, and the Earth brings forth her own creatures: four-footed and creeping, wild and tame.",
+   q:[{q:"What do these animals lack that Man will soon have?",a:1,opts:["Bodies","Reason","The ability to move"],why:"They are ‘unreasonable, brutish creatures’ — they have no <b>reason</b>. That is exactly what will set Man apart."}],
+   reflect:null},
+  {ref:"Pymander 18–19",
+   auth:"But the Father of all things, the Mind, being Life and Light, brought forth Man like unto himself, whom he loved as his proper birth; for Man was all beauteous, having the image of his Father. For indeed God was exceedingly enamoured of his own form, and delivered unto Man all his own workmanships. But Man, seeing and understanding the creation of the Workman, would needs also himself fall to work; and so was separated from the Father, being in the sphere of Generation.",
+   plain:"Then the Father — Mind, Life and Light — brings forth Man in his own image, loved as his very own, beautiful because he carries his Father's likeness. God hands Man everything he has made. But Man, watching the Workman create, wants to create too — and so steps away from the Father, down into the world of making and change.",
+   q:[{q:"Why is Man loved and called beautiful?",a:2,opts:["He is the strongest of the creatures","He was made before everything else","He carries the image of his Father"],why:"Man is beautiful because he bears the Father's own image — made ‘like unto himself.’"},
+      {q:"Why does Man become ‘separated from the Father’?",a:0,opts:["He chooses to create too, and steps down into the world of making","He is punished for breaking a rule","The Governors drive him out by force"],why:"It isn't a punishment — Man <b>chooses</b> to create, and that desire carries him down into Generation. This begins the whole long story of descent and return."}],
+   reflect:"Man steps away from the Father because he wants to create, like his Father does. Is that a fall, a mistake, or something else? What do you think?"}
+ ]
+},
+{ id:"book1-opening", glyph:"🗝️", title:"Book I — The Opening", sub:"The soul's struggle & the way home — coming soon", soon:true, passages:[] }
+];
+
+/* ===== state ===== */
+const $=s=>document.querySelector(s);
+function load(k,def){try{const r=localStorage.getItem(k);return r?JSON.parse(r):def;}catch(e){return def;}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function activeName(){try{const id=load("majick-active",null);const ps=load("majick-profiles",[]);const p=ps.find(x=>x.id===id);return p?p.name:null;}catch(e){return null;}}
+function doneKey(cid){return "star-reader-"+cid+"-done";}
+function getDone(cid){return new Set(load(doneKey(cid),[]));}
+function totalRead(){return CHAPTERS.reduce((n,c)=>n+getDone(c.id).size,0);}
+function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+
+const home=$("#home"),reader=$("#reader");
+function updateCount(){$("#readCount").textContent=totalRead();}
+
+/* ===== home ===== */
+function renderHome(){
+  updateCount();
+  const nm=activeName();if(nm){const h=document.querySelector(".hero h2 .nm");if(h)h.textContent=nm;}
+  const list=$("#chapterList");list.innerHTML="";
+  CHAPTERS.forEach(c=>{
+    const total=c.passages.length;const d=getDone(c.id).size;const pct=total?Math.round(d/total*100):0;
+    const b=document.createElement(c.soon?"div":"button");
+    b.className="chapter"+(c.soon?" soon":"");
+    b.innerHTML=`<span class="cg">${c.glyph}</span>
+      <div class="cmain"><div class="ct">${esc(c.title)}</div><div class="cs">${esc(c.sub)}</div>
+        ${c.soon?"":`<div class="cmeter"><div class="bar"><i style="width:${pct}%"></i></div><div class="cn">${d}/${total} read</div></div>`}</div>
+      ${c.soon?'<span class="soon-tag">Soon</span>':""}`;
+    if(!c.soon)b.onclick=()=>openChapter(c.id);
+    list.appendChild(b);
+  });
+}
+function goHome(){reader.hidden=true;home.hidden=false;renderHome();window.scrollTo(0,0);}
+
+/* ===== reader ===== */
+let R=null; // {chapter, idx}
+function openChapter(cid){
+  const chapter=CHAPTERS.find(c=>c.id===cid);
+  const done=getDone(cid);
+  let idx=chapter.passages.findIndex((_,i)=>!done.has(i));
+  if(idx<0)idx=0;
+  R={chapter,idx};
+  home.hidden=true;reader.hidden=false;renderPassage();window.scrollTo(0,0);
+}
+function markDone(){const d=getDone(R.chapter.id);d.add(R.idx);save(doneKey(R.chapter.id),[...d]);updateCount();}
+function reflectKey(){return "star-reader-"+R.chapter.id+"-reflect-"+R.idx;}
+
+function renderPassage(){
+  const c=R.chapter,p=c.passages[R.idx],total=c.passages.length;
+  const pct=Math.round((R.idx)/total*100);
+  const savedReflect=load(reflectKey(),"");
+  reader.innerHTML=`<div class="play-top"><button class="back" id="rBack" aria-label="Chapters">←</button>
+      <span class="rtitle">${esc(c.title)}</span><span class="rcount">${R.idx+1} / ${total}</span></div>
+    <div class="pbar"><i style="width:${pct}%"></i></div>
+    <div class="passage">
+      <div class="ref-tag">${esc(p.ref)}</div>
+      <div class="src-label">The text · Everard, 1650</div>
+      <div class="auth">${esc(p.auth)}</div>
+      <div class="plain-wrap">
+        <button class="plain-toggle" id="plainToggle"><span id="ptArrow">▸</span> In plainer words</button>
+        <div class="plain" id="plainBox" hidden>${esc(p.plain)}</div>
+      </div>
+      <div class="qblock" id="qblock"></div>
+    </div>`;
+  $("#rBack").onclick=goHome;
+  let open=false;
+  $("#plainToggle").onclick=()=>{open=!open;$("#plainBox").hidden=!open;$("#ptArrow").textContent=open?"▾":"▸";};
+  renderQuestions(p,savedReflect);
+}
+
+function renderQuestions(p,savedReflect){
+  const qb=$("#qblock");
+  const qs=p.q||[];
+  let answered=new Array(qs.length).fill(false);
+  qb.innerHTML=qs.map((q,qi)=>`
+    <div class="ask">${esc(q.q)}</div>
+    <div class="opts" data-qi="${qi}" id="opts-${qi}"></div>
+    <div class="why" id="why-${qi}" hidden></div>`).join("")
+    + `${p.reflect?`<div class="reflect"><div class="rl">${esc(p.reflect)}</div>
+         <textarea id="reflectBox" placeholder="Write a thought… (just for you)">${esc(savedReflect)}</textarea>
+         <div class="saved" id="reflectSaved"></div></div>`:""}
+       <div class="actions">
+         <button class="btn ghost" id="prevBtn" ${R.idx===0?"disabled":""}>Back</button>
+         <button class="btn" id="nextBtn" ${qs.length?"disabled":""}>${R.idx===R.chapter.passages.length-1?"Finish":"Next passage"}</button>
+       </div>`;
+  qs.forEach((q,qi)=>{
+    const box=$("#opts-"+qi);
+    q.opts.forEach((txt,oi)=>{
+      const b=document.createElement("button");b.className="opt";b.textContent=txt;
+      b.onclick=()=>{
+        if(box.dataset.lock)return;
+        if(oi===q.a){box.dataset.lock="1";b.classList.add("correct");
+          [...box.children].forEach(c=>c.disabled=true);
+          const w=$("#why-"+qi);w.hidden=false;w.innerHTML=q.why;
+          answered[qi]=true;
+          if(answered.every(Boolean)){$("#nextBtn").disabled=false;}
+          burst(b,3);
+        } else {b.classList.add("wrong");b.disabled=true;}
+      };
+      box.appendChild(b);
+    });
+  });
+  if(p.reflect){
+    const ta=$("#reflectBox");let t;
+    ta.addEventListener("input",()=>{clearTimeout(t);t=setTimeout(()=>{save(reflectKey(),ta.value);
+      const s=$("#reflectSaved");s.textContent="Saved";setTimeout(()=>{if(s)s.textContent="";},1400);},500);});
+  }
+  $("#prevBtn").onclick=()=>{if(R.idx>0){R.idx--;renderPassage();window.scrollTo(0,0);}};
+  $("#nextBtn").onclick=()=>{
+    markDone();
+    if(R.idx>=R.chapter.passages.length-1){renderDone();}
+    else{R.idx++;renderPassage();window.scrollTo(0,0);}
+  };
+}
+
+function renderDone(){
+  const c=R.chapter;
+  reader.innerHTML=`<div class="play-top"><button class="back" id="rBack" aria-label="Chapters">←</button>
+      <span class="rtitle">${esc(c.title)}</span></div>
+    <div class="passage done"><div class="big">📖</div>
+    <h2>You've read ${esc(c.title)}.</h2>
+    <p>You carried it slowly, passage by passage. Let it settle — then read it again, and more will open.</p>
+    <div class="actions"><button class="btn" id="homeBtn">Back to chapters</button>
+      <button class="btn ghost" id="againBtn">Read again</button></div></div>`;
+  $("#rBack").onclick=goHome;$("#homeBtn").onclick=goHome;
+  $("#againBtn").onclick=()=>{R.idx=0;renderPassage();window.scrollTo(0,0);};
+  burst(document.querySelector(".done .big"),14);
+}
+
+/* ===== small fx ===== */
+function burst(el,count){const fx=$("#fx");if(!el)return;const r=el.getBoundingClientRect();
+  const cx=r.left+r.width/2,cy=r.top+r.height/2;const set=["✦","✧","⭐","✨"];
+  for(let i=0;i<count;i++){const s=document.createElement("span");s.className="fxp";
+    s.textContent=set[Math.floor(Math.random()*set.length)];s.style.left=cx+"px";s.style.top=cy+"px";
+    s.style.setProperty("--dx",(Math.random()*140-70).toFixed(0)+"px");
+    s.style.setProperty("--dy",(-Math.random()*80-40).toFixed(0)+"px");
+    s.style.setProperty("--dr",(Math.random()*120-60).toFixed(0)+"deg");
+    s.style.setProperty("--t",(700+Math.random()*500).toFixed(0)+"ms");
+    fx.appendChild(s);setTimeout(()=>s.remove(),1300);}}
+
+/* ===== starfield ===== */
+(function(){const c=$("#sky"),x=c.getContext("2d");let w,hh,stars;
+  const reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;
+  function size(){w=c.width=innerWidth;hh=c.height=innerHeight;
+    stars=Array.from({length:Math.min(90,Math.floor(w*hh/14000))},()=>({x:Math.random()*w,y:Math.random()*hh,r:Math.random()*1.3+0.3,a:Math.random(),s:Math.random()*0.018+0.004}));}
+  function frame(){x.clearRect(0,0,w,hh);for(const st of stars){st.a+=st.s;x.globalAlpha=0.3+0.4*Math.sin(st.a);
+    x.fillStyle="#e6c25c";x.beginPath();x.arc(st.x,st.y,st.r,0,7);x.fill();}x.globalAlpha=1;if(!reduce)requestAnimationFrame(frame);}
+  size();frame();addEventListener("resize",size);})();
+
+renderHome();
+</script>
+</body>
+</html>

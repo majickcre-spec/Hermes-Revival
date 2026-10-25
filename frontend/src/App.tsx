@@ -13,6 +13,7 @@ import SevenGovernors from "@/pages/seven-governors";
 import TheMind from "@/pages/the-mind";
 import HeadsOfThings from "@/pages/heads-of-things";
 import StarHeads from "@/pages/star-heads";
+import ReadingPath from "@/pages/reading-path";
 import Regeneration from "@/pages/regeneration";
 import Dashboard from "@/pages/dashboard";
 import Journey from "@/pages/journey";
@@ -32,6 +33,7 @@ function Router() {
       <Route path="/learning" component={FlashcardLearning} />
       <Route path="/reader/heads-of-things" component={HeadsOfThings} />
       <Route path="/reader/star-heads" component={StarHeads} />
+      <Route path="/reader/reading-path" component={ReadingPath} />
       <Route path="/reader/regeneration" component={Regeneration} />
       <Route path="/reader/:id" component={Reader} />
       <Route path="/editor/:id" component={Editor} />

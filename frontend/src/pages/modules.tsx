@@ -154,6 +154,29 @@ export default function Modules() {
             <Card className="bg-card border-white/10 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40">
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">
+                  <span className="text-xs font-bold tracking-widest text-primary/60 uppercase">Reading</span>
+                  <BookOpen className="w-4 h-4 text-primary" />
+                </div>
+                <h3 className="text-2xl font-serif text-foreground mt-2">The Reading Path</h3>
+                <div className="text-sm font-medium text-muted-foreground">Read slowly, one passage at a time</div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground/80 font-body leading-relaxed h-16 line-clamp-3">
+                  The authentic 1650 text with a plain-language reading and a question or two after each passage. Begins with the Pymander vision.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Link href="/reader/reading-path">
+                  <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+                    <BookOpen className="w-4 h-4 mr-2" /> Start Reading
+                  </Button>
+                </Link>
+              </CardFooter>
+            </Card>
+
+            <Card className="bg-card border-white/10 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40">
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-start">
                   <span className="text-xs font-bold tracking-widest text-primary/60 uppercase">Study Module</span>
                   <Sunrise className="w-4 h-4 text-primary" />
                 </div>
