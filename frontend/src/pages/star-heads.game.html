@@ -251,6 +251,73 @@ body.gated .chip.star,body.gated .chip.heart,body.gated .chip.who,body.gated .ra
 @keyframes pop{0%{transform:scale(.7);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
 .shoot{position:absolute;width:2px;height:2px;background:#fff;border-radius:50%;
   box-shadow:0 0 6px 1px #fff;opacity:0}
+/* ---------- treasury + shop ---------- */
+.chip.bean{color:#d9b25a;cursor:pointer;font:inherit;font-weight:800}
+.chip.bean:hover{border-color:var(--gold-deep)}
+body.gated .chip.bean{visibility:hidden}
+.treasury{background:linear-gradient(160deg,#241d12,#15284a);border:1px solid var(--line);border-radius:18px;
+  padding:16px 18px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:transform .14s,border-color .14s}
+.treasury:hover{transform:translateY(-2px);border-color:var(--gold-deep)}
+.treasury .tz-ic{font-size:2rem;flex:none}
+.treasury .tz-main{flex:1;min-width:0}
+.treasury .tz-bal{font-family:"Marcellus",serif;font-size:1.5rem;color:var(--gold)}
+.treasury .tz-sub{font-size:.84rem;color:var(--muted)}
+.treasury .tz-go{font-family:"Marcellus",serif;letter-spacing:1px;color:var(--cream);font-size:.84rem;
+  border:1px solid var(--line);border-radius:999px;padding:8px 14px;flex:none}
+.shop-head{display:flex;align-items:center;gap:12px;margin:8px 0 6px}
+.shop-bal{margin-left:auto;font-family:"Marcellus",serif;color:var(--gold);font-size:1.1rem}
+.cats{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 16px}
+.cat{cursor:pointer;font:inherit;font-weight:700;background:var(--card);border:1px solid var(--line);color:var(--muted);
+  border-radius:999px;padding:7px 14px;font-size:.86rem;letter-spacing:.3px}
+.cat.on{background:var(--gold);color:#241800;border-color:var(--gold)}
+.items{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:520px){.items{grid-template-columns:1fr}}
+.item{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:15px;display:flex;flex-direction:column;gap:9px;position:relative}
+.item.ready{border-color:var(--gold-deep);box-shadow:0 0 18px rgba(230,194,92,.12)}
+.item .it-top{display:flex;align-items:flex-start;gap:10px}
+.item .it-ic{font-size:1.8rem;flex:none}
+.item .it-name{font-family:"Marcellus",serif;font-size:1.1rem;color:var(--cream);line-height:1.2}
+.item .it-note{font-size:.8rem;color:var(--muted);margin-top:2px}
+.item .it-badge{position:absolute;top:12px;right:12px;font-size:.6rem;font-family:"Marcellus",serif;letter-spacing:1px;
+  text-transform:uppercase;border-radius:999px;padding:3px 8px;border:1px solid var(--line);color:var(--muted)}
+.item .it-badge.online{color:#9bd0ff;border-color:#2f4e74}
+.item .it-badge.have{color:var(--teal);border-color:#2a5b54}
+.item .it-cost{font-family:"Marcellus",serif;color:var(--gold);font-weight:400;font-size:.95rem}
+.item .it-bar{height:9px;border-radius:999px;background:#0c1c36;border:1px solid var(--line);overflow:hidden}
+.item .it-bar i{display:block;height:100%;background:linear-gradient(90deg,#d9b25a,var(--gold));transition:width .3s}
+.item .it-save{font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.item .it-acts{display:flex;gap:7px;flex-wrap:wrap;margin-top:2px}
+.ibtn{flex:1;min-width:84px;font:inherit;font-weight:800;cursor:pointer;border-radius:11px;padding:10px;font-size:.86rem;
+  background:var(--card2);border:1px solid var(--line);color:var(--cream)}
+.ibtn:hover{border-color:var(--gold-deep)}
+.ibtn:disabled{opacity:.4;cursor:default}
+.ibtn.go{background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#241800;border:none}
+.ibtn.link{flex:0 0 auto;min-width:0;text-decoration:none;display:inline-flex;align-items:center;color:#9bd0ff;background:none}
+.ibtn.tiny{flex:0 0 auto;min-width:0;background:none;color:var(--muted);padding:10px 12px}
+.claimed-tray{margin-top:22px}
+.claim{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.claim .cl-ic{font-size:1.3rem}
+.claim .cl-main{flex:1;min-width:0}
+.claim .cl-name{font-weight:800}
+.claim .cl-st{font-size:.74rem;font-family:"Marcellus",serif;letter-spacing:1px;text-transform:uppercase}
+.claim .cl-st.pending{color:var(--gold)} .claim .cl-st.fulfilled{color:var(--good)}
+.empty{color:var(--muted);text-align:center;padding:22px;font-size:.92rem}
+/* grown-up editor */
+.gsec{border-top:1px solid var(--line);margin-top:16px;padding-top:14px}
+.gsec h3{font-size:1.02rem;color:var(--gold);letter-spacing:.5px;margin-bottom:8px}
+.ginput,.gselect{width:100%;background:#0c1c36;border:2px solid var(--line);border-radius:10px;color:var(--cream);
+  font:inherit;font-weight:700;padding:10px;margin-bottom:8px;font-size:.92rem}
+.ginput:focus,.gselect:focus{outline:none;border-color:var(--violet)}
+.grow{display:flex;gap:8px}.grow>*{flex:1}
+.erow{display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:7px}
+.erow .er-main{flex:1;min-width:0;font-size:.88rem}
+.erow .er-sub{font-size:.74rem;color:var(--muted)}
+.erow button{font:inherit;font-weight:800;cursor:pointer;border-radius:8px;padding:6px 10px;font-size:.78rem;background:none;border:1px solid var(--line);color:var(--muted)}
+.erow button.del{border-color:var(--bad);color:var(--bad)}
+.minibtn{font:inherit;font-weight:800;cursor:pointer;border-radius:10px;padding:9px 13px;background:var(--card2);border:1px solid var(--line);color:var(--cream)}
+.minibtn.gold{background:var(--gold);color:#241800;border:none}
+.chkrow{display:flex;gap:14px;margin-bottom:10px;font-size:.88rem;color:var(--muted)}
+.chkrow label{display:flex;align-items:center;gap:6px;cursor:pointer}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -264,6 +331,7 @@ body.gated .chip.star,body.gated .chip.heart,body.gated .chip.who,body.gated .ra
       <button class="chip who" id="switchProfile" title="Switch traveler">🪐 <span id="profileName">—</span></button>
       <span class="chip star">⭐ <span id="starNum">0</span></span>
       <span class="chip heart">♥ <span id="heartNum">0</span></span>
+      <button class="chip bean" id="beanChip" title="Open the shop">🫘 <span id="beanNum">0</span></button>
     </div>
     <div class="rankline" id="rankLine">Seeker</div>
   </div>
@@ -283,10 +351,14 @@ body.gated .chip.star,body.gated .chip.heart,body.gated .chip.who,body.gated .ra
     <div class="label">Focused practice</div>
     <div class="focus-row" id="focusRow"></div>
 
+    <div class="label">Treasury</div>
+    <div id="treasuryEntry"></div>
+
     <div class="parent-link"><button id="openParent">Notes &amp; attribution</button></div>
   </div>
 
   <div id="play" hidden></div>
+  <div id="shop" hidden></div>
 </div>
 
 <div id="parentSheet" class="sheet" hidden>
@@ -298,8 +370,32 @@ body.gated .chip.star,body.gated .chip.heart,body.gated .chip.who,body.gated .ra
     <div class="note"><b>Mixed Path</b> shuffles every question type and leans on the heads missed most — the fullest way to carry them.<br>
       <b>Recall</b> is active recall with honest self-rating; the strongest way to commit them to memory.<br>
       <b>Focused practice</b> drills one style at a time: Choose, Fill, Match, Build.</div>
-    <div class="note"><b>Stars</b> ⭐ mark heads mastered. <b>Hearts</b> ♥ are earned for returning and trying again, and for turning a missed head into a mastered one. Progress saves on this device.</div>
-    <button class="reset" id="resetBtn">Reset all progress</button>
+    <div class="note"><b>Stars</b> ⭐ mark heads mastered. <b>Hearts</b> ♥ are earned for returning and trying again. <b>Beans</b> 🫘 are earned from stars and spent in the shop. Progress saves on this device.</div>
+
+    <div class="gsec">
+      <h3>Beans &amp; rewards</h3>
+      <div class="grow">
+        <div><div class="ulabel">Beans per star</div><input class="ginput" id="rateInput" inputmode="numeric" placeholder="10"></div>
+        <div><div class="ulabel">Grant beans to this traveler</div>
+          <div class="grow"><input class="ginput" id="grantInput" inputmode="numeric" placeholder="e.g. 50"><button class="minibtn gold" id="grantBtn">Give</button></div></div>
+      </div>
+    </div>
+
+    <div class="gsec">
+      <h3>Shop items</h3>
+      <div id="editorList"></div>
+      <div id="editorForm"></div>
+      <button class="minibtn" id="addItemBtn">＋ Add an item</button>
+    </div>
+
+    <div class="gsec">
+      <h3>Claimed by this traveler</h3>
+      <div id="claimsAdmin"></div>
+    </div>
+
+    <div class="gsec">
+    <button class="reset" id="resetBtn">Reset this traveler's progress</button>
+    </div>
     <p class="attrib">Label for published use: “Majick's Modernization.” Original wording: John Everard, 1650.</p>
   </div>
 </div>
@@ -374,14 +470,35 @@ const byN=Object.fromEntries(HEADS.map(h=>[h.n,h]));
 function load(k,def){try{const r=localStorage.getItem(k);return r?JSON.parse(r):def;}catch(e){return def;}}
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 let activeId=null,done=new Set(),hearts=0,missed=new Set(),best=0,streak=0;
+let beans=0,beansLife=0,goals={},claims=[];
 function pkey(s){return "majick-p-"+activeId+"-"+s;}
-function loadProfileState(){done=new Set(load(pkey("done"),[]));hearts=load(pkey("hearts"),0);
-  missed=new Set(load(pkey("missed"),[]));best=load(pkey("best"),0);streak=0;}
-function persist(){save(pkey("done"),[...done]);save(pkey("hearts"),hearts);save(pkey("missed"),[...missed]);save(pkey("best"),best);}
+function getRate(){const r=parseInt(load("majick-earn-rate","10"),10);return isNaN(r)?10:Math.max(1,r);}
+function setRate(r){save("majick-earn-rate",String(Math.max(1,r|0)));}
+function loadProfileState(){
+  done=new Set(load(pkey("done"),[]));hearts=load(pkey("hearts"),0);
+  missed=new Set(load(pkey("missed"),[]));best=load(pkey("best"),0);streak=0;
+  goals=load(pkey("goals"),{});claims=load(pkey("claims"),[]);
+  if(load(pkey("beansSeed"),false)){beans=load(pkey("beans"),0);beansLife=load(pkey("beansLife"),0);}
+  else{const base=done.size*getRate();beans=base;beansLife=base;save(pkey("beansSeed"),true);save(pkey("beans"),beans);save(pkey("beansLife"),beansLife);}
+}
+function persist(){save(pkey("done"),[...done]);save(pkey("hearts"),hearts);save(pkey("missed"),[...missed]);save(pkey("best"),best);
+  save(pkey("beans"),beans);save(pkey("beansLife"),beansLife);save(pkey("goals"),goals);save(pkey("claims"),claims);}
 /* profiles */
 function getProfiles(){return load("majick-profiles",[]);}
 function setProfiles(p){save("majick-profiles",p);}
 function newId(){return "u"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+/* shop catalog (shared — set by a grown-up). online:true = buy online (add a link); false = we already have it. */
+function defaultCatalog(){return [
+ {id:"t1",cat:"Custom T-Shirts",name:"Design-your-own tee",icon:"👕",cost:400,online:true,url:"",note:"Pick the art — we print it."},
+ {id:"a1",cat:"Art Supplies",name:"Pro marker set",icon:"🖊️",cost:250,online:true,url:"",note:"Example — edit me."},
+ {id:"a2",cat:"Art Supplies",name:"Watercolor pad",icon:"🎨",cost:120,online:true,url:"",note:"Example — edit me."},
+ {id:"b1",cat:"Baking Tools",name:"Cookie cutter set",icon:"🍪",cost:150,online:true,url:"",note:"Example — edit me."},
+ {id:"b2",cat:"Baking Tools",name:"Frosting & piping kit",icon:"🧁",cost:200,online:true,url:"",note:"Example — edit me."},
+ {id:"h1",cat:"Little Treats",name:"Movie night pick",icon:"🎬",cost:80,online:false,url:"",note:"You choose the film."},
+ {id:"h2",cat:"Little Treats",name:"Bakery trip",icon:"🥐",cost:120,online:false,url:"",note:"A treat of your choosing."},
+];}
+function getCatalog(){let c=load("majick-shop-catalog",null);if(!c){c=defaultCatalog();save("majick-shop-catalog",c);}return c;}
+function setCatalog(c){save("majick-shop-catalog",c);}
 
 /* ===== helpers ===== */
 const $=s=>document.querySelector(s);
@@ -399,6 +516,7 @@ function pick(a){return a[Math.floor(Math.random()*a.length)];}
 function updateScore(){
   $("#starNum").textContent=done.size;
   $("#heartNum").textContent=hearts;
+  const bn=$("#beanNum");if(bn)bn.textContent=beans;
   $("#rankLine").textContent=rankName(done.size);
   const sg=document.querySelector(".sage");
   if(sg){const k=Math.min(streak,10);sg.style.setProperty("--aura",1+k*0.06);sg.style.setProperty("--glow",(0.22+k*0.05).toFixed(2));}
@@ -409,7 +527,7 @@ function sageReact(ok){const sg=document.querySelector(".sage");if(!sg)return;
 function burst(el,kind,count){
   const fx=$("#fx");if(!el)return;const r=el.getBoundingClientRect();
   const cx=r.left+r.width/2,cy=r.top+r.height/2;
-  const set=kind==="heart"?["♥","💛","💗"]:["⭐","✨","🌟","💫"];
+  const set=kind==="heart"?["♥","💛","💗"]:kind==="bean"?["🫘","🪙","✨"]:["⭐","✨","🌟","💫"];
   for(let i=0;i<count;i++){
     const s=document.createElement("span");s.className="fxp";s.textContent=pick(set);
     s.style.left=cx+"px";s.style.top=cy+"px";
@@ -429,9 +547,11 @@ function onCorrect(h,anchor){
   const fresh=!done.has(h.n);
   award(h.n);streak++;if(streak>best)best=streak;
   if(wasMissed){hearts+=2;missed.delete(h.n);}
+  if(fresh){const g=getRate();beans+=g;beansLife+=g;}
   persist();updateScore();sageReact(true);
   burst(anchor||document.querySelector(".sage .fig"),"star",wasMissed?14:9);
   if(wasMissed)burst(heartChip(),"heart",2);
+  if(fresh)burst(document.querySelector(".chip.bean"),"bean",4);
   return wasMissed;
 }
 /* wrong / retry: reward perseverance */
@@ -471,6 +591,13 @@ function renderHome(){
     b.onclick=()=>startFocused(f.id);
     fr.appendChild(b);
   });
+  const tz=$("#treasuryEntry");
+  tz.innerHTML=`<div class="treasury" id="treasuryCard">
+    <span class="tz-ic">🫘</span>
+    <div class="tz-main"><div class="tz-bal">${beans} Beans</div>
+      <div class="tz-sub">Earned from your stars · spend them in the shop</div></div>
+    <span class="tz-go">Shop ▸</span></div>`;
+  $("#treasuryCard").onclick=openShop;
 }
 function goHome(){play.hidden=true;home.hidden=false;renderHome();window.scrollTo(0,0);}
 
@@ -672,7 +799,7 @@ function renderDone(){
 }
 
 /* ===== parent sheet ===== */
-$("#openParent").onclick=()=>{$("#parentSheet").hidden=false;};
+$("#openParent").onclick=()=>{$("#parentSheet").hidden=false;renderParentAdmin();};
 $("#closeParent").onclick=()=>{$("#parentSheet").hidden=true;};
 $("#parentSheet").addEventListener("click",e=>{if(e.target.id==="parentSheet")$("#parentSheet").hidden=true;});
 $("#resetBtn").onclick=()=>{done=new Set();hearts=0;missed=new Set();best=0;streak=0;persist();$("#parentSheet").hidden=true;renderHome();};
@@ -681,7 +808,7 @@ $("#resetBtn").onclick=()=>{done=new Set();hearts=0;missed=new Set();best=0;stre
 const gate=$("#gate");
 function renderGate(){
   document.body.classList.add("gated");
-  home.hidden=true;play.hidden=true;gate.hidden=false;
+  home.hidden=true;play.hidden=true;$("#shop").hidden=true;gate.hidden=false;
   const ps=getProfiles();
   gate.innerHTML=`<div class="hero"><div class="eyebrow">The Heads of Things</div>
     <h2>Who is studying?</h2>
@@ -721,10 +848,121 @@ function showCreate(){
   setTimeout(()=>$("#newName").focus(),60);
 }
 function activate(id){activeId=id;save("majick-active",id);loadProfileState();showHome();}
-function showHome(){document.body.classList.remove("gated");gate.hidden=true;play.hidden=true;home.hidden=false;
+function showHome(){document.body.classList.remove("gated");gate.hidden=true;play.hidden=true;$("#shop").hidden=true;home.hidden=false;
   const p=getProfiles().find(x=>x.id===activeId);$("#profileName").textContent=p?p.name:"—";
   renderHome();window.scrollTo(0,0);}
 $("#switchProfile").onclick=()=>{activeId=null;renderGate();window.scrollTo(0,0);};
+
+/* ===== shop ===== */
+const shop=$("#shop");
+let shopCat="all";
+function openShop(){home.hidden=true;play.hidden=true;shop.hidden=false;renderShop();window.scrollTo(0,0);}
+function shopGoHome(){shop.hidden=true;home.hidden=false;renderHome();window.scrollTo(0,0);}
+function renderShop(){
+  const cat=getCatalog();
+  const cats=["all",...[...new Set(cat.map(i=>i.cat))]];
+  if(!cats.includes(shopCat))shopCat="all";
+  const items=cat.filter(i=>shopCat==="all"||i.cat===shopCat);
+  shop.innerHTML=`<div class="play-top"><button class="back" id="shopBack" aria-label="Home">←</button>
+      <span class="play-title">The Shop</span><span class="shop-bal">🫘 ${beans}</span></div>
+    <p class="hint" style="text-align:left;margin:0 0 10px">Save your Beans toward something, then claim it — a grown-up makes it real.</p>
+    <div class="cats" id="cats"></div><div class="items" id="items"></div>
+    <div class="claimed-tray" id="tray"></div>`;
+  const cc=$("#cats");
+  cats.forEach(c=>{const b=document.createElement("button");b.className="cat"+(c===shopCat?" on":"");
+    b.textContent=c==="all"?"All":c;b.onclick=()=>{shopCat=c;renderShop();};cc.appendChild(b);});
+  const box=$("#items");box.innerHTML="";
+  if(!items.length)box.innerHTML='<div class="empty">No items here yet. A grown-up can add some from Notes.</div>';
+  items.forEach(it=>box.appendChild(itemCard(it)));
+  renderTray();
+  $("#shopBack").onclick=shopGoHome;
+}
+function itemCard(it){
+  const saved=goals[it.id]||0,ready=saved>=it.cost,pct=Math.min(100,Math.round(saved/it.cost*100));
+  const el=document.createElement("div");el.className="item"+(ready?" ready":"");
+  el.innerHTML=`${it.online?'<span class="it-badge online">Buy online</span>':'<span class="it-badge have">We have it</span>'}
+    <div class="it-top"><span class="it-ic">${esc(it.icon||"🎁")}</span>
+      <div><div class="it-name">${esc(it.name)}</div>${it.note?`<div class="it-note">${esc(it.note)}</div>`:""}</div></div>
+    <div class="it-cost">${it.cost} 🫘</div>
+    <div class="it-bar"><i style="width:${pct}%"></i></div>
+    <div class="it-save">${saved} / ${it.cost} saved</div>
+    <div class="it-acts"></div>`;
+  const acts=el.querySelector(".it-acts");
+  if(ready){const claim=document.createElement("button");claim.className="ibtn go";claim.textContent="Claim it! 🎉";
+    claim.onclick=()=>claimItem(it);acts.appendChild(claim);}
+  else{
+    const add10=document.createElement("button");add10.className="ibtn";add10.textContent="+10 🫘";add10.disabled=beans<=0;
+    add10.onclick=()=>putBeans(it,Math.min(10,beans,it.cost-saved));
+    const fill=document.createElement("button");fill.className="ibtn go";fill.textContent="Save all I can";fill.disabled=beans<=0;
+    fill.onclick=()=>putBeans(it,Math.min(beans,it.cost-saved));
+    acts.appendChild(add10);acts.appendChild(fill);
+  }
+  if(saved>0&&!ready){const rf=document.createElement("button");rf.className="ibtn tiny";rf.textContent="↩";rf.title="Take beans back";
+    rf.onclick=()=>refundGoal(it);acts.appendChild(rf);}
+  if(it.online&&it.url){const a=document.createElement("a");a.className="ibtn link";a.href=it.url;a.target="_blank";a.rel="noopener";a.textContent="See it ↗";acts.appendChild(a);}
+  return el;
+}
+function putBeans(it,amt){amt=Math.max(0,Math.min(amt,beans));if(amt<=0)return;
+  beans-=amt;goals[it.id]=(goals[it.id]||0)+amt;persist();updateScore();burst(document.querySelector(".chip.bean"),"bean",3);renderShop();}
+function refundGoal(it){const s=goals[it.id]||0;if(s<=0)return;beans+=s;delete goals[it.id];persist();updateScore();renderShop();}
+function claimItem(it){const saved=goals[it.id]||0;if(saved<it.cost)return;
+  delete goals[it.id];claims.unshift({id:newId(),itemId:it.id,name:it.name,icon:it.icon,cost:it.cost,online:it.online,url:it.url,ts:Date.now(),status:"pending"});
+  persist();updateScore();burst(document.querySelector(".shop-bal"),"star",16);renderShop();}
+function renderTray(){
+  const t=$("#tray");if(!claims.length){t.innerHTML="";return;}
+  t.innerHTML=`<div class="label" style="margin:6px 2px 10px">Your claims</div>`;
+  claims.forEach(c=>{const d=document.createElement("div");d.className="claim";
+    d.innerHTML=`<span class="cl-ic">${esc(c.icon||"🎁")}</span>
+      <div class="cl-main"><div class="cl-name">${esc(c.name)}</div>
+        <div class="cl-st ${c.status==="fulfilled"?"fulfilled":"pending"}">${c.status==="fulfilled"?"Given to you ✓":"Waiting for a grown-up"}</div></div>`;
+    t.appendChild(d);});
+}
+
+/* ===== grown-up admin (inside Notes sheet) ===== */
+function renderParentAdmin(){
+  const ri=$("#rateInput");if(ri)ri.value=getRate();
+  const el=$("#editorList");if(el){el.innerHTML="";
+    getCatalog().forEach(it=>{const r=document.createElement("div");r.className="erow";
+      r.innerHTML=`<span style="font-size:1.2rem">${esc(it.icon||"🎁")}</span>
+        <div class="er-main"><div>${esc(it.name)}</div><div class="er-sub">${esc(it.cat)} · ${it.cost} 🫘 · ${it.online?"online":"we have it"}${it.url?" · link set":""}</div></div>`;
+      const ed=document.createElement("button");ed.textContent="Edit";ed.onclick=()=>showItemForm(it);
+      const dl=document.createElement("button");dl.className="del";dl.textContent="Delete";
+      dl.onclick=()=>{setCatalog(getCatalog().filter(x=>x.id!==it.id));renderParentAdmin();};
+      r.appendChild(ed);r.appendChild(dl);el.appendChild(r);});}
+  const ca=$("#claimsAdmin");if(ca){ca.innerHTML="";
+    if(!claims.length)ca.innerHTML='<div class="er-sub">No claims yet.</div>';
+    claims.forEach(c=>{const r=document.createElement("div");r.className="erow";
+      r.innerHTML=`<span style="font-size:1.2rem">${esc(c.icon||"🎁")}</span>
+        <div class="er-main"><div>${esc(c.name)} — ${c.cost} 🫘</div>
+        <div class="er-sub">${c.status==="fulfilled"?"fulfilled":"pending"}${c.online&&c.url?' · <a href="'+esc(c.url)+'" target="_blank" rel="noopener" style="color:#9bd0ff">open link</a>':""}</div></div>`;
+      const btn=document.createElement("button");btn.textContent=c.status==="fulfilled"?"Undo":"Mark given";
+      btn.onclick=()=>{c.status=c.status==="fulfilled"?"pending":"fulfilled";persist();renderParentAdmin();};
+      r.appendChild(btn);ca.appendChild(r);});}
+}
+function showItemForm(it){
+  const editing=!!it;it=it||{id:newId(),cat:"Art Supplies",name:"",icon:"🎁",cost:100,online:true,url:"",note:""};
+  $("#editorForm").innerHTML=`<div class="create" style="margin-top:10px">
+    <div class="grow"><input class="ginput" id="fName" placeholder="Item name" value="${esc(it.name)}">
+      <input class="ginput" id="fIcon" placeholder="emoji" maxlength="4" value="${esc(it.icon||"")}" style="max-width:88px"></div>
+    <div class="grow"><input class="ginput" id="fCat" placeholder="Category" value="${esc(it.cat)}">
+      <input class="ginput" id="fCost" inputmode="numeric" placeholder="Cost in beans" value="${it.cost}"></div>
+    <input class="ginput" id="fUrl" placeholder="Link to buy (optional)" value="${esc(it.url||"")}">
+    <input class="ginput" id="fNote" placeholder="Short note (optional)" value="${esc(it.note||"")}">
+    <div class="chkrow"><label><input type="radio" name="ftype" id="fOnline" ${it.online?"checked":""}> Buy online</label>
+      <label><input type="radio" name="ftype" ${!it.online?"checked":""}> We already have it</label></div>
+    <div class="actions"><button class="btn ghost" id="fCancel">Cancel</button><button class="btn" id="fSave">${editing?"Save":"Add item"}</button></div></div>`;
+  $("#fCancel").onclick=()=>{$("#editorForm").innerHTML="";};
+  $("#fSave").onclick=()=>{const name=$("#fName").value.trim();if(!name){$("#fName").focus();return;}
+    const obj={id:it.id,cat:$("#fCat").value.trim()||"Other",name,icon:$("#fIcon").value.trim()||"🎁",
+      cost:Math.max(1,parseInt($("#fCost").value,10)||100),online:$("#fOnline").checked,url:$("#fUrl").value.trim(),note:$("#fNote").value.trim()};
+    const list=getCatalog();const i=list.findIndex(x=>x.id===obj.id);if(i>=0)list[i]=obj;else list.push(obj);
+    setCatalog(list);$("#editorForm").innerHTML="";renderParentAdmin();};
+  setTimeout(()=>{const f=$("#fName");if(f)f.focus();},50);
+}
+$("#beanChip").onclick=()=>{if(activeId)openShop();};
+$("#addItemBtn").onclick=()=>showItemForm(null);
+$("#rateInput").addEventListener("change",e=>{const v=parseInt(e.target.value,10);if(v>0){setRate(v);}});
+$("#grantBtn").onclick=()=>{const v=parseInt($("#grantInput").value,10);if(v>0){beans+=v;beansLife+=v;persist();updateScore();$("#grantInput").value="";burst(document.querySelector(".chip.bean"),"bean",6);}};
 
 /* ===== starfield + shooting stars ===== */
 (function(){const c=$("#sky"),x=c.getContext("2d");let w,hh,stars;
