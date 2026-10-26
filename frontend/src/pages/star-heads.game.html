@@ -628,7 +628,7 @@ function onRetry(h,anchor){
 
 /* ===== home ===== */
 const PRIMARY=[
- {mode:"learn",glyph:"📖",title:"Read & Learn",sub:"Read two heads, then answer on those two — the gentle way in before you memorize.",tag:"Start here"},
+ {mode:"learn",glyph:"📖",title:"Read & Learn",sub:"Read three heads, then answer on those three — the gentle way in before you memorize.",tag:"Start here"},
  {mode:"mix",glyph:"🜔",title:"Mixed Path",sub:"All question types, shuffled — leaning on the heads you've missed.",tag:null},
  {mode:"recall",glyph:"🕯️",title:"Recall",sub:"Bring each head to mind, then judge yourself. The deepest way to remember.",tag:null},
 ];
@@ -703,7 +703,7 @@ function startSession(mode){
 /* Read & Learn: read two heads, then answer on those two, pair by pair */
 function startLearn(){
   const heads=orderedHeads(HEADS);const chunks=[];
-  for(let i=0;i<heads.length;i+=2)chunks.push(heads.slice(i,i+2));
+  for(let i=0;i<heads.length;i+=3)chunks.push(heads.slice(i,i+3));
   S={label:"Read & Learn",mode:"learn",chunks,idx:0};
   enterPlay();
 }
@@ -752,7 +752,7 @@ function renderStep(){
 function renderLearnRead(){
   const chunk=S.chunks[S.idx];
   play.innerHTML=header()+`<div class="panel">
-    <div class="ask">Read ${chunk.length>1?"these two heads":"this head"}, slowly.</div>
+    <div class="ask">Read ${chunk.length>1?"these "+chunk.length+" heads":"this head"}, slowly.</div>
     ${chunk.map(h=>`<div class="read-head">
       <div class="rh-head"><span class="rh-ic">${h.icon}</span><span class="vtag">Head ${h.n}</span></div>
       <div class="rh-text">${esc(h.text)}</div>
@@ -775,7 +775,7 @@ function renderLearnQuiz(){
       <div class="ask">What does it mean?</div>
       <div class="opts" id="opts"></div>
       <div class="feedback" id="fb"></div>
-      <div class="actions"><button class="btn ghost" id="reread">Re-read</button><button class="btn" id="nextQ" disabled>${last?"Next two →":"Next"}</button></div></div>`;
+      <div class="actions"><button class="btn ghost" id="reread">Re-read</button><button class="btn" id="nextQ" disabled>${last?"Next set →":"Next"}</button></div></div>`;
     const box=$("#opts");
     opts.forEach(t=>{const b=document.createElement("button");b.className="opt";b.textContent=t;
       b.onclick=()=>{if(box.dataset.lock)return;
@@ -825,10 +825,11 @@ function renderChoose(h){
   const box=$("#opts");
   const help=wireHelp({
     hint1:()=>esc(h.hint),
-    hint2:()=>{ // remove two wrong options
+    hint2:()=>{ // remove two wrong options + peek the start of the meaning
       const wrong=[...box.children].filter(c=>c.textContent!==h.mean&&!c.disabled);
       shuffle(wrong).slice(0,2).forEach(c=>{c.disabled=true;c.style.opacity=".4";});
-      return "Two wrong answers taken away — pick from what's left.";},
+      const mw=h.mean.split(" ");const n=Math.min(5,Math.max(3,Math.ceil(mw.length*0.45)));
+      return "Two wrong ones removed. It begins: “<b>"+esc(mw.slice(0,n).join(" "))+"…</b>”";},
     answer:()=>{ // reveal the correct option
       [...box.children].forEach(c=>{c.disabled=true;if(c.textContent===h.mean)c.classList.add("correct");});
       box.dataset.lock="1";onReveal(h);
@@ -863,10 +864,10 @@ function renderFill(h){
   function revealWord(){$("#fl").innerHTML=esc(h.text).replace(re,'<span class="blank" style="color:var(--good);border-color:var(--good)">'+esc(key)+'</span>');}
   const help=wireHelp({
     hint1:()=>'begins with <b>'+esc(key[0].toUpperCase())+'</b> · '+key.length+' letters',
-    hint2:()=>{ // show first half of the letters
-      const n=Math.max(1,Math.ceil(key.length/2));
+    hint2:()=>{ // reveal most of the letters, hide only the last few
+      const hideN=Math.max(1,Math.round(key.length*0.3));const n=key.length-hideN;
       const shown=key.slice(0,n).split("").join(" ");
-      return 'it looks like <b>'+esc(shown)+'</b> '+Array(key.length-n).fill("_").join(" ");},
+      return 'almost there: <b>'+esc(shown)+'</b> '+Array(hideN).fill("_").join(" ");},
     answer:()=>{solved=true;inp.value=key;inp.disabled=true;revealWord();onReveal(h);
       $("#check").disabled=true;
       $("#fb").textContent="The word is “"+key+"” — we'll study this one again. 🔖";$("#fb").className="feedback try";
@@ -902,7 +903,7 @@ function renderBuild(h){
   draw();
   const help=wireHelp({
     hint1:()=>'it starts with: <b>'+esc(wordsInOrder[0])+'</b>',
-    hint2:()=>'the first words are: <b>'+esc(wordsInOrder.slice(0,Math.min(4,wordsInOrder.length)).join(" "))+'…</b>',
+    hint2:()=>{const keep=Math.max(1,wordsInOrder.length-2);return 'nearly all of it: <b>'+esc(wordsInOrder.slice(0,keep).join(" "))+(keep<wordsInOrder.length?' …':'')+'</b>';},
     answer:()=>{solved=true;
       placed=words.slice().sort((a,b)=>a.id-b.id);pool=[];draw();
       [...ansEl.children].forEach(c=>c.style.borderColor="var(--good)");
@@ -937,8 +938,8 @@ function renderRecall(h){
   $("#hint1").onclick=()=>{level=1;$("#hintBox").hidden=false;
     $("#hintBox").innerHTML="It begins: “<b>"+esc(words.slice(0,3).join(" "))+"…</b>”";
     $("#hint1").hidden=true;$("#hint2").hidden=false;};
-  $("#hint2").onclick=()=>{level=2;$("#hintBox").hidden=false;
-    $("#hintBox").innerHTML="The first half: “<b>"+esc(words.slice(0,Math.ceil(words.length/2)).join(" "))+"…</b>”";
+  $("#hint2").onclick=()=>{level=2;$("#hintBox").hidden=false;const keep=Math.max(1,words.length-3);
+    $("#hintBox").innerHTML="Nearly all of it: “<b>"+esc(words.slice(0,keep).join(" "))+(keep<words.length?"…":"")+"</b>”";
     $("#hint2").hidden=true;};
   $("#reveal").onclick=()=>{
     $("#hint1").disabled=true;$("#hint2").disabled=true;
