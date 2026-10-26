@@ -318,6 +318,24 @@ body.gated .chip.bean{visibility:hidden}
 .minibtn.gold{background:var(--gold);color:#241800;border:none}
 .chkrow{display:flex;gap:14px;margin-bottom:10px;font-size:.88rem;color:var(--muted)}
 .chkrow label{display:flex;align-items:center;gap:6px;cursor:pointer}
+/* ---------- hints + show-answer ---------- */
+.help{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:9px;margin-top:14px}
+.help .hint-box{flex-basis:100%}
+.hint-btn.reveal{border-style:solid;border-color:var(--rose);color:var(--rose)}
+.hint-btn.reveal:hover{border-color:var(--rose);background:rgba(232,166,191,.12)}
+.hint-btn.reveal:disabled{opacity:.5}
+/* review banner */
+.review-banner{width:100%;text-align:left;cursor:pointer;color:inherit;font:inherit;
+  background:linear-gradient(160deg,#2a2140,#1b2c4e);border:1px solid var(--violet);border-radius:16px;
+  padding:15px 16px;display:flex;align-items:center;gap:13px;margin-bottom:4px;transition:transform .14s,border-color .14s}
+.review-banner:hover{transform:translateY(-2px);border-color:var(--gold-deep)}
+.review-banner:focus-visible{outline:3px solid var(--violet);outline-offset:2px}
+.review-banner .rb-ic{font-size:1.6rem;flex:none}
+.review-banner .rb-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.review-banner .rb-t{font-family:"Marcellus",serif;font-size:1.08rem;color:var(--cream)}
+.review-banner .rb-s{font-size:.82rem;color:var(--muted);line-height:1.4}
+.review-banner .rb-go{flex:none;font-family:"Marcellus",serif;letter-spacing:1px;color:var(--violet);font-size:.84rem;
+  border:1px solid var(--line);border-radius:999px;padding:8px 13px}
 /* ---------- hints ---------- */
 .hintwrap{display:flex;flex-direction:column;align-items:center;gap:9px;margin-top:14px}
 .hint-btn{background:none;border:1px dashed var(--line);color:var(--gold);font:inherit;font-weight:800;
@@ -356,6 +374,8 @@ body.gated .chip.bean{visibility:hidden}
       <p>These are the <b>Heads of Things</b> — Hermes' short, true sayings about what is. They are the keys: hold them, and the rest of the Corpus opens more easily. Choose how you want to carry them today.</p>
     </div>
 
+    <div id="reviewEntry" hidden></div>
+
     <div class="label">Ways to study</div>
     <div class="primary-modes" id="primaryModes"></div>
 
@@ -382,7 +402,8 @@ body.gated .chip.bean{visibility:hidden}
       <b>Recall</b> is active recall with honest self-rating; the strongest way to commit them to memory.<br>
       <b>Focused practice</b> drills one style at a time: Choose, Fill, Match, Build.</div>
     <div class="note"><b>Stars</b> ⭐ mark heads mastered. <b>Hearts</b> ♥ are earned for returning and trying again. <b>Beans</b> 🫘 are earned from stars and spent in the shop. Progress saves on this device.</div>
-    <div class="note"><b>Hints:</b> every question has a “Need a hint?” If she uses one, the head still masters (keeps its ⭐) but earns <b>half the Beans</b> — so help is always there, with a small, fair cost.</div>
+    <div class="note"><b>Help on every question:</b> a first hint, a second (stronger) hint, then “Show the answer” if she's stuck. One hint earns <b>half</b> the Beans, two earns a <b>quarter</b>; she still keeps the ⭐. Showing the answer earns no Beans and no ⭐ — instead that head is saved to <b>Review</b>.</div>
+    <div class="note"><b>Review</b> (the banner on her home screen) gathers every head she missed or needed a hint on. Mastering one cleanly — no hints — clears it from Review.</div>
 
     <div class="gsec">
       <h3>Beans &amp; rewards</h3>
@@ -483,18 +504,25 @@ function load(k,def){try{const r=localStorage.getItem(k);return r?JSON.parse(r):
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 let activeId=null,done=new Set(),hearts=0,missed=new Set(),best=0,streak=0;
 let beans=0,beansLife=0,goals={},claims=[];
+let needHint=new Set(),stuck=new Set();
 function pkey(s){return "majick-p-"+activeId+"-"+s;}
 function getRate(){const r=parseInt(load("majick-earn-rate","10"),10);return isNaN(r)?10:Math.max(1,r);}
 function setRate(r){save("majick-earn-rate",String(Math.max(1,r|0)));}
 function loadProfileState(){
   done=new Set(load(pkey("done"),[]));hearts=load(pkey("hearts"),0);
   missed=new Set(load(pkey("missed"),[]));best=load(pkey("best"),0);streak=0;
+  needHint=new Set(load(pkey("needHint"),[]));stuck=new Set(load(pkey("stuck"),[]));
   goals=load(pkey("goals"),{});claims=load(pkey("claims"),[]);
   if(load(pkey("beansSeed"),false)){beans=load(pkey("beans"),0);beansLife=load(pkey("beansLife"),0);}
   else{const base=done.size*getRate();beans=base;beansLife=base;save(pkey("beansSeed"),true);save(pkey("beans"),beans);save(pkey("beansLife"),beansLife);}
 }
 function persist(){save(pkey("done"),[...done]);save(pkey("hearts"),hearts);save(pkey("missed"),[...missed]);save(pkey("best"),best);
+  save(pkey("needHint"),[...needHint]);save(pkey("stuck"),[...stuck]);
   save(pkey("beans"),beans);save(pkey("beansLife"),beansLife);save(pkey("goals"),goals);save(pkey("claims"),claims);}
+function reviewSet(){return new Set([...stuck,...needHint,...missed]);}
+function reviewQueue(){const seen=new Set(),order=[];
+  [...stuck,...needHint,...missed].forEach(n=>{if(!seen.has(n)){seen.add(n);order.push(n);}});
+  return order.map(n=>byN[n]).filter(Boolean);}
 /* profiles */
 function getProfiles(){return load("majick-profiles",[]);}
 function setProfiles(p){save("majick-profiles",p);}
@@ -554,24 +582,36 @@ function burst(el,kind,count){
 const heartChip=()=>document.querySelector(".chip.heart");
 function award(n){ if(!done.has(n)){done.add(n);} }
 /* correct: master head, streak up, confetti; bonus hearts if it was previously missed */
-function onCorrect(h,anchor,hinted){
-  const wasMissed=missed.has(h.n)&&!done.has(h.n);
+/* hintLevel: 0 none · 1 one hint · 2 two hints. Beans scale down; star still earned. */
+function onCorrect(h,anchor,hintLevel){
+  hintLevel=hintLevel||0;
+  const wasMissed=(missed.has(h.n)||stuck.has(h.n))&&!done.has(h.n);
   const fresh=!done.has(h.n);
   award(h.n);streak++;if(streak>best)best=streak;
-  if(wasMissed){hearts+=2;missed.delete(h.n);}
+  if(wasMissed){hearts+=2;}
+  // review bookkeeping
+  missed.delete(h.n);stuck.delete(h.n);
+  if(hintLevel>0)needHint.add(h.n); else needHint.delete(h.n);
   let earned=0;
-  if(fresh){earned=hinted?Math.max(1,Math.floor(getRate()/2)):getRate();beans+=earned;beansLife+=earned;}
+  if(fresh){const rate=getRate();
+    earned=hintLevel>=2?Math.max(1,Math.floor(rate/4)):hintLevel===1?Math.max(1,Math.floor(rate/2)):rate;
+    beans+=earned;beansLife+=earned;}
   persist();updateScore();sageReact(true);
   burst(anchor||document.querySelector(".sage .fig"),"star",wasMissed?14:9);
   if(wasMissed)burst(heartChip(),"heart",2);
-  if(fresh&&earned)burst(document.querySelector(".chip.bean"),"bean",hinted?2:4);
-  return {wasMissed,fresh,earned,hinted};
+  if(fresh&&earned)burst(document.querySelector(".chip.bean"),"bean",hintLevel?2:4);
+  return {wasMissed,fresh,earned,hintLevel};
+}
+/* she revealed the answer / gave up: no star, no beans, sent to Review */
+function onReveal(h){
+  streak=0;stuck.add(h.n);missed.delete(h.n);persist();updateScore();sageReact(false);
 }
 /* feedback text for a correct answer */
 function praiseText(r){
   if(r.wasMissed)return "Recovered — that one's yours now. ♥";
   let t=pick(PRAISE);
-  if(r.fresh&&r.earned)t+=r.hinted?"  +"+r.earned+" 🫘 (½ — hint used)":"  +"+r.earned+" 🫘";
+  if(r.fresh&&r.earned){const note=r.hintLevel>=2?" (¼ — two hints)":r.hintLevel===1?" (½ — hint used)":"";
+    t+="  +"+r.earned+" 🫘"+note;}
   return t;
 }
 /* wrong / retry: reward perseverance */
@@ -594,6 +634,18 @@ const FOCUS=[
 function renderHome(){
   updateScore();
   const mastered=done.size,total=HEADS.length,pct=Math.round(mastered/total*100);
+  // Review banner — the heads she missed or needed hints on
+  const rv=$("#reviewEntry");const rc=reviewSet().size;
+  if(rv){
+    if(rc>0){rv.hidden=false;
+      rv.innerHTML=`<button class="review-banner" id="reviewBtn">
+        <span class="rb-ic">🔖</span>
+        <span class="rb-main"><span class="rb-t">Study your tricky ones</span>
+          <span class="rb-s">${rc} head${rc===1?"":"s"} you missed or needed a hint on — master them clean to clear them.</span></span>
+        <span class="rb-go">Review ▸</span></button>`;
+      $("#reviewBtn").onclick=startReview;
+    } else {rv.hidden=true;rv.innerHTML="";}
+  }
   const pm=$("#primaryModes");pm.innerHTML="";
   PRIMARY.forEach(m=>{
     const b=document.createElement("button");b.className="mode"+(m.mode==="recall"?" recall":"");
@@ -650,6 +702,11 @@ function startFocused(id){
   }
   enterPlay();
 }
+function startReview(){
+  const q=reviewQueue();if(!q.length)return;
+  S={label:"Review",items:q.map(h=>({h,type:typeForMix(h)})),idx:0,requeued:new Set()};
+  enterPlay();
+}
 function enterPlay(){home.hidden=true;play.hidden=false;window.scrollTo(0,0);renderStep();}
 function sessionCount(){return S.matchMode?S.set.length:S.items.length;}
 function reenqueue(h,type){ if(S.requeued.has(h.n))return; S.requeued.add(h.n); S.items.push({h,type}); }
@@ -674,6 +731,25 @@ function renderStep(){
   const b=$("#backBtn");if(b)b.onclick=goHome;updateScore();window.scrollTo(0,0);
 }
 
+/* ===== shared help controls: hint → another hint → show answer ===== */
+function helpHTML(){
+  return `<div class="help">
+    <button class="hint-btn" id="hint1">💡 Need a hint?</button>
+    <button class="hint-btn" id="hint2" hidden>💡 Another hint</button>
+    <button class="hint-btn reveal" id="showAns" hidden>👁 Show the answer</button>
+    <div class="hint-box" id="hintBox" hidden></div>
+  </div>`;
+}
+/* opts: {hint1:()=>htmlString, hint2:()=>htmlString, answer:()=>void}. returns getLevel/lock. */
+function wireHelp(opts){
+  let level=0;const b1=$("#hint1"),b2=$("#hint2"),ba=$("#showAns"),box=$("#hintBox");
+  function show(t){box.hidden=false;box.innerHTML=t;}
+  b1.onclick=()=>{level=1;show(opts.hint1());b1.hidden=true;if(opts.hint2)b2.hidden=false;ba.hidden=false;};
+  if(opts.hint2)b2.onclick=()=>{level=2;show(opts.hint2());b2.hidden=true;};
+  ba.onclick=()=>{opts.answer();b1.hidden=true;b2.hidden=true;ba.disabled=true;};
+  return {getLevel:()=>level,lock:()=>{b1.disabled=true;b2.disabled=true;ba.disabled=true;}};
+}
+
 /* ===== Choose ===== */
 function renderChoose(h){
   const opts=shuffle([h.mean,...shuffle(HEADS.filter(x=>x.n!==h.n)).slice(0,3).map(x=>x.mean)]);
@@ -682,16 +758,27 @@ function renderChoose(h){
     <div class="vtext">${esc(h.text)}</div>
     <div class="ask">What does it mean?</div>
     <div class="opts" id="opts"></div>
-    <div class="hintwrap"><button class="hint-btn" id="hintBtn">💡 Need a hint?</button><div class="hint-box" id="hintBox" hidden></div></div>
+    ${helpHTML()}
     <div class="feedback" id="fb"></div>
     <div class="actions"><button class="btn" id="next" disabled>Continue</button></div></div>`;
-  const box=$("#opts");let hinted=false;
-  $("#hintBtn").onclick=()=>{hinted=true;$("#hintBox").hidden=false;$("#hintBox").textContent=h.hint;$("#hintBtn").disabled=true;};
+  const box=$("#opts");
+  const help=wireHelp({
+    hint1:()=>esc(h.hint),
+    hint2:()=>{ // remove two wrong options
+      const wrong=[...box.children].filter(c=>c.textContent!==h.mean&&!c.disabled);
+      shuffle(wrong).slice(0,2).forEach(c=>{c.disabled=true;c.style.opacity=".4";});
+      return "Two wrong answers taken away — pick from what's left.";},
+    answer:()=>{ // reveal the correct option
+      [...box.children].forEach(c=>{c.disabled=true;if(c.textContent===h.mean)c.classList.add("correct");});
+      box.dataset.lock="1";onReveal(h);
+      $("#fb").textContent="Here it is — we'll study this one again. 🔖";$("#fb").className="feedback try";
+      $("#next").disabled=false;$("#next").focus();}
+  });
   opts.forEach(t=>{const b=document.createElement("button");b.className="opt";b.textContent=t;
     b.onclick=()=>{if(box.dataset.lock)return;
       if(t===h.mean){box.dataset.lock="1";b.classList.add("correct");[...box.children].forEach(c=>c.disabled=true);
-        $("#hintBtn").disabled=true;
-        const r=onCorrect(h,b,hinted);$("#fb").textContent=praiseText(r);$("#fb").className="feedback good";
+        help.lock();
+        const r=onCorrect(h,b,help.getLevel());$("#fb").textContent=praiseText(r);$("#fb").className="feedback good";
         $("#next").disabled=false;$("#next").focus();}
       else{b.classList.add("wrong");b.disabled=true;onRetry(h,b);
         $("#fb").textContent=pick(AGAIN)+"  +1 ♥";$("#fb").className="feedback try";}};
@@ -707,16 +794,26 @@ function renderFill(h){
     <div class="ask">Fill the missing word</div>
     <div class="fill-line" id="fl">${esc(h.text).replace(re,'<span class="blank">?</span>')}</div>
     <input class="fill-input" id="fin" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="the word" aria-label="missing word">
-    <div class="hintwrap"><button class="hint-btn" id="hintBtn">💡 Need a hint?</button><div class="hint-box" id="hintBox" hidden></div></div>
+    ${helpHTML()}
     <div class="feedback" id="fb"></div>
     <div class="actions"><button class="btn" id="check">Check</button><button class="btn" id="next" disabled>Continue</button></div></div>`;
-  const inp=$("#fin");let solved=false,hinted=false;
-  $("#hintBtn").onclick=()=>{hinted=true;$("#hintBox").hidden=false;
-    $("#hintBox").innerHTML='begins with <b>'+h.key[0].toUpperCase()+'</b> · '+h.key.length+' letters';$("#hintBtn").disabled=true;};
+  const inp=$("#fin");let solved=false;
+  const key=h.key;
+  function revealWord(){$("#fl").innerHTML=esc(h.text).replace(re,'<span class="blank" style="color:var(--good);border-color:var(--good)">'+esc(key)+'</span>');}
+  const help=wireHelp({
+    hint1:()=>'begins with <b>'+esc(key[0].toUpperCase())+'</b> · '+key.length+' letters',
+    hint2:()=>{ // show first half of the letters
+      const n=Math.max(1,Math.ceil(key.length/2));
+      const shown=key.slice(0,n).split("").join(" ");
+      return 'it looks like <b>'+esc(shown)+'</b> '+Array(key.length-n).fill("_").join(" ");},
+    answer:()=>{solved=true;inp.value=key;inp.disabled=true;revealWord();onReveal(h);
+      $("#check").disabled=true;
+      $("#fb").textContent="The word is “"+key+"” — we'll study this one again. 🔖";$("#fb").className="feedback try";
+      $("#next").disabled=false;$("#next").focus();}
+  });
   function check(){if(solved)return;
-    if(norm(inp.value)===norm(h.key)){solved=true;$("#hintBtn").disabled=true;
-      $("#fl").innerHTML=esc(h.text).replace(re,'<span class="blank" style="color:var(--good);border-color:var(--good)">'+esc(h.key)+'</span>');
-      const r=onCorrect(h,$("#check"),hinted);$("#fb").textContent=praiseText(r);$("#fb").className="feedback good";
+    if(norm(inp.value)===norm(key)){solved=true;help.lock();revealWord();
+      const r=onCorrect(h,$("#check"),help.getLevel());$("#fb").textContent=praiseText(r);$("#fb").className="feedback good";
       $("#next").disabled=false;$("#check").disabled=true;inp.disabled=true;$("#next").focus();}
     else{onRetry(h,$("#check"));$("#fb").textContent=pick(AGAIN)+"  +1 ♥";$("#fb").className="feedback try";inp.select();}}
   $("#check").onclick=check;
@@ -732,23 +829,33 @@ function renderBuild(h){
     <span class="vicon">${h.icon}</span><div class="vtag">Head ${h.n}</div>
     <div class="ask">Set the words in order</div>
     <div class="answer-line" id="ans"></div><div class="pool" id="pool"></div>
+    ${helpHTML()}
     <div class="feedback" id="fb"></div>
-    <div class="actions"><button class="btn ghost" id="peek">💡 Hint</button><button class="btn" id="check">Check</button><button class="btn" id="next" disabled>Continue</button></div></div>`;
-  const ansEl=$("#ans"),poolEl=$("#pool"),fb=$("#fb");let placed=[],solved=false,hinted=false;
+    <div class="actions"><button class="btn" id="check">Check</button><button class="btn" id="next" disabled>Continue</button></div></div>`;
+  const ansEl=$("#ans"),poolEl=$("#pool"),fb=$("#fb");let placed=[],solved=false;
+  const wordsInOrder=h.text.split(" ");
   function draw(){ansEl.innerHTML="";placed.forEach(c=>{const b=document.createElement("button");b.className="chipw placed";b.textContent=c.w;
       b.onclick=()=>{if(solved)return;placed=placed.filter(x=>x!==c);pool.push(c);draw();};ansEl.appendChild(b);});
     poolEl.innerHTML="";pool.forEach(c=>{const b=document.createElement("button");b.className="chipw";b.textContent=c.w;
       b.onclick=()=>{if(solved)return;pool=pool.filter(x=>x!==c);placed.push(c);draw();};poolEl.appendChild(b);});}
   draw();
+  const help=wireHelp({
+    hint1:()=>'it starts with: <b>'+esc(wordsInOrder[0])+'</b>',
+    hint2:()=>'the first words are: <b>'+esc(wordsInOrder.slice(0,Math.min(4,wordsInOrder.length)).join(" "))+'…</b>',
+    answer:()=>{solved=true;
+      placed=words.slice().sort((a,b)=>a.id-b.id);pool=[];draw();
+      [...ansEl.children].forEach(c=>c.style.borderColor="var(--good)");
+      onReveal(h);$("#check").disabled=true;
+      fb.textContent="Here's the order — we'll study this one again. 🔖";fb.className="feedback try";
+      $("#next").disabled=false;$("#next").focus();}
+  });
   $("#check").onclick=()=>{if(solved)return;
     if(pool.length){fb.textContent="Use every word.";fb.className="feedback try";return;}
-    if(placed.map(c=>c.w).join(" ")===h.text){solved=true;
-      const r=onCorrect(h,$("#check"),hinted);fb.textContent=praiseText(r);fb.className="feedback good";
+    if(placed.map(c=>c.w).join(" ")===h.text){solved=true;help.lock();
+      const r=onCorrect(h,$("#check"),help.getLevel());fb.textContent=praiseText(r);fb.className="feedback good";
       [...ansEl.children].forEach(c=>c.style.borderColor="var(--good)");
-      $("#next").disabled=false;$("#check").disabled=true;$("#peek").disabled=true;$("#next").focus();}
+      $("#next").disabled=false;$("#check").disabled=true;$("#next").focus();}
     else{onRetry(h,$("#check"));fb.textContent=pick(AGAIN)+"  +1 ♥";fb.className="feedback try";}};
-  $("#peek").onclick=()=>{hinted=true;fb.innerHTML='<span class="reveal-mean">'+esc(h.text)+'</span>';fb.className="feedback";
-    setTimeout(()=>{if(fb.querySelector(".reveal-mean"))fb.textContent="";},2800);};
   $("#next").onclick=advance;
 }
 
@@ -758,26 +865,34 @@ function renderRecall(h){
     <span class="vicon">${h.icon}</span><div class="vtag">Head ${h.n}</div>
     <div class="ask">Bring the head to mind</div>
     <div class="recall-cue">${esc(h.mean)}</div>
-    <div class="hintwrap"><button class="hint-btn" id="hintBtn">💡 Need a hint?</button><div class="hint-box" id="hintBox" hidden></div></div>
+    <div class="help">
+      <button class="hint-btn" id="hint1">💡 Need a hint?</button>
+      <button class="hint-btn" id="hint2" hidden>💡 Another hint</button>
+      <div class="hint-box" id="hintBox" hidden></div>
+    </div>
     <div id="revealZone"></div>
     <div class="actions" id="revealAct"><button class="btn" id="reveal">Reveal the head</button></div></div>`;
-  let hinted=false;
-  $("#hintBtn").onclick=()=>{hinted=true;$("#hintBox").hidden=false;
-    $("#hintBox").textContent="It begins: “"+h.text.split(" ").slice(0,3).join(" ")+"…”";$("#hintBtn").disabled=true;};
+  let level=0;const words=h.text.split(" ");
+  $("#hint1").onclick=()=>{level=1;$("#hintBox").hidden=false;
+    $("#hintBox").innerHTML="It begins: “<b>"+esc(words.slice(0,3).join(" "))+"…</b>”";
+    $("#hint1").hidden=true;$("#hint2").hidden=false;};
+  $("#hint2").onclick=()=>{level=2;$("#hintBox").hidden=false;
+    $("#hintBox").innerHTML="The first half: “<b>"+esc(words.slice(0,Math.ceil(words.length/2)).join(" "))+"…</b>”";
+    $("#hint2").hidden=true;};
   $("#reveal").onclick=()=>{
-    $("#hintBtn").disabled=true;
+    $("#hint1").disabled=true;$("#hint2").disabled=true;
     $("#revealZone").innerHTML=`<div class="recall-reveal">${esc(h.text)}</div>`;
     $("#revealAct").outerHTML=`<div class="rate" id="rate">
       <button class="held">Held<span class="sm">I knew it</span></button>
       <button class="almost">Almost<span class="sm">nearly</span></button>
       <button class="missed">Missed<span class="sm">not yet</span></button></div>`;
     const rt=$("#rate");
-    rt.querySelector(".held").onclick=e=>{const r=onCorrect(h,e.currentTarget,hinted);
-      flash(r.wasMissed?"Recovered — held. ♥":"Held. ⭐"+(r.fresh&&r.earned?"  +"+r.earned+" 🫘"+(r.hinted?" (½)":""):""));setTimeout(advance,560);};
-    rt.querySelector(".almost").onclick=e=>{onRetry(h,e.currentTarget);reenqueue(h,"recall");
-      flash("Noted — it returns soon. +1 ♥");setTimeout(advance,560);};
-    rt.querySelector(".missed").onclick=e=>{onRetry(h,e.currentTarget);reenqueue(h,"recall");
-      flash("Honest — it returns soon. +1 ♥");setTimeout(advance,560);};
+    rt.querySelector(".held").onclick=e=>{const r=onCorrect(h,e.currentTarget,level);
+      flash(r.wasMissed?"Recovered — held. ♥":"Held. ⭐"+(r.fresh&&r.earned?"  +"+r.earned+" 🫘"+(r.hintLevel?" ("+(r.hintLevel>=2?"¼":"½")+")":""):""));setTimeout(advance,620);};
+    rt.querySelector(".almost").onclick=e=>{streak=0;hearts+=1;needHint.add(h.n);missed.delete(h.n);persist();updateScore();sageReact(false);burst(heartChip(),"heart",1);reenqueue(h,"recall");
+      flash("Noted for review. +1 ♥");setTimeout(advance,620);};
+    rt.querySelector(".missed").onclick=e=>{onReveal(h);hearts+=1;persist();updateScore();burst(heartChip(),"heart",1);reenqueue(h,"recall");
+      flash("Honest — we'll study it again. +1 ♥");setTimeout(advance,620);};
   };
   function flash(msg){const p=document.querySelector(".panel");const d=document.createElement("div");
     d.className="feedback good";d.textContent=msg;p.appendChild(d);}
@@ -792,14 +907,28 @@ function renderMatch(){
     <div class="match-grid"><div class="mcol"><h4>Heads</h4><div id="ml"></div></div>
       <div class="mcol"><h4>Meanings</h4><div id="mr"></div></div></div>
     <div class="feedback" id="fb"></div>
-    <div class="actions"><button class="btn ghost" id="mHint">💡 Hint</button><button class="btn" id="next" disabled>Continue</button></div></div>`;
+    <div class="actions"><button class="btn ghost" id="mHint">💡 Hint</button><button class="btn ghost" id="mAns">👁 Show</button><button class="btn" id="next" disabled>Continue</button></div></div>`;
   const L=$("#ml"),R=$("#mr");[L,R].forEach(c=>{c.style.display="flex";c.style.flexDirection="column";c.style.gap="9px";});
   let sel=null,got=0;const hintedSet=new Set();
+  function placePair(n,asReveal){
+    const rb=[...R.children].find(c=>+c.dataset.n===n&&!c.classList.contains("matched"));
+    const lb=[...L.children].find(c=>+c.dataset.n===n&&!c.classList.contains("matched"));
+    if(!rb||!lb)return false;
+    rb.classList.add("matched");lb.classList.add("matched");lb.classList.remove("sel");
+    if(asReveal)onReveal(byN[n]); else onCorrect(byN[n],rb,hintedSet.has(n)?1:0);
+    got++;return true;}
   $("#mHint").onclick=()=>{
     if(sel==null){$("#fb").textContent="Choose a head first, then ask for a hint.";$("#fb").className="feedback try";return;}
     const rb=[...R.children].find(c=>+c.dataset.n===sel&&!c.classList.contains("matched"));
     if(rb){rb.classList.add("hintflash");setTimeout(()=>rb.classList.remove("hintflash"),1150);hintedSet.add(sel);
       $("#fb").textContent="There it is — half beans for a hinted match.";$("#fb").className="feedback try";}};
+  $("#mAns").onclick=()=>{
+    if(sel!=null){ // reveal just the selected pair
+      if(placePair(sel,true)){sel=null;$("#fb").textContent="Shown — we'll study that one again. 🔖";$("#fb").className="feedback try";}
+    }else{ // reveal all remaining
+      batch.forEach(x=>{if(!document.querySelector('.mitem.matched[data-n="'+x.n+'"]'))placePair(x.n,true);});
+      $("#fb").textContent="Shown the rest — they're saved for review. 🔖";$("#fb").className="feedback try";}
+    if(got>=batch.length){$("#next").disabled=false;$("#next").focus();}};
   batch.forEach(x=>{const b=document.createElement("button");b.className="mitem";b.dataset.n=x.n;
     b.innerHTML=`<span class="mi">${x.icon}</span><span>${esc(x.text)}</span>`;
     b.onclick=()=>{if(b.classList.contains("matched"))return;[...L.children].forEach(c=>c.classList.remove("sel"));b.classList.add("sel");sel=x.n;};
@@ -808,9 +937,10 @@ function renderMatch(){
     b.innerHTML=`<span>${esc(x.mean)}</span>`;
     b.onclick=()=>{if(b.classList.contains("matched"))return;
       if(sel==null){$("#fb").textContent="Choose a head first.";$("#fb").className="feedback try";return;}
-      if(sel===x.n){b.classList.add("matched");const lb=[...L.children].find(c=>+c.dataset.n===x.n);lb.classList.add("matched");lb.classList.remove("sel");
-        const r=onCorrect(byN[x.n],b,hintedSet.has(x.n));sel=null;got++;$("#fb").textContent=praiseText(r);$("#fb").className="feedback good";
-        if(got===batch.length){$("#fb").textContent="Set complete.";$("#next").disabled=false;$("#next").focus();}}
+      if(sel===x.n){const r=onCorrect(byN[x.n],b,hintedSet.has(x.n)?1:0);
+        b.classList.add("matched");const lb=[...L.children].find(c=>+c.dataset.n===x.n);lb.classList.add("matched");lb.classList.remove("sel");
+        sel=null;got++;$("#fb").textContent=praiseText(r);$("#fb").className="feedback good";
+        if(got>=batch.length){$("#fb").textContent="Set complete.";$("#next").disabled=false;$("#next").focus();}}
       else{const h=byN[sel];b.classList.add("shake");setTimeout(()=>b.classList.remove("shake"),420);
         onRetry(h,b);$("#fb").textContent=pick(AGAIN)+"  +1 ♥";$("#fb").className="feedback try";}};
     R.appendChild(b);});
@@ -837,7 +967,7 @@ function renderDone(){
 $("#openParent").onclick=()=>{$("#parentSheet").hidden=false;renderParentAdmin();};
 $("#closeParent").onclick=()=>{$("#parentSheet").hidden=true;};
 $("#parentSheet").addEventListener("click",e=>{if(e.target.id==="parentSheet")$("#parentSheet").hidden=true;});
-$("#resetBtn").onclick=()=>{done=new Set();hearts=0;missed=new Set();best=0;streak=0;persist();$("#parentSheet").hidden=true;renderHome();};
+$("#resetBtn").onclick=()=>{done=new Set();hearts=0;missed=new Set();needHint=new Set();stuck=new Set();best=0;streak=0;persist();$("#parentSheet").hidden=true;renderHome();};
 
 /* ===== traveler profiles (soft login) ===== */
 const gate=$("#gate");
