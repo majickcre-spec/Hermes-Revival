@@ -52,6 +52,10 @@ h1,h2,h3,h4{font-family:"Marcellus",Georgia,serif;font-weight:400;margin:0;text-
 .pray-card .pmain{flex:1;min-width:0}
 .pray-card .pt{font-family:"Marcellus",serif;font-size:1.25rem;color:var(--cream)}
 .pray-card .ps{font-size:.84rem;color:var(--muted);margin-top:2px}
+.src-tag{display:inline-flex;align-items:center;gap:5px;font-family:"Marcellus",serif;letter-spacing:.5px;
+  font-size:.64rem;text-transform:uppercase;border-radius:999px;padding:3px 9px;margin-top:7px;border:1px solid}
+.src-tag.corpus{color:var(--gold);border-color:var(--gold-deep);background:rgba(230,194,92,.08)}
+.src-tag.outside{color:var(--rose);border-color:var(--rose);background:rgba(232,166,191,.08)}
 .pray-card .pmeter{display:flex;align-items:center;gap:9px;margin-top:9px}
 .pray-card .bar{flex:1;height:7px;border-radius:999px;background:#0c1c36;border:1px solid var(--line);overflow:hidden}
 .pray-card .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-deep))}
@@ -150,7 +154,8 @@ const PRAYERS=[
  id:"doxology", glyph:"🙏",
  title:"The Holy Doxology",
  sub:"“With my soul and whole strength…”",
- ref:"Pymander · Book II · 85–99",
+ source:"Corpus Hermeticum", corpus:true,
+ ref:"The Divine Pymander · Book II (Pymander) · 85–99",
  intro:"The prayer Hermes speaks after his awakening — rising into praise, then the sevenfold “Holy art Thou.” The repeated shape is itself a help to memory.",
  lines:[
   "For which cause, with my soul and whole strength, I give praise and blessing unto God the Father.",
@@ -174,7 +179,8 @@ const PRAYERS=[
  id:"secret-song", glyph:"🎶",
  title:"The Secret Song",
  sub:"“Let all the Nature of the World entertain the hearing of this Hymn.”",
- ref:"Regeneration · Book VII · 65–87",
+ source:"Corpus Hermeticum", corpus:true,
+ ref:"The Divine Pymander · Book VII (Regeneration) · 65–87",
  intro:"The Holy Speech — the hymn of Regeneration, sung when the Powers within have driven out the Torments. The longest of the three; take it a stanza at a time.",
  lines:[
   "Let all the Nature of the World entertain the hearing of this Hymn.",
@@ -206,8 +212,9 @@ const PRAYERS=[
  id:"thanksgiving", glyph:"🕊️",
  title:"The Prayer of Thanksgiving",
  sub:"“We give thanks to You!”",
- ref:"Hermetic prayer · Nag Hammadi (Coptic)",
- intro:"A beloved Hermetic prayer, the same one echoed at the close of the Asclepius. Spoken together, in thanks for the gift of knowing.",
+ source:"Nag Hammadi — outside the Divine Pymander", corpus:false,
+ ref:"Nag Hammadi Codices (Coptic) · a Hermetic prayer, echoed in the Asclepius",
+ intro:"A beloved Hermetic prayer — but note: it comes from the Nag Hammadi library, not from the Divine Pymander itself. It is kept here for now; it can be removed if you'd rather hold only to the Corpus Hermeticum.",
  lines:[
   "We give thanks to You! Every soul and heart is lifted up to You.",
   "We rejoice, having been illuminated by Your knowledge.",
@@ -264,6 +271,7 @@ function renderHome(){
     const b=document.createElement("button");b.className="pray-card"+(mem?" done":"");
     b.innerHTML=`<span class="pg">${p.glyph}</span>
       <div class="pmain"><div class="pt">${esc(p.title)}</div><div class="ps">${esc(p.ref)} · ${p.lines.length} lines</div>
+        <div><span class="src-tag ${p.corpus?"corpus":"outside"}">${p.corpus?"✦":"⚠"} ${esc(p.source)}</span></div>
         <div class="pmeter"><div class="bar"><i style="width:${pct}%"></i></div>
           <div class="pn">${mem?"memorized":pct+"%"}${ord?" · ordered":""}</div></div></div>
       ${mem?'<span class="seal">✦</span>':""}`;
@@ -280,6 +288,7 @@ function renderView(){
   view.innerHTML=`<div class="play-top"><button class="back" id="pBack" aria-label="Back">←</button>
       <span class="ptitle">${esc(P.title)}</span></div>
     <div class="ref">${esc(P.ref)}</div>
+    <div style="margin:-6px 0 14px"><span class="src-tag ${P.corpus?"corpus":"outside"}">${P.corpus?"✦":"⚠"} ${esc(P.source)}</span></div>
     <div class="tabs">
       <button class="tab ${tab==="read"?"on":""}" data-t="read">Read</button>
       <button class="tab ${tab==="fade"?"on":""}" data-t="fade">Memorize</button>
