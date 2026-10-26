@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Prayers</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Nunito+Sans:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,800&display=swap">
+<style>
+/* Learn the Hermetic prayers by reciting and fading. One dark theme by design. */
+:root{
+  --bg:#0a1628; --bg2:#0e1f39; --card:#15284a; --card2:#1d3358;
+  --gold:#e6c25c; --gold-deep:#d4af37; --cream:#f1ede1; --muted:#9bb0d0;
+  --rose:#e8a6bf; --violet:#9a8cf0; --teal:#57c9bd;
+  --good:#63d39a; --bad:#ef8f8c; --line:#28406a; --maxw:680px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--cream);font-family:"Nunito Sans",system-ui,-apple-system,sans-serif;
+  font-weight:600;line-height:1.5;min-height:100%;position:relative;overflow-x:hidden}
+#sky{position:fixed;inset:0;z-index:0;pointer-events:none}
+#fx{position:fixed;inset:0;z-index:40;pointer-events:none;overflow:hidden}
+.wrap{position:relative;z-index:1;max-width:var(--maxw);margin:0 auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:16px 48px}
+h1,h2,h3,h4{font-family:"Marcellus",Georgia,serif;font-weight:400;margin:0;text-wrap:balance}
+
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brand{display:flex;align-items:center;gap:9px;min-width:0}
+.brand .sigil{font-size:1.25rem;color:var(--gold)}
+.brand h1{font-size:1.02rem;letter-spacing:2px;color:var(--gold);text-transform:uppercase}
+.chip{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-weight:800;font-size:.9rem;color:var(--gold)}
+
+.hero{margin:20px 0 20px}
+.hero .eyebrow{font-family:"Marcellus",serif;letter-spacing:3px;text-transform:uppercase;font-size:.72rem;color:var(--muted);margin-bottom:8px}
+.hero h2{font-size:1.9rem;color:var(--cream)}
+.hero h2 .nm{color:var(--gold)}
+.hero p{margin:12px 0 0;color:var(--muted);font-size:1rem;max-width:58ch;line-height:1.65}
+.label{font-family:"Marcellus",serif;letter-spacing:2px;text-transform:uppercase;font-size:.72rem;color:var(--muted);margin:22px 2px 12px}
+
+.pray-card{width:100%;text-align:left;cursor:pointer;color:inherit;font:inherit;
+  background:linear-gradient(160deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:18px;
+  padding:18px;display:flex;align-items:center;gap:14px;margin-bottom:12px;transition:transform .14s,border-color .14s}
+.pray-card:hover{transform:translateY(-2px);border-color:var(--gold-deep)}
+.pray-card:focus-visible{outline:3px solid var(--violet);outline-offset:2px}
+.pray-card.done{border-color:var(--gold-deep)}
+.pray-card .pg{font-size:1.9rem;flex:none}
+.pray-card .pmain{flex:1;min-width:0}
+.pray-card .pt{font-family:"Marcellus",serif;font-size:1.25rem;color:var(--cream)}
+.pray-card .ps{font-size:.84rem;color:var(--muted);margin-top:2px}
+.pray-card .pmeter{display:flex;align-items:center;gap:9px;margin-top:9px}
+.pray-card .bar{flex:1;height:7px;border-radius:999px;background:#0c1c36;border:1px solid var(--line);overflow:hidden}
+.pray-card .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-deep))}
+.pray-card .pn{font-size:.74rem;color:var(--muted);font-weight:700}
+.seal{flex:none;font-size:1.1rem;color:var(--gold)}
+
+/* prayer view */
+.play-top{display:flex;align-items:center;gap:12px;margin:8px 0 6px}
+.back{flex:none;background:var(--card);border:1px solid var(--line);color:var(--cream);border-radius:999px;width:40px;height:40px;font-size:1.1rem;cursor:pointer;line-height:1}
+.back:hover{border-color:var(--gold-deep)}
+.ptitle{font-family:"Marcellus",serif;font-size:1rem;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase}
+.ref{color:var(--muted);font-size:.8rem;margin:2px 0 14px;font-family:"Marcellus",serif;letter-spacing:1px}
+
+.tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.tab{cursor:pointer;font:inherit;font-weight:700;background:var(--card);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:8px 15px;font-size:.86rem}
+.tab.on{background:var(--gold);color:#241800;border-color:var(--gold)}
+
+.panel{background:linear-gradient(170deg,var(--card),var(--bg2));border:1px solid var(--line);border-radius:18px;padding:22px 20px}
+.intro{color:var(--muted);font-size:.92rem;line-height:1.6;margin-bottom:14px;border-left:2px solid var(--gold-deep);padding-left:12px}
+.verse{font-family:"Marcellus",Georgia,serif;font-size:1.16rem;line-height:1.7;color:var(--cream);margin:0 0 12px;max-width:58ch}
+.verse .vn{color:var(--gold-deep);font-size:.8rem;margin-right:8px}
+
+/* fade engine */
+.fade-controls{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.level-pills{display:flex;gap:6px;flex-wrap:wrap}
+.lp{cursor:pointer;font:inherit;font-weight:800;font-size:.74rem;border-radius:999px;padding:6px 10px;border:1px solid var(--line);background:#0c1c36;color:var(--muted)}
+.lp.on{background:var(--violet);border-color:var(--violet);color:#13112b}
+.lp.done{border-color:var(--good);color:var(--good)}
+.fade-text{font-family:"Marcellus",Georgia,serif;font-size:1.16rem;line-height:1.9;color:var(--cream);max-width:58ch}
+.fade-text .ln{display:block;margin-bottom:8px}
+.word{cursor:default}
+.gap{cursor:pointer;color:var(--gold);border-bottom:2px dotted var(--gold-deep);padding:0 1px;font-weight:700}
+.gap.shown{color:var(--cream);border-bottom-color:transparent;cursor:default}
+.fl{cursor:pointer;color:var(--teal);font-weight:700}
+.hidden-line{display:flex;align-items:center;gap:10px;background:#0c1c36;border:1px dashed var(--line);border-radius:10px;padding:11px 13px;margin-bottom:8px;cursor:pointer}
+.hidden-line .hl-n{color:var(--gold-deep);font-family:"Marcellus",serif;font-size:.8rem;flex:none}
+.hidden-line .hl-t{color:var(--muted);font-size:.9rem}
+.hidden-line.open{border-style:solid;cursor:default}
+.hidden-line.open .hl-t{color:var(--cream);font-family:"Marcellus",serif;font-size:1.05rem;line-height:1.5}
+.tip{color:var(--muted);font-size:.84rem;margin-top:12px;text-align:center}
+
+/* order */
+.order-head{color:var(--muted);font-size:.86rem;margin-bottom:12px}
+.slots,.pool{display:flex;flex-direction:column;gap:8px}
+.pool{margin-top:12px}
+.oline{text-align:left;background:var(--card2);border:2px solid var(--line);color:var(--cream);border-radius:11px;
+  padding:11px 13px;font:inherit;font-weight:600;cursor:pointer;line-height:1.4;font-size:.95rem;font-family:"Marcellus",serif}
+.oline:hover{border-color:var(--violet)}
+.slots .oline{border-style:dashed}
+.slots .oline.filled{border-style:solid}
+.oline.correct{border-color:var(--good);background:rgba(99,211,154,.14)}
+.oline.wrong{border-color:var(--bad)}
+
+.feedback{text-align:center;min-height:24px;margin:14px 0 2px;font-family:"Marcellus",serif;letter-spacing:.5px;font-size:1.05rem}
+.feedback.good{color:var(--good)} .feedback.try{color:var(--gold)}
+.actions{display:flex;gap:10px;margin-top:16px}
+.btn{flex:1;background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#241800;border:none;border-radius:13px;padding:14px;font-family:"Marcellus",serif;font-size:1.02rem;letter-spacing:1px;cursor:pointer;transition:transform .08s,filter .12s}
+.btn:hover{filter:brightness(1.06)}.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.4;cursor:default;filter:none}
+.btn.ghost{background:none;border:2px solid var(--line);color:var(--cream);flex:0 0 auto;padding:14px 16px}
+.btn.ghost:hover{border-color:var(--gold-deep)}
+.bean-note{margin-top:10px;color:var(--gold);font-family:"Marcellus",serif;letter-spacing:.5px;font-size:.95rem;text-align:center}
+
+.fxp{position:absolute;font-size:1.1rem;animation:rise var(--t,900ms) ease-out forwards}
+@keyframes rise{0%{transform:translate(-50%,-50%) scale(.6);opacity:0}15%{opacity:1}
+  100%{transform:translate(calc(-50% + var(--dx,0px)),calc(-50% + var(--dy,-110px))) rotate(var(--dr,0deg));opacity:0}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<div id="fx"></div>
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><span class="sigil">☿</span><h1>The Prayers</h1></div>
+    <span class="chip" id="beanChipP" hidden>🫘 <span id="beanNumP">0</span></span>
+  </div>
+
+  <div id="home">
+    <div class="hero">
+      <div class="eyebrow">Corpus Hermeticum</div>
+      <h2>Learn them by heart, <span class="nm">Star</span>.</h2>
+      <p>There are only a few prayers in the whole book, and they are worth carrying in memory. You learn a prayer by saying it — so read it, then let the words fade a little at a time until you can speak it from the heart.</p>
+    </div>
+    <div class="label">The prayers</div>
+    <div id="prayerList"></div>
+  </div>
+
+  <div id="view" hidden></div>
+</div>
+
+<script>
+/* ===== DATA — authentic text (Everard 1650 / Nag Hammadi), lightly cleaned, public domain ===== */
+const PRAYERS=[
+{
+ id:"doxology", glyph:"🙏",
+ title:"The Holy Doxology",
+ sub:"“With my soul and whole strength…”",
+ ref:"Pymander · Book II · 85–99",
+ intro:"The prayer Hermes speaks after his awakening — rising into praise, then the sevenfold “Holy art Thou.” The repeated shape is itself a help to memory.",
+ lines:[
+  "For which cause, with my soul and whole strength, I give praise and blessing unto God the Father.",
+  "Holy is God, the Father of all things.",
+  "Holy is God, whose will is performed and accomplished by his own powers.",
+  "Holy is God, that determineth to be known, and is known by his own.",
+  "Holy art thou, that by thy Word hast established all things.",
+  "Holy art thou, of whom all Nature is the Image.",
+  "Holy art thou, whom Nature hath not formed.",
+  "Holy art thou, that art stronger than all power.",
+  "Holy art thou, that art stronger than all excellency.",
+  "Holy art thou, that art better than all praise.",
+  "Accept these reasonable sacrifices from a pure soul, and a heart stretched out unto thee.",
+  "O unspeakable, unutterable, to be praised with silence!",
+  "I beseech thee, that I may never err from the knowledge of thee; look mercifully upon me.",
+  "Therefore I believe thee, and bear witness, and go into the Life and Light.",
+  "Blessed art thou, O Father; thy man would be sanctified with thee, as thou hast given him all power."
+ ]
+},
+{
+ id:"secret-song", glyph:"🎶",
+ title:"The Secret Song",
+ sub:"“Let all the Nature of the World entertain the hearing of this Hymn.”",
+ ref:"Regeneration · Book VII · 65–87",
+ intro:"The Holy Speech — the hymn of Regeneration, sung when the Powers within have driven out the Torments. The longest of the three; take it a stanza at a time.",
+ lines:[
+  "Let all the Nature of the World entertain the hearing of this Hymn.",
+  "Be opened, O Earth, and let all the Treasure of the Rain be opened.",
+  "You Trees, tremble not, for I will sing and praise the Lord of the Creation, and the All, and the One.",
+  "Be opened, you Heavens; ye Winds, stand still, and let the immortal Circle of God receive these words.",
+  "For I will sing and praise him that created all things, that fixed the earth, and hung up the Heavens.",
+  "That commanded the fire to shine for every action, both to Gods and Men.",
+  "Let us altogether give him blessing, which rideth upon the Heavens, the Creator of all Nature.",
+  "This is he that is the Eye of the Mind, and will accept the praise of my Powers.",
+  "O all ye Powers that are in me, praise the One, and All.",
+  "Sing together with my Will, all you Powers that are in me.",
+  "O Holy knowledge, being enlightened by thee, I magnify the intelligible Light, and rejoice in the joy of the Mind.",
+  "All my Powers sing praise with me.",
+  "O Communion which is in me; praise the All.",
+  "By me the Truth sings praise to the Truth, the Good praiseth the Good.",
+  "O Life, O Light, from us, unto you, comes this praise and thanksgiving.",
+  "I give thanks unto thee, O Father, the operation of my Powers.",
+  "I give thanks unto thee, O God, the Power of my operations.",
+  "By me the Word sings praise unto thee.",
+  "The powers that are in me cry these things; they praise the All, they fulfil thy Will.",
+  "O All, receive a reasonable sacrifice from all things.",
+  "O Life, save all that is in us; O Light, enlighten; O God, the Spirit.",
+  "Thou art God; thy Man crieth these things unto thee, by the Fire, by the Air, by the Earth, by the Water, by the Spirit.",
+  "From eternity I have found means to bless and praise thee, and I have what I seek; for I rest in thy Will."
+ ]
+},
+{
+ id:"thanksgiving", glyph:"🕊️",
+ title:"The Prayer of Thanksgiving",
+ sub:"“We give thanks to You!”",
+ ref:"Hermetic prayer · Nag Hammadi (Coptic)",
+ intro:"A beloved Hermetic prayer, the same one echoed at the close of the Asclepius. Spoken together, in thanks for the gift of knowing.",
+ lines:[
+  "We give thanks to You! Every soul and heart is lifted up to You.",
+  "We rejoice, having been illuminated by Your knowledge.",
+  "We rejoice because You have shown us Yourself.",
+  "We rejoice because, while we were in the body, You have made us divine through Your knowledge.",
+  "The thanksgiving of the one who attains to You is this: that we know You.",
+  "We have known You, O intellectual light.",
+  "O Life of life, we have known You.",
+  "O Womb of every creature, we have known You.",
+  "There is one petition that we ask: that we be preserved in knowledge.",
+  "And one protection we desire: that we not stumble in this kind of life."
+ ]
+}
+];
+
+/* ===== state (beans shared with the other modules via the active traveler) ===== */
+const $=s=>document.querySelector(s);
+function load(k,d){try{const r=localStorage.getItem(k);return r?JSON.parse(r):d;}catch(e){return d;}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function activeId(){return load("majick-active",null);}
+function activeName(){try{const id=activeId();const p=load("majick-profiles",[]).find(x=>x.id===id);return p?p.name:null;}catch(e){return null;}}
+function getBeans(){const id=activeId();return id?(load("majick-p-"+id+"-beans",0)||0):0;}
+function addBeans(n){const id=activeId();if(!id)return;
+  save("majick-p-"+id+"-beans",(load("majick-p-"+id+"-beans",0)||0)+n);
+  save("majick-p-"+id+"-beansLife",(load("majick-p-"+id+"-beansLife",0)||0)+n);}
+function pk(id,s){return "prayers-"+id+"-"+s;}
+function getLevel(id){return load(pk(id,"level"),1);}           // highest fade level reached (1..5)
+function setLevel(id,l){if(l>getLevel(id))save(pk(id,"level"),l);}
+function isMem(id){return load(pk(id,"mem"),false);}
+function isOrdered(id){return load(pk(id,"ordered"),false);}
+const MEM_BEANS=20, ORDER_BEANS=10;
+
+function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+const home=$("#home"),view=$("#view");
+function updateBeanChip(){const c=$("#beanChipP");if(!c)return;if(activeId()){c.hidden=false;$("#beanNumP").textContent=getBeans();}else c.hidden=true;}
+function burst(el,count,kind){const fx=$("#fx");if(!el)return;const r=el.getBoundingClientRect();
+  const cx=r.left+r.width/2,cy=r.top+r.height/2;const set=kind==="bean"?["🫘","🪙","✨"]:["✦","✧","⭐","✨"];
+  for(let i=0;i<count;i++){const s=document.createElement("span");s.className="fxp";s.textContent=set[Math.floor(Math.random()*set.length)];
+    s.style.left=cx+"px";s.style.top=cy+"px";s.style.setProperty("--dx",(Math.random()*150-75).toFixed(0)+"px");
+    s.style.setProperty("--dy",(-Math.random()*80-45).toFixed(0)+"px");s.style.setProperty("--dr",(Math.random()*120-60).toFixed(0)+"deg");
+    s.style.setProperty("--t",(700+Math.random()*500).toFixed(0)+"ms");fx.appendChild(s);setTimeout(()=>s.remove(),1300);}}
+
+/* ===== home ===== */
+function prayerProgress(p){ // 0..1 across 5 fade levels
+  return (getLevel(p.id)-1)/4;
+}
+function renderHome(){
+  updateBeanChip();
+  const nm=activeName();if(nm){const h=document.querySelector(".hero h2 .nm");if(h)h.textContent=nm;}
+  const list=$("#prayerList");list.innerHTML="";
+  PRAYERS.forEach(p=>{
+    const pct=Math.round(prayerProgress(p)*100),mem=isMem(p.id),ord=isOrdered(p.id);
+    const b=document.createElement("button");b.className="pray-card"+(mem?" done":"");
+    b.innerHTML=`<span class="pg">${p.glyph}</span>
+      <div class="pmain"><div class="pt">${esc(p.title)}</div><div class="ps">${esc(p.ref)} · ${p.lines.length} lines</div>
+        <div class="pmeter"><div class="bar"><i style="width:${pct}%"></i></div>
+          <div class="pn">${mem?"memorized":pct+"%"}${ord?" · ordered":""}</div></div></div>
+      ${mem?'<span class="seal">✦</span>':""}`;
+    b.onclick=()=>openPrayer(p.id);
+    list.appendChild(b);
+  });
+}
+function goHome(){view.hidden=true;home.hidden=false;renderHome();window.scrollTo(0,0);}
+
+/* ===== prayer view ===== */
+let P=null,tab="read";
+function openPrayer(id){P=PRAYERS.find(x=>x.id===id);tab="read";home.hidden=true;view.hidden=false;renderView();window.scrollTo(0,0);}
+function renderView(){
+  view.innerHTML=`<div class="play-top"><button class="back" id="pBack" aria-label="Back">←</button>
+      <span class="ptitle">${esc(P.title)}</span></div>
+    <div class="ref">${esc(P.ref)}</div>
+    <div class="tabs">
+      <button class="tab ${tab==="read"?"on":""}" data-t="read">Read</button>
+      <button class="tab ${tab==="fade"?"on":""}" data-t="fade">Memorize</button>
+      <button class="tab ${tab==="order"?"on":""}" data-t="order">Order the lines</button>
+    </div>
+    <div id="body"></div>`;
+  $("#pBack").onclick=goHome;
+  view.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{tab=t.dataset.t;renderView();});
+  if(tab==="read")renderRead();else if(tab==="fade")renderFade();else renderOrder();
+  updateBeanChip();window.scrollTo(0,0);
+}
+
+/* --- Read --- */
+function renderRead(){
+  $("#body").innerHTML=`<div class="panel">
+    <div class="intro">${esc(P.intro)}</div>
+    ${P.lines.map((l,i)=>`<p class="verse"><span class="vn">${i+1}</span>${esc(l)}</p>`).join("")}
+    <div class="actions"><button class="btn" id="toFade">Start memorizing →</button></div></div>`;
+  $("#toFade").onclick=()=>{tab="fade";renderView();};
+}
+
+/* --- Fade (progressive memorization) --- */
+const LEVELS=[
+ {n:1,name:"Read",hide:0},
+ {n:2,name:"A few gaps",hide:0.3},
+ {n:3,name:"Half gone",hide:0.55},
+ {n:4,name:"First letters",hide:1,firstLetter:true},
+ {n:5,name:"From memory",hide:1,lineHide:true},
+];
+let fadeLevel=1;
+function seededHide(line,li,frac){ // deterministic word-hiding
+  const words=line.split(" ");
+  return words.map((w,wi)=>{
+    const bare=w.replace(/[^A-Za-z]/g,"");
+    const hideable=bare.length>=3 && wi>0;
+    // pseudo-random but stable per (prayer,line,word)
+    const seed=(li*131+wi*17+bare.length*7)%100;
+    return {w,hide:hideable && seed<frac*100};
+  });
+}
+function renderFade(){
+  fadeLevel=Math.max(1,Math.min(5,getLevel(P.id)));
+  drawFade();
+}
+function drawFade(){
+  const L=LEVELS[fadeLevel-1];
+  const pills=LEVELS.map(l=>`<button class="lp ${l.n===fadeLevel?"on":""} ${getLevel(P.id)>l.n?"done":""}" data-l="${l.n}">${l.n}. ${l.name}</button>`).join("");
+  let textHtml;
+  if(L.lineHide){
+    textHtml=P.lines.map((l,i)=>`<div class="hidden-line" data-i="${i}"><span class="hl-n">${i+1}</span><span class="hl-t">tap to reveal line ${i+1}</span></div>`).join("");
+  } else {
+    textHtml=`<div class="fade-text">`+P.lines.map((l,i)=>{
+      const parts=seededHide(l,i,L.hide);
+      const inner=parts.map(pw=>{
+        if(!pw.hide)return `<span class="word">${esc(pw.w)}</span>`;
+        if(L.firstLetter){const m=pw.w.match(/[A-Za-z]/);const fl=m?m[0]:pw.w[0];
+          return `<span class="fl" data-full="${esc(pw.w)}">${esc(fl)}${"·".repeat(Math.max(1,pw.w.replace(/[^A-Za-z]/g,"").length-1))}</span>`;}
+        const bare=pw.w.replace(/[^A-Za-z]/g,"");
+        return `<span class="gap" data-full="${esc(pw.w)}">${"_".repeat(Math.max(2,bare.length))}</span>`;
+      }).join(" ");
+      return `<span class="ln">${inner}</span>`;
+    }).join("")+`</div>`;
+  }
+  const body=$("#body");
+  body.innerHTML=`<div class="panel">
+    <div class="fade-controls"><div class="level-pills">${pills}</div></div>
+    <div id="fadeArea">${textHtml}</div>
+    <div class="tip">${L.lineHide?"Say each line aloud, then tap to check.":L.firstLetter?"Each word is just its first letter — recite the whole prayer, tap any to peek.":L.hide>0?"Fill the gaps aloud from memory. Tap a blank to peek.":"Read it through, slowly, two or three times."}</div>
+    <div class="feedback" id="fb"></div>
+    <div class="actions">
+      <button class="btn ghost" id="prevL" ${fadeLevel===1?"disabled":""}>←</button>
+      <button class="btn" id="nextL">${fadeLevel<5?"Next level →":"I can say it all ✦"}</button>
+    </div></div>`;
+  // peeks
+  body.querySelectorAll(".gap").forEach(g=>g.onclick=()=>{g.textContent=g.dataset.full;g.classList.add("shown");});
+  body.querySelectorAll(".fl").forEach(g=>g.onclick=()=>{g.textContent=g.dataset.full;g.classList.remove("fl");g.classList.add("word");});
+  body.querySelectorAll(".hidden-line").forEach(h=>h.onclick=()=>{const i=+h.dataset.i;
+    h.classList.add("open");h.querySelector(".hl-t").textContent=P.lines[i];});
+  body.querySelectorAll(".lp").forEach(p=>p.onclick=()=>{fadeLevel=+p.dataset.l;drawFade();});
+  $("#prevL").onclick=()=>{if(fadeLevel>1){fadeLevel--;drawFade();}};
+  $("#nextL").onclick=()=>{
+    if(fadeLevel<5){fadeLevel++;setLevel(P.id,fadeLevel);drawFade();}
+    else{ // completed memory level
+      setLevel(P.id,5);
+      if(!isMem(P.id)){save(pk(P.id,"mem"),true);
+        if(activeId()&&!load(pk(P.id,"mem-paid"),false)){addBeans(MEM_BEANS);save(pk(P.id,"mem-paid"),true);updateBeanChip();burst($("#beanChipP"),6,"bean");}
+      }
+      $("#fb").innerHTML='Memorized. ✦'+(activeId()?'<div class="bean-note">+'+MEM_BEANS+' 🫘</div>':'');
+      $("#fb").className="feedback good";$("#nextL").disabled=true;burst($("#fb"),14);
+    }
+  };
+}
+
+/* --- Order the lines (in chunks of up to 6) --- */
+let orderStart=0;const ORDER_CHUNK=6;
+function renderOrder(){orderStart=0;drawOrder();}
+function drawOrder(){
+  const chunk=P.lines.slice(orderStart,orderStart+ORDER_CHUNK);
+  const idxs=chunk.map((_,i)=>orderStart+i); // correct absolute indexes
+  const shuffled=shuffle(idxs.slice());
+  const total=Math.ceil(P.lines.length/ORDER_CHUNK),cur=Math.floor(orderStart/ORDER_CHUNK)+1;
+  const body=$("#body");
+  body.innerHTML=`<div class="panel">
+    <div class="order-head">Put the lines in order${total>1?` · part ${cur} of ${total}`:""}. Tap a line to place it; tap a placed line to take it back.</div>
+    <div class="slots" id="slots"></div>
+    <div class="label" style="margin:14px 2px 6px">Lines</div>
+    <div class="pool" id="pool"></div>
+    <div class="feedback" id="fb"></div>
+    <div class="actions"><button class="btn" id="checkO" disabled>Check</button><button class="btn" id="nextO" disabled>${cur<total?"Next part →":"Done ✦"}</button></div></div>`;
+  let placed=[]; // absolute indexes in chosen order
+  const slotsEl=$("#slots"),poolEl=$("#pool");
+  function draw(){
+    slotsEl.innerHTML="";chunk.forEach((_,i)=>{const b=document.createElement("button");
+      const ai=placed[i];b.className="oline"+(ai!=null?" filled":"");
+      b.textContent=ai!=null?P.lines[ai]:"— line "+(i+1)+" —";
+      b.onclick=()=>{if(ai==null)return;placed.splice(i,1);draw();};slotsEl.appendChild(b);});
+    poolEl.innerHTML="";shuffled.filter(ai=>!placed.includes(ai)).forEach(ai=>{const b=document.createElement("button");
+      b.className="oline";b.textContent=P.lines[ai];
+      b.onclick=()=>{if(placed.length<chunk.length){placed.push(ai);draw();}};poolEl.appendChild(b);});
+    $("#checkO").disabled=placed.length!==chunk.length;
+  }
+  draw();
+  $("#checkO").onclick=()=>{
+    let ok=true;[...slotsEl.children].forEach((b,i)=>{b.classList.remove("correct","wrong");
+      if(placed[i]===idxs[i])b.classList.add("correct");else{b.classList.add("wrong");ok=false;}});
+    if(ok){$("#fb").textContent="In order. ✦";$("#fb").className="feedback good";$("#nextO").disabled=false;$("#checkO").disabled=true;}
+    else{$("#fb").textContent="Not yet — fix the ones in red.";$("#fb").className="feedback try";}
+  };
+  $("#nextO").onclick=()=>{
+    if(cur<total){orderStart+=ORDER_CHUNK;drawOrder();}
+    else{ if(!isOrdered(P.id)){save(pk(P.id,"ordered"),true);
+        if(activeId()&&!load(pk(P.id,"ordered-paid"),false)){addBeans(ORDER_BEANS);save(pk(P.id,"ordered-paid"),true);updateBeanChip();burst($("#beanChipP"),5,"bean");}}
+      $("#fb").innerHTML="The whole prayer, in order. ✦"+(activeId()?'<div class="bean-note">+'+ORDER_BEANS+' 🫘</div>':'');
+      $("#fb").className="feedback good";$("#nextO").disabled=true;burst($("#fb"),12);
+    }
+  };
+}
+
+/* ===== starfield ===== */
+(function(){const c=$("#sky"),x=c.getContext("2d");let w,hh,stars;
+  const reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;
+  function size(){w=c.width=innerWidth;hh=c.height=innerHeight;
+    stars=Array.from({length:Math.min(90,Math.floor(w*hh/14000))},()=>({x:Math.random()*w,y:Math.random()*hh,r:Math.random()*1.3+0.3,a:Math.random(),s:Math.random()*0.018+0.004}));}
+  function frame(){x.clearRect(0,0,w,hh);for(const st of stars){st.a+=st.s;x.globalAlpha=0.3+0.4*Math.sin(st.a);
+    x.fillStyle="#e6c25c";x.beginPath();x.arc(st.x,st.y,st.r,0,7);x.fill();}x.globalAlpha=1;if(!reduce)requestAnimationFrame(frame);}
+  size();frame();addEventListener("resize",size);})();
+
+renderHome();
+</script>
+</body>
+</html>
