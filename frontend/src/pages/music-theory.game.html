@@ -48,6 +48,28 @@ h1,h2,h3,h4{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:7
 .brand .sigil{animation:bob 3.2s ease-in-out infinite}
 @keyframes bob{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-3px) rotate(4deg)}}
 .chip{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-weight:800;font-size:.9rem;color:var(--gold)}
+.score{display:flex;align-items:center;gap:7px}
+.chip.who{cursor:pointer;color:var(--cream);font:inherit;font-weight:800}
+.chip.who:hover{border-color:var(--gold-deep)}
+body.gated .chip{visibility:hidden}
+/* gate / player profiles */
+.profiles{display:flex;flex-wrap:wrap;gap:12px;margin-top:6px}
+.pcard{cursor:pointer;color:inherit;font:inherit;background:var(--card);border:1px solid var(--line);
+  border-radius:16px;padding:16px 18px;min-width:118px;display:flex;flex-direction:column;align-items:center;gap:9px;
+  transition:transform .14s,border-color .14s;position:relative}
+.pcard:hover{transform:translateY(-2px);border-color:var(--gold-deep)}
+.pcard:focus-visible{outline:3px solid var(--violet);outline-offset:2px}
+.pcard .pav{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;font-family:"Bricolage Grotesque",system-ui,sans-serif;
+  font-size:1.5rem;font-weight:800;color:var(--gold);background:#0c0a1e;border:1px solid var(--line)}
+.pcard .pnm{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:700;letter-spacing:.3px}
+.pcard .plock{position:absolute;top:10px;right:11px;font-size:.78rem}
+.pcard.add{border-style:dashed;color:var(--muted)}
+.unlock,.create{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-top:18px;max-width:360px}
+.ulabel{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:700;letter-spacing:.5px;color:var(--muted);font-size:.76rem;text-transform:uppercase;margin:4px 0 8px}
+.pin-input{display:block;width:100%;background:#0c0a1e;border:2px solid var(--line);border-radius:12px;color:var(--cream);
+  font:inherit;font-weight:800;font-size:1.2rem;letter-spacing:5px;text-align:center;padding:12px;margin-bottom:8px}
+.pin-input.name{letter-spacing:1px}
+.pin-input:focus{outline:none;border-color:var(--violet)}
 
 .hero{margin:20px 0 18px}
 .hero .eyebrow{font-family:"Bricolage Grotesque",system-ui,sans-serif;letter-spacing:3px;text-transform:uppercase;font-size:.72rem;color:var(--muted);margin-bottom:8px}
@@ -160,10 +182,15 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 <div class="wrap">
   <div class="top">
     <div class="brand"><button class="exit" id="exitBtn" title="Back to The Hermetic Way" aria-label="Back to the main site">⟵</button><span class="sigil">♪</span><h1>MAJICK Music</h1></div>
-    <span class="chip" id="beanChipM" hidden>🫘 <span id="beanNumM">0</span></span>
+    <div class="score">
+      <button class="chip who" id="switchProfile" title="Switch player">🎧 <span id="profileName">—</span></button>
+      <span class="chip" id="beanChipM" hidden>🫘 <span id="beanNumM">0</span></span>
+    </div>
   </div>
 
-  <div id="home">
+  <div id="gate"></div>
+
+  <div id="home" hidden>
     <div class="hero">
       <div class="eyebrow">MAJICK Music · Learning Platform</div>
       <h2>Three ways to learn, <span class="nm">Star</span>.</h2>
@@ -215,13 +242,14 @@ const TOPICS=[
 {
  id:"key-signatures", icon:"🔑", title:"Key Signatures",
  blurb:"How many sharps or flats each major key has.",
- intro:"A <b>key signature</b> tells you which notes are sharp or flat for the whole piece. Sharps are added in the order <b>F C G D A E B</b>; flats in the reverse, <b>B E A D G C F</b>. Each step around the circle of fifths adds one.",
+ intro:"A <b>key signature</b> tells you which notes are sharp or flat for the whole piece. Sharps are added in the order <b>F C G D A E B</b> (“Fat Cats Go Down Alleys Eating Bread”); flats in the reverse, <b>B E A D G C F</b> (“BEAD, Go Cat Fish”). <b>The letter trick:</b> the number of pen‑strokes to draw the capital letter tells you how many sharps the key has — G = 1, D = 2, A = 3, E = 4.",
  cards:[
+  {t:"The letter-stroke trick",d:"Count the strokes to draw the capital letter = its number of sharps: G = 1, D = 2, A = 3, E = 4. A rough aid, but it nails the first keys."},
   {t:"C major",d:"no sharps or flats"},
-  {t:"G major",d:"1 sharp — F♯"},
-  {t:"D major",d:"2 sharps — F♯ C♯"},
-  {t:"A major",d:"3 sharps — F♯ C♯ G♯"},
-  {t:"E major",d:"4 sharps — F♯ C♯ G♯ D♯"},
+  {t:"G major",d:"1 sharp — F♯ (G: one stroke)"},
+  {t:"D major",d:"2 sharps — F♯ C♯ (D: two strokes)"},
+  {t:"A major",d:"3 sharps — F♯ C♯ G♯ (A: three strokes)"},
+  {t:"E major",d:"4 sharps — F♯ C♯ G♯ D♯ (E: four strokes)"},
   {t:"F major",d:"1 flat — B♭"},
   {t:"B♭ major",d:"2 flats — B♭ E♭"},
   {t:"E♭ major",d:"3 flats — B♭ E♭ A♭"}
@@ -234,8 +262,8 @@ const TOPICS=[
  blurb:"How the keys connect — a fifth apart, adding sharps or flats.",
  intro:"The <b>circle of fifths</b> arranges the keys so each step clockwise is a perfect 5th up and adds a sharp; each step the other way adds a flat. It's the map that ties keys, scales, and chords together.",
  cards:[
-  {t:"Order of sharps",d:"F C G D A E B  (“Father Charles Goes Down And Ends Battle”)"},
-  {t:"Order of flats",d:"B E A D G C F  (the reverse — spells BEAD, then G C F)"},
+  {t:"Order of sharps",d:"F C G D A E B — “Fat Cats Go Down Alleys Eating Bread” (or “Father Charles Goes Down And Ends Battle”)"},
+  {t:"Order of flats",d:"B E A D G C F — “BEAD, Go Cat Fish” (it spells BEAD, then G C F). It's the reverse of the sharps."},
   {t:"Clockwise (up a 5th)",d:"C → G → D → A → E → B — adds one sharp each step"},
   {t:"Counter‑clockwise (down a 5th)",d:"C → F → B♭ → E♭ → A♭ — adds one flat each step"},
   {t:"Relative minor",d:"a minor 3rd below the major (C major ↔ A minor — same key signature)"}
@@ -263,6 +291,21 @@ const TOPICS=[
  ],
  keyboard:{t:"Feel the words",s:"Play a C major scale three ways: staccato (short), legato (smooth), then with a crescendo from soft to loud."},
  ear:{label:"Lessons & more exercises",url:"https://www.musictheory.net/lessons"}
+},
+{
+ id:"staff", icon:"🎵", title:"Reading the Staff",
+ blurb:"Name the notes on the lines and spaces — treble and bass clef.",
+ intro:"On the <b>staff</b>, every line and space is a note. Learn them with the classic sayings — one for the lines, one for the spaces, in each clef. Always read <b>bottom to top</b>.",
+ cards:[
+  {t:"Treble lines (E G B D F)",d:"“Every Good Boy Does Fine” — the five lines, bottom to top"},
+  {t:"Treble spaces (F A C E)",d:"spells “FACE” — the four spaces, bottom to top"},
+  {t:"Bass lines (G B D F A)",d:"“Good Boys Do Fine Always” — the five lines, bottom to top"},
+  {t:"Bass spaces (A C E G)",d:"“All Cows Eat Grass” — the four spaces, bottom to top"},
+  {t:"Order of sharps (♯)",d:"F C G D A E B — “Fat Cats Go Down Alleys Eating Bread”"},
+  {t:"Order of flats (♭)",d:"B E A D G C F — “BEAD, Go Cat Fish”"}
+ ],
+ keyboard:{t:"Say the staff, then find it on the keys",s:"Name each line and space out loud with the sayings, then find those same notes on the piano."},
+ ear:{label:"Note & Keyboard Identification",url:"https://www.musictheory.net/exercises/note"}
 }
 ];
 
@@ -293,7 +336,10 @@ function getBeans(){const id=activeId();return id?(load("majick-p-"+id+"-beans",
 function addBeans(n){const id=activeId();if(!id)return;
   save("majick-p-"+id+"-beans",(load("majick-p-"+id+"-beans",0)||0)+n);
   save("majick-p-"+id+"-beansLife",(load("majick-p-"+id+"-beansLife",0)||0)+n);}
-function mk(id,s){return "music-"+id+"-"+s;}
+function mk(id,s){return "music-"+(activeId()||"guest")+"-"+id+"-"+s;}
+function getProfiles(){return load("majick-profiles",[]);}
+function setProfiles(p){save("majick-profiles",p);}
+function newId(){return "u"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 const QUIZ_BEANS=10, MATCH_BEANS=10, KB_BEANS=5;
 
 function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
@@ -438,6 +484,55 @@ function renderMatch(){
   chunk();
 }
 
+/* ===== player profiles (soft login) ===== */
+const gate=$("#gate");
+function renderGate(){
+  document.body.classList.add("gated");
+  home.hidden=true;view.hidden=true;gate.hidden=false;
+  const ps=getProfiles();
+  gate.innerHTML=`<div class="hero"><div class="eyebrow">MAJICK Music</div>
+    <h2>Who's playing?</h2>
+    <p>Each player keeps their own progress and Beans. Pick yours, or start a new one.</p></div>
+    <div class="profiles" id="profiles"></div><div id="gateForm"></div>`;
+  const list=$("#profiles");
+  ps.forEach(p=>{const b=document.createElement("button");b.className="pcard";
+    b.innerHTML=`<span class="pav">${esc(p.name.slice(0,1).toUpperCase())}</span><span class="pnm">${esc(p.name)}</span>${p.pin?'<span class="plock">🔒</span>':''}`;
+    b.onclick=()=>selectProfile(p);list.appendChild(b);});
+  const add=document.createElement("button");add.className="pcard add";
+  add.innerHTML=`<span class="pav">＋</span><span class="pnm">New player</span>`;
+  add.onclick=showCreate;list.appendChild(add);
+}
+function selectProfile(p){
+  if(p.pin){$("#gateForm").innerHTML=`<div class="unlock"><div class="ulabel">${esc(p.name)}'s code</div>
+    <input class="pin-input" id="pinIn" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="code" placeholder="••••">
+    <div class="feedback try" id="pinfb"></div>
+    <div class="actions"><button class="btn ghost" id="pinBack">Back</button><button class="btn" id="pinGo">Enter</button></div></div>`;
+    const go=()=>{if($("#pinIn").value===p.pin)activate(p.id);else{$("#pinfb").textContent="Not quite — try again.";$("#pinIn").value="";$("#pinIn").focus();}};
+    $("#pinGo").onclick=go;$("#pinBack").onclick=()=>{$("#gateForm").innerHTML="";};
+    $("#pinIn").addEventListener("keydown",e=>{if(e.key==="Enter")go();});
+    setTimeout(()=>$("#pinIn").focus(),60);
+  } else activate(p.id);
+}
+function showCreate(){
+  $("#gateForm").innerHTML=`<div class="create"><div class="ulabel">Name</div>
+    <input class="pin-input name" id="newName" maxlength="18" placeholder="your name" aria-label="name">
+    <div class="ulabel">Secret code — optional, 4 digits</div>
+    <input class="pin-input" id="newPin" inputmode="numeric" maxlength="4" placeholder="leave blank for none" aria-label="code">
+    <div class="feedback try" id="newfb"></div>
+    <div class="actions"><button class="btn ghost" id="newCancel">Cancel</button><button class="btn" id="newGo">Begin</button></div></div>`;
+  $("#newCancel").onclick=()=>{$("#gateForm").innerHTML="";};
+  $("#newGo").onclick=()=>{const name=$("#newName").value.trim(),pin=$("#newPin").value.trim();
+    if(!name){$("#newfb").textContent="Please enter a name.";return;}
+    if(pin&&!/^\d{4}$/.test(pin)){$("#newfb").textContent="The code must be 4 digits, or left blank.";return;}
+    const ps=getProfiles();const id=newId();ps.push({id,name,pin:pin||null});setProfiles(ps);activate(id);};
+  setTimeout(()=>$("#newName").focus(),60);
+}
+function activate(id){save("majick-active",id);showHome();}
+function showHome(){document.body.classList.remove("gated");gate.hidden=true;view.hidden=true;home.hidden=false;
+  const p=getProfiles().find(x=>x.id===activeId());if($("#profileName"))$("#profileName").textContent=p?p.name:"—";
+  renderHome();window.scrollTo(0,0);}
+$("#switchProfile").onclick=()=>{save("majick-active",null);renderGate();window.scrollTo(0,0);};
+
 /* ===== drifting notes (magical music background) ===== */
 (function(){const c=$("#sky"),x=c.getContext("2d");let w,hh,parts;
   const reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;
@@ -461,7 +556,7 @@ function renderMatch(){
   if(window.top===window.self){b.hidden=true;return;}
   b.onclick=()=>{try{window.parent.postMessage({mjk:"home"},"*");}catch(e){}};})();
 
-renderHome();
+renderGate();
 </script>
 </body>
 </html>
