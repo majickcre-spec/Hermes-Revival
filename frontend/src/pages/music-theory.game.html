@@ -20,7 +20,12 @@
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{margin:0}
-body{background:var(--bg);color:var(--cream);font-family:"Nunito Sans",system-ui,-apple-system,sans-serif;
+body{background:
+    radial-gradient(900px 520px at 50% -10%, rgba(165,121,255,.20), transparent 62%),
+    radial-gradient(760px 420px at 92% 6%, rgba(69,220,232,.12), transparent 60%),
+    radial-gradient(680px 420px at 6% 18%, rgba(255,111,163,.12), transparent 60%),
+    var(--bg);
+  color:var(--cream);font-family:"Nunito Sans",system-ui,-apple-system,sans-serif;
   font-weight:600;line-height:1.5;min-height:100%;position:relative;overflow-x:hidden}
 #sky{position:fixed;inset:0;z-index:0;pointer-events:none}
 #fx{position:fixed;inset:0;z-index:40;pointer-events:none;overflow:hidden}
@@ -31,15 +36,24 @@ h1,h2,h3,h4{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:7
 
 .top{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .brand{display:flex;align-items:center;gap:9px;min-width:0}
+.exit{flex:none;width:34px;height:34px;border-radius:50%;cursor:pointer;line-height:1;font-size:1rem;
+  background:var(--card);border:1px solid var(--line);color:var(--muted);transition:transform .12s,border-color .12s,color .12s}
+.exit:hover{border-color:var(--rose);color:var(--cream);transform:translateX(-2px)}
 .brand .sigil{font-size:1.3rem;background:linear-gradient(120deg,var(--gold),var(--rose),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
 .brand h1{font-size:1.04rem;letter-spacing:1px;text-transform:uppercase;font-weight:800;
-  background:linear-gradient(100deg,var(--gold),var(--rose) 55%,var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+  background:linear-gradient(100deg,var(--gold),var(--rose) 40%,var(--violet) 70%,var(--teal));
+  background-size:220% auto;-webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:shimmer 7s linear infinite}
+@keyframes shimmer{to{background-position:220% center}}
+.brand .sigil{animation:bob 3.2s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-3px) rotate(4deg)}}
 .chip{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-weight:800;font-size:.9rem;color:var(--gold)}
 
 .hero{margin:20px 0 18px}
 .hero .eyebrow{font-family:"Bricolage Grotesque",system-ui,sans-serif;letter-spacing:3px;text-transform:uppercase;font-size:.72rem;color:var(--muted);margin-bottom:8px}
 .hero h2{font-size:1.9rem;color:var(--cream)}
-.hero h2 .nm{color:var(--gold)}
+.hero h2{letter-spacing:-0.02em}
+.hero h2 .nm{background:linear-gradient(100deg,var(--gold),var(--rose) 55%,var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
 .hero p{margin:12px 0 0;color:var(--muted);font-size:1rem;max-width:60ch;line-height:1.6}
 .pillars{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .pillar{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:.74rem;letter-spacing:1px;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:6px 12px;color:var(--muted)}
@@ -145,7 +159,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 <div id="fx"></div>
 <div class="wrap">
   <div class="top">
-    <div class="brand"><span class="sigil">♪</span><h1>MAJICK Music</h1></div>
+    <div class="brand"><button class="exit" id="exitBtn" title="Back to The Hermetic Way" aria-label="Back to the main site">⟵</button><span class="sigil">♪</span><h1>MAJICK Music</h1></div>
     <span class="chip" id="beanChipM" hidden>🫘 <span id="beanNumM">0</span></span>
   </div>
 
@@ -424,15 +438,28 @@ function renderMatch(){
   chunk();
 }
 
-/* ===== starfield ===== */
-(function(){const c=$("#sky"),x=c.getContext("2d");let w,hh,stars;
+/* ===== drifting notes (magical music background) ===== */
+(function(){const c=$("#sky"),x=c.getContext("2d");let w,hh,parts;
   const reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;
+  const glyphs=["♪","♫","♩","♬","✦","✧"];
+  const tints=["#ff9f5c","#ff7bb0","#a579ff","#45dce8","#ffd98a"];
+  function mk(startBottom){return {x:Math.random()*w, y:startBottom?hh+Math.random()*40:Math.random()*hh,
+    v:0.12+Math.random()*0.38, g:glyphs[Math.floor(Math.random()*glyphs.length)],
+    c:tints[Math.floor(Math.random()*tints.length)], s:13+Math.random()*22,
+    a:0.07+Math.random()*0.20, sway:4+Math.random()*7, ph:Math.random()*6.28, sp:0.006+Math.random()*0.01};}
   function size(){w=c.width=innerWidth;hh=c.height=innerHeight;
-    stars=Array.from({length:Math.min(90,Math.floor(w*hh/14000))},()=>({x:Math.random()*w,y:Math.random()*hh,r:Math.random()*1.3+0.3,a:Math.random(),s:Math.random()*0.018+0.004}));}
-  const tints=["#ff9f5c","#ff7bb0","#a579ff","#45dce8"];
-  function frame(){x.clearRect(0,0,w,hh);for(const st of stars){st.a+=st.s;x.globalAlpha=0.22+0.33*Math.sin(st.a);
-    x.fillStyle=tints[(st.x|0)%4];x.beginPath();x.arc(st.x,st.y,st.r,0,7);x.fill();}x.globalAlpha=1;if(!reduce)requestAnimationFrame(frame);}
+    parts=Array.from({length:Math.min(36,Math.max(14,Math.floor(w*hh/26000)))},()=>mk(false));}
+  function frame(){x.clearRect(0,0,w,hh);
+    for(const p of parts){p.y-=p.v;p.ph+=p.sp;const dx=Math.sin(p.ph)*p.sway;
+      x.globalAlpha=p.a;x.fillStyle=p.c;x.font=p.s+"px serif";x.fillText(p.g,p.x+dx,p.y);
+      if(p.y<-34)Object.assign(p,mk(true));}
+    x.globalAlpha=1;if(!reduce)requestAnimationFrame(frame);}
   size();frame();addEventListener("resize",size);})();
+
+/* ===== exit to the main site (works when embedded in the app) ===== */
+(function(){const b=$("#exitBtn");if(!b)return;
+  if(window.top===window.self){b.hidden=true;return;}
+  b.onclick=()=>{try{window.parent.postMessage({mjk:"home"},"*");}catch(e){}};})();
 
 renderHome();
 </script>
