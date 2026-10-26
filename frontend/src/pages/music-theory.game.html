@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Music Theory</title>
+<title>MAJICK Music</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Nunito+Sans:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Nunito+Sans:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,800&display=swap">
 <style>
 /* Music theory: know it (games) · hear it (musictheory.net) · play it (your keyboard). */
 :root{
-  --bg:#0a1628; --bg2:#0e1f39; --card:#15284a; --card2:#1d3358;
-  --gold:#e6c25c; --gold-deep:#d4af37; --cream:#f1ede1; --muted:#9bb0d0;
-  --rose:#e8a6bf; --violet:#9a8cf0; --teal:#57c9bd; --sky:#9bd0ff;
-  --good:#63d39a; --bad:#ef8f8c; --line:#28406a; --maxw:720px;
+  --bg:#140d28; --bg2:#1c1240; --card:#241a49; --card2:#2d2259;
+  --gold:#ff9f5c; --gold-deep:#ff6fa3; --cream:#f4eefc; --muted:#a99cc7;
+  --rose:#ff7bb0; --violet:#a579ff; --teal:#45dce8; --sky:#55d6e8;
+  --good:#5fe0a8; --bad:#ff8f8c; --line:#3a2f66; --maxw:720px;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -27,23 +27,24 @@ body{background:var(--bg);color:var(--cream);font-family:"Nunito Sans",system-ui
 .wrap{position:relative;z-index:1;max-width:var(--maxw);margin:0 auto;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
   padding-block:16px 48px}
-h1,h2,h3,h4{font-family:"Marcellus",Georgia,serif;font-weight:400;margin:0;text-wrap:balance}
+h1,h2,h3,h4{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:700;margin:0;text-wrap:balance;letter-spacing:-0.01em}
 
 .top{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .brand{display:flex;align-items:center;gap:9px;min-width:0}
-.brand .sigil{font-size:1.3rem;color:var(--gold)}
-.brand h1{font-size:1.02rem;letter-spacing:2px;color:var(--gold);text-transform:uppercase}
+.brand .sigil{font-size:1.3rem;background:linear-gradient(120deg,var(--gold),var(--rose),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand h1{font-size:1.04rem;letter-spacing:1px;text-transform:uppercase;font-weight:800;
+  background:linear-gradient(100deg,var(--gold),var(--rose) 55%,var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
 .chip{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-weight:800;font-size:.9rem;color:var(--gold)}
 
 .hero{margin:20px 0 18px}
-.hero .eyebrow{font-family:"Marcellus",serif;letter-spacing:3px;text-transform:uppercase;font-size:.72rem;color:var(--muted);margin-bottom:8px}
+.hero .eyebrow{font-family:"Bricolage Grotesque",system-ui,sans-serif;letter-spacing:3px;text-transform:uppercase;font-size:.72rem;color:var(--muted);margin-bottom:8px}
 .hero h2{font-size:1.9rem;color:var(--cream)}
 .hero h2 .nm{color:var(--gold)}
 .hero p{margin:12px 0 0;color:var(--muted);font-size:1rem;max-width:60ch;line-height:1.6}
 .pillars{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.pillar{font-family:"Marcellus",serif;font-size:.74rem;letter-spacing:1px;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:6px 12px;color:var(--muted)}
+.pillar{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:.74rem;letter-spacing:1px;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:6px 12px;color:var(--muted)}
 .pillar b{color:var(--cream)}
-.label{font-family:"Marcellus",serif;letter-spacing:2px;text-transform:uppercase;font-size:.72rem;color:var(--muted);margin:24px 2px 12px}
+.label{font-family:"Bricolage Grotesque",system-ui,sans-serif;letter-spacing:2px;text-transform:uppercase;font-size:.72rem;color:var(--muted);margin:24px 2px 12px}
 .concept-note{background:rgba(154,140,240,.08);border:1px solid #2c2f5e;border-radius:12px;padding:11px 14px;color:var(--muted);font-size:.84rem;line-height:1.5;margin-top:6px}
 .concept-note b{color:var(--violet)}
 
@@ -56,7 +57,7 @@ h1,h2,h3,h4{font-family:"Marcellus",Georgia,serif;font-weight:400;margin:0;text-
 .card .ic{font-size:1.7rem}
 .card h3{font-size:1.14rem;color:var(--cream)}
 .card .blurb{font-size:.84rem;color:var(--muted);line-height:1.45}
-.card .done-pill{align-self:flex-start;font-size:.64rem;font-family:"Marcellus",serif;letter-spacing:1px;text-transform:uppercase;color:var(--good);border:1px solid var(--good);border-radius:999px;padding:2px 8px}
+.card .done-pill{align-self:flex-start;font-size:.64rem;font-family:"Bricolage Grotesque",system-ui,sans-serif;letter-spacing:1px;text-transform:uppercase;color:var(--good);border:1px solid var(--good);border-radius:999px;padding:2px 8px}
 
 /* external link cards */
 a.link-card{text-decoration:none;color:inherit;display:flex;align-items:center;gap:13px;background:var(--card);
@@ -64,7 +65,7 @@ a.link-card{text-decoration:none;color:inherit;display:flex;align-items:center;g
 a.link-card:hover{transform:translateY(-2px);border-color:var(--sky)}
 a.link-card .lc-ic{font-size:1.5rem;flex:none}
 a.link-card .lc-main{flex:1;min-width:0}
-a.link-card .lc-t{font-family:"Marcellus",serif;font-size:1.05rem;color:var(--cream)}
+a.link-card .lc-t{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:1.05rem;color:var(--cream)}
 a.link-card .lc-s{font-size:.82rem;color:var(--muted);margin-top:2px;line-height:1.4}
 a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .site-note{font-size:.78rem;color:var(--muted);margin:2px 2px 10px}
@@ -75,7 +76,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .kb.done{border-color:var(--good)}
 .kb .kb-ic{font-size:1.4rem;flex:none}
 .kb .kb-main{flex:1;min-width:0}
-.kb .kb-t{font-family:"Marcellus",serif;font-size:1.05rem;color:var(--cream)}
+.kb .kb-t{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:1.05rem;color:var(--cream)}
 .kb .kb-s{font-size:.86rem;color:var(--muted);margin-top:3px;line-height:1.5}
 .kb .kb-btn{flex:none;font:inherit;font-weight:800;cursor:pointer;border-radius:10px;padding:9px 12px;font-size:.8rem;background:var(--card2);border:1px solid var(--line);color:var(--cream)}
 .kb .kb-btn.done{background:var(--good);color:#06301c;border-color:var(--good)}
@@ -84,7 +85,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .play-top{display:flex;align-items:center;gap:12px;margin:8px 0 4px}
 .back{flex:none;background:var(--card);border:1px solid var(--line);color:var(--cream);border-radius:999px;width:40px;height:40px;font-size:1.1rem;cursor:pointer;line-height:1}
 .back:hover{border-color:var(--gold-deep)}
-.ttitle{font-family:"Marcellus",serif;font-size:1.05rem;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase}
+.ttitle{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:1.05rem;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase}
 .tabs{display:flex;gap:8px;margin:12px 0 16px;flex-wrap:wrap}
 .tab{cursor:pointer;font:inherit;font-weight:700;background:var(--card);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:8px 15px;font-size:.86rem}
 .tab.on{background:var(--gold);color:#241800;border-color:var(--gold)}
@@ -98,12 +99,12 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .flip.on .flip-inner{transform:rotateX(180deg)}
 .flip-face{position:absolute;inset:0;backface-visibility:hidden;border-radius:14px;border:1px solid var(--line);
   display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;background:var(--card2)}
-.flip-front{font-family:"Marcellus",serif;font-size:1.3rem;color:var(--cream)}
+.flip-front{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:1.3rem;color:var(--cream)}
 .flip-back{transform:rotateX(180deg);background:#0c1c36;color:var(--gold);font-size:1.05rem;line-height:1.4}
 .flip-hint{text-align:center;color:var(--muted);font-size:.78rem;margin-top:-4px}
 
 /* quiz */
-.q{font-family:"Marcellus",serif;font-size:1.1rem;color:var(--cream);text-align:center;margin:4px 0 14px}
+.q{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:1.1rem;color:var(--cream);text-align:center;margin:4px 0 14px}
 .opts{display:flex;flex-direction:column;gap:9px}
 .opt{text-align:left;background:var(--card2);border:2px solid var(--line);color:var(--cream);border-radius:12px;padding:12px 14px;font:inherit;font-weight:700;cursor:pointer;transition:border-color .12s,background .12s}
 .opt:hover{border-color:var(--violet)} .opt:disabled{cursor:default}
@@ -122,17 +123,17 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 
 .do-this{background:#161a3a;border:1px solid #2c2f5e;border-radius:14px;padding:14px;margin-top:16px;display:flex;gap:12px;align-items:flex-start}
 .do-this .dt-ic{font-size:1.4rem}
-.do-this .dt-t{font-family:"Marcellus",serif;color:var(--cream);font-size:1rem;margin-bottom:3px}
+.do-this .dt-t{font-family:"Bricolage Grotesque",system-ui,sans-serif;color:var(--cream);font-size:1rem;margin-bottom:3px}
 .do-this .dt-s{font-size:.86rem;color:var(--muted);line-height:1.5}
 .do-this a{color:var(--sky);font-weight:800;text-decoration:none}
 
-.feedback{text-align:center;min-height:24px;margin:14px 0 2px;font-family:"Marcellus",serif;letter-spacing:.5px;font-size:1.05rem}
+.feedback{text-align:center;min-height:24px;margin:14px 0 2px;font-family:"Bricolage Grotesque",system-ui,sans-serif;letter-spacing:.5px;font-size:1.05rem}
 .feedback.good{color:var(--good)} .feedback.try{color:var(--gold)}
 .actions{display:flex;gap:10px;margin-top:16px}
-.btn{flex:1;background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#241800;border:none;border-radius:13px;padding:14px;font-family:"Marcellus",serif;font-size:1.02rem;letter-spacing:1px;cursor:pointer;transition:transform .08s,filter .12s}
+.btn{flex:1;background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#241800;border:none;border-radius:13px;padding:14px;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:1.02rem;letter-spacing:1px;cursor:pointer;transition:transform .08s,filter .12s}
 .btn:hover{filter:brightness(1.06)}.btn:active{transform:scale(.98)}.btn:disabled{opacity:.4;cursor:default;filter:none}
 .btn.ghost{background:none;border:2px solid var(--line);color:var(--cream);flex:0 0 auto;padding:14px 16px}
-.bean-note{margin-top:8px;color:var(--gold);font-family:"Marcellus",serif;letter-spacing:.5px;font-size:.92rem;text-align:center}
+.bean-note{margin-top:8px;color:var(--gold);font-family:"Bricolage Grotesque",system-ui,sans-serif;letter-spacing:.5px;font-size:.92rem;text-align:center}
 
 .fxp{position:absolute;font-size:1.1rem;animation:rise var(--t,900ms) ease-out forwards}
 @keyframes rise{0%{transform:translate(-50%,-50%) scale(.6);opacity:0}15%{opacity:1}100%{transform:translate(calc(-50% + var(--dx,0px)),calc(-50% + var(--dy,-110px))) rotate(var(--dr,0deg));opacity:0}}
@@ -144,13 +145,13 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 <div id="fx"></div>
 <div class="wrap">
   <div class="top">
-    <div class="brand"><span class="sigil">♪</span><h1>Music Theory</h1></div>
+    <div class="brand"><span class="sigil">♪</span><h1>MAJICK Music</h1></div>
     <span class="chip" id="beanChipM" hidden>🫘 <span id="beanNumM">0</span></span>
   </div>
 
   <div id="home">
     <div class="hero">
-      <div class="eyebrow">Study Concept · v1</div>
+      <div class="eyebrow">MAJICK Music · Learning Platform</div>
       <h2>Three ways to learn, <span class="nm">Star</span>.</h2>
       <p>Music lives in the head, the ear, and the hands. So we learn it three ways: study the ideas here, train your ear on musictheory.net, and play it on the real keyboard.</p>
       <div class="pillars"><span class="pillar">🎯 <b>Know it</b></span><span class="pillar">👂 <b>Hear it</b></span><span class="pillar">🎹 <b>Play it</b></span></div>
@@ -428,8 +429,9 @@ function renderMatch(){
   const reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;
   function size(){w=c.width=innerWidth;hh=c.height=innerHeight;
     stars=Array.from({length:Math.min(90,Math.floor(w*hh/14000))},()=>({x:Math.random()*w,y:Math.random()*hh,r:Math.random()*1.3+0.3,a:Math.random(),s:Math.random()*0.018+0.004}));}
-  function frame(){x.clearRect(0,0,w,hh);for(const st of stars){st.a+=st.s;x.globalAlpha=0.3+0.4*Math.sin(st.a);
-    x.fillStyle="#e6c25c";x.beginPath();x.arc(st.x,st.y,st.r,0,7);x.fill();}x.globalAlpha=1;if(!reduce)requestAnimationFrame(frame);}
+  const tints=["#ff9f5c","#ff7bb0","#a579ff","#45dce8"];
+  function frame(){x.clearRect(0,0,w,hh);for(const st of stars){st.a+=st.s;x.globalAlpha=0.22+0.33*Math.sin(st.a);
+    x.fillStyle=tints[(st.x|0)%4];x.beginPath();x.arc(st.x,st.y,st.r,0,7);x.fill();}x.globalAlpha=1;if(!reduce)requestAnimationFrame(frame);}
   size();frame();addEventListener("resize",size);})();
 
 renderHome();
