@@ -291,13 +291,14 @@ function renderView(){
     <div style="margin:-6px 0 14px"><span class="src-tag ${P.corpus?"corpus":"outside"}">${P.corpus?"✦":"⚠"} ${esc(P.source)}</span></div>
     <div class="tabs">
       <button class="tab ${tab==="read"?"on":""}" data-t="read">Read</button>
+      <button class="tab ${tab==="steps"?"on":""}" data-t="steps">Step by step</button>
       <button class="tab ${tab==="fade"?"on":""}" data-t="fade">Memorize</button>
       <button class="tab ${tab==="order"?"on":""}" data-t="order">Order the lines</button>
     </div>
     <div id="body"></div>`;
   $("#pBack").onclick=goHome;
   view.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{tab=t.dataset.t;renderView();});
-  if(tab==="read")renderRead();else if(tab==="fade")renderFade();else renderOrder();
+  if(tab==="read")renderRead();else if(tab==="steps")renderSteps();else if(tab==="fade")renderFade();else renderOrder();
   updateBeanChip();window.scrollTo(0,0);
 }
 
@@ -383,6 +384,35 @@ function drawFade(){
 }
 
 /* --- Order the lines (in chunks of up to 6) --- */
+/* --- Step by step: read two lines, then say them from memory, bit by bit --- */
+let stepStart=0;const STEP_CHUNK=2;
+function renderSteps(){stepStart=0;drawStep();}
+function drawStep(){
+  const chunk=P.lines.slice(stepStart,stepStart+STEP_CHUNK);
+  const total=Math.ceil(P.lines.length/STEP_CHUNK),cur=Math.floor(stepStart/STEP_CHUNK)+1;
+  $("#body").innerHTML=`<div class="panel">
+    <div class="order-head">Learn it a little at a time · part ${cur} of ${total}</div>
+    <div class="intro" style="margin-bottom:10px">First, read ${chunk.length>1?"these lines":"this line"} a few times:</div>
+    ${chunk.map((l,i)=>`<p class="verse"><span class="vn">${stepStart+i+1}</span>${esc(l)}</p>`).join("")}
+    <div class="actions"><button class="btn" id="coverBtn">Cover &amp; say ${chunk.length>1?"them":"it"} →</button></div></div>`;
+  $("#coverBtn").onclick=()=>recallStep(chunk,cur,total);
+}
+function recallStep(chunk,cur,total){
+  $("#body").innerHTML=`<div class="panel">
+    <div class="order-head">Now say ${chunk.length>1?"them":"it"} from memory — then tap to check · part ${cur} of ${total}</div>
+    ${chunk.map((l,i)=>`<div class="hidden-line" data-i="${i}"><span class="hl-n">${stepStart+i+1}</span><span class="hl-t">tap to reveal</span></div>`).join("")}
+    <div class="feedback" id="fb"></div>
+    <div class="actions"><button class="btn ghost" id="reread">Re-read</button><button class="btn" id="nextStep">${cur<total?"Next lines →":"Done ✦"}</button></div></div>`;
+  $("#body").querySelectorAll(".hidden-line").forEach(h=>h.onclick=()=>{const i=+h.dataset.i;h.classList.add("open");h.querySelector(".hl-t").textContent=chunk[i];});
+  $("#reread").onclick=()=>drawStep();
+  $("#nextStep").onclick=()=>{
+    if(cur<total){stepStart+=STEP_CHUNK;drawStep();}
+    else{if(activeId()&&!load(pk(P.id,"steps-paid"),false)){addBeans(8);save(pk(P.id,"steps-paid"),true);updateBeanChip();burst($("#beanChipP"),5,"bean");}
+      $("#fb").innerHTML="You've been through the whole prayer, bit by bit. ✦"+(activeId()?'<div class="bean-note">+8 🫘</div>':"");
+      $("#fb").className="feedback good";$("#nextStep").disabled=true;burst($("#fb"),12);}
+  };
+}
+
 let orderStart=0;const ORDER_CHUNK=6;
 function renderOrder(){orderStart=0;drawOrder();}
 function drawOrder(){

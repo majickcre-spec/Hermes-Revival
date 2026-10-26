@@ -318,6 +318,12 @@ body.gated .chip.bean{visibility:hidden}
 .minibtn.gold{background:var(--gold);color:#241800;border:none}
 .chkrow{display:flex;gap:14px;margin-bottom:10px;font-size:.88rem;color:var(--muted)}
 .chkrow label{display:flex;align-items:center;gap:6px;cursor:pointer}
+/* ---------- read & learn ---------- */
+.read-head{background:#0c1c36;border:1px solid var(--line);border-radius:14px;padding:15px 16px;margin-bottom:12px}
+.read-head .rh-head{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.read-head .rh-ic{font-size:1.4rem}
+.read-head .rh-text{font-family:"Marcellus",Georgia,serif;font-size:1.18rem;line-height:1.5;color:var(--cream);margin-bottom:8px}
+.read-head .rh-mean{color:var(--muted);font-size:.95rem;line-height:1.55;border-top:1px solid var(--line);padding-top:8px}
 /* ---------- hints + show-answer ---------- */
 .help{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:9px;margin-top:14px}
 .help .hint-box{flex-basis:100%}
@@ -622,7 +628,8 @@ function onRetry(h,anchor){
 
 /* ===== home ===== */
 const PRIMARY=[
- {mode:"mix",glyph:"🜔",title:"Mixed Path",sub:"All question types, shuffled — leaning on the heads you've missed.",tag:"Start here"},
+ {mode:"learn",glyph:"📖",title:"Read & Learn",sub:"Read two heads, then answer on those two — the gentle way in before you memorize.",tag:"Start here"},
+ {mode:"mix",glyph:"🜔",title:"Mixed Path",sub:"All question types, shuffled — leaning on the heads you've missed.",tag:null},
  {mode:"recall",glyph:"🕯️",title:"Recall",sub:"Bring each head to mind, then judge yourself. The deepest way to remember.",tag:null},
 ];
 const FOCUS=[
@@ -685,11 +692,19 @@ function typeForMix(h){ // match can't be single-item → becomes choose
   return h.game===2?"fill":h.game===4?"build":h.game===3?"choose":"choose";
 }
 function startSession(mode){
+  if(mode==="learn"){startLearn();return;}
   if(mode==="mix"){
     S={label:"Mixed Path",items:orderedHeads(HEADS).map(h=>({h,type:typeForMix(h)})),idx:0,requeued:new Set()};
   }else{ // recall
     S={label:"Recall",items:orderedHeads(HEADS).map(h=>({h,type:"recall"})),idx:0,requeued:new Set()};
   }
+  enterPlay();
+}
+/* Read & Learn: read two heads, then answer on those two, pair by pair */
+function startLearn(){
+  const heads=orderedHeads(HEADS);const chunks=[];
+  for(let i=0;i<heads.length;i+=2)chunks.push(heads.slice(i,i+2));
+  S={label:"Read & Learn",mode:"learn",chunks,idx:0};
   enterPlay();
 }
 function startFocused(id){
@@ -708,7 +723,7 @@ function startReview(){
   enterPlay();
 }
 function enterPlay(){home.hidden=true;play.hidden=false;window.scrollTo(0,0);renderStep();}
-function sessionCount(){return S.matchMode?S.set.length:S.items.length;}
+function sessionCount(){return S.mode==="learn"?S.chunks.length:(S.matchMode?S.set.length:S.items.length);}
 function reenqueue(h,type){ if(S.requeued.has(h.n))return; S.requeued.add(h.n); S.items.push({h,type}); }
 
 function header(){
@@ -720,7 +735,9 @@ function header(){
 }
 function advance(){S.idx++;const total=S.matchMode?S.set.length:S.items.length;
   if(S.idx>=total){renderDone();return;}renderStep();}
+function learnChrome(){const b=$("#backBtn");if(b)b.onclick=goHome;updateScore();window.scrollTo(0,0);}
 function renderStep(){
+  if(S.mode==="learn"){renderLearnRead();return;}
   if(S.matchMode){renderMatch();}
   else{const it=S.items[S.idx];
     if(it.type==="choose")renderChoose(it.h);
@@ -729,6 +746,50 @@ function renderStep(){
     else renderRecall(it.h);
   }
   const b=$("#backBtn");if(b)b.onclick=goHome;updateScore();window.scrollTo(0,0);
+}
+
+/* ===== Read & Learn: read a pair, then answer on that pair ===== */
+function renderLearnRead(){
+  const chunk=S.chunks[S.idx];
+  play.innerHTML=header()+`<div class="panel">
+    <div class="ask">Read ${chunk.length>1?"these two heads":"this head"}, slowly.</div>
+    ${chunk.map(h=>`<div class="read-head">
+      <div class="rh-head"><span class="rh-ic">${h.icon}</span><span class="vtag">Head ${h.n}</span></div>
+      <div class="rh-text">${esc(h.text)}</div>
+      <div class="rh-mean">${esc(h.mean)}</div></div>`).join("")}
+    <div class="actions"><button class="btn" id="toQuiz">I've read ${chunk.length>1?"them":"it"} — quiz me →</button></div></div>`;
+  $("#toQuiz").onclick=()=>renderLearnQuiz();
+  learnChrome();
+}
+function renderLearnQuiz(){
+  const chunk=S.chunks[S.idx];let qi=0;
+  function q(){
+    if(qi>=chunk.length){S.idx++;
+      if(S.idx>=S.chunks.length){renderDone();return;}
+      renderLearnRead();return;}
+    const h=chunk[qi],last=qi===chunk.length-1;
+    const opts=shuffle([h.mean,...shuffle(HEADS.filter(x=>x.n!==h.n)).slice(0,3).map(x=>x.mean)]);
+    play.innerHTML=header()+`<div class="panel">
+      <span class="vicon">${h.icon}</span><div class="vtag">Head ${h.n}</div>
+      <div class="vtext">${esc(h.text)}</div>
+      <div class="ask">What does it mean?</div>
+      <div class="opts" id="opts"></div>
+      <div class="feedback" id="fb"></div>
+      <div class="actions"><button class="btn ghost" id="reread">Re-read</button><button class="btn" id="nextQ" disabled>${last?"Next two →":"Next"}</button></div></div>`;
+    const box=$("#opts");
+    opts.forEach(t=>{const b=document.createElement("button");b.className="opt";b.textContent=t;
+      b.onclick=()=>{if(box.dataset.lock)return;
+        if(t===h.mean){box.dataset.lock="1";b.classList.add("correct");[...box.children].forEach(c=>c.disabled=true);
+          const r=onCorrect(h,b,0);$("#fb").textContent=praiseText(r);$("#fb").className="feedback good";
+          $("#nextQ").disabled=false;$("#nextQ").focus();}
+        else{b.classList.add("wrong");b.disabled=true;onRetry(h,b);
+          $("#fb").textContent=pick(AGAIN)+"  +1 ♥";$("#fb").className="feedback try";}};
+      box.appendChild(b);});
+    $("#reread").onclick=()=>renderLearnRead();
+    $("#nextQ").onclick=()=>{qi++;q();};
+    learnChrome();
+  }
+  q();
 }
 
 /* ===== shared help controls: hint → another hint → show answer ===== */
@@ -954,7 +1015,7 @@ function renderDone(){
     <span class="play-title">${label}</span></div>
     <div class="panel done"><div class="big">🌟</div>
     <h2>The session is complete, Star.</h2>
-    <p>You moved through ${sessionCount()} heads. What you held is kept; what slipped will return.</p>
+    <p>What you held is kept, Star; what slipped will return.</p>
     <div class="tally"><div><div class="v">⭐ ${done.size}</div><div class="k">mastered</div></div>
       <div><div class="v">♥ ${hearts}</div><div class="k">perseverance</div></div>
       <div><div class="v">${rankName(done.size)}</div><div class="k">rank</div></div></div>
