@@ -901,8 +901,10 @@ const SOUNDS=[
 ];
 function soundDef(){return SOUNDS.find(x=>x.id===R.sound)||SOUNDS[0];}
 const R={bpm:72,patIdx:0,running:false,cur:0,nextTime:0,schID:null,raf:null,speak:false,
-  countIn:1,sound:"wood",t0:0,countEndTime:0,taps:[],
-  visQ:[],expected:[],detected:[],hits:0,miss:0,errSum:0,lastPeak:0,lastOnset:0,barCount:0,litCell:-1,beaned:false,buf:null};
+  countIn:1,sound:"wood",precision:"normal",t0:0,countEndTime:0,taps:[],
+  visQ:[],expected:[],detected:[],resolved:0,matched:0,inPocket:0,errSum:0,errAbsSum:0,lastPeak:0,lastOnset:0,barCount:0,litCell:-1,beaned:false,buf:null};
+const POCKET={loose:0.14,normal:0.09,tight:0.055}; // ± seconds counted as "in the pocket"
+function rLat(){const a=ac();return a.outputLatency||a.baseLatency||0;} // speaker output latency to compensate
 function rPat(){return RHYTHM_PATTERNS[R.patIdx];}
 function rCells(){return 4*rPat().div;}
 function rCellDur(){return (60/R.bpm)/rPat().div;}
@@ -944,23 +946,26 @@ function rDetect(now){
   R.lastPeak=peak;
 }
 function rMatch(now){
-  const win=Math.min(0.2,rCellDur()*0.95);
+  const win=Math.min(0.22,rCellDur()*0.98),lat=rLat(),pk=POCKET[R.precision]||POCKET.normal;
   for(const e of R.expected){if(e.done||e.t>=now-win)continue;
-    let best=-1,bd=1e9;for(const d of R.detected){const dd=Math.abs(d-e.t);if(dd<=win&&dd<bd){bd=dd;best=d;}}
-    if(best>=0){R.hits++;R.errSum+=(best-e.t);}else R.miss++;e.done=true;}
+    let best=null,bd=1e9;for(const d of R.detected){const dd=Math.abs(d-e.t-lat);if(dd<=win&&dd<bd){bd=dd;best=d;}}
+    R.resolved++;
+    if(best!==null){const err=best-e.t-lat;R.matched++;R.errSum+=err;R.errAbsSum+=Math.abs(err);if(Math.abs(err)<=pk)R.inPocket++;}
+    e.done=true;}
   if(R.detected.length>200)R.detected.splice(0,R.detected.length-200);
 }
 function rScoreUI(inCount){
-  const tot=R.hits+R.miss,acc=tot?Math.round(100*R.hits/tot):0;
   const accEl=$("#rAcc"),feel=$("#rFeel");if(!accEl)return;
   if(inCount){accEl.textContent="…";if(!feel.classList.contains("beat"))feel.textContent="Count‑in — get ready";return;}
-  accEl.textContent=tot?acc+"%":"—";
-  const mean=R.hits?R.errSum/R.hits:0;
+  const acc=R.resolved?Math.round(100*R.inPocket/R.resolved):0;
+  accEl.textContent=R.resolved?acc+"%":"—";
+  const meanAbs=R.matched?Math.round(1000*R.errAbsSum/R.matched):0;
+  const bias=R.matched?R.errSum/R.matched:0;
   if(!feel.classList.contains("beat"))
-    feel.textContent=!tot?"Count out loud with the clicks":(Math.abs(mean)<0.05?"Right in the pocket ✨":(mean>0?"A touch behind — anticipate the click":"A touch ahead — relax into it"));
-  if(R.speak&&!R.beaned&&R.barCount>=5&&tot>=6&&acc>=60&&activeId()&&!load(mk("rhythm","speak-"+R.patIdx+"-paid"),false)){
+    feel.textContent=!R.resolved?"Count out loud with the clicks":"±"+meanAbs+" ms avg · "+(Math.abs(bias)<0.02?"right in the pocket ✨":(bias>0?"a bit late":"a bit early"));
+  if(R.speak&&!R.beaned&&R.barCount>=5&&R.resolved>=6&&acc>=70&&activeId()&&!load(mk("rhythm","speak-"+R.patIdx+"-paid"),false)){
     R.beaned=true;addBeans(12);save(mk("rhythm","speak-"+R.patIdx+"-paid"),true);beanChip();
-    feel.textContent="＋12 🫘 — beautiful focus!";burst(accEl,10);
+    feel.textContent="＋12 🫘 — "+acc+"% in the pocket!";burst(accEl,10);
   }
 }
 function rFrame(){
@@ -973,7 +978,7 @@ function rFrame(){
 }
 function rStart(){
   if(R.running)return;const a=ac();R.running=true;R.cur=0;R.nextTime=a.currentTime+0.14;
-  R.visQ=[];R.expected=[];R.litCell=-1;R.barCount=0;R.hits=0;R.miss=0;R.errSum=0;
+  R.visQ=[];R.expected=[];R.litCell=-1;R.barCount=0;R.resolved=0;R.matched=0;R.inPocket=0;R.errSum=0;R.errAbsSum=0;
   R.t0=R.nextTime;R.countEndTime=R.t0+R.countIn*4*rCellDur();
   R.schID=setInterval(rSchedule,25);R.raf=requestAnimationFrame(rFrame);
   const b=$("#rStart");if(b)b.textContent="⏸ Stop";
@@ -991,8 +996,8 @@ function rRenderChips(){
   const box=$("#rChips");if(!box)return;box.innerHTML="";
   RHYTHM_PATTERNS.forEach((p,i)=>{const c=document.createElement("button");
     c.className="rchip"+(i===R.patIdx?" sel":"");c.textContent=p.name;
-    c.onclick=()=>{R.patIdx=i;R.beaned=false;R.hits=0;R.miss=0;R.errSum=0;R.barCount=0;
-      if(R.running){R.cur=0;R.nextTime=ac().currentTime+0.12;R.visQ=[];R.expected=[];}
+    c.onclick=()=>{R.patIdx=i;R.beaned=false;R.resolved=0;R.matched=0;R.inPocket=0;R.errSum=0;R.errAbsSum=0;R.barCount=0;
+      if(R.running){R.cur=0;R.nextTime=ac().currentTime+0.12;R.visQ=[];R.expected=[];R.countEndTime=R.nextTime+R.countIn*4*rCellDur();}
       rRenderChips();rRenderCells();rScoreUI();};
     box.appendChild(c);});
 }
@@ -1021,6 +1026,7 @@ async function renderRhythm(speak){
       <div class="rchips" id="rChips"></div>
       <div class="rrow2"><span class="rlab">Count-in</span><span class="rchips tight" id="rCountChips"></span></div>
       <div class="rrow2"><span class="rlab">Sound</span><span class="rchips tight" id="rSoundChips"></span></div>
+      ${speak?`<div class="rrow2"><span class="rlab">Precision</span><span class="rchips tight" id="rPrecChips"></span></div>`:""}
       <div class="actions"><button class="btn" id="rStart">▶ Start</button></div>
       ${speak?`<div class="rscore"><div class="racc" id="rAcc">—</div><div class="rfeel" id="rFeel">Press Start, then count out loud</div></div>`:""}
     </div>`;
@@ -1048,6 +1054,10 @@ function rRenderMini(){
   const sc=$("#rSoundChips");if(sc){sc.innerHTML="";
     SOUNDS.forEach(s=>{const b=document.createElement("button");b.className="rchip sm"+(s.id===R.sound?" sel":"");
       b.textContent=s.name;b.onclick=()=>{R.sound=s.id;rRenderMini();click(ac().currentTime+0.02,"beat");};sc.appendChild(b);});}
+  const pc=$("#rPrecChips");if(pc){pc.innerHTML="";
+    [["loose","Loose · ±140ms"],["normal","Normal · ±90ms"],["tight","Tight · ±55ms"]].forEach(([id,nm])=>{
+      const b=document.createElement("button");b.className="rchip sm"+(id===R.precision?" sel":"");
+      b.textContent=nm;b.onclick=()=>{R.precision=id;rRenderMini();};pc.appendChild(b);});}
 }
 
 function renderLevels(){
