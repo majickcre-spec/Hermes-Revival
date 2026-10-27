@@ -656,6 +656,23 @@ function playTone(freq,start,dur){
 }
 function playInterval(root,semis){playTone(midiToFreq(root),0,1.1);playTone(midiToFreq(root+semis),1.15,1.2);}
 function playNote(root){playTone(midiToFreq(root),0,1.5);}
+/* sustained reference tone for singing — piano timbre but HELD loud, gentle release */
+function playSustain(freq,start,dur,peak){
+  const a=ac(),t0=a.currentTime+start+0.001,out=pianoMaster(a);peak=peak||0.55;
+  const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=Math.min(9000,freq*8);lp.connect(out);
+  const o=a.createOscillator();o.setPeriodicWave(pianoWave(a));o.frequency.value=freq;
+  const g=a.createGain();
+  g.gain.setValueAtTime(0.0001,t0);
+  g.gain.exponentialRampToValueAtTime(peak,t0+0.03);
+  g.gain.setValueAtTime(peak,t0+Math.max(0.1,dur-0.28));
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  o.connect(g);g.connect(lp);o.start(t0);o.stop(t0+dur+0.06);
+  const o2=a.createOscillator();o2.type="sine";o2.frequency.value=freq*2;o2.detune.value=-2;
+  const g2=a.createGain();g2.gain.setValueAtTime(0.0001,t0);g2.gain.exponentialRampToValueAtTime(peak*0.14,t0+0.03);
+  g2.gain.setValueAtTime(peak*0.14,t0+Math.max(0.1,dur-0.28));g2.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  o2.connect(g2);g2.connect(out);o2.start(t0);o2.stop(t0+dur+0.06);
+}
+function playSing(midi,dur){playSustain(midiToFreq(midi),0,dur||2.2,0.58);}
 
 function openEar(mode){if(mode==="tone"){renderTone();return;}
   home.hidden=true;view.hidden=false;window.scrollTo(0,0);
@@ -852,7 +869,7 @@ function toneMatchRound(level){
     if(i>=seq.length){toneDone("🎯 Match · L"+level,hits,seq.length,"match-lvl"+level,15).onclick=()=>toneMatchRound(level);return;}
     const t=seq[i];
     singScreen({title:"🎯 Match · L"+level,prog:(i+1)+"/"+seq.length,sub:`Sing this note — <b>${midiName(t)}</b>`,targetMidi:t,
-      demo:()=>playNote(t),onHit:(sk)=>{if(!sk)hits++;i++;step();}});
+      demo:()=>playSing(t,2.4),onHit:(sk)=>{if(!sk)hits++;i++;step();}});
   }
   step();
 }
@@ -862,7 +879,7 @@ function toneIntervalRound(level){
     if(i>=N){toneDone("🎸 Interval · L"+level,hits,N,"interval-lvl"+level,15).onclick=()=>toneIntervalRound(level);return;}
     const semis=set[Math.floor(Math.random()*set.length)],t=root+semis;
     singScreen({title:"🎸 Interval · L"+level,prog:(i+1)+"/"+N,sub:`A <b>${INAMES[semis]}</b> up from the low note — sing the top note`,targetMidi:t,
-      demo:()=>{playNote(root);setTimeout(()=>playNote(t),850);},onHit:(sk)=>{if(!sk)hits++;i++;step();}});
+      demo:()=>{playSing(root,1.6);setTimeout(()=>playSing(t,2.2),1750);},onHit:(sk)=>{if(!sk)hits++;i++;step();}});
   }
   step();
 }
@@ -887,7 +904,7 @@ function tonePhraseSing(level,idx){
     if(i>=p.notes.length){toneDone("🎵 "+p.name,hits,p.notes.length,"phrase-L"+level+"-"+idx,18).onclick=()=>tonePhraseSing(level,idx);return;}
     const t=p.notes[i];
     singScreen({title:"🎵 "+p.name,prog:(i+1)+"/"+p.notes.length,sub:`Note ${i+1} — sing <b>${midiName(t)}</b>`,targetMidi:t,
-      demo:()=>{if(i===0)playAll();else playNote(t);},onHit:(sk)=>{if(!sk)hits++;i++;step();}});
+      demo:()=>{if(i===0){playAll();setTimeout(()=>playSing(t,1.8),p.notes.length*500+300);}else playSing(t,1.8);},onHit:(sk)=>{if(!sk)hits++;i++;step();}});
   }
   step();
 }
