@@ -137,6 +137,15 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 /* quiz */
 .q{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:1.1rem;color:var(--cream);text-align:center;margin:4px 0 14px}
 .ask{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:1.08rem;color:var(--cream);text-align:center;margin:2px 0 4px}
+.ask b{color:var(--gold)}
+.tuner{margin:18px 0 2px;text-align:center}
+.t-note{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:3rem;line-height:1;color:var(--muted);transition:color .1s}
+.t-note.good{color:var(--good)}
+.t-bar{position:relative;height:46px;margin:14px auto 8px;max-width:300px;background:var(--card2);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.t-zone{position:absolute;top:0;bottom:0;left:50%;width:84px;transform:translateX(-50%);background:rgba(99,211,154,.15);border-left:1px dashed rgba(99,211,154,.4);border-right:1px dashed rgba(99,211,154,.4)}
+.t-center{position:absolute;top:0;bottom:0;left:50%;width:2px;transform:translateX(-50%);background:var(--muted);opacity:.6}
+.t-needle{position:absolute;top:6px;bottom:6px;left:50%;width:5px;border-radius:4px;transform:translateX(-50%);background:linear-gradient(180deg,var(--gold),var(--gold-deep));box-shadow:0 0 10px rgba(255,111,163,.6);transition:transform .06s linear}
+.t-hint{font-size:.9rem;color:var(--muted);font-family:"Nunito Sans",system-ui,sans-serif;min-height:20px}
 .opts{display:flex;flex-direction:column;gap:9px}
 .opt{text-align:left;background:var(--card2);border:2px solid var(--line);color:var(--cream);border-radius:12px;padding:12px 14px;font:inherit;font-weight:700;cursor:pointer;transition:border-color .12s,background .12s}
 .opt:hover{border-color:var(--violet)} .opt:disabled{cursor:default}
@@ -385,7 +394,8 @@ function renderHome(){
       renderHome();};
     d.appendChild(btn);kb.appendChild(d);});
 }
-function goHome(){view.hidden=true;home.hidden=false;renderHome();window.scrollTo(0,0);}
+let teardown=null;
+function goHome(){if(teardown){try{teardown();}catch(e){}teardown=null;}view.hidden=true;home.hidden=false;renderHome();window.scrollTo(0,0);}
 
 /* ===== topic view ===== */
 let T=null,tab="learn";
@@ -497,7 +507,7 @@ function renderMatch(){
 const EAR_CARDS=[
  {mode:"intervals",ic:"🎧",title:"Interval Trainer",blurb:"Hear an interval and name it. Starts easy at Level 1, builds up to all twelve."},
  {mode:"songs",ic:"🎶",title:"Song-Phrase Match",blurb:"Learn each interval by a famous song — Twinkle Twinkle, Jaws, Star Wars…"},
- {mode:"tone",ic:"🎤",title:"Tone Match",blurb:"Sing a note and match the pitch. (Coming next — needs your mic on the live app.)",soon:true}
+ {mode:"tone",ic:"🎤",title:"Tone Match",blurb:"Sing into the mic and match the pitch — single notes, intervals, and little song phrases, scored live."}
 ];
 const INAMES={0:"Unison",1:"Minor 2nd",2:"Major 2nd",3:"Minor 3rd",4:"Major 3rd",5:"Perfect 4th",6:"Tritone",7:"Perfect 5th",8:"Minor 6th",9:"Major 6th",10:"Minor 7th",11:"Major 7th",12:"Octave"};
 const SHORT={0:"U",1:"m2",2:"M2",3:"m3",4:"M3",5:"P4",6:"TT",7:"P5",8:"m6",9:"M6",10:"m7",11:"M7",12:"8ve"};
@@ -529,8 +539,189 @@ function playTone(freq,start,dur){const a=ac();const o=a.createOscillator(),g=a.
 function playInterval(root,semis){playTone(midiToFreq(root),0,0.75);playTone(midiToFreq(root+semis),0.8,0.75);}
 function playNote(root){playTone(midiToFreq(root),0,0.9);}
 
-function openEar(mode){home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+function openEar(mode){if(mode==="tone"){renderTone();return;}
+  home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   if(mode==="intervals")renderLevels();else if(mode==="songs")renderSongs();beanChip();}
+
+/* ===== TONE MATCH (sing into the mic) ===== */
+const NOTE_NAMES=["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"];
+let micStream=null, toneAnalyser=null, toneRAF=null;
+const TONE_TARGETS=[60,62,64,65,67,69];           // C4 D4 E4 F4 G4 A4 (matched by pitch-class, octave-forgiving)
+const TONE_INTERVALS=[3,4,5,7,12];                // m3 M3 P4 P5 8ve
+const TONE_PHRASES=[
+ {name:"Twinkle, Twinkle, Little Star",notes:[60,60,67,67,69,69,67]},
+ {name:"Mary Had a Little Lamb",notes:[64,62,60,62,64,64,64]},
+ {name:"Row, Row, Row Your Boat",notes:[60,60,60,62,64]}
+];
+function midiName(m){return NOTE_NAMES[((Math.round(m)%12)+12)%12];}
+function autoCorrelate(buf,sr){
+  let SIZE=buf.length,rms=0;
+  for(let i=0;i<SIZE;i++){const v=buf[i];rms+=v*v;}
+  rms=Math.sqrt(rms/SIZE); if(rms<0.01)return -1;
+  let r1=0,r2=SIZE-1,th=0.2;
+  for(let i=0;i<SIZE/2;i++)if(Math.abs(buf[i])<th){r1=i;break;}
+  for(let i=1;i<SIZE/2;i++)if(Math.abs(buf[SIZE-i])<th){r2=SIZE-i;break;}
+  buf=buf.slice(r1,r2);SIZE=buf.length; if(SIZE<8)return -1;
+  const c=new Array(SIZE).fill(0);
+  for(let i=0;i<SIZE;i++)for(let j=0;j<SIZE-i;j++)c[i]+=buf[j]*buf[j+i];
+  let d=0;while(d<SIZE-1&&c[d]>c[d+1])d++;
+  let mv=-1,mp=-1;for(let i=d;i<SIZE;i++){if(c[i]>mv){mv=c[i];mp=i;}}
+  let T0=mp;const x1=c[T0-1],x2=c[T0],x3=c[T0+1];
+  const a=(x1+x3-2*x2)/2,b=(x3-x1)/2; if(a)T0=T0-b/(2*a);
+  return T0>0?sr/T0:-1;
+}
+function stopMic(){
+  if(toneRAF)cancelAnimationFrame(toneRAF);toneRAF=null;
+  if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null;}
+  toneAnalyser=null;
+}
+async function ensureMic(){
+  if(toneAnalyser)return true;
+  try{
+    const a=ac();
+    micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    const src=a.createMediaStreamSource(micStream);
+    toneAnalyser=a.createAnalyser();toneAnalyser.fftSize=2048;toneAnalyser.smoothingTimeConstant=0;
+    src.connect(toneAnalyser);
+    return true;
+  }catch(e){return false;}
+}
+async function renderTone(){
+  home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎤 Tone Match</span></div>
+    <div class="panel" style="text-align:center"><div class="q">Turning on your microphone…</div></div>`;
+  $("#eBack").onclick=goHome;
+  const ok=await ensureMic();
+  if(!ok){
+    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎤 Tone Match</span></div>
+      <div class="panel" style="text-align:center"><div style="font-size:2rem">🎤</div>
+      <div class="q" style="margin-top:6px">I need your microphone to hear you sing</div>
+      <div class="intro" style="border:none;text-align:left;margin:10px auto;max-width:420px">Tap <b>Allow</b> when your browser asks for the mic. If you don't see a popup, the preview may be blocking it — Tone Match works best on the live MAJICK&nbsp;Music site.</div>
+      <div class="actions"><button class="btn" id="retry">Try again</button><button class="btn ghost" id="back2">Back</button></div></div>`;
+    $("#eBack").onclick=goHome;$("#back2").onclick=goHome;$("#retry").onclick=renderTone;return;
+  }
+  teardown=stopMic;
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎤 Tone Match</span></div>
+    <div class="panel" style="margin-bottom:14px"><div class="intro">Your mic is on. Pick a way to practice — I'll listen and show you how close you are. Octave doesn't matter, so big voices and little voices both count!</div></div>
+    <div class="grid" id="tGrid"></div>`;
+  $("#eBack").onclick=goHome;
+  const cards=[
+   {id:"match",ic:"🎯",title:"Match the Pitch",blurb:"Hear a note, then sing it back in tune."},
+   {id:"interval",ic:"🎸",title:"Sing the Interval",blurb:"Hear the bottom note, then sing the one above it."},
+   {id:"phrase",ic:"🎵",title:"Sing a Phrase",blurb:"Sing a little song, one note at a time."}
+  ];
+  const g=$("#tGrid");
+  cards.forEach(c=>{const b=document.createElement("button");b.className="card";
+    b.innerHTML=`<span class="ic">${c.ic}</span><h3>${c.title}</h3><span class="blurb">${c.blurb}</span>`;
+    b.onclick=()=>{if(c.id==="match")toneMatchRound();else if(c.id==="interval")toneIntervalRound();else tonePhrasePick();};
+    g.appendChild(b);});
+  beanChip();
+}
+/* shared sing screen: one target, live tuner, auto-advance when held in tune */
+function singScreen(cfg){
+  if(toneRAF)cancelAnimationFrame(toneRAF);
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">${cfg.title}</span>${cfg.prog?`<span style="margin-left:auto;color:var(--muted);font-weight:800;font-size:.8rem">${cfg.prog}</span>`:""}</div>
+    <div class="panel">
+      <div class="ask">${cfg.sub}</div>
+      <div class="actions"><button class="btn" id="demo">▶ Hear it</button><button class="btn ghost" id="skip">Skip</button></div>
+      <div class="tuner"><div class="t-note" id="tNote">—</div>
+        <div class="t-bar"><div class="t-zone"></div><div class="t-center"></div><div class="t-needle" id="tNeedle"></div></div>
+        <div class="t-hint" id="tHint">Tap “Hear it”, then sing and hold the note</div></div>
+      <div class="feedback" id="fb"></div>
+    </div>`;
+  $("#eBack").onclick=goHome;
+  $("#demo").onclick=cfg.demo;
+  $("#skip").onclick=()=>{if(toneRAF)cancelAnimationFrame(toneRAF);cfg.onHit(true);};
+  const buf=new Float32Array(toneAnalyser.fftSize);
+  const needle=$("#tNeedle"),tNote=$("#tNote"),tHint=$("#tHint"),fb=$("#fb");
+  let inSince=null,hit=false;
+  function frame(){
+    toneAnalyser.getFloatTimeDomainData(buf);
+    const f=autoCorrelate(buf,ac().sampleRate);
+    if(f<70||f>1100){tNote.textContent="—";tNote.className="t-note";needle.style.transform="translateX(-50%)";tHint.textContent="Sing a steady “ah”";inSince=null;}
+    else{
+      const m=69+12*Math.log2(f/440);
+      let diff=((m-cfg.targetMidi)%12+12)%12; if(diff>6)diff-=12;
+      const cents=diff*100;
+      tNote.textContent=midiName(m);
+      const px=Math.max(-120,Math.min(120,cents*(120/50)));
+      needle.style.transform=`translateX(calc(-50% + ${px}px))`;
+      const inTune=Math.abs(cents)<=35;
+      tNote.className="t-note"+(inTune?" good":"");
+      tHint.textContent=inTune?"Hold it… ✨":(cents>0?"A little lower ↓":"A little higher ↑");
+      if(inTune){if(inSince==null)inSince=performance.now();
+        if(!hit&&performance.now()-inSince>800){hit=true;cancelAnimationFrame(toneRAF);
+          fb.textContent="In tune! ✨";fb.className="feedback good";burst(tNote,10);
+          setTimeout(()=>cfg.onHit(false),650);return;}}
+      else inSince=null;
+    }
+    toneRAF=requestAnimationFrame(frame);
+  }
+  teardown=stopMic;
+  toneRAF=requestAnimationFrame(frame);
+  setTimeout(cfg.demo,300);
+}
+function toneDone(title,hits,total,beanKey,beanAmt){
+  if(toneRAF)cancelAnimationFrame(toneRAF);
+  const pass=hits>=Math.ceil(total*0.6);let note="";
+  if(pass&&activeId()&&!load(mk("tone",beanKey+"-paid"),false)){addBeans(beanAmt);save(mk("tone",beanKey+"-paid"),true);beanChip();note=`<div class="bean-note">+${beanAmt} 🫘</div>`;}
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">${title}</span></div>
+    <div class="panel" style="text-align:center"><div style="font-size:2.4rem">${pass?"🌟":"🎤"}</div>
+    <div class="q" style="margin-top:8px">${hits} / ${total} in tune</div>${note}
+    <div class="feedback good">${pass?"Beautiful — your voice is finding the notes!":"Keep going — singing in tune takes practice."}</div>
+    <div class="actions"><button class="btn" id="again">Again</button><button class="btn ghost" id="toTone">Tone menu</button></div></div>`;
+  $("#eBack").onclick=goHome;$("#toTone").onclick=renderTone;
+  if(pass)burst($(".q"),12);
+  return $("#again");
+}
+function toneMatchRound(){
+  const pool=TONE_TARGETS.slice();for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  const seq=pool.slice(0,5);let i=0,hits=0;
+  function step(){
+    if(i>=seq.length){toneDone("🎯 Match the Pitch",hits,seq.length,"match",15).onclick=toneMatchRound;return;}
+    const t=seq[i];
+    singScreen({title:"🎯 Match the Pitch",prog:(i+1)+"/"+seq.length,sub:`Sing this note — <b>${midiName(t)}</b>`,targetMidi:t,
+      demo:()=>playNote(t),
+      onHit:(skipped)=>{if(!skipped)hits++;i++;step();}});
+  }
+  step();
+}
+function toneIntervalRound(){
+  let i=0,hits=0;const N=5,root=60;
+  function step(){
+    if(i>=N){toneDone("🎸 Sing the Interval",hits,N,"interval",15).onclick=toneIntervalRound;return;}
+    const semis=TONE_INTERVALS[Math.floor(Math.random()*TONE_INTERVALS.length)];
+    const t=root+semis;
+    singScreen({title:"🎸 Sing the Interval",prog:(i+1)+"/"+N,sub:`A <b>${INAMES[semis]}</b> up from the low note — sing the top note`,targetMidi:t,
+      demo:()=>{playNote(root);setTimeout(()=>playNote(t),850);},
+      onHit:(skipped)=>{if(!skipped)hits++;i++;step();}});
+  }
+  step();
+}
+function tonePhrasePick(){
+  if(toneRAF)cancelAnimationFrame(toneRAF);
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎵 Sing a Phrase</span></div>
+    <div class="panel" style="margin-bottom:12px"><div class="intro">Pick a song. You'll hear the whole thing, then sing it one note at a time.</div></div>
+    <div id="phList"></div>`;
+  $("#eBack").onclick=goHome;
+  const el=$("#phList");
+  TONE_PHRASES.forEach((p,idx)=>{const row=document.createElement("div");row.className="kb";
+    row.innerHTML=`<span class="kb-ic">🎵</span><div class="kb-main"><div class="kb-t">${esc(p.name)}</div><div class="kb-s">${p.notes.length} notes</div></div>`;
+    const b=document.createElement("button");b.className="kb-btn";b.textContent="Sing it";
+    b.onclick=()=>tonePhraseSing(idx);row.appendChild(b);el.appendChild(row);});
+}
+function tonePhraseSing(idx){
+  const p=TONE_PHRASES[idx];let i=0,hits=0;
+  function playAll(){p.notes.forEach((m,k)=>playTone(midiToFreq(m),k*0.5,0.45));}
+  function step(){
+    if(i>=p.notes.length){toneDone("🎵 "+p.name,hits,p.notes.length,"phrase-"+idx,18).onclick=()=>tonePhraseSing(idx);return;}
+    const t=p.notes[i];
+    singScreen({title:"🎵 "+p.name,prog:(i+1)+"/"+p.notes.length,sub:`Note ${i+1} — sing <b>${midiName(t)}</b>`,targetMidi:t,
+      demo:()=>{if(i===0)playAll();else playNote(t);},
+      onHit:(skipped)=>{if(!skipped)hits++;i++;step();}});
+  }
+  step();
+}
 
 function renderLevels(){
   view.innerHTML=`<div class="play-top"><button class="back" id="eBack" aria-label="Back">←</button><span class="ttitle">🎧 Interval Trainer</span></div>
