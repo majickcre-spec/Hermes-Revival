@@ -551,15 +551,56 @@ const SONGS={
  12:"“Somewhere Over the Rainbow” (Some‑where)"
 };
 /* audio */
-let AC=null;
+let AC=null,PIANO_WAVE=null,PIANO_MASTER=null;
 function ac(){if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();return AC;}
 function midiToFreq(m){return 440*Math.pow(2,(m-69)/12);}
-function playTone(freq,start,dur){const a=ac();const o=a.createOscillator(),g=a.createGain();
-  o.type="triangle";o.frequency.value=freq;o.connect(g);g.connect(a.destination);
-  const t=a.currentTime+start;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.22,t+0.02);
-  g.gain.setValueAtTime(0.22,t+dur-0.06);g.gain.linearRampToValueAtTime(0,t+dur);o.start(t);o.stop(t+dur+0.03);}
-function playInterval(root,semis){playTone(midiToFreq(root),0,0.75);playTone(midiToFreq(root+semis),0.8,0.75);}
-function playNote(root){playTone(midiToFreq(root),0,0.9);}
+function pianoWave(a){
+  if(PIANO_WAVE)return PIANO_WAVE;
+  // harmonic amplitudes roughly modelling a piano partial spectrum
+  const amps=[0,1,0.62,0.44,0.28,0.2,0.14,0.1,0.07,0.05,0.04,0.03,0.025,0.02,0.015,0.012];
+  const real=new Float32Array(amps.length),imag=new Float32Array(amps.length);
+  for(let i=0;i<amps.length;i++)imag[i]=amps[i];   // sine-phase partials
+  PIANO_WAVE=a.createPeriodicWave(real,imag,{disableNormalization:false});
+  return PIANO_WAVE;
+}
+function pianoMaster(a){
+  if(PIANO_MASTER)return PIANO_MASTER;
+  PIANO_MASTER=a.createGain();PIANO_MASTER.gain.value=0.9;
+  const comp=a.createDynamicsCompressor();
+  PIANO_MASTER.connect(comp);comp.connect(a.destination);
+  return PIANO_MASTER;
+}
+/* one struck-piano note: fast hammer attack, exponential decay, timbre mellows as it rings */
+function playTone(freq,start,dur){
+  const a=ac(),t0=a.currentTime+start+0.001,out=pianoMaster(a);
+  const peak=Math.max(0.12,0.34-Math.log2(freq/261.6)*0.03); // quieter up high
+  function partial(mult,level,detune){
+    const o=a.createOscillator();
+    if(mult===1){o.setPeriodicWave(pianoWave(a));}else{o.type="sine";}
+    o.frequency.value=freq*mult;o.detune.value=detune||0;
+    const g=a.createGain();
+    g.gain.setValueAtTime(0.0001,t0);
+    g.gain.exponentialRampToValueAtTime(level,t0+0.006);           // hammer strike
+    g.gain.exponentialRampToValueAtTime(level*0.55,t0+0.14);       // quick initial drop
+    g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);            // long tail
+    o.connect(g);g.connect(out);o.start(t0);o.stop(t0+dur+0.08);
+  }
+  // body (rich periodic wave) + a soft octave shimmer for a more natural, singable tone
+  const lp=a.createBiquadFilter();lp.type="lowpass";
+  lp.frequency.setValueAtTime(Math.min(9000,freq*9),t0);
+  lp.frequency.exponentialRampToValueAtTime(Math.max(700,freq*3),t0+Math.min(dur,1.4));
+  lp.connect(out);
+  const o=a.createOscillator();o.setPeriodicWave(pianoWave(a));o.frequency.value=freq;
+  const g=a.createGain();
+  g.gain.setValueAtTime(0.0001,t0);
+  g.gain.exponentialRampToValueAtTime(peak,t0+0.006);
+  g.gain.exponentialRampToValueAtTime(peak*0.5,t0+0.16);
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  o.connect(g);g.connect(lp);o.start(t0);o.stop(t0+dur+0.08);
+  partial(2,peak*0.12,-2); // faint octave for warmth
+}
+function playInterval(root,semis){playTone(midiToFreq(root),0,1.1);playTone(midiToFreq(root+semis),1.15,1.2);}
+function playNote(root){playTone(midiToFreq(root),0,1.5);}
 
 function openEar(mode){if(mode==="tone"){renderTone();return;}
   home.hidden=true;view.hidden=false;window.scrollTo(0,0);
