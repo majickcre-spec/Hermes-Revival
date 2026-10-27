@@ -683,7 +683,7 @@ function playSustain(freq,start,dur,peak){
   else list.push(mk(null,harmWave(a,v.id,v.harm),1,0));
   list.forEach((o,idx)=>{const g=envGain(a,t0,dur,idx===0?peak:peak*0.32,v.atk,v.rel);o.connect(g);g.connect(lp);addVibrato(a,o,t0,dur,v.vib,5);o.start(t0);o.stop(t0+dur+0.1);});
 }
-function playSing(midi,dur){playSustain(midiToFreq(midi),0,dur||2.2,0.58);}
+function playSing(midi,dur){playSustain(midiToFreq(midi),0,dur||2.2,0.9);}
 
 function openEar(mode){if(mode==="tone"){renderTone();return;}
   home.hidden=true;view.hidden=false;window.scrollTo(0,0);
@@ -732,7 +732,7 @@ function midiName(m){return NOTE_NAMES[((Math.round(m)%12)+12)%12];}
 function autoCorrelate(buf,sr){
   let SIZE=buf.length,rms=0;
   for(let i=0;i<SIZE;i++){const v=buf[i];rms+=v*v;}
-  rms=Math.sqrt(rms/SIZE); if(rms<0.01)return -1;
+  rms=Math.sqrt(rms/SIZE); if(rms<0.004)return -1;
   let r1=0,r2=SIZE-1,th=0.2;
   for(let i=0;i<SIZE/2;i++)if(Math.abs(buf[i])<th){r1=i;break;}
   for(let i=1;i<SIZE/2;i++)if(Math.abs(buf[SIZE-i])<th){r2=SIZE-i;break;}
@@ -756,8 +756,9 @@ async function ensureMic(){
     const a=ac();
     micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
     const src=a.createMediaStreamSource(micStream);
+    const mg=a.createGain();mg.gain.value=3.2; // boost so quiet singing registers
     toneAnalyser=a.createAnalyser();toneAnalyser.fftSize=2048;toneAnalyser.smoothingTimeConstant=0;
-    src.connect(toneAnalyser);
+    src.connect(mg);mg.connect(toneAnalyser);
     return true;
   }catch(e){return false;}
 }
