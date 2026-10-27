@@ -658,6 +658,7 @@ function playInterval(root,semis){playTone(midiToFreq(root),0,1.1);playTone(midi
 function playNote(root){playTone(midiToFreq(root),0,1.5);}
 /* sustained reference tone for singing — selectable instrument voices, HELD loud, gentle release */
 let toneVoice=load("mjk-tonevoice","piano");
+let SONGLIB=load("mjk-songs",[]);
 const VOICE_WAVES={};
 function harmWave(a,key,harm){if(VOICE_WAVES[key])return VOICE_WAVES[key];const n=harm.length+1;const re=new Float32Array(n),im=new Float32Array(n);for(let i=0;i<harm.length;i++)im[i+1]=harm[i];return VOICE_WAVES[key]=a.createPeriodicWave(re,im);}
 const VOICES=[
@@ -820,7 +821,95 @@ function toneLevelsScreen(o){
 }
 function toneMatchLevels(){toneLevelsScreen({title:"🎯 Match the Pitch",intro:"Sing a single note back in tune. Levels add more notes and a wider range.",keyBase:"match",levels:TONE_PITCH_LEVELS,onPick:toneMatchRound});}
 function toneIntervalLevels(){toneLevelsScreen({title:"🎸 Sing the Interval",intro:"Hear the low note, then sing the note above it. Levels add trickier intervals.",keyBase:"interval",levels:EAR_LEVELS.map((s,i)=>({label:s.length+" intervals: "+s.map(x=>SHORT[x]).join(" · ")})),onPick:toneIntervalRound});}
-function tonePhraseLevels(){toneLevelsScreen({title:"🎵 Sing a Phrase",intro:"Hear a whole song, then sing it one note at a time. Levels move from nursery songs to rock & pop.",keyBase:"phrase",levels:TONE_PHRASE_LEVELS.map(l=>({label:l.label+" — "+l.songs.length+" songs"})),onPick:tonePhraseSongs});}
+function tonePhraseLevels(){
+  toneLevelsScreen({title:"🎵 Sing a Phrase",intro:"Hear a whole song, then sing the <b>whole phrase</b> — it scores your melody and plays your takes back. Levels move from nursery songs to rock & pop.",keyBase:"phrase",levels:TONE_PHRASE_LEVELS.map(l=>({label:l.label+" — "+l.songs.length+" songs"})),onPick:tonePhraseSongs});
+  const g=$("#tl");if(g){const my=document.createElement("button");my.className="card";
+    my.innerHTML=`<span class="ic">⭐</span><h3>My Songs</h3><span class="blurb">${SONGLIB.length} added · import any song from a MIDI file</span>`;
+    my.onclick=renderMySongs;g.appendChild(my);}
+}
+/* ---- custom song library: import melodies from MIDI ---- */
+function parseMidi(buf){
+  const d=new DataView(buf);let pos=0;
+  const u32=()=>{const v=d.getUint32(pos);pos+=4;return v;},u16=()=>{const v=d.getUint16(pos);pos+=2;return v;},u8=()=>d.getUint8(pos++);
+  const str=n=>{let s="";for(let i=0;i<n;i++)s+=String.fromCharCode(u8());return s;};
+  if(str(4)!=="MThd")throw new Error("not a MIDI file");
+  u32();u16();const ntrk=u16();u16();
+  const tracks=[];
+  for(let t=0;t<ntrk;t++){
+    if(str(4)!=="MTrk"){const len=u32();pos+=len;continue;}
+    const len=u32(),end=pos+len;let name="",status=0,abs=0;const on={},notes=[];
+    const vlq=()=>{let v=0,b;do{b=u8();v=(v<<7)|(b&0x7f);}while(b&0x80);return v;};
+    while(pos<end){
+      abs+=vlq();let b=u8();if(b&0x80)status=b;else pos--;
+      const st=status&0xf0,ch=status&0x0f;
+      if(status===0xff){const meta=u8(),l=vlq();if(meta===0x03)name=str(l);else pos+=l;}
+      else if(status===0xf0||status===0xf7){pos+=vlq();}
+      else if(st===0x90){const n=u8(),vel=u8();if(vel>0)on[n]=abs;else if(on[n]!=null){notes.push({n,t:on[n],c:ch});delete on[n];}}
+      else if(st===0x80){const n=u8();u8();if(on[n]!=null){notes.push({n,t:on[n],c:ch});delete on[n];}}
+      else if(st===0xa0||st===0xb0||st===0xe0)pos+=2;
+      else if(st===0xc0||st===0xd0)pos+=1;
+      else pos++;
+    }
+    notes.sort((a,b)=>a.t-b.t);tracks.push({name:name||("Track "+(t+1)),notes});pos=end;
+  }
+  return {tracks};
+}
+function trackMelody(tr){const byT={};tr.notes.forEach(x=>{if(byT[x.t]==null||x.n>byT[x.t])byT[x.t]=x.n;});
+  return Object.keys(byT).map(Number).sort((a,b)=>a-b).map(t=>byT[t]);}
+function renderMySongs(){
+  if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">⭐ My Songs</span></div>
+    <div class="panel" style="margin-bottom:12px"><div class="intro">Songs you import from MIDI files. Drop in a melody MIDI, trim it to the phrase you want to practice, and it joins your library with full scoring + playback.</div>
+      <div class="actions"><button class="btn" id="imp">➕ Import a MIDI</button></div></div>
+    <div id="mylist"></div>`;
+  $("#eBack").onclick=tonePhraseLevels;$("#imp").onclick=renderSongImport;
+  const el=$("#mylist");
+  if(!SONGLIB.length){el.innerHTML='<div class="site-note">No songs yet — tap “Import a MIDI”. Download a melody MIDI in your browser, then load it here.</div>';return;}
+  SONGLIB.forEach((s,i)=>{const row=document.createElement("div");row.className="kb";
+    row.innerHTML=`<span class="kb-ic">🎵</span><div class="kb-main"><div class="kb-t">${esc(s.name)}</div><div class="kb-s">${s.notes.length} notes</div></div>`;
+    const sing=document.createElement("button");sing.className="kb-btn";sing.textContent="Sing it";sing.onclick=()=>tonePhraseSing(s,"phrase-custom-"+i,renderMySongs);
+    const del=document.createElement("button");del.className="kb-btn";del.style.marginLeft="6px";del.textContent="✕";
+    del.onclick=()=>{if(del.textContent==="✕"){del.textContent="sure?";setTimeout(()=>{if(del)del.textContent="✕";},2500);}else{SONGLIB.splice(i,1);save("mjk-songs",SONGLIB);renderMySongs();}};
+    row.appendChild(sing);row.appendChild(del);el.appendChild(row);});
+}
+function renderSongImport(){
+  if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">➕ Import a MIDI</span></div>
+    <div class="panel"><div class="intro">Load a <b>melody</b> MIDI from your device. Then pick the track, trim to the phrase (the hook) you want to sing, preview, name it and save. A “melody only” MIDI works best.</div>
+      <input type="file" id="midiFile" accept=".mid,.midi,audio/midi,audio/x-midi" style="color:var(--muted);font-size:.85rem;margin:6px 0">
+      <div id="impBody"></div></div>`;
+  $("#eBack").onclick=renderMySongs;
+  $("#midiFile").onchange=e=>{const f=e.target.files[0];if(!f)return;const fr=new FileReader();
+    fr.onload=()=>{try{showImport(parseMidi(fr.result),f.name.replace(/\.midi?$/i,""));}catch(err){$("#impBody").innerHTML='<div class="feedback try">Couldn\'t read that MIDI — '+esc(err.message||"unknown error")+'. Try a different file.</div>';}};
+    fr.readAsArrayBuffer(f);};
+}
+function showImport(mid,defName){
+  const tracks=mid.tracks.map((tr,i)=>({i,name:tr.name,mel:trackMelody(tr),drum:tr.notes.length>0&&tr.notes.filter(x=>x.c===9).length>tr.notes.length/2})).filter(t=>t.mel.length>0);
+  const body=$("#impBody");if(!tracks.length){body.innerHTML='<div class="feedback try">No notes found in that file.</div>';return;}
+  let sel=tracks.filter(t=>!t.drum).sort((a,b)=>b.mel.length-a.mel.length)[0]||tracks[0];
+  let start=0,len=Math.min(8,sel.mel.length);
+  const inp='background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit';
+  function render(){
+    const mel=sel.mel;if(start+len>mel.length)len=Math.max(3,mel.length-start);
+    body.innerHTML=`
+      <div class="rrow2"><span class="rlab">Track</span><select id="trk" style="${inp};flex:1">${tracks.map(t=>`<option value="${t.i}" ${t.i===sel.i?"selected":""}>${esc(t.name)} — ${t.mel.length} notes${t.drum?" (drums)":""}</option>`).join("")}</select></div>
+      <div class="rrow2"><span class="rlab">Start at</span><input type="range" id="st" min="0" max="${Math.max(0,mel.length-1)}" value="${start}" style="flex:1"><span class="rbpm" id="stv">${start+1}</span></div>
+      <div class="rrow2"><span class="rlab">Notes</span><input type="range" id="ln" min="3" max="${Math.min(16,mel.length)}" value="${len}" style="flex:1"><span class="rbpm" id="lnv">${len}</span></div>
+      <div class="rsay" id="prev"></div>
+      <div class="actions"><button class="btn" id="play">▶ Preview phrase</button></div>
+      <div class="rrow2"><span class="rlab">Name</span><input type="text" id="nm" value="${esc(defName||"My song")}" style="${inp};flex:1"></div>
+      <div class="actions"><button class="btn" id="save">⭐ Save to My Songs</button></div>`;
+    const slice=()=>mel.slice(start,start+len);
+    const upd=()=>{$("#prev").textContent=slice().map(midiName).join(" · ");$("#stv").textContent=start+1;$("#lnv").textContent=len;};
+    upd();
+    $("#trk").onchange=e=>{sel=tracks.find(t=>t.i===+e.target.value);start=0;len=Math.min(8,sel.mel.length);render();};
+    $("#st").oninput=e=>{start=+e.target.value;if(start+len>mel.length)len=Math.max(3,mel.length-start);upd();};
+    $("#ln").oninput=e=>{len=+e.target.value;if(start+len>mel.length)start=Math.max(0,mel.length-len);upd();};
+    $("#play").onclick=()=>{slice().forEach((m,k)=>playSustain(midiToFreq(m),k*0.5,0.46,0.75));};
+    $("#save").onclick=()=>{const nm=($("#nm").value||defName||"My song").trim();SONGLIB.push({name:nm,notes:slice()});save("mjk-songs",SONGLIB);renderMySongs();};
+  }
+  render();
+}
 /* shared sing screen: one target, live tuner, auto-advance when held in tune */
 function singScreen(cfg){
   if(toneRAF)cancelAnimationFrame(toneRAF);
@@ -913,7 +1002,7 @@ function tonePhraseSongs(level){
     const row=document.createElement("div");row.className="kb"+(passed?" done":"");
     row.innerHTML=`<span class="kb-ic">🎵</span><div class="kb-main"><div class="kb-t">${esc(p.name)}</div><div class="kb-s">${p.notes.length} notes${passed?" · ✓ sung":""}</div></div>`;
     const b=document.createElement("button");b.className="kb-btn";b.textContent="Sing it";
-    b.onclick=()=>tonePhraseSing(level,idx);row.appendChild(b);el.appendChild(row);});
+    b.onclick=()=>tonePhraseSing(songs[idx],"phrase-L"+level+"-"+idx,()=>tonePhraseSongs(level));row.appendChild(b);el.appendChild(row);});
 }
 function median(a){if(!a.length)return 0;const s=a.slice().sort((x,y)=>x-y);const m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2;}
 function phraseContour(notes){const o=[];for(const n of notes){const pc=((n%12)+12)%12;if(!o.length||(((o[o.length-1].midi%12)+12)%12)!==pc)o.push({midi:n});}return o;}
@@ -937,9 +1026,8 @@ function phraseLCS(sung,target,offset){ // longest common pitch-class subsequenc
 }
 let __clipAudio=null;
 function playClip(url){try{if(__clipAudio)__clipAudio.pause();__clipAudio=new Audio(url);__clipAudio.play();}catch(e){}}
-function tonePhraseSing(level,idx){
+function tonePhraseSing(p,keyId,backFn){
   if(toneRAF)cancelAnimationFrame(toneRAF);
-  const p=TONE_PHRASE_LEVELS[level-1].songs[idx];
   const target=phraseContour(p.notes);
   const maxDur=Math.max(5,p.notes.length*0.8+2.5);
   const letters=p.notes.map(midiName).join(" · ");
@@ -987,8 +1075,8 @@ function tonePhraseSing(level,idx){
       if(!tips.length&&pct<80)tips.push("Close! Hear it once more, then match it note for note, slowly.");
     }
     let note="";
-    if(pct>=70&&activeId()&&!load(mk("tone","phrase-L"+level+"-"+idx+"-paid"),false)){addBeans(18);save(mk("tone","phrase-L"+level+"-"+idx),true);save(mk("tone","phrase-L"+level+"-"+idx+"-paid"),true);beanChip();note='<div class="bean-note">+18 🫘</div>';}
-    else if(pct>=70&&!load(mk("tone","phrase-L"+level+"-"+idx),false))save(mk("tone","phrase-L"+level+"-"+idx),true);
+    if(pct>=70&&activeId()&&!load(mk("tone",keyId+"-paid"),false)){addBeans(18);save(mk("tone",keyId),true);save(mk("tone",keyId+"-paid"),true);beanChip();note='<div class="bean-note">+18 🫘</div>';}
+    else if(pct>=70&&!load(mk("tone",keyId),false))save(mk("tone",keyId),true);
     const live=$("#pLive");if(live){live.textContent="";live.className="feedback";}
     const res=$("#pResults");if(res)res.innerHTML=`
       <div class="feedback good" style="margin-top:10px">${head}</div>
@@ -1010,7 +1098,7 @@ function tonePhraseSing(level,idx){
         <div class="feedback" id="pLive">Tap “Hear it”, then “Sing it” and sing the whole tune.</div>
         <div id="pResults"></div>
       </div>`;
-    $("#eBack").onclick=()=>{if(capRAF)cancelAnimationFrame(capRAF);revokeTakes();tonePhraseSongs(level);};
+    $("#eBack").onclick=()=>{if(capRAF)cancelAnimationFrame(capRAF);revokeTakes();(backFn||toneMenu)();};
     const pv=$("#pVoice");VOICES.forEach(v=>{const b=document.createElement("button");b.className="rchip sm"+(v.id===toneVoice?" sel":"");b.textContent=v.name;b.onclick=()=>{toneVoice=v.id;save("mjk-tonevoice",v.id);draw();};pv.appendChild(b);});
     $("#hear").onclick=melodyPlay;$("#sing").onclick=startCap;
   }
