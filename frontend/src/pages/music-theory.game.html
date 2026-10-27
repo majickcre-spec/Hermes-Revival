@@ -656,21 +656,32 @@ function playTone(freq,start,dur){
 }
 function playInterval(root,semis){playTone(midiToFreq(root),0,1.1);playTone(midiToFreq(root+semis),1.15,1.2);}
 function playNote(root){playTone(midiToFreq(root),0,1.5);}
-/* sustained reference tone for singing — piano timbre but HELD loud, gentle release */
+/* sustained reference tone for singing — selectable instrument voices, HELD loud, gentle release */
+let toneVoice=load("mjk-tonevoice","piano");
+const VOICE_WAVES={};
+function harmWave(a,key,harm){if(VOICE_WAVES[key])return VOICE_WAVES[key];const n=harm.length+1;const re=new Float32Array(n),im=new Float32Array(n);for(let i=0;i<harm.length;i++)im[i+1]=harm[i];return VOICE_WAVES[key]=a.createPeriodicWave(re,im);}
+const VOICES=[
+ {id:"piano",name:"Piano",kind:"piano",atk:0.03,rel:0.28,lp:8,vib:0},
+ {id:"voice",name:"Voice “Ah”",kind:"wave",harm:[1,0.8,0.6,0.4,0.5,0.3,0.2,0.12],atk:0.06,rel:0.25,lp:10,vib:8},
+ {id:"organ",name:"Organ",kind:"wave",harm:[1,0.5,0.9,0.3,0.6,0,0.35,0,0.2],atk:0.02,rel:0.14,lp:14,vib:0},
+ {id:"pad",name:"Warm pad",kind:"saw2",atk:0.2,rel:0.5,lp:5,vib:6},
+ {id:"flute",name:"Flute",kind:"flute",atk:0.08,rel:0.3,lp:12,vib:5},
+ {id:"sine",name:"Pure",kind:"sine",atk:0.04,rel:0.25,lp:20,vib:0}
+];
+function voiceDef(){return VOICES.find(v=>v.id===toneVoice)||VOICES[0];}
+function envGain(a,t0,dur,peak,atk,rel){const g=a.createGain();g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(peak,t0+atk);g.gain.setValueAtTime(peak,t0+Math.max(atk+0.05,dur-rel));g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);return g;}
+function addVibrato(a,osc,t0,dur,cents,rate){if(!cents)return;const lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=rate||5;const lg=a.createGain();lg.gain.value=cents;lfo.connect(lg);lg.connect(osc.detune);lfo.start(t0);lfo.stop(t0+dur+0.08);}
 function playSustain(freq,start,dur,peak){
-  const a=ac(),t0=a.currentTime+start+0.001,out=pianoMaster(a);peak=peak||0.55;
-  const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=Math.min(9000,freq*8);lp.connect(out);
-  const o=a.createOscillator();o.setPeriodicWave(pianoWave(a));o.frequency.value=freq;
-  const g=a.createGain();
-  g.gain.setValueAtTime(0.0001,t0);
-  g.gain.exponentialRampToValueAtTime(peak,t0+0.03);
-  g.gain.setValueAtTime(peak,t0+Math.max(0.1,dur-0.28));
-  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
-  o.connect(g);g.connect(lp);o.start(t0);o.stop(t0+dur+0.06);
-  const o2=a.createOscillator();o2.type="sine";o2.frequency.value=freq*2;o2.detune.value=-2;
-  const g2=a.createGain();g2.gain.setValueAtTime(0.0001,t0);g2.gain.exponentialRampToValueAtTime(peak*0.14,t0+0.03);
-  g2.gain.setValueAtTime(peak*0.14,t0+Math.max(0.1,dur-0.28));g2.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
-  o2.connect(g2);g2.connect(out);o2.start(t0);o2.stop(t0+dur+0.06);
+  const a=ac(),t0=a.currentTime+start+0.001,out=pianoMaster(a),v=voiceDef();peak=peak||0.55;
+  const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=Math.min(11000,freq*v.lp);lp.connect(out);
+  function mk(type,wave,mul,det){const o=a.createOscillator();if(wave)o.setPeriodicWave(wave);else o.type=type;o.frequency.value=freq*mul;if(det)o.detune.value=det;return o;}
+  const list=[];
+  if(v.kind==="piano"){list.push(mk(null,pianoWave(a),1,0));list.push(mk("sine",null,2,-2));}
+  else if(v.kind==="sine")list.push(mk("sine",null,1,0));
+  else if(v.kind==="flute"){list.push(mk("sine",null,1,0));list.push(mk("sine",null,2,0));}
+  else if(v.kind==="saw2"){list.push(mk("sawtooth",null,1,-6));list.push(mk("sawtooth",null,1,6));}
+  else list.push(mk(null,harmWave(a,v.id,v.harm),1,0));
+  list.forEach((o,idx)=>{const g=envGain(a,t0,dur,idx===0?peak:peak*0.32,v.atk,v.rel);o.connect(g);g.connect(lp);addVibrato(a,o,t0,dur,v.vib,5);o.start(t0);o.stop(t0+dur+0.1);});
 }
 function playSing(midi,dur){playSustain(midiToFreq(midi),0,dur||2.2,0.58);}
 
@@ -771,9 +782,14 @@ function toneMenu(){
   if(toneRAF)cancelAnimationFrame(toneRAF);
   home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎤 Tone Match</span></div>
-    <div class="panel" style="margin-bottom:14px"><div class="intro">Your mic is on. Pick a way to practice — each one has levels that get harder as you go. Octave doesn't matter, so big voices and little voices both count!</div></div>
+    <div class="panel" style="margin-bottom:14px"><div class="intro">Your mic is on. Pick a way to practice — each one has levels that get harder as you go. Octave doesn't matter, so big voices and little voices both count!</div>
+      <div class="rrow2"><span class="rlab">Tone voice</span><span class="rchips tight" id="tVoiceChips"></span><button class="rchip sm" id="tVoiceTry">▶ hear it</button></div></div>
     <div class="grid" id="tGrid"></div>`;
   $("#eBack").onclick=goHome;
+  const vc=$("#tVoiceChips");
+  VOICES.forEach(v=>{const b=document.createElement("button");b.className="rchip sm"+(v.id===toneVoice?" sel":"");
+    b.textContent=v.name;b.onclick=()=>{toneVoice=v.id;save("mjk-tonevoice",v.id);toneMenu();playSing(67,1.6);};vc.appendChild(b);});
+  $("#tVoiceTry").onclick=()=>playSing(67,1.8);
   const cards=[
    {id:"match",ic:"🎯",title:"Match the Pitch",blurb:"Hear a note, then sing it back in tune."},
    {id:"interval",ic:"🎸",title:"Sing the Interval",blurb:"Hear the bottom note, then sing the one above it."},
@@ -1219,6 +1235,7 @@ function openBio(){
   };
 }
 function renderBioLive(){
+  if(M.uiT)clearInterval(M.uiT);M.uiT=null;
   view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🧠 Live Monitor</span>
       <span style="margin-left:auto" class="biopill" id="bioBatt">—</span></div>
     <div class="panel">
@@ -1230,9 +1247,10 @@ function renderBioLive(){
       ${bioBar("barT","Theta (drowsy/meditative)","0","var(--violet)")}
       ${bioBar("barB","Beta (alert/active)","0","var(--sky)")}
       <div class="intro" style="margin-top:14px">HRV (RMSSD) rising = more parasympathetic (calm). Alpha up + beta down usually means you're settling. Give it ~30–60s to stabilize — and remember heart numbers here are from the Muse's optical pulse, so keep still for the cleanest read.</div>
-      <div class="actions"><button class="btn ghost" id="bioStop">Disconnect</button></div>
+      <div class="actions"><button class="btn" id="bioSession">🎵 Sound Session</button><button class="btn ghost" id="bioStop">Disconnect</button></div>
     </div>`;
   $("#eBack").onclick=goHome;$("#bioStop").onclick=goHome;
+  $("#bioSession").onclick=()=>{if(M.uiT)clearInterval(M.uiT);M.uiT=null;renderBioSession();};
   teardown=museDisconnect;
   M.uiT=setInterval(()=>{
     const set=(id,v)=>{const e=$(id);if(e)e.textContent=v;};
@@ -1243,6 +1261,90 @@ function renderBioLive(){
     const good=M.qual.reduce((a,b)=>a+b,0);const q=$("#bioQual");
     if(q)q.textContent=good>=3?"Signal: good ✓":good>=1?"Signal: adjust the headband for a better fit":"Signal: no contact yet — settle the sensors on your forehead";
   },250);
+}
+/* ----- Sound Session: play a track / tone and log HRV + alpha response ----- */
+const BS={logging:false,playing:false,t0:0,data:[],timer:null,audio:null,url:null,osc:null,toneHz:432,firstPlay:false};
+function bsStopTone(){if(BS.osc){const a=ac();try{BS.osc.g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+0.1);BS.osc.o.stop(a.currentTime+0.16);}catch(e){}BS.osc=null;}}
+function bsStopAll(){if(BS.timer)clearInterval(BS.timer);BS.timer=null;BS.logging=false;
+  if(BS.audio){try{BS.audio.pause();}catch(e){}}bsStopTone();BS.playing=false;}
+function bsSeg(){ // split logged data into baseline / during / after
+  const base=[],dur=[],aft=[];let seenPlay=false,lastPlay=false;
+  for(const d of BS.data){if(d.playing){seenPlay=true;lastPlay=true;dur.push(d);}else{if(!seenPlay)base.push(d);else aft.push(d);lastPlay=false;}}
+  return {base,dur,aft};
+}
+function bsMean(arr,key){const v=arr.map(d=>d[key]).filter(x=>x>0);if(!v.length)return 0;return v.reduce((a,b)=>a+b,0)/v.length;}
+function bsDrawChart(){
+  const cv=$("#bsChart");if(!cv)return;const ctx=cv.getContext("2d");const W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  if(BS.data.length<2){ctx.fillStyle="#8a86a6";ctx.font="13px sans-serif";ctx.fillText("Logging… the chart fills in as you go.",12,H/2);return;}
+  const T=BS.data[BS.data.length-1].t||1;
+  // shade playing regions
+  for(let i=1;i<BS.data.length;i++){if(BS.data[i].playing){const x0=W*BS.data[i-1].t/T,x1=W*BS.data[i].t/T;ctx.fillStyle="rgba(255,111,163,.12)";ctx.fillRect(x0,0,x1-x0,H);}}
+  function line(key,color,lo,hi){ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();let started=false;
+    for(const d of BS.data){const v=d[key];const x=W*d.t/T;const y=H-((Math.max(lo,Math.min(hi,v))-lo)/(hi-lo))*H*0.9-H*0.05;
+      if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);}ctx.stroke();}
+  const rv=BS.data.map(d=>d.rmssd).filter(x=>x>0);const rmax=Math.max(60,...rv);
+  line("rmssd","#ff9f5c",0,rmax);     // HRV gold
+  line("alpha","#a579ff",0,60);       // alpha violet
+}
+function renderBioSession(){
+  if(M.uiT)clearInterval(M.uiT);M.uiT=null;
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎵 Sound Session</span></div>
+    <div class="panel">
+      <div class="intro">Play a track (or a pure tone) and watch what it does to your <b>HRV</b> and <b>alpha</b>. Sit quietly first for a baseline, start logging, play the sound, then finish to see the before/during/after.</div>
+      <div class="rrow2"><span class="rlab">Your track</span><input type="file" id="bsFile" accept="audio/*" style="color:var(--muted);font-size:.8rem"></div>
+      <audio id="bsAudio" controls style="width:100%;margin:8px 0;display:none"></audio>
+      <div class="rrow2"><span class="rlab">Or pure tone</span><input type="number" id="bsHz" value="${BS.toneHz}" min="40" max="1000" style="width:90px;background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit"><span style="color:var(--muted);font-size:.8rem">Hz</span><button class="rchip sm" id="bsTone">▶ Play tone</button></div>
+      <canvas id="bsChart" width="640" height="150" style="width:100%;height:150px;background:var(--card2);border:1px solid var(--line);border-radius:12px;margin:12px 0 6px"></canvas>
+      <div style="display:flex;gap:16px;font-size:.78rem;color:var(--muted);margin-bottom:8px"><span style="color:var(--gold)">● HRV (RMSSD)</span><span style="color:var(--violet)">● Alpha %</span><span>▦ sound playing</span></div>
+      <div class="rscore"><div class="rfeel" id="bsNow">HRV – · alpha –</div></div>
+      <div class="actions"><button class="btn" id="bsStart">● Start logging</button><button class="btn ghost" id="bsFinish">Finish &amp; results</button></div>
+      <div id="bsResults"></div>
+    </div>`;
+  $("#eBack").onclick=()=>{bsStopAll();renderBioLive();};
+  teardown=()=>{bsStopAll();museDisconnect();};
+  BS.audio=$("#bsAudio");
+  $("#bsFile").onchange=e=>{const f=e.target.files[0];if(!f)return;if(BS.url)URL.revokeObjectURL(BS.url);BS.url=URL.createObjectURL(f);BS.audio.src=BS.url;BS.audio.style.display="block";};
+  BS.audio.onplay=()=>{BS.playing=true;BS.firstPlay=true;};
+  BS.audio.onpause=()=>{BS.playing=false;};
+  BS.audio.onended=()=>{BS.playing=false;};
+  $("#bsHz").onchange=e=>{BS.toneHz=Math.max(40,Math.min(1000,+e.target.value||432));};
+  $("#bsTone").onclick=()=>{
+    if(BS.osc){bsStopTone();BS.playing=false;$("#bsTone").textContent="▶ Play tone";return;}
+    const a=ac();const o=a.createOscillator();o.type="sine";o.frequency.value=BS.toneHz;
+    const g=a.createGain();g.gain.setValueAtTime(0.0001,a.currentTime);g.gain.exponentialRampToValueAtTime(0.3,a.currentTime+0.15);
+    o.connect(g);g.connect(pianoMaster(a));o.start();BS.osc={o,g};BS.playing=true;BS.firstPlay=true;$("#bsTone").textContent="⏸ Stop tone";
+  };
+  $("#bsStart").onclick=()=>{
+    BS.logging=true;BS.firstPlay=false;BS.data=[];BS.t0=performance.now();
+    $("#bsStart").textContent="● Logging…";$("#bsResults").innerHTML="";
+    if(BS.timer)clearInterval(BS.timer);
+    BS.timer=setInterval(()=>{
+      const t=(performance.now()-BS.t0)/1000;
+      BS.data.push({t,rmssd:M.rmssd,alpha:M.alpha,playing:BS.playing});
+      const nw=$("#bsNow");if(nw)nw.textContent="HRV "+(M.rmssd||"–")+" ms · alpha "+Math.round(M.alpha)+"%"+(BS.playing?" · ♪ playing":"");
+      bsDrawChart();
+    },2000);
+  };
+  $("#bsFinish").onclick=()=>{
+    if(BS.timer)clearInterval(BS.timer);BS.timer=null;BS.logging=false;bsDrawChart();
+    const {base,dur,aft}=bsSeg();
+    const bR=bsMean(base,"rmssd"),dR=bsMean(dur,"rmssd"),aR=bsMean(aft,"rmssd");
+    const bA=bsMean(base,"alpha"),dA=bsMean(dur,"alpha"),aA=bsMean(aft,"alpha");
+    const pct=(a,b)=>b>0?Math.round((a-b)/b*100):0;
+    const row=(lbl,v)=>`<div class="biobar-row"><span class="biobar-l">${lbl}</span><span class="biobar-v" style="min-width:auto">${v}</span></div>`;
+    let verdict="Not enough data — log a baseline, play the sound a while, then finish.";
+    if(dur.length&&base.length){const dr=pct(dR,bR),da=pct(dA,bA);
+      verdict=`While the sound played, your HRV ${dr>=0?"rose":"fell"} <b>${Math.abs(dr)}%</b> and alpha ${da>=0?"rose":"fell"} <b>${Math.abs(da)}%</b> vs. baseline. ${dr>5?"That's a parasympathetic lift — a good sign this sound settles you. 🌿":dr< -5?"This one seemed to rev you up rather than calm you.":"Roughly neutral for HRV this round."}`;}
+    $("#bsResults").innerHTML=`<div class="label" style="margin:14px 0 8px">Results</div>
+      <div class="intro" style="border:none">${verdict}</div>
+      ${row("Baseline — HRV / alpha",(bR?Math.round(bR):"–")+" ms / "+Math.round(bA)+"%")}
+      ${row("During sound — HRV / alpha",(dR?Math.round(dR):"–")+" ms / "+Math.round(dA)+"%")}
+      ${row("After — HRV / alpha",(aR?Math.round(aR):"–")+" ms / "+Math.round(aA)+"%")}
+      <div class="intro" style="font-size:.8rem;margin-top:8px">Remember: HRV needs ~60–90s per phase to be meaningful, breathing affects it strongly, and these are Muse optical-pulse readings — treat it as exploratory, and repeat to confirm.</div>`;
+    $("#bsStart").textContent="● Start logging";
+  };
+  bsDrawChart();
 }
 
 function renderLevels(){
