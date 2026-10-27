@@ -10,6 +10,7 @@ export default function MusicTheory() {
   useEffect(() => {
     function onMsg(e: MessageEvent) {
       if (e.data && e.data.mjk === "home") setLocation("/");
+      if (e.data && e.data.mjk === "shop") setLocation("/reader/star-heads");
     }
     window.addEventListener("message", onMsg);
     return () => window.removeEventListener("message", onMsg);

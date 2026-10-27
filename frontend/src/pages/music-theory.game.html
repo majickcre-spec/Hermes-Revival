@@ -414,7 +414,10 @@ const QUIZ_BEANS=10, MATCH_BEANS=10, KB_BEANS=5;
 function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 const home=$("#home"),view=$("#view");
-function beanChip(){const c=$("#beanChipM");if(!c)return;if(activeId()){c.hidden=false;$("#beanNumM").textContent=getBeans();}else c.hidden=true;}
+function beanChip(){const c=$("#beanChipM");if(!c)return;
+  c.style.cursor="pointer";c.title="Open the Bean shop";
+  c.onclick=()=>{if(!activeId())return;try{localStorage.setItem("majick-open-shop","1");}catch(e){}window.parent.postMessage({mjk:"shop"},"*");};
+  if(activeId()){c.hidden=false;$("#beanNumM").textContent=getBeans();}else c.hidden=true;}
 function burst(el,count,kind){const fx=$("#fx");if(!el)return;const r=el.getBoundingClientRect();
   const cx=r.left+r.width/2,cy=r.top+r.height/2;const set=kind==="bean"?["🫘","🪙","✨"]:["✦","✧","⭐","♪","✨"];
   for(let i=0;i<count;i++){const s=document.createElement("span");s.className="fxp";s.textContent=set[Math.floor(Math.random()*set.length)];

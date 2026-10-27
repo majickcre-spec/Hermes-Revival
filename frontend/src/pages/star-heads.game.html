@@ -1,8 +1,3 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Star's Heads of Things</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -355,8 +350,7 @@ body.gated .chip.bean{visibility:hidden}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
-</head>
-<body>
+
 <canvas id="sky"></canvas>
 <div id="fx"></div>
 <div class="wrap">
@@ -540,10 +534,19 @@ function defaultCatalog(){return [
  {id:"a2",cat:"Art Supplies",name:"Watercolor pad",icon:"🎨",cost:120,online:true,url:"",note:"Example — edit me."},
  {id:"b1",cat:"Baking Tools",name:"Cookie cutter set",icon:"🍪",cost:150,online:true,url:"",note:"Example — edit me."},
  {id:"b2",cat:"Baking Tools",name:"Frosting & piping kit",icon:"🧁",cost:200,online:true,url:"",note:"Example — edit me."},
+ {id:"g1",cat:"Tech & Gadgets",name:"Stylus pen",icon:"🖊️",cost:220,online:true,url:"",note:"For drawing/writing on a tablet."},
+ {id:"g2",cat:"Tech & Gadgets",name:"Earbuds",icon:"🎧",cost:500,online:true,url:"",note:"Example — edit me."},
+ {id:"g3",cat:"Tech & Gadgets",name:"Phone / tablet stand",icon:"📱",cost:140,online:true,url:"",note:"Example — edit me."},
+ {id:"g4",cat:"Tech & Gadgets",name:"Clip-on ring light",icon:"💡",cost:160,online:true,url:"",note:"Example — edit me."},
  {id:"h1",cat:"Little Treats",name:"Movie night pick",icon:"🎬",cost:80,online:false,url:"",note:"You choose the film."},
  {id:"h2",cat:"Little Treats",name:"Bakery trip",icon:"🥐",cost:120,online:false,url:"",note:"A treat of your choosing."},
 ];}
-function getCatalog(){let c=load("majick-shop-catalog",null);if(!c){c=defaultCatalog();save("majick-shop-catalog",c);}return c;}
+function getCatalog(){let c=load("majick-shop-catalog",null);if(!c){c=defaultCatalog();save("majick-shop-catalog",c);return c;}
+  // migrate: add newer default items once, without disturbing a grown-up's edits
+  if(load("majick-shop-catalog-v",0)<1){const have=new Set(c.map(i=>i.id));
+    defaultCatalog().forEach(di=>{if(["g1","g2","g3","g4"].includes(di.id)&&!have.has(di.id))c.push(di);});
+    save("majick-shop-catalog",c);save("majick-shop-catalog-v",1);}
+  return c;}
 function setCatalog(c){save("majick-shop-catalog",c);}
 
 /* ===== helpers ===== */
@@ -1085,7 +1088,8 @@ function showCreate(){
 function activate(id){activeId=id;save("majick-active",id);loadProfileState();showHome();}
 function showHome(){document.body.classList.remove("gated");gate.hidden=true;play.hidden=true;$("#shop").hidden=true;home.hidden=false;
   const p=getProfiles().find(x=>x.id===activeId);$("#profileName").textContent=p?p.name:"—";
-  renderHome();window.scrollTo(0,0);}
+  renderHome();window.scrollTo(0,0);
+  try{if(localStorage.getItem("majick-open-shop")){localStorage.removeItem("majick-open-shop");openShop();}}catch(e){}}
 $("#switchProfile").onclick=()=>{activeId=null;renderGate();window.scrollTo(0,0);};
 
 /* ===== shop ===== */
@@ -1218,5 +1222,3 @@ $("#grantBtn").onclick=()=>{const v=parseInt($("#grantInput").value,10);if(v>0){
 
 renderGate();
 </script>
-</body>
-</html>
