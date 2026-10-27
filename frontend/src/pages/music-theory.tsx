@@ -21,7 +21,7 @@ export default function MusicTheory() {
         title="MAJICK Music"
         srcDoc={gameHtml}
         className="block w-full h-full border-0"
-        allow="microphone"
+        allow="microphone; bluetooth"
         sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
       />
     </div>

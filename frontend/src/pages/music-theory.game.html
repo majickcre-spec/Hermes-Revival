@@ -180,6 +180,20 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .rrow2{display:flex;align-items:center;gap:10px;margin:8px 2px;flex-wrap:wrap}
 .rchips.tight{gap:6px}
 .rchip.sm{font-size:.76rem;padding:6px 10px}
+/* biofeedback */
+.beta{font-size:.6rem;letter-spacing:1px;text-transform:uppercase;background:rgba(165,121,255,.2);color:var(--violet);border:1px solid var(--violet);border-radius:999px;padding:2px 7px;vertical-align:middle;margin-left:6px}
+.biopill{font-size:.78rem;font-weight:800;color:var(--muted)}
+.biohead{display:flex;align-items:center;gap:14px}
+.biopulse{font-size:2rem;color:var(--gold-deep);transition:transform .08s,filter .08s;filter:grayscale(.3)}
+.biopulse.beat{transform:scale(1.35);filter:none;text-shadow:0 0 16px rgba(255,111,163,.8)}
+.biohr{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:2.2rem;line-height:1;color:var(--cream)}
+.biosub{font-size:.75rem;color:var(--muted);letter-spacing:.5px}
+.bioq{margin-top:10px;font-size:.85rem;color:var(--muted);font-family:"Nunito Sans",system-ui,sans-serif}
+.biobar-row{display:flex;align-items:center;gap:10px;margin:8px 0}
+.biobar-l{flex:0 0 46%;font-size:.86rem;color:var(--cream)}
+.biobar{flex:1;height:14px;background:var(--card2);border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.biobar-f{height:100%;width:0;border-radius:999px;transition:width .3s}
+.biobar-v{flex:none;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:.9rem;color:var(--cream);min-width:40px;text-align:right}
 .opts{display:flex;flex-direction:column;gap:9px}
 .opt{text-align:left;background:var(--card2);border:2px solid var(--line);color:var(--cream);border-radius:12px;padding:12px 14px;font:inherit;font-weight:700;cursor:pointer;transition:border-color .12s,background .12s}
 .opt:hover{border-color:var(--violet)} .opt:disabled{cursor:default}
@@ -244,6 +258,10 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 
     <div class="label">Feel it — rhythm &amp; breath</div>
     <div class="grid" id="rhythmGrid"></div>
+
+    <div class="label">Measure it — brain &amp; heart <span class="beta">beta</span></div>
+    <div class="site-note">Needs a <b>Muse</b> headset and <b>Chrome/Edge on a computer or Android</b> (Web Bluetooth). Streams live brainwaves + heart rhythm straight to the page.</div>
+    <div class="grid" id="bioGrid"></div>
 
     <div class="label">More ear &amp; rhythm training (musictheory.net)</div>
     <div class="site-note">Opens <b>musictheory.net</b> in a new tab — free interactive exercises. <b>Pay attention to your score</b>, then come back and write it in. First time you log a drill earns Beans 🫘.</div>
@@ -422,6 +440,10 @@ function renderHome(){
     RHYTHM_CARDS.forEach(c=>{const b=document.createElement("button");b.className="card";
       b.innerHTML=`<span class="ic">${c.ic}</span><h3>${esc(c.title)}</h3><span class="blurb">${esc(c.blurb)}</span>`;
       b.onclick=c.go;rg.appendChild(b);});}
+  const bg=$("#bioGrid");if(bg){bg.innerHTML="";
+    BIO_CARDS.forEach(c=>{const b=document.createElement("button");b.className="card";
+      b.innerHTML=`<span class="ic">${c.ic}</span><h3>${esc(c.title)}</h3><span class="blurb">${esc(c.blurb)}</span>`;
+      b.onclick=c.go;bg.appendChild(b);});}
   const el=$("#earList");el.innerHTML="";
   EAR.forEach((e,i)=>{
     const wrap=document.createElement("div");wrap.className="lc-wrap";
@@ -1058,6 +1080,152 @@ function rRenderMini(){
     [["loose","Loose · ±140ms"],["normal","Normal · ±90ms"],["tight","Tight · ±55ms"]].forEach(([id,nm])=>{
       const b=document.createElement("button");b.className="rchip sm"+(id===R.precision?" sel":"");
       b.textContent=nm;b.onclick=()=>{R.precision=id;rRenderMini();};pc.appendChild(b);});}
+}
+
+/* ===== BIOFEEDBACK — Muse 2 live monitor (Web Bluetooth) ===== */
+const BIO_CARDS=[
+ {ic:"🧠",title:"Live Monitor",blurb:"Connect your Muse and watch your brainwaves (alpha/theta/beta) and heart rhythm in real time.",go:()=>openBio()}
+];
+const MUSE_SVC=0xfe8d, MUSE_CTRL="273e0001-4c4d-454d-96be-f03bac821358",
+  MUSE_TELE="273e000b-4c4d-454d-96be-f03bac821358",
+  MUSE_EEG=["273e0003-4c4d-454d-96be-f03bac821358","273e0004-4c4d-454d-96be-f03bac821358","273e0005-4c4d-454d-96be-f03bac821358","273e0006-4c4d-454d-96be-f03bac821358"],
+  MUSE_PPG=["273e000f-4c4d-454d-96be-f03bac821358","273e0010-4c4d-454d-96be-f03bac821358","273e0011-4c4d-454d-96be-f03bac821358"];
+const M={gatt:null,dev:null,ctrl:null,connected:false,battery:null,
+  eeg:[[],[],[],[]],alpha:0,theta:0,beta:0,qual:[0,0,0,0],
+  ppg:[],ppgN:0,lastPeakT:0,ibis:[],hr:0,rmssd:0,
+  bandT:null,ppgT:null,uiT:null};
+function museSleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function museCmd(s){const e=new TextEncoder().encode("X"+s+"\n");e[0]=e.length-1;return e;}
+function dec12(b){const o=[];for(let i=0;i<b.length;i++){if(i%3===0)o.push((b[i]<<4)|(b[i+1]>>4));else{o.push(((b[i]&0xf)<<8)|b[i+1]);i++;}}return o;}
+function dec24(b){const o=[];for(let i=0;i+2<b.length;i+=3)o.push((b[i]<<16)|(b[i+1]<<8)|b[i+2]);return o;}
+function fft(re,im){const n=re.length;
+  for(let i=1,j=0;i<n;i++){let bit=n>>1;for(;j&bit;bit>>=1)j^=bit;j^=bit;if(i<j){const tr=re[i];re[i]=re[j];re[j]=tr;const ti=im[i];im[i]=im[j];im[j]=ti;}}
+  for(let len=2;len<=n;len<<=1){const ang=-2*Math.PI/len,wr=Math.cos(ang),wi=Math.sin(ang);
+    for(let i=0;i<n;i+=len){let cr=1,ci=0;
+      for(let k=0;k<len/2;k++){const a=i+k,bq=i+k+len/2;
+        const vr=re[bq]*cr-im[bq]*ci,vi=re[bq]*ci+im[bq]*cr,ur=re[a],ui=im[a];
+        re[a]=ur+vr;im[a]=ui+vi;re[bq]=ur-vr;im[bq]=ui-vi;
+        const ncr=cr*wr-ci*wi;ci=cr*wi+ci*wr;cr=ncr;}}}
+}
+function bandPowers(samps){ // 256 samples @256Hz → {theta,alpha,beta} + rms
+  const N=256,re=new Array(N),im=new Array(N);
+  let mean=0;for(let i=0;i<N;i++)mean+=samps[i];mean/=N;
+  let rms=0;for(let i=0;i<N;i++){const w=0.5-0.5*Math.cos(2*Math.PI*i/(N-1));re[i]=(samps[i]-mean)*w;im[i]=0;rms+=(samps[i]-mean)*(samps[i]-mean);}
+  rms=Math.sqrt(rms/N);
+  fft(re,im);
+  const p=k=>re[k]*re[k]+im[k]*im[k];let th=0,al=0,be=0;
+  for(let k=4;k<=7;k++)th+=p(k);for(let k=8;k<=12;k++)al+=p(k);for(let k=13;k<=29;k++)be+=p(k);
+  return {theta:th,alpha:al,beta:be,rms};
+}
+function museBands(){
+  let T=0,A=0,B=0,used=0;
+  for(let ch=0;ch<4;ch++){const buf=M.eeg[ch];if(buf.length<256)continue;
+    const r=bandPowers(buf.slice(buf.length-256));
+    M.qual[ch]=(r.rms>1&&r.rms<400)?1:0;
+    if(M.qual[ch]){T+=r.theta;A+=r.alpha;B+=r.beta;used++;}
+    if(buf.length>512)buf.splice(0,buf.length-512);}
+  if(used){const tot=T+A+B||1;M.theta=100*T/tot;M.alpha=100*A/tot;M.beta=100*B/tot;}
+}
+function musePPG(){
+  const buf=M.ppg;if(buf.length<96)return;
+  const win=buf.slice(Math.max(0,buf.length-640)); // ~10s @64Hz
+  let mean=0;for(const s of win)mean+=s.v;mean/=win.length;
+  let sd=0;for(const s of win)sd+=(s.v-mean)*(s.v-mean);sd=Math.sqrt(sd/win.length);
+  const thr=mean+0.45*sd;
+  for(let i=1;i<win.length-1;i++){const s=win[i];
+    if(s.v>thr&&s.v>win[i-1].v&&s.v>=win[i+1].v&&s.t-M.lastPeakT>0.33){
+      const ibi=(s.t-M.lastPeakT)*1000;M.lastPeakT=s.t;
+      if(ibi>=300&&ibi<=2000){M.ibis.push({t:s.t,ibi});M.hr=Math.round(60000/ibi);
+        const dot=$("#bioPulse");if(dot){dot.classList.add("beat");setTimeout(()=>dot.classList.remove("beat"),120);}}
+    }}
+  const cut=(M.ibis.length?M.ibis[M.ibis.length-1].t:0)-60;
+  M.ibis=M.ibis.filter(x=>x.t>=cut);
+  if(M.ibis.length>=4){let ss=0,n=0;for(let i=1;i<M.ibis.length;i++){const d=M.ibis[i].ibi-M.ibis[i-1].ibi;ss+=d*d;n++;}M.rmssd=Math.round(Math.sqrt(ss/n));}
+  if(buf.length>1200)buf.splice(0,buf.length-1200);
+}
+async function museWrite(s){try{await M.ctrl.writeValue(museCmd(s));}catch(e){try{await M.ctrl.writeValueWithoutResponse(museCmd(s));}catch(e2){}}}
+async function museConnect(statusEl){
+  if(!navigator.bluetooth)throw new Error("no-bt");
+  statusEl.textContent="Opening Bluetooth…";
+  M.dev=await navigator.bluetooth.requestDevice({filters:[{services:[MUSE_SVC]}]});
+  statusEl.textContent="Connecting to "+(M.dev.name||"Muse")+"…";
+  M.gatt=await M.dev.gatt.connect();
+  M.dev.addEventListener("gattserverdisconnected",()=>{M.connected=false;const s=$("#bioStatus");if(s)s.textContent="Disconnected.";});
+  const svc=await M.gatt.getPrimaryService(MUSE_SVC);
+  M.ctrl=await svc.getCharacteristic(MUSE_CTRL);
+  // telemetry (battery)
+  try{const tc=await svc.getCharacteristic(MUSE_TELE);await tc.startNotifications();
+    tc.addEventListener("characteristicvaluechanged",e=>{const d=e.target.value;M.battery=Math.round(d.getUint16(2)/512*100)/100;});}catch(e){}
+  // EEG 4 channels
+  for(let ch=0;ch<4;ch++){const c=await svc.getCharacteristic(MUSE_EEG[ch]);await c.startNotifications();
+    c.addEventListener("characteristicvaluechanged",e=>{const d=e.target.value;const s=dec12(new Uint8Array(d.buffer).subarray(2)).map(n=>0.48828125*(n-0x800));
+      const buf=M.eeg[ch];for(const v of s)buf.push(v);});}
+  // PPG — use infrared (index 1); subscribe all 3 so the stream flows
+  for(let pi=0;pi<3;pi++){const c=await svc.getCharacteristic(MUSE_PPG[pi]);await c.startNotifications();
+    if(pi===1)c.addEventListener("characteristicvaluechanged",e=>{const d=e.target.value;const s=dec24(new Uint8Array(d.buffer).subarray(2));
+      for(const v of s){M.ppg.push({v,t:M.ppgN/64});M.ppgN++;}});}
+  statusEl.textContent="Starting stream…";
+  await museWrite("h");await museSleep(60);await museWrite("p50");await museSleep(60);await museWrite("s");await museSleep(60);await museWrite("d");
+  M.connected=true;
+  M.bandT=setInterval(museBands,500);M.ppgT=setInterval(musePPG,150);
+}
+function museDisconnect(){
+  if(M.bandT)clearInterval(M.bandT);if(M.ppgT)clearInterval(M.ppgT);if(M.uiT)clearInterval(M.uiT);
+  M.bandT=M.ppgT=M.uiT=null;
+  try{if(M.gatt&&M.gatt.connected)M.gatt.disconnect();}catch(e){}
+  M.connected=false;M.eeg=[[],[],[],[]];M.ppg=[];M.ppgN=0;M.lastPeakT=0;M.ibis=[];M.hr=0;M.rmssd=0;M.alpha=M.theta=M.beta=0;
+}
+function bioBar(id,label,val,color){
+  return `<div class="biobar-row"><span class="biobar-l">${label}</span><div class="biobar"><div class="biobar-f" id="${id}" style="background:${color}"></div></div><span class="biobar-v" id="${id}v">0%</span></div>`;
+}
+function openBio(){
+  home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  if(!navigator.bluetooth){
+    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🧠 Live Monitor</span></div>
+      <div class="panel" style="text-align:center"><div style="font-size:2rem">🧠</div>
+      <div class="q" style="margin-top:6px">Web Bluetooth isn't available here</div>
+      <div class="intro" style="border:none;text-align:left;margin:10px auto;max-width:440px">To connect a Muse, open <b>MAJICK Music on the live site</b> in <b>Chrome or Edge</b>, on a computer or Android phone. (iPhone/Safari and the in‑app preview don't allow Bluetooth.)</div>
+      <div class="actions"><button class="btn ghost" id="back2">Back</button></div></div>`;
+    $("#eBack").onclick=goHome;$("#back2").onclick=goHome;return;
+  }
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🧠 Live Monitor</span></div>
+    <div class="panel" style="text-align:center">
+      <div class="intro" style="text-align:left">Put your Muse on, turn it on (hold the button till it blinks), then connect. Sit still a moment while it settles — the fit meter tells you when the sensors have good contact.</div>
+      <div class="q" id="bioStatus">Not connected</div>
+      <div class="actions"><button class="btn" id="bioConnect">🔗 Connect Muse</button><button class="btn ghost" id="back2">Back</button></div>
+    </div>`;
+  $("#eBack").onclick=goHome;$("#back2").onclick=goHome;
+  teardown=museDisconnect;
+  $("#bioConnect").onclick=async()=>{
+    const st=$("#bioStatus");try{await museConnect(st);renderBioLive();}
+    catch(e){st.textContent=e&&e.message==="no-bt"?"Web Bluetooth not available in this browser.":(e&&e.name==="NotFoundError"?"No Muse picked — tap Connect to try again.":"Couldn't connect — make sure the Muse is on and nearby, then retry.");}
+  };
+}
+function renderBioLive(){
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🧠 Live Monitor</span>
+      <span style="margin-left:auto" class="biopill" id="bioBatt">—</span></div>
+    <div class="panel">
+      <div class="biohead"><span class="biopulse" id="bioPulse">❤</span><div><div class="biohr" id="bioHR">–</div><div class="biosub">beats / min</div></div>
+        <div style="margin-left:auto;text-align:right"><div class="biohr" id="bioRM">–</div><div class="biosub">HRV · RMSSD ms</div></div></div>
+      <div class="bioq" id="bioQual"></div>
+      <div class="label" style="margin:14px 0 8px">Brainwaves</div>
+      ${bioBar("barA","Alpha (calm/relaxed)","0","linear-gradient(90deg,var(--gold),var(--gold-deep))")}
+      ${bioBar("barT","Theta (drowsy/meditative)","0","var(--violet)")}
+      ${bioBar("barB","Beta (alert/active)","0","var(--sky)")}
+      <div class="intro" style="margin-top:14px">HRV (RMSSD) rising = more parasympathetic (calm). Alpha up + beta down usually means you're settling. Give it ~30–60s to stabilize — and remember heart numbers here are from the Muse's optical pulse, so keep still for the cleanest read.</div>
+      <div class="actions"><button class="btn ghost" id="bioStop">Disconnect</button></div>
+    </div>`;
+  $("#eBack").onclick=goHome;$("#bioStop").onclick=goHome;
+  teardown=museDisconnect;
+  M.uiT=setInterval(()=>{
+    const set=(id,v)=>{const e=$(id);if(e)e.textContent=v;};
+    set("#bioHR",M.hr||"–");set("#bioRM",M.rmssd||"–");
+    set("#bioBatt",M.battery!=null?"🔋 "+M.battery+"%":"—");
+    const bar=(id,v)=>{const f=$("#"+id),t=$("#"+id+"v");if(f)f.style.width=Math.min(100,v)+"%";if(t)t.textContent=Math.round(v)+"%";};
+    bar("barA",M.alpha);bar("barT",M.theta);bar("barB",M.beta);
+    const good=M.qual.reduce((a,b)=>a+b,0);const q=$("#bioQual");
+    if(q)q.textContent=good>=3?"Signal: good ✓":good>=1?"Signal: adjust the headband for a better fit":"Signal: no contact yet — settle the sensors on your forehead";
+  },250);
 }
 
 function renderLevels(){
