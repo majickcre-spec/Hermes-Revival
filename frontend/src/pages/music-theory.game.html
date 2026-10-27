@@ -154,6 +154,25 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .t-center{position:absolute;top:0;bottom:0;left:50%;width:2px;transform:translateX(-50%);background:var(--muted);opacity:.6}
 .t-needle{position:absolute;top:6px;bottom:6px;left:50%;width:5px;border-radius:4px;transform:translateX(-50%);background:linear-gradient(180deg,var(--gold),var(--gold-deep));box-shadow:0 0 10px rgba(255,111,163,.6);transition:transform .06s linear}
 .t-hint{font-size:.9rem;color:var(--muted);font-family:"Nunito Sans",system-ui,sans-serif;min-height:20px}
+/* rhythm flow */
+.rsay{text-align:center;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:1.15rem;letter-spacing:1px;color:var(--gold);margin:4px 0 14px;min-height:24px}
+.rcells{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:6px 0 16px}
+.rbeat{display:flex;gap:5px}
+.rcell{width:34px;height:44px;border-radius:9px;background:var(--card2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:.9rem;color:var(--muted);transition:background .05s,transform .05s}
+.rcell.act{color:var(--cream);border-color:var(--violet);background:rgba(165,121,255,.14)}
+.rcell.on{background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#241800;border-color:var(--gold);transform:translateY(-3px);box-shadow:0 6px 16px rgba(255,111,163,.5)}
+.rcell.on span{font-weight:800}
+.rrow{display:flex;align-items:center;gap:12px;margin:10px 2px}
+.rlab{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:.85rem;letter-spacing:1px;color:var(--muted);flex:none}
+.rrow input[type=range]{flex:1;accent-color:var(--gold-deep)}
+.rbpm{flex:none;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:1.1rem;color:var(--cream);min-width:42px;text-align:right}
+.rchips{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 2px}
+.rchip{font:inherit;font-weight:700;font-size:.82rem;cursor:pointer;border-radius:999px;padding:8px 13px;background:var(--card2);border:1px solid var(--line);color:var(--cream)}
+.rchip.sel{background:rgba(165,121,255,.2);border-color:var(--violet);color:#fff}
+.rscore{text-align:center;margin-top:16px}
+.racc{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:2.6rem;line-height:1;color:var(--good)}
+.rfeel{font-size:.95rem;color:var(--muted);font-family:"Nunito Sans",system-ui,sans-serif;margin-top:6px;transition:color .1s;min-height:22px}
+.rfeel.beat{color:var(--gold);transform:scale(1.04)}
 .opts{display:flex;flex-direction:column;gap:9px}
 .opt{text-align:left;background:var(--card2);border:2px solid var(--line);color:var(--cream);border-radius:12px;padding:12px 14px;font:inherit;font-weight:700;cursor:pointer;transition:border-color .12s,background .12s}
 .opt:hover{border-color:var(--violet)} .opt:disabled{cursor:default}
@@ -207,7 +226,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
       <div class="eyebrow">MAJICK Music · Learning Platform</div>
       <h2>Three ways to learn, <span class="nm">Star</span>.</h2>
       <p>Music lives in the head, the ear, and the hands. So we learn it three ways: study the ideas here, train your ear on musictheory.net, and play it on the real keyboard.</p>
-      <div class="pillars"><span class="pillar">🎯 <b>Know it</b></span><span class="pillar">👂 <b>Hear it</b></span><span class="pillar">🎹 <b>Play it</b></span></div>
+      <div class="pillars"><span class="pillar">🎯 <b>Know it</b></span><span class="pillar">👂 <b>Hear it</b></span><span class="pillar">🥁 <b>Feel it</b></span><span class="pillar">🎹 <b>Play it</b></span></div>
     </div>
 
     <div class="label">Know it — study & memorize</div>
@@ -216,7 +235,10 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
     <div class="label">Hear it — train your ear right here</div>
     <div class="grid" id="earTrainGrid"></div>
 
-    <div class="label">More ear & rhythm training (musictheory.net)</div>
+    <div class="label">Feel it — rhythm &amp; breath</div>
+    <div class="grid" id="rhythmGrid"></div>
+
+    <div class="label">More ear &amp; rhythm training (musictheory.net)</div>
     <div class="site-note">Opens <b>musictheory.net</b> in a new tab — free interactive exercises. <b>Pay attention to your score</b>, then come back and write it in. First time you log a drill earns Beans 🫘.</div>
     <div id="earList"></div>
 
@@ -389,6 +411,10 @@ function renderHome(){
     EAR_CARDS.forEach(c=>{const b=document.createElement("button");b.className="card";
       b.innerHTML=`<span class="ic">${c.ic}</span><h3>${esc(c.title)}</h3><span class="blurb">${esc(c.blurb)}</span>${c.soon?'<span class="done-pill" style="color:var(--muted);border-color:var(--line);background:transparent">soon</span>':""}`;
       if(!c.soon)b.onclick=()=>openEar(c.mode);else b.style.opacity=".7";et.appendChild(b);});}
+  const rg=$("#rhythmGrid");if(rg){rg.innerHTML="";
+    RHYTHM_CARDS.forEach(c=>{const b=document.createElement("button");b.className="card";
+      b.innerHTML=`<span class="ic">${c.ic}</span><h3>${esc(c.title)}</h3><span class="blurb">${esc(c.blurb)}</span>`;
+      b.onclick=c.go;rg.appendChild(b);});}
   const el=$("#earList");el.innerHTML="";
   EAR.forEach((e,i)=>{
     const wrap=document.createElement("div");wrap.className="lc-wrap";
@@ -835,6 +861,141 @@ function tonePhraseSing(level,idx){
       demo:()=>{if(i===0)playAll();else playNote(t);},onHit:(sk)=>{if(!sk)hits++;i++;step();}});
   }
   step();
+}
+
+/* ===== RHYTHM FLOW (metronome + speak-it meditation) ===== */
+const SYL=["1","e","&","a","2","e","&","a","3","e","&","a","4","e","&","a"];
+const RHYTHM_PATTERNS=[
+ {id:"quarter",name:"Quarter notes",active:[0,4,8,12],say:"1  –  2  –  3  –  4"},
+ {id:"eighth",name:"Eighth notes",active:[0,2,4,6,8,10,12,14],say:"1 & 2 & 3 & 4 &"},
+ {id:"sixteenth",name:"Sixteenths",active:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],say:"1 e & a   2 e & a   3 e & a   4 e & a"},
+ {id:"skip3",name:"Skip the 3",active:[0,4,12],say:"1 – 2 – (rest) – 4"},
+ {id:"slow",name:"Slow pulse (1 & 3)",active:[0,8],say:"1 – – –   3 – – –"},
+ {id:"backbeat",name:"Backbeat (2 & 4)",active:[4,12],say:"(rest) 2 (rest) 4"},
+ {id:"gallop",name:"Gallop",active:[0,3,4,7,8,11,12,15],say:"1·a  2·a  3·a  4·a"}
+];
+const RHYTHM_CARDS=[
+ {ic:"🥁",title:"Metronome Flow",blurb:"A magical metronome — pick a rhythm shape and count along, slow and steady.",go:()=>renderRhythm(false)},
+ {ic:"🧘",title:"Speak the Rhythm",blurb:"Count the rhythm out loud into the mic — a breath-and-beat meditation that scores how in-time you are.",go:()=>renderRhythm(true)}
+];
+const R={bpm:72,patIdx:0,running:false,cur:0,nextTime:0,schID:null,raf:null,speak:false,
+  visQ:[],expected:[],detected:[],hits:0,miss:0,errSum:0,lastPeak:0,lastOnset:0,barCount:0,litCell:-1,beaned:false,buf:null};
+function rCellDur(){return (60/R.bpm)/4;}
+function click(time,kind){
+  const a=ac(),o=a.createOscillator(),g=a.createGain();
+  o.type="square";o.frequency.value=kind==="accent"?1800:kind==="beat"?1350:1000;
+  const lvl=kind==="sub"?0.11:kind==="beat"?0.26:0.4;
+  g.gain.setValueAtTime(0.0001,time);g.gain.exponentialRampToValueAtTime(lvl,time+0.002);
+  g.gain.exponentialRampToValueAtTime(0.0001,time+0.055);
+  o.connect(g);g.connect(pianoMaster(a));o.start(time);o.stop(time+0.07);
+}
+function rStop(){R.running=false;if(R.schID){clearInterval(R.schID);R.schID=null;}if(R.raf){cancelAnimationFrame(R.raf);R.raf=null;}const b=$("#rStart");if(b)b.textContent="▶ Start";}
+function rSchedule(){
+  const a=ac(),ahead=0.12,pat=RHYTHM_PATTERNS[R.patIdx];
+  while(R.nextTime<a.currentTime+ahead){
+    const cell=R.cur;
+    if(pat.active.indexOf(cell)>=0){
+      click(R.nextTime,cell===0?"accent":(cell%4===0?"beat":"sub"));
+      if(R.speak)R.expected.push({t:R.nextTime,done:false});
+    }
+    R.visQ.push({t:R.nextTime,cell});
+    R.nextTime+=rCellDur();R.cur=(R.cur+1)%16;if(R.cur===0)R.barCount++;
+  }
+}
+function rLight(cell){
+  const cells=document.querySelectorAll("#rCells .rcell");
+  if(R.litCell>=0&&cells[R.litCell])cells[R.litCell].classList.remove("on");
+  if(cells[cell])cells[cell].classList.add("on");R.litCell=cell;
+}
+function rDetect(now){
+  if(!R.buf)return;toneAnalyser.getFloatTimeDomainData(R.buf);
+  let peak=0;for(let i=0;i<R.buf.length;i++){const v=Math.abs(R.buf[i]);if(v>peak)peak=v;}
+  const th=0.055;
+  if(peak>th&&R.lastPeak<=th*0.7&&now-R.lastOnset>0.11){R.detected.push(now);R.lastOnset=now;
+    const f=$("#rFeel");if(f){f.classList.add("beat");setTimeout(()=>f.classList.remove("beat"),110);}}
+  R.lastPeak=peak;
+}
+function rMatch(now){
+  const win=Math.min(0.2,rCellDur()*0.95);
+  for(const e of R.expected){if(e.done||e.t>=now-win)continue;
+    let best=-1,bd=1e9;for(const d of R.detected){const dd=Math.abs(d-e.t);if(dd<=win&&dd<bd){bd=dd;best=d;}}
+    if(best>=0){R.hits++;R.errSum+=(best-e.t);}else R.miss++;e.done=true;}
+  if(R.detected.length>200)R.detected.splice(0,R.detected.length-200);
+}
+function rScoreUI(){
+  const tot=R.hits+R.miss,acc=tot?Math.round(100*R.hits/tot):0;
+  const accEl=$("#rAcc"),feel=$("#rFeel");if(!accEl)return;
+  accEl.textContent=tot?acc+"%":"—";
+  const mean=R.hits?R.errSum/R.hits:0;
+  if(!feel.classList.contains("beat"))
+    feel.textContent=!tot?"Count out loud with the clicks":(Math.abs(mean)<0.05?"Right in the pocket ✨":(mean>0?"A touch behind — anticipate the click":"A touch ahead — relax into it"));
+  if(R.speak&&!R.beaned&&R.barCount>=5&&tot>=6&&acc>=60&&activeId()&&!load(mk("rhythm","speak-"+R.patIdx+"-paid"),false)){
+    R.beaned=true;addBeans(12);save(mk("rhythm","speak-"+R.patIdx+"-paid"),true);beanChip();
+    feel.textContent="＋12 🫘 — beautiful focus!";burst(accEl,10);
+  }
+}
+function rFrame(){
+  const now=ac().currentTime;
+  while(R.visQ.length&&R.visQ[0].t<=now){const e=R.visQ.shift();rLight(e.cell);}
+  if(R.speak){rDetect(now);rMatch(now);rScoreUI();}
+  R.raf=requestAnimationFrame(rFrame);
+}
+function rStart(){
+  if(R.running)return;const a=ac();R.running=true;R.cur=0;R.nextTime=a.currentTime+0.12;
+  R.visQ=[];R.expected=[];R.litCell=-1;
+  R.schID=setInterval(rSchedule,25);R.raf=requestAnimationFrame(rFrame);
+  const b=$("#rStart");if(b)b.textContent="⏸ Stop";
+}
+function rRenderCells(){
+  const box=$("#rCells");if(!box)return;const pat=RHYTHM_PATTERNS[R.patIdx];box.innerHTML="";
+  for(let beat=0;beat<4;beat++){const grp=document.createElement("div");grp.className="rbeat";
+    for(let s=0;s<4;s++){const cell=beat*4+s;const d=document.createElement("div");
+      d.className="rcell"+(pat.active.indexOf(cell)>=0?" act":"");
+      d.innerHTML=`<span>${SYL[cell]}</span>`;grp.appendChild(d);}
+    box.appendChild(grp);}
+  R.litCell=-1;const say=$("#rSay");if(say)say.textContent=pat.say;
+}
+function rRenderChips(){
+  const box=$("#rChips");if(!box)return;box.innerHTML="";
+  RHYTHM_PATTERNS.forEach((p,i)=>{const c=document.createElement("button");
+    c.className="rchip"+(i===R.patIdx?" sel":"");c.textContent=p.name;
+    c.onclick=()=>{R.patIdx=i;R.beaned=false;R.hits=0;R.miss=0;R.errSum=0;R.barCount=0;
+      if(R.running){R.cur=0;R.nextTime=ac().currentTime+0.12;R.visQ=[];R.expected=[];}
+      rRenderChips();rRenderCells();rScoreUI();};
+    box.appendChild(c);});
+}
+async function renderRhythm(speak){
+  if(toneRAF)cancelAnimationFrame(toneRAF);rStop();
+  home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  if(speak){
+    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🧘 Speak the Rhythm</span></div><div class="panel" style="text-align:center"><div class="q">Turning on your microphone…</div></div>`;
+    $("#eBack").onclick=goHome;
+    const ok=await ensureMic();
+    if(!ok){view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🧘 Speak the Rhythm</span></div>
+      <div class="panel" style="text-align:center"><div style="font-size:2rem">🎤</div><div class="q" style="margin-top:6px">I need your microphone to hear you count</div>
+      <div class="intro" style="border:none;text-align:left;margin:10px auto;max-width:420px">Tap <b>Allow</b> when asked. If no popup appears, the preview may block it — this works best on the live MAJICK&nbsp;Music site.</div>
+      <div class="actions"><button class="btn" id="retry">Try again</button><button class="btn ghost" id="back2">Back</button></div></div>`;
+      $("#eBack").onclick=goHome;$("#back2").onclick=goHome;$("#retry").onclick=()=>renderRhythm(true);return;}
+    R.buf=new Float32Array(toneAnalyser.fftSize);
+  }
+  R.speak=speak;R.hits=0;R.miss=0;R.errSum=0;R.barCount=0;R.beaned=false;R.lastPeak=0;R.lastOnset=0;R.litCell=-1;
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">${speak?"🧘 Speak the Rhythm":"🥁 Metronome Flow"}</span></div>
+    <div class="panel">
+      <div class="intro">${speak?"Breathe, then count out loud <b>with</b> the clicks — say each number right on the beat. The app listens and shows how in‑time you are. Repeat it like a meditation.":"Pick a rhythm shape and count along out loud. Slow and steady — let the pulse settle you."}</div>
+      <div class="rsay" id="rSay"></div>
+      <div class="rcells" id="rCells"></div>
+      <div class="rrow"><span class="rlab">Tempo</span><input type="range" id="bpm" min="40" max="160" step="1" value="${R.bpm}"><span class="rbpm" id="bpmVal">${R.bpm}</span></div>
+      <div class="rchips" id="rChips"></div>
+      <div class="actions"><button class="btn" id="rStart">▶ Start</button></div>
+      ${speak?`<div class="rscore"><div class="racc" id="rAcc">—</div><div class="rfeel" id="rFeel">Press Start, then count out loud</div></div>`:""}
+    </div>`;
+  $("#eBack").onclick=goHome;
+  teardown=()=>{rStop();stopMic();};
+  rRenderCells();rRenderChips();
+  const bpm=$("#bpm"),bpmVal=$("#bpmVal");
+  bpm.oninput=()=>{R.bpm=+bpm.value;bpmVal.textContent=bpm.value;};
+  $("#rStart").onclick=()=>{if(R.running)rStop();else rStart();};
+  beanChip();
 }
 
 function renderLevels(){
