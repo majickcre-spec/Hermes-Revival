@@ -1,8 +1,3 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>MAJICK Music</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -141,6 +136,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 
 /* quiz */
 .q{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:1.1rem;color:var(--cream);text-align:center;margin:4px 0 14px}
+.ask{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:1.08rem;color:var(--cream);text-align:center;margin:2px 0 4px}
 .opts{display:flex;flex-direction:column;gap:9px}
 .opt{text-align:left;background:var(--card2);border:2px solid var(--line);color:var(--cream);border-radius:12px;padding:12px 14px;font:inherit;font-weight:700;cursor:pointer;transition:border-color .12s,background .12s}
 .opt:hover{border-color:var(--violet)} .opt:disabled{cursor:default}
@@ -175,8 +171,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 @keyframes rise{0%{transform:translate(-50%,-50%) scale(.6);opacity:0}15%{opacity:1}100%{transform:translate(calc(-50% + var(--dx,0px)),calc(-50% + var(--dy,-110px))) rotate(var(--dr,0deg));opacity:0}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
-</head>
-<body>
+
 <canvas id="sky"></canvas>
 <div id="fx"></div>
 <div class="wrap">
@@ -201,7 +196,10 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
     <div class="label">Know it — study & memorize</div>
     <div class="grid" id="topicGrid"></div>
 
-    <div class="label">Hear it — ear & rhythm training</div>
+    <div class="label">Hear it — train your ear right here</div>
+    <div class="grid" id="earTrainGrid"></div>
+
+    <div class="label">More ear & rhythm training (musictheory.net)</div>
     <div class="site-note">Opens <b>musictheory.net</b> in a new tab — free interactive exercises. Pick a drill, then come back.</div>
     <div id="earList"></div>
 
@@ -370,6 +368,10 @@ function renderHome(){
     b.innerHTML=`<span class="ic">${t.icon}</span><h3>${esc(t.title)}</h3><span class="blurb">${esc(t.blurb)}</span>
       ${topicDone(t)?'<span class="done-pill">✓ learned</span>':""}`;
     b.onclick=()=>openTopic(t.id);tg.appendChild(b);});
+  const et=$("#earTrainGrid");if(et){et.innerHTML="";
+    EAR_CARDS.forEach(c=>{const b=document.createElement("button");b.className="card";
+      b.innerHTML=`<span class="ic">${c.ic}</span><h3>${esc(c.title)}</h3><span class="blurb">${esc(c.blurb)}</span>${c.soon?'<span class="done-pill" style="color:var(--muted);border-color:var(--line);background:transparent">soon</span>':""}`;
+      if(!c.soon)b.onclick=()=>openEar(c.mode);else b.style.opacity=".7";et.appendChild(b);});}
   const el=$("#earList");el.innerHTML="";
   EAR.forEach(e=>{const a=document.createElement("a");a.className="link-card";a.href=e.url;a.target="_blank";a.rel="noopener";
     a.innerHTML=`<span class="lc-ic">${e.ic}</span><div class="lc-main"><div class="lc-t">${esc(e.t)}</div><div class="lc-s">${esc(e.s)}</div></div><span class="lc-go">Open ↗</span>`;
@@ -491,6 +493,145 @@ function renderMatch(){
   chunk();
 }
 
+/* ===== EAR TRAINING (in-app audio) ===== */
+const EAR_CARDS=[
+ {mode:"intervals",ic:"🎧",title:"Interval Trainer",blurb:"Hear an interval and name it. Starts easy at Level 1, builds up to all twelve."},
+ {mode:"songs",ic:"🎶",title:"Song-Phrase Match",blurb:"Learn each interval by a famous song — Twinkle Twinkle, Jaws, Star Wars…"},
+ {mode:"tone",ic:"🎤",title:"Tone Match",blurb:"Sing a note and match the pitch. (Coming next — needs your mic on the live app.)",soon:true}
+];
+const INAMES={0:"Unison",1:"Minor 2nd",2:"Major 2nd",3:"Minor 3rd",4:"Major 3rd",5:"Perfect 4th",6:"Tritone",7:"Perfect 5th",8:"Minor 6th",9:"Major 6th",10:"Minor 7th",11:"Major 7th",12:"Octave"};
+const SHORT={0:"U",1:"m2",2:"M2",3:"m3",4:"M3",5:"P4",6:"TT",7:"P5",8:"m6",9:"M6",10:"m7",11:"M7",12:"8ve"};
+/* levels, easiest → hardest (semitone sizes) */
+const EAR_LEVELS=[[7,12,4],[2,4,5,7,12],[2,3,4,5,7,9,12],[1,2,3,4,5,7,8,9,10,12],[0,1,2,3,4,5,6,7,8,9,10,11,12]];
+/* famous-song anchors (ascending) */
+const SONGS={
+ 1:"“Jaws” theme (the two scary notes)",
+ 2:"“Happy Birthday” (Hap‑py…)",
+ 3:"“Greensleeves” (A‑las…)",
+ 4:"“When the Saints Go Marching In”",
+ 5:"“Here Comes the Bride”",
+ 6:"“The Simpsons” theme (The Simp‑sons)",
+ 7:"“Twinkle, Twinkle, Little Star” · “Star Wars”",
+ 8:"“Love Story” theme",
+ 9:"“My Bonnie Lies Over the Ocean”",
+ 10:"“Somewhere” (West Side Story) · “Star Trek”",
+ 11:"“Take On Me” (the big leap)",
+ 12:"“Somewhere Over the Rainbow” (Some‑where)"
+};
+/* audio */
+let AC=null;
+function ac(){if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();return AC;}
+function midiToFreq(m){return 440*Math.pow(2,(m-69)/12);}
+function playTone(freq,start,dur){const a=ac();const o=a.createOscillator(),g=a.createGain();
+  o.type="triangle";o.frequency.value=freq;o.connect(g);g.connect(a.destination);
+  const t=a.currentTime+start;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.22,t+0.02);
+  g.gain.setValueAtTime(0.22,t+dur-0.06);g.gain.linearRampToValueAtTime(0,t+dur);o.start(t);o.stop(t+dur+0.03);}
+function playInterval(root,semis){playTone(midiToFreq(root),0,0.75);playTone(midiToFreq(root+semis),0.8,0.75);}
+function playNote(root){playTone(midiToFreq(root),0,0.9);}
+
+function openEar(mode){home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  if(mode==="intervals")renderLevels();else if(mode==="songs")renderSongs();beanChip();}
+
+function renderLevels(){
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack" aria-label="Back">←</button><span class="ttitle">🎧 Interval Trainer</span></div>
+    <div class="panel" style="margin-bottom:14px"><div class="intro">Hear two notes, then name the interval. Start at <b>Level 1</b> and work up — each level adds more intervals to listen for.</div></div>
+    <div class="grid" id="lvls"></div>`;
+  $("#eBack").onclick=goHome;
+  const g=$("#lvls");const ics=["🌱","🌿","🌳","⭐","👑"];
+  EAR_LEVELS.forEach((set,i)=>{const lvl=i+1,passed=load(mk("ear","lvl"+lvl),false);
+    const b=document.createElement("button");b.className="card";
+    b.innerHTML=`<span class="ic">${ics[i]}</span><h3>Level ${lvl}</h3>
+      <span class="blurb">${set.length} intervals: ${set.map(s=>SHORT[s]).join(" · ")}</span>
+      ${passed?'<span class="done-pill">✓ passed</span>':""}`;
+    b.onclick=()=>renderRound(lvl);g.appendChild(b);});
+}
+function renderRound(level){
+  const set=EAR_LEVELS[level-1],TOTAL=10;let qi=0,correct=0;
+  function done(){
+    const pass=correct>=Math.ceil(TOTAL*0.7);let note="";
+    if(pass&&!load(mk("ear","lvl"+level),false)){save(mk("ear","lvl"+level),true);
+      if(activeId()&&!load(mk("ear","lvl"+level+"-paid"),false)){addBeans(15);save(mk("ear","lvl"+level+"-paid"),true);beanChip();note='<div class="bean-note">+15 🫘</div>';}}
+    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎧 Level ${level}</span></div>
+      <div class="panel" style="text-align:center"><div style="font-size:2.4rem">${pass?"🎧":"🔁"}</div>
+      <div class="q" style="margin-top:8px">${correct} / ${TOTAL} correct</div>
+      <div class="feedback good">${pass?"Your ear is getting sharp!":"Good effort — run it again to train it in."}</div>${note}
+      <div class="actions"><button class="btn" id="again">Again</button><button class="btn ghost" id="toLvls">Levels</button></div></div>`;
+    $("#eBack").onclick=goHome;$("#again").onclick=()=>renderRound(level);$("#toLvls").onclick=renderLevels;
+    if(pass)burst($(".q"),12);beanChip();
+  }
+  function step(){
+    if(qi>=TOTAL){done();return;}
+    const root=57+Math.floor(Math.random()*9),semis=set[Math.floor(Math.random()*set.length)];
+    view.innerHTML=`<div class="play-top"><button class="back" id="eBack" aria-label="Back">←</button><span class="ttitle">🎧 Level ${level}</span>
+        <span style="margin-left:auto;color:var(--muted);font-weight:800;font-size:.8rem">${qi+1}/${TOTAL}</span></div>
+      <div class="panel">
+        <div class="ask">Listen, then name the interval</div>
+        <div class="actions"><button class="btn" id="play">▶ Play</button><button class="btn ghost" id="replay">↻ Again</button></div>
+        <div class="opts" id="opts" style="margin-top:14px"></div>
+        <div class="feedback" id="fb"></div>
+        <div class="actions"><button class="btn" id="next" disabled>Next</button></div></div>`;
+    $("#eBack").onclick=goHome;
+    const playIt=()=>playInterval(root,semis);
+    $("#play").onclick=playIt;$("#replay").onclick=playIt;
+    const box=$("#opts");
+    set.forEach(s=>{const b=document.createElement("button");b.className="opt";b.textContent=INAMES[s];
+      b.onclick=()=>{if(box.dataset.lock)return;
+        if(s===semis){box.dataset.lock="1";b.classList.add("correct");[...box.children].forEach(c=>c.disabled=true);
+          correct++;$("#fb").innerHTML="Yes — "+INAMES[semis]+" ♪"+(SONGS[semis]?'<div style="font-size:.85rem;color:var(--muted);margin-top:4px;font-family:\'Nunito Sans\',sans-serif">think: '+SONGS[semis]+'</div>':"");
+          $("#fb").className="feedback good";$("#next").disabled=false;$("#next").focus();}
+        else{b.classList.add("wrong");b.disabled=true;$("#fb").textContent="Not quite — tap ↻ and listen again.";$("#fb").className="feedback try";}};
+      box.appendChild(b);});
+    $("#next").onclick=()=>{qi++;step();};
+    setTimeout(playIt,250);
+  }
+  step();
+}
+function renderSongs(){
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack" aria-label="Back">←</button><span class="ttitle">🎶 Song-Phrase Match</span></div>
+    <div class="panel" style="margin-bottom:14px"><div class="intro">Every interval has a famous song that starts with it. Tap <b>▶</b> to hear the interval, and hum the song. Then try the quiz.</div>
+      <div class="actions"><button class="btn" id="songQuiz">Quiz me →</button></div></div>
+    <div id="songLib"></div>`;
+  $("#eBack").onclick=goHome;$("#songQuiz").onclick=renderSongQuiz;
+  const lib=$("#songLib");
+  Object.keys(SONGS).map(Number).sort((a,b)=>a-b).forEach(s=>{
+    const row=document.createElement("div");row.className="kb";
+    row.innerHTML=`<button class="kb-btn" style="font-size:1.1rem">▶</button>
+      <div class="kb-main"><div class="kb-t">${INAMES[s]}</div><div class="kb-s">${SONGS[s]}</div></div>`;
+    row.querySelector(".kb-btn").onclick=()=>playInterval(60,s);
+    lib.appendChild(row);});
+}
+function renderSongQuiz(){
+  const keys=Object.keys(SONGS).map(Number);let qi=0,correct=0;const TOTAL=8;
+  function step(){
+    if(qi>=TOTAL){
+      let note="";if(correct>=6&&activeId()&&!load(mk("ear","songs-paid"),false)){addBeans(12);save(mk("ear","songs-paid"),true);beanChip();note='<div class="bean-note">+12 🫘</div>';}
+      view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎶 Song-Phrase Match</span></div>
+        <div class="panel" style="text-align:center"><div style="font-size:2.4rem">🎶</div>
+        <div class="q" style="margin-top:8px">${correct} / ${TOTAL}</div>${note}
+        <div class="actions"><button class="btn" id="again">Again</button><button class="btn ghost" id="back2">Back</button></div></div>`;
+      $("#eBack").onclick=goHome;$("#again").onclick=renderSongQuiz;$("#back2").onclick=renderSongs;burst($(".q"),10);beanChip();return;}
+    const s=keys[Math.floor(Math.random()*keys.length)];
+    const others=keys.filter(k=>k!==s);for(let i=others.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[others[i],others[j]]=[others[j],others[i]];}
+    const opts=[s,...others.slice(0,3)];for(let i=opts.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[opts[i],opts[j]]=[opts[j],opts[i]];}
+    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎶 Which song?</span>
+        <span style="margin-left:auto;color:var(--muted);font-weight:800;font-size:.8rem">${qi+1}/${TOTAL}</span></div>
+      <div class="panel"><div class="ask">Hear the interval — which song starts like it?</div>
+        <div class="actions"><button class="btn" id="play">▶ Play</button><button class="btn ghost" id="replay">↻ Again</button></div>
+        <div class="opts" id="opts" style="margin-top:14px"></div><div class="feedback" id="fb"></div>
+        <div class="actions"><button class="btn" id="next" disabled>Next</button></div></div>`;
+    $("#eBack").onclick=goHome;const playIt=()=>playInterval(60,s);$("#play").onclick=playIt;$("#replay").onclick=playIt;
+    const box=$("#opts");
+    opts.forEach(o=>{const b=document.createElement("button");b.className="opt";b.innerHTML=SONGS[o];
+      b.onclick=()=>{if(box.dataset.lock)return;
+        if(o===s){box.dataset.lock="1";b.classList.add("correct");[...box.children].forEach(c=>c.disabled=true);
+          correct++;$("#fb").textContent="Yes — that's a "+INAMES[s]+" ♪";$("#fb").className="feedback good";$("#next").disabled=false;$("#next").focus();}
+        else{b.classList.add("wrong");b.disabled=true;$("#fb").textContent="Not that one — listen again.";$("#fb").className="feedback try";}};
+      box.appendChild(b);});
+    $("#next").onclick=()=>{qi++;step();};setTimeout(playIt,250);
+  }
+  step();
+}
+
 /* ===== player profiles (soft login) ===== */
 const gate=$("#gate");
 function renderGate(){
@@ -565,5 +706,3 @@ $("#switchProfile").onclick=()=>{save("majick-active",null);renderGate();window.
 
 renderGate();
 </script>
-</body>
-</html>
