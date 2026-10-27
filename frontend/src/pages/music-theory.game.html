@@ -101,6 +101,14 @@ a.link-card .lc-s{font-size:.82rem;color:var(--muted);margin-top:2px;line-height
 a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .site-note{font-size:.78rem;color:var(--muted);margin:2px 2px 10px}
 .site-note a{color:var(--sky)}
+.lc-wrap{margin-bottom:12px}
+.lc-wrap .link-card{margin-bottom:0;border-bottom-left-radius:0;border-bottom-right-radius:0}
+.score-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--card2);border:1px solid var(--line);border-top:none;border-radius:0 0 14px 14px;padding:9px 12px}
+.score-row .sr-label{font-size:.8rem;color:var(--muted);font-weight:800}
+.score-row .sr-in{flex:0 1 110px;background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit;font-size:.85rem}
+.score-row .sr-in:focus{outline:none;border-color:var(--gold-deep)}
+.score-row .sr-btn{flex:none;font:inherit;font-weight:800;font-size:.8rem;cursor:pointer;border-radius:9px;padding:7px 12px;background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#241800;border:none}
+.score-row .sr-msg{font-size:.8rem;color:var(--gold);font-weight:800}
 
 /* keyboard challenges */
 .kb{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 15px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start}
@@ -209,7 +217,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
     <div class="grid" id="earTrainGrid"></div>
 
     <div class="label">More ear & rhythm training (musictheory.net)</div>
-    <div class="site-note">Opens <b>musictheory.net</b> in a new tab — free interactive exercises. Pick a drill, then come back.</div>
+    <div class="site-note">Opens <b>musictheory.net</b> in a new tab — free interactive exercises. <b>Pay attention to your score</b>, then come back and write it in. First time you log a drill earns Beans 🫘.</div>
     <div id="earList"></div>
 
     <div class="label">Play it — at the keyboard</div>
@@ -382,9 +390,23 @@ function renderHome(){
       b.innerHTML=`<span class="ic">${c.ic}</span><h3>${esc(c.title)}</h3><span class="blurb">${esc(c.blurb)}</span>${c.soon?'<span class="done-pill" style="color:var(--muted);border-color:var(--line);background:transparent">soon</span>':""}`;
       if(!c.soon)b.onclick=()=>openEar(c.mode);else b.style.opacity=".7";et.appendChild(b);});}
   const el=$("#earList");el.innerHTML="";
-  EAR.forEach(e=>{const a=document.createElement("a");a.className="link-card";a.href=e.url;a.target="_blank";a.rel="noopener";
+  EAR.forEach((e,i)=>{
+    const wrap=document.createElement("div");wrap.className="lc-wrap";
+    const a=document.createElement("a");a.className="link-card";a.href=e.url;a.target="_blank";a.rel="noopener";
     a.innerHTML=`<span class="lc-ic">${e.ic}</span><div class="lc-main"><div class="lc-t">${esc(e.t)}</div><div class="lc-s">${esc(e.s)}</div></div><span class="lc-go">Open ↗</span>`;
-    el.appendChild(a);});
+    wrap.appendChild(a);
+    const best=load(mk("mtn"+i,"best"),null);
+    const paid=load(mk("mtn"+i,"paid"),false);
+    const row=document.createElement("div");row.className="score-row";
+    row.innerHTML=`<span class="sr-label">My score:</span><input class="sr-in" type="text" inputmode="numeric" placeholder="e.g. 18/20" value="${best!=null?esc(String(best)):""}" aria-label="Your score"><button class="sr-btn">Log it</button><span class="sr-msg"></span>`;
+    const inp=row.querySelector(".sr-in"),btn=row.querySelector(".sr-btn"),msg=row.querySelector(".sr-msg");
+    if(best!=null&&paid)msg.textContent="★ best: "+best;
+    btn.onclick=()=>{const v=inp.value.trim();if(!v){inp.focus();return;}
+      save(mk("mtn"+i,"best"),v);
+      if(activeId()&&!paid){addBeans(5);save(mk("mtn"+i,"paid"),true);burst(btn,5,"bean");msg.textContent="+5 🫘 logged!";beanChip();}
+      else{msg.textContent="saved ✓";}
+    };
+    wrap.appendChild(row);el.appendChild(wrap);});
   const kb=$("#kbList");kb.innerHTML="";
   KB.forEach(k=>{const done=load(mk(k.id,"kb"),false);const d=document.createElement("div");d.className="kb"+(done?" done":"");
     d.innerHTML=`<span class="kb-ic">${k.ic}</span><div class="kb-main"><div class="kb-t">${esc(k.t)}</div><div class="kb-s">${esc(k.s)}</div></div>`;
@@ -546,12 +568,41 @@ function openEar(mode){if(mode==="tone"){renderTone();return;}
 /* ===== TONE MATCH (sing into the mic) ===== */
 const NOTE_NAMES=["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"];
 let micStream=null, toneAnalyser=null, toneRAF=null;
-const TONE_TARGETS=[60,62,64,65,67,69];           // C4 D4 E4 F4 G4 A4 (matched by pitch-class, octave-forgiving)
-const TONE_INTERVALS=[3,4,5,7,12];                // m3 M3 P4 P5 8ve
-const TONE_PHRASES=[
- {name:"Twinkle, Twinkle, Little Star",notes:[60,60,67,67,69,69,67]},
- {name:"Mary Had a Little Lamb",notes:[64,62,60,62,64,64,64]},
- {name:"Row, Row, Row Your Boat",notes:[60,60,60,62,64]}
+/* Match-the-Pitch: note pools widen each level (octave-forgiving) */
+const TONE_PITCH_LEVELS=[
+ {label:"3 easy notes, close together",pool:[60,62,64]},
+ {label:"5 notes — do re mi fa so",pool:[60,62,64,65,67]},
+ {label:"A full octave (C to C)",pool:[60,62,64,65,67,69,71,72]},
+ {label:"Wider range + leaps",pool:[55,57,59,60,62,64,65,67,69,72]},
+ {label:"Every note (chromatic)",pool:[60,61,62,63,64,65,66,67,68,69,70,71,72]}
+];
+/* Sing-the-Interval: reuse EAR_LEVELS (same graduating interval sets) */
+/* Sing-a-Phrase: songs grouped into graduating levels */
+const TONE_PHRASE_LEVELS=[
+ {label:"First songs — simple & stepwise",songs:[
+   {name:"Twinkle, Twinkle, Little Star",notes:[60,60,67,67,69,69,67]},
+   {name:"Mary Had a Little Lamb",notes:[64,62,60,62,64,64,64]},
+   {name:"Row, Row, Row Your Boat",notes:[60,60,60,62,64]},
+   {name:"Hot Cross Buns",notes:[64,62,60]}
+ ]},
+ {label:"Classics & sing-alongs",songs:[
+   {name:"When the Saints Go Marching In",notes:[60,64,65,67]},
+   {name:"Happy Birthday",notes:[60,60,62,60,65,64]},
+   {name:"Jingle Bells",notes:[64,64,64,64,64,64,64,67,60,62,64]},
+   {name:"Ode to Joy — Beethoven",notes:[64,64,65,67,67,65,64,62,60,60,62,64,62]}
+ ]},
+ {label:"Rock & pop hooks",songs:[
+   {name:"Seven Nation Army — The White Stripes",notes:[64,64,67,64,62,60,59]},
+   {name:"Smoke on the Water — Deep Purple",notes:[55,58,60,55,58,61,60]},
+   {name:"The Lion Sleeps Tonight",notes:[67,67,69,67,65,64,65,67]},
+   {name:"Star Wars — Main Theme",notes:[55,55,55,60,67]}
+ ]},
+ {label:"Big leaps — advanced",songs:[
+   {name:"Somewhere Over the Rainbow",notes:[60,72,71,67,69,71,72]},
+   {name:"Star Wars — full phrase",notes:[55,55,55,60,67,65,64,62,72,67]},
+   {name:"Für Elise — Beethoven",notes:[76,75,76,75,76,71,74,72,69]},
+   {name:"Take On Me — a-ha (hook)",notes:[66,66,66,62,64,66,69,69,68]}
+ ]}
 ];
 function midiName(m){return NOTE_NAMES[((Math.round(m)%12)+12)%12];}
 function autoCorrelate(buf,sr){
@@ -601,22 +652,44 @@ async function renderTone(){
     $("#eBack").onclick=goHome;$("#back2").onclick=goHome;$("#retry").onclick=renderTone;return;
   }
   teardown=stopMic;
+  toneMenu();
+}
+function toneMenu(){
+  if(toneRAF)cancelAnimationFrame(toneRAF);
+  home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎤 Tone Match</span></div>
-    <div class="panel" style="margin-bottom:14px"><div class="intro">Your mic is on. Pick a way to practice — I'll listen and show you how close you are. Octave doesn't matter, so big voices and little voices both count!</div></div>
+    <div class="panel" style="margin-bottom:14px"><div class="intro">Your mic is on. Pick a way to practice — each one has levels that get harder as you go. Octave doesn't matter, so big voices and little voices both count!</div></div>
     <div class="grid" id="tGrid"></div>`;
   $("#eBack").onclick=goHome;
   const cards=[
    {id:"match",ic:"🎯",title:"Match the Pitch",blurb:"Hear a note, then sing it back in tune."},
    {id:"interval",ic:"🎸",title:"Sing the Interval",blurb:"Hear the bottom note, then sing the one above it."},
-   {id:"phrase",ic:"🎵",title:"Sing a Phrase",blurb:"Sing a little song, one note at a time."}
+   {id:"phrase",ic:"🎵",title:"Sing a Phrase",blurb:"Sing a real song, one note at a time."}
   ];
   const g=$("#tGrid");
   cards.forEach(c=>{const b=document.createElement("button");b.className="card";
     b.innerHTML=`<span class="ic">${c.ic}</span><h3>${c.title}</h3><span class="blurb">${c.blurb}</span>`;
-    b.onclick=()=>{if(c.id==="match")toneMatchRound();else if(c.id==="interval")toneIntervalRound();else tonePhrasePick();};
+    b.onclick=()=>{if(c.id==="match")toneMatchLevels();else if(c.id==="interval")toneIntervalLevels();else tonePhraseLevels();};
     g.appendChild(b);});
   beanChip();
 }
+/* shared level picker for tone modes */
+function toneLevelsScreen(o){
+  if(toneRAF)cancelAnimationFrame(toneRAF);
+  home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">${o.title}</span></div>
+    <div class="panel" style="margin-bottom:12px"><div class="intro">${o.intro}</div></div>
+    <div class="grid" id="tl"></div>`;
+  $("#eBack").onclick=toneMenu;
+  const g=$("#tl"),ics=["🌱","🌿","🌳","⭐","👑"];
+  o.levels.forEach((lv,i)=>{const n=i+1,passed=load(mk("tone",o.keyBase+"-lvl"+n),false);
+    const b=document.createElement("button");b.className="card";
+    b.innerHTML=`<span class="ic">${ics[i]||"🎵"}</span><h3>Level ${n}</h3><span class="blurb">${esc(lv.label)}</span>${passed?'<span class="done-pill">✓ passed</span>':""}`;
+    b.onclick=()=>o.onPick(n);g.appendChild(b);});
+}
+function toneMatchLevels(){toneLevelsScreen({title:"🎯 Match the Pitch",intro:"Sing a single note back in tune. Levels add more notes and a wider range.",keyBase:"match",levels:TONE_PITCH_LEVELS,onPick:toneMatchRound});}
+function toneIntervalLevels(){toneLevelsScreen({title:"🎸 Sing the Interval",intro:"Hear the low note, then sing the note above it. Levels add trickier intervals.",keyBase:"interval",levels:EAR_LEVELS.map((s,i)=>({label:s.length+" intervals: "+s.map(x=>SHORT[x]).join(" · ")})),onPick:toneIntervalRound});}
+function tonePhraseLevels(){toneLevelsScreen({title:"🎵 Sing a Phrase",intro:"Hear a whole song, then sing it one note at a time. Levels move from nursery songs to rock & pop.",keyBase:"phrase",levels:TONE_PHRASE_LEVELS.map(l=>({label:l.label+" — "+l.songs.length+" songs"})),onPick:tonePhraseSongs});}
 /* shared sing screen: one target, live tuner, auto-advance when held in tune */
 function singScreen(cfg){
   if(toneRAF)cancelAnimationFrame(toneRAF);
@@ -661,64 +734,64 @@ function singScreen(cfg){
   toneRAF=requestAnimationFrame(frame);
   setTimeout(cfg.demo,300);
 }
-function toneDone(title,hits,total,beanKey,beanAmt){
+function toneDone(title,hits,total,passKey,beanAmt){
   if(toneRAF)cancelAnimationFrame(toneRAF);
   const pass=hits>=Math.ceil(total*0.6);let note="";
-  if(pass&&activeId()&&!load(mk("tone",beanKey+"-paid"),false)){addBeans(beanAmt);save(mk("tone",beanKey+"-paid"),true);beanChip();note=`<div class="bean-note">+${beanAmt} 🫘</div>`;}
+  if(pass){if(!load(mk("tone",passKey),false))save(mk("tone",passKey),true);
+    if(activeId()&&!load(mk("tone",passKey+"-paid"),false)){addBeans(beanAmt);save(mk("tone",passKey+"-paid"),true);beanChip();note=`<div class="bean-note">+${beanAmt} 🫘</div>`;}}
   view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">${title}</span></div>
     <div class="panel" style="text-align:center"><div style="font-size:2.4rem">${pass?"🌟":"🎤"}</div>
     <div class="q" style="margin-top:8px">${hits} / ${total} in tune</div>${note}
     <div class="feedback good">${pass?"Beautiful — your voice is finding the notes!":"Keep going — singing in tune takes practice."}</div>
     <div class="actions"><button class="btn" id="again">Again</button><button class="btn ghost" id="toTone">Tone menu</button></div></div>`;
-  $("#eBack").onclick=goHome;$("#toTone").onclick=renderTone;
+  $("#eBack").onclick=toneMenu;$("#toTone").onclick=toneMenu;
   if(pass)burst($(".q"),12);
   return $("#again");
 }
-function toneMatchRound(){
-  const pool=TONE_TARGETS.slice();for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
-  const seq=pool.slice(0,5);let i=0,hits=0;
+function toneMatchRound(level){
+  const pool=TONE_PITCH_LEVELS[level-1].pool.slice();
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  const seq=pool.slice(0,Math.min(6,pool.length));let i=0,hits=0;
   function step(){
-    if(i>=seq.length){toneDone("🎯 Match the Pitch",hits,seq.length,"match",15).onclick=toneMatchRound;return;}
+    if(i>=seq.length){toneDone("🎯 Match · L"+level,hits,seq.length,"match-lvl"+level,15).onclick=()=>toneMatchRound(level);return;}
     const t=seq[i];
-    singScreen({title:"🎯 Match the Pitch",prog:(i+1)+"/"+seq.length,sub:`Sing this note — <b>${midiName(t)}</b>`,targetMidi:t,
-      demo:()=>playNote(t),
-      onHit:(skipped)=>{if(!skipped)hits++;i++;step();}});
+    singScreen({title:"🎯 Match · L"+level,prog:(i+1)+"/"+seq.length,sub:`Sing this note — <b>${midiName(t)}</b>`,targetMidi:t,
+      demo:()=>playNote(t),onHit:(sk)=>{if(!sk)hits++;i++;step();}});
   }
   step();
 }
-function toneIntervalRound(){
-  let i=0,hits=0;const N=5,root=60;
+function toneIntervalRound(level){
+  const set=EAR_LEVELS[level-1];let i=0,hits=0;const N=5,root=60;
   function step(){
-    if(i>=N){toneDone("🎸 Sing the Interval",hits,N,"interval",15).onclick=toneIntervalRound;return;}
-    const semis=TONE_INTERVALS[Math.floor(Math.random()*TONE_INTERVALS.length)];
-    const t=root+semis;
-    singScreen({title:"🎸 Sing the Interval",prog:(i+1)+"/"+N,sub:`A <b>${INAMES[semis]}</b> up from the low note — sing the top note`,targetMidi:t,
-      demo:()=>{playNote(root);setTimeout(()=>playNote(t),850);},
-      onHit:(skipped)=>{if(!skipped)hits++;i++;step();}});
+    if(i>=N){toneDone("🎸 Interval · L"+level,hits,N,"interval-lvl"+level,15).onclick=()=>toneIntervalRound(level);return;}
+    const semis=set[Math.floor(Math.random()*set.length)],t=root+semis;
+    singScreen({title:"🎸 Interval · L"+level,prog:(i+1)+"/"+N,sub:`A <b>${INAMES[semis]}</b> up from the low note — sing the top note`,targetMidi:t,
+      demo:()=>{playNote(root);setTimeout(()=>playNote(t),850);},onHit:(sk)=>{if(!sk)hits++;i++;step();}});
   }
   step();
 }
-function tonePhrasePick(){
+function tonePhraseSongs(level){
   if(toneRAF)cancelAnimationFrame(toneRAF);
-  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎵 Sing a Phrase</span></div>
+  const songs=TONE_PHRASE_LEVELS[level-1].songs;
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎵 Phrase · Level ${level}</span></div>
     <div class="panel" style="margin-bottom:12px"><div class="intro">Pick a song. You'll hear the whole thing, then sing it one note at a time.</div></div>
     <div id="phList"></div>`;
-  $("#eBack").onclick=goHome;
+  $("#eBack").onclick=tonePhraseLevels;
   const el=$("#phList");
-  TONE_PHRASES.forEach((p,idx)=>{const row=document.createElement("div");row.className="kb";
-    row.innerHTML=`<span class="kb-ic">🎵</span><div class="kb-main"><div class="kb-t">${esc(p.name)}</div><div class="kb-s">${p.notes.length} notes</div></div>`;
+  songs.forEach((p,idx)=>{const passed=load(mk("tone","phrase-L"+level+"-"+idx),false);
+    const row=document.createElement("div");row.className="kb"+(passed?" done":"");
+    row.innerHTML=`<span class="kb-ic">🎵</span><div class="kb-main"><div class="kb-t">${esc(p.name)}</div><div class="kb-s">${p.notes.length} notes${passed?" · ✓ sung":""}</div></div>`;
     const b=document.createElement("button");b.className="kb-btn";b.textContent="Sing it";
-    b.onclick=()=>tonePhraseSing(idx);row.appendChild(b);el.appendChild(row);});
+    b.onclick=()=>tonePhraseSing(level,idx);row.appendChild(b);el.appendChild(row);});
 }
-function tonePhraseSing(idx){
-  const p=TONE_PHRASES[idx];let i=0,hits=0;
+function tonePhraseSing(level,idx){
+  const p=TONE_PHRASE_LEVELS[level-1].songs[idx];let i=0,hits=0;
   function playAll(){p.notes.forEach((m,k)=>playTone(midiToFreq(m),k*0.5,0.45));}
   function step(){
-    if(i>=p.notes.length){toneDone("🎵 "+p.name,hits,p.notes.length,"phrase-"+idx,18).onclick=()=>tonePhraseSing(idx);return;}
+    if(i>=p.notes.length){toneDone("🎵 "+p.name,hits,p.notes.length,"phrase-L"+level+"-"+idx,18).onclick=()=>tonePhraseSing(level,idx);return;}
     const t=p.notes[i];
     singScreen({title:"🎵 "+p.name,prog:(i+1)+"/"+p.notes.length,sub:`Note ${i+1} — sing <b>${midiName(t)}</b>`,targetMidi:t,
-      demo:()=>{if(i===0)playAll();else playNote(t);},
-      onHit:(skipped)=>{if(!skipped)hits++;i++;step();}});
+      demo:()=>{if(i===0)playAll();else playNote(t);},onHit:(sk)=>{if(!sk)hits++;i++;step();}});
   }
   step();
 }
