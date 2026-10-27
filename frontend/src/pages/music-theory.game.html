@@ -934,18 +934,32 @@ function phraseLCS(sung,target,offset){ // longest common pitch-class subsequenc
   for(let i=1;i<=n;i++)for(let j=1;j<=m;j++)dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]+1:Math.max(dp[i-1][j],dp[i][j-1]);
   return dp[n][m];
 }
+let __clipAudio=null;
+function playClip(url){try{if(__clipAudio)__clipAudio.pause();__clipAudio=new Audio(url);__clipAudio.play();}catch(e){}}
 function tonePhraseSing(level,idx){
   if(toneRAF)cancelAnimationFrame(toneRAF);
   const p=TONE_PHRASE_LEVELS[level-1].songs[idx];
   const target=phraseContour(p.notes);
   const maxDur=Math.max(5,p.notes.length*0.8+2.5);
   const letters=p.notes.map(midiName).join(" · ");
-  let capRAF=null,capturing=false,capSamples=[],capStart=0;
-  teardown=()=>{if(capRAF)cancelAnimationFrame(capRAF);stopMic();};
+  let capRAF=null,capturing=false,capSamples=[],capStart=0,rec=null,recChunks=[],attempts=[],lastPct=0;
+  function revokeTakes(){attempts.forEach(a=>{try{URL.revokeObjectURL(a.url);}catch(e){}});attempts=[];}
+  function renderPlayback(){const el=$("#pPlay");if(!el)return;
+    if(!attempts.length){el.innerHTML="";return;}
+    el.innerHTML='<div class="rlab" style="display:block;margin:12px 0 6px">Hear yourself — tap a take</div>'+attempts.map((at,i)=>`<button class="rchip sm ptake" data-i="${i}">▶ Take ${i+1} · ${at.pct}%</button>`).join(" ");
+    el.querySelectorAll(".ptake").forEach(b=>b.onclick=()=>playClip(attempts[+b.dataset.i].url));
+  }
+  teardown=()=>{if(capRAF)cancelAnimationFrame(capRAF);revokeTakes();stopMic();};
   function melodyPlay(){p.notes.forEach((m,k)=>playSustain(midiToFreq(m),k*0.5,0.46,0.75));}
-  function stopCap(){if(!capturing)return;capturing=false;if(capRAF)cancelAnimationFrame(capRAF);capRAF=null;analyze();}
+  function stopCap(){if(!capturing)return;capturing=false;if(capRAF)cancelAnimationFrame(capRAF);capRAF=null;try{if(rec&&rec.state!=="inactive")rec.stop();}catch(e){}analyze();}
   function startCap(){
     if(capturing)return;capturing=true;capSamples=[];capStart=ac().currentTime;
+    recChunks=[];rec=null;
+    try{rec=new MediaRecorder(micStream);rec.ondataavailable=e=>{if(e.data&&e.data.size)recChunks.push(e.data);};
+      rec.onstop=()=>{if(!recChunks.length)return;const blob=new Blob(recChunks,{type:(rec&&rec.mimeType)||"audio/webm"});
+        const url=URL.createObjectURL(blob);attempts.push({url,pct:lastPct});
+        if(attempts.length>6){const old=attempts.shift();try{URL.revokeObjectURL(old.url);}catch(e){}}renderPlayback();};
+      rec.start();}catch(e){rec=null;}
     const live=$("#pLive");if(live){live.textContent="🎤 Singing… sing the whole tune now";live.className="feedback good";}
     const sb=$("#sing");if(sb){sb.textContent="■ Done";sb.onclick=stopCap;}
     const buf=new Float32Array(toneAnalyser.fftSize);
@@ -959,7 +973,7 @@ function tonePhraseSing(level,idx){
   function analyze(){
     const sung=phraseSegment(capSamples);
     let best=0,bestOff=0;for(let off=-5;off<=6;off++){const s=phraseLCS(sung,target,off);if(s>best){best=s;bestOff=off;}}
-    const score=target.length?best/target.length:0,pct=Math.round(score*100);
+    const score=target.length?best/target.length:0,pct=Math.round(score*100);lastPct=pct;
     const fr=sung.map(s=>s.midi-Math.round(s.midi));const meanC=fr.length?Math.round(100*(fr.reduce((a,b)=>a+b,0)/fr.length)):0;
     const head=pct>=80?"Beautiful — you sang the phrase! 🌟":pct>=50?"Good — the shape is coming through":"Keep going — let's break it down";
     const tips=[];
@@ -979,9 +993,11 @@ function tonePhraseSing(level,idx){
       <div class="feedback good" style="margin-top:10px">${head}</div>
       <div class="biobar-row"><span class="biobar-l">Phrase match</span><div class="biobar"><div class="biobar-f" style="width:${pct}%;background:linear-gradient(90deg,var(--gold),var(--gold-deep))"></div></div><span class="biobar-v">${pct}%</span></div>${note}
       ${tips.length?('<div class="intro" style="margin-top:10px">Tips:<ul style="margin:6px 0 0;padding-left:18px">'+tips.map(t=>'<li style="margin:3px 0">'+t+'</li>').join("")+'</ul></div>'):''}
-      <div class="actions"><button class="btn" id="hear2">▶ Hear it</button><button class="btn" id="again2">🎤 Sing again</button></div>`;
+      <div class="actions"><button class="btn" id="hear2">▶ Hear it</button><button class="btn" id="again2">🎤 Sing again</button></div>
+      <div id="pPlay"></div>`;
     if(pct>=80)burst(res,10);
     const h2=$("#hear2"),a2=$("#again2");if(h2)h2.onclick=melodyPlay;if(a2)a2.onclick=()=>{$("#pResults").innerHTML="";startCap();};
+    renderPlayback();
   }
   function draw(){
     view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎵 ${esc(p.name)}</span></div>
@@ -993,7 +1009,7 @@ function tonePhraseSing(level,idx){
         <div class="feedback" id="pLive">Tap “Hear it”, then “Sing it” and sing the whole tune.</div>
         <div id="pResults"></div>
       </div>`;
-    $("#eBack").onclick=()=>{if(capRAF)cancelAnimationFrame(capRAF);tonePhraseSongs(level);};
+    $("#eBack").onclick=()=>{if(capRAF)cancelAnimationFrame(capRAF);revokeTakes();tonePhraseSongs(level);};
     const pv=$("#pVoice");VOICES.forEach(v=>{const b=document.createElement("button");b.className="rchip sm"+(v.id===toneVoice?" sel":"");b.textContent=v.name;b.onclick=()=>{toneVoice=v.id;save("mjk-tonevoice",v.id);draw();};pv.appendChild(b);});
     $("#hear").onclick=melodyPlay;$("#sing").onclick=startCap;
   }
