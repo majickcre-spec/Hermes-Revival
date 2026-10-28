@@ -13,6 +13,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { label: "Home", path: "/" },
     { label: "Teachings", path: "/modules" },
     { label: "Star", path: "/reader/star-heads" },
+    { label: "Prayers", path: "/reader/prayers" },
     { label: "Music", path: "/music-theory" },
     { label: "Learning", path: "/learning" },
     { label: "Atlas", path: "/atlas" },

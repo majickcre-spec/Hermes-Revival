@@ -169,6 +169,8 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .rchips{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 2px}
 .rchip{font:inherit;font-weight:700;font-size:.82rem;cursor:pointer;border-radius:999px;padding:8px 13px;background:var(--card2);border:1px solid var(--line);color:var(--cream)}
 .rchip.sel{background:rgba(165,121,255,.2);border-color:var(--violet);color:#fff}
+.rmeter{flex:1;height:12px;background:var(--card2);border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.rmeter-f{height:100%;width:0;background:linear-gradient(90deg,var(--good),var(--gold));border-radius:999px;transition:width .06s}
 .rscore{text-align:center;margin-top:16px}
 .racc{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:2.6rem;line-height:1;color:var(--good)}
 .rfeel{font-size:.95rem;color:var(--muted);font-family:"Nunito Sans",system-ui,sans-serif;margin-top:6px;transition:color .1s;min-height:22px}
@@ -1175,11 +1177,17 @@ function rLight(cell){
   if(R.litCell>=0&&cells[R.litCell])cells[R.litCell].classList.remove("on");
   if(cells[cell])cells[cell].classList.add("on");R.litCell=cell;
 }
-function rDetect(now){
+function rDetect(now,record){
   if(!R.buf)return;toneAnalyser.getFloatTimeDomainData(R.buf);
-  let peak=0;for(let i=0;i<R.buf.length;i++){const v=Math.abs(R.buf[i]);if(v>peak)peak=v;}
-  const th=0.055;
-  if(peak>th&&R.lastPeak<=th*0.7&&now-R.lastOnset>0.11){R.detected.push(now);R.lastOnset=now;
+  let peak=0,sum=0;for(let i=0;i<R.buf.length;i++){const v=Math.abs(R.buf[i]);if(v>peak)peak=v;sum+=v*v;}
+  const rms=Math.sqrt(sum/R.buf.length);
+  R.level=peak;
+  // adaptive noise floor so any mic/room works
+  R.floor=(R.floor==null)?rms:R.floor*0.96+rms*0.04;
+  const mf=$("#rMeterF");if(mf)mf.style.width=Math.min(100,Math.round(peak*180))+"%";
+  if(!record)return;
+  const thr=Math.max(0.02,R.floor*3);
+  if(peak>thr&&R.lastPeak<=thr*0.6&&now-R.lastOnset>0.12){R.detected.push(now);R.lastOnset=now;
     const f=$("#rFeel");if(f){f.classList.add("beat");setTimeout(()=>f.classList.remove("beat"),110);}}
   R.lastPeak=peak;
 }
@@ -1211,13 +1219,13 @@ function rFrame(){
   while(R.visQ.length&&R.visQ[0].t<=now){const e=R.visQ.shift();rLight(e.cell);}
   const inCount=now<R.countEndTime;
   const ban=$("#rBanner");if(ban){if(inCount){ban.hidden=false;ban.textContent="Count‑in… breathe";}else ban.hidden=true;}
-  if(R.speak){if(!inCount){rDetect(now);rMatch(now);}rScoreUI(inCount);}
+  if(R.speak){rDetect(now,!inCount);if(!inCount)rMatch(now);rScoreUI(inCount);}
   R.raf=requestAnimationFrame(rFrame);
 }
 function rStart(){
   if(R.running)return;const a=ac();R.running=true;R.cur=0;R.nextTime=a.currentTime+0.14;
   R.visQ=[];R.expected=[];R.litCell=-1;R.barCount=0;R.resolved=0;R.matched=0;R.inPocket=0;R.errSum=0;R.errAbsSum=0;
-  R.t0=R.nextTime;R.countEndTime=R.t0+R.countIn*4*rCellDur();
+  R.t0=R.nextTime;R.countEndTime=R.t0+R.countIn*(60/R.bpm)*4;R.floor=null;R.lastPeak=0;
   R.schID=setInterval(rSchedule,25);R.raf=requestAnimationFrame(rFrame);
   const b=$("#rStart");if(b)b.textContent="⏸ Stop";
 }
@@ -1235,7 +1243,7 @@ function rRenderChips(){
   RHYTHM_PATTERNS.forEach((p,i)=>{const c=document.createElement("button");
     c.className="rchip"+(i===R.patIdx?" sel":"");c.textContent=p.name;
     c.onclick=()=>{R.patIdx=i;R.beaned=false;R.resolved=0;R.matched=0;R.inPocket=0;R.errSum=0;R.errAbsSum=0;R.barCount=0;
-      if(R.running){R.cur=0;R.nextTime=ac().currentTime+0.12;R.visQ=[];R.expected=[];R.countEndTime=R.nextTime+R.countIn*4*rCellDur();}
+      if(R.running){R.cur=0;R.nextTime=ac().currentTime+0.12;R.visQ=[];R.expected=[];R.countEndTime=R.nextTime+R.countIn*(60/R.bpm)*4;}
       rRenderChips();rRenderCells();rScoreUI();};
     box.appendChild(c);});
 }
@@ -1266,7 +1274,8 @@ async function renderRhythm(speak){
       <div class="rrow2"><span class="rlab">Sound</span><span class="rchips tight" id="rSoundChips"></span></div>
       ${speak?`<div class="rrow2"><span class="rlab">Precision</span><span class="rchips tight" id="rPrecChips"></span></div>`:""}
       <div class="actions"><button class="btn" id="rStart">▶ Start</button></div>
-      ${speak?`<div class="rscore"><div class="racc" id="rAcc">—</div><div class="rfeel" id="rFeel">Press Start, then count out loud</div></div>`:""}
+      ${speak?`<div class="rrow2"><span class="rlab">Mic</span><div class="rmeter"><div class="rmeter-f" id="rMeterF"></div></div></div>
+      <div class="rscore"><div class="racc" id="rAcc">—</div><div class="rfeel" id="rFeel">Press Start, then count out loud</div></div>`:""}
     </div>`;
   $("#eBack").onclick=goHome;
   teardown=()=>{rStop();stopMic();};
