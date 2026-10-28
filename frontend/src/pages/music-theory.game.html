@@ -171,6 +171,8 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .rchip.sel{background:rgba(165,121,255,.2);border-color:var(--violet);color:#fff}
 .rmeter{flex:1;height:12px;background:var(--card2);border:1px solid var(--line);border-radius:999px;overflow:hidden}
 .rmeter-f{height:100%;width:0;background:linear-gradient(90deg,var(--good),var(--gold));border-radius:999px;transition:width .06s}
+.tappad{width:100%;height:130px;margin:14px 0 8px;border-radius:16px;border:2px solid var(--violet);background:rgba(165,121,255,.12);color:var(--cream);font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:1.7rem;letter-spacing:4px;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.tappad.hit{background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#241800;transform:scale(.99)}
 .rscore{text-align:center;margin-top:16px}
 .racc{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:2.6rem;line-height:1;color:var(--good)}
 .rfeel{font-size:.95rem;color:var(--muted);font-family:"Nunito Sans",system-ui,sans-serif;margin-top:6px;transition:color .1s;min-height:22px}
@@ -235,7 +237,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 <div id="fx"></div>
 <div class="wrap">
   <div class="top">
-    <div class="brand"><button class="exit" id="exitBtn" title="Back to The Hermetic Way" aria-label="Back to the Hermetic Way">⟵ Hermes</button><span class="sigil">♪</span><h1>MAJICK Music</h1></div>
+    <div class="brand"><span class="sigil">♪</span><h1>MAJICK Music</h1></div>
     <div class="score">
       <button class="chip who" id="switchProfile" title="Switch player">🎧 <span id="profileName">—</span></button>
       <span class="chip" id="beanChipM" hidden>🫘 <span id="beanNumM">0</span></span>
@@ -417,8 +419,6 @@ function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 const home=$("#home"),view=$("#view");
 function beanChip(){const c=$("#beanChipM");if(!c)return;
-  c.style.cursor="pointer";c.title="Open the Bean shop";
-  c.onclick=()=>{if(!activeId())return;try{localStorage.setItem("majick-open-shop","1");}catch(e){}window.parent.postMessage({mjk:"shop"},"*");};
   if(activeId()){c.hidden=false;$("#beanNumM").textContent=getBeans();}else c.hidden=true;}
 function burst(el,count,kind){const fx=$("#fx");if(!el)return;const r=el.getBoundingClientRect();
   const cx=r.left+r.width/2,cy=r.top+r.height/2;const set=kind==="bean"?["🫘","🪙","✨"]:["✦","✧","⭐","♪","✨"];
@@ -1130,7 +1130,10 @@ const RHYTHM_PATTERNS=[
  {id:"backbeat",name:"Backbeat (2 & 4)",div:4,active:[4,12],say:"(rest) 2 (rest) 4"}
 ];
 const RHYTHM_CARDS=[
+ {ic:"📖",title:"Learn Rhythm",blurb:"Flip-cards for note values — whole, half, quarter, eighths, triplets — and how to count each. Hear every one.",go:()=>rhythmLearn()},
  {ic:"🥁",title:"Metronome Flow",blurb:"A magical metronome — pick a rhythm shape and count along, slow and steady.",go:()=>renderRhythm(false)},
+ {ic:"👆",title:"Tap It Back",blurb:"Hear a rhythm, then tap it back on the pad — scored, no mic needed.",go:()=>tapBackMenu()},
+ {ic:"🧠",title:"Name That Rhythm",blurb:"Hear a rhythm and pick which one it was — train your ear to read the beat.",go:()=>rhythmNameQuiz()},
  {ic:"🧘",title:"Speak the Rhythm",blurb:"Count the rhythm out loud into the mic — a breath-and-beat meditation that scores how in-time you are.",go:()=>renderRhythm(true)}
 ];
 /* click voices */
@@ -1306,6 +1309,120 @@ function rRenderMini(){
     [["loose","Loose · ±140ms"],["normal","Normal · ±90ms"],["tight","Tight · ±55ms"]].forEach(([id,nm])=>{
       const b=document.createElement("button");b.className="rchip sm"+(id===R.precision?" sel":"");
       b.textContent=nm;b.onclick=()=>{R.precision=id;rRenderMini();};pc.appendChild(b);});}
+}
+
+/* ===== RHYTHM LEARNING: lessons, tap-back, name-that ===== */
+const RHYTHM_LESSONS=[
+ {id:"whole",glyph:"𝅝",name:"Whole note",val:"4 beats",count:"Hold it right through 1 – 2 – 3 – 4."},
+ {id:"half",glyph:"𝅗𝅥",name:"Half note",val:"2 beats",count:"Two fill a bar: 1–2, then 3–4."},
+ {id:"quarter",glyph:"♩",name:"Quarter note",val:"1 beat",count:"One on every beat: 1, 2, 3, 4."},
+ {id:"eighth",glyph:"♪",name:"Eighth note",val:"half a beat",count:"Two per beat: 1 & 2 & 3 & 4 &."},
+ {id:"sixteenth",glyph:"♬",name:"Sixteenth note",val:"a quarter of a beat",count:"Four per beat: 1 e & a, 2 e & a …"},
+ {id:"triplet",glyph:"³",name:"Triplet",val:"3 in one beat",count:"Say: 1 trip let, 2 trip let …"},
+ {id:"dotted",glyph:"♩·",name:"Dotted note",val:"+ half again",count:"A dot adds half the note's length (long–short)."},
+ {id:"rest",glyph:"𝄽",name:"Rest",val:"silence",count:"Count it in your head — just don't play it."}
+];
+function playValueExample(id){
+  const a=ac(),bpm=80,beat=60/bpm;for(let b=0;b<4;b++)click(a.currentTime+0.1+b*beat,"sub");
+  const map={whole:[[0,4]],half:[[0,2],[2,2]],quarter:[[0,1],[1,1],[2,1],[3,1]],
+    eighth:Array.from({length:8},(_,i)=>[i*0.5,0.5]),sixteenth:Array.from({length:16},(_,i)=>[i*0.25,0.25]),
+    triplet:Array.from({length:12},(_,i)=>[i/3,1/3]),dotted:[[0,1.5],[1.5,0.5],[2,1.5],[3.5,0.5]],rest:[]};
+  (map[id]||[]).forEach(([t,d])=>playTone(midiToFreq(67),0.1+t*beat,Math.max(0.14,d*beat*0.92)));
+}
+function rhythmLearn(){
+  if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  let i=0,flip=false;
+  function draw(){const L=RHYTHM_LESSONS[i];
+    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">📖 Learn Rhythm</span>
+       <span style="margin-left:auto;color:var(--muted);font-weight:800;font-size:.8rem">${i+1}/${RHYTHM_LESSONS.length}</span></div>
+      <div class="panel" style="text-align:center">
+        <div style="font-size:3.2rem;margin:4px 0">${L.glyph}</div>
+        <div class="q">${esc(L.name)}</div>
+        <div class="feedback good" style="min-height:0">${esc(L.val)}</div>
+        <div class="intro" style="margin-top:10px;${flip?"":"opacity:.35"}">${flip?esc(L.count):"Tap “Show” to see how to count it."}</div>
+        <div class="actions"><button class="btn" id="hear">▶ Hear it</button><button class="btn ghost" id="show">${flip?"Hide":"Show"}</button></div>
+        <div class="actions"><button class="btn ghost" id="prev">← Prev</button><button class="btn ghost" id="next">Next →</button></div>
+      </div>`;
+    $("#eBack").onclick=goHome;$("#hear").onclick=()=>playValueExample(L.id);
+    $("#show").onclick=()=>{flip=!flip;draw();};
+    $("#prev").onclick=()=>{i=(i-1+RHYTHM_LESSONS.length)%RHYTHM_LESSONS.length;flip=false;draw();};
+    $("#next").onclick=()=>{i=(i+1)%RHYTHM_LESSONS.length;flip=false;draw();};
+  }
+  draw();
+}
+const TAP_PATTERNS=RHYTHM_PATTERNS.filter(p=>["quarter","eighth","skip3","backbeat","gallop","dotted","triplet"].indexOf(p.id)>=0);
+function tapBackMenu(){
+  if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">👆 Tap It Back</span></div>
+    <div class="panel" style="margin-bottom:12px"><div class="intro">Hear a rhythm, then tap it back on the big pad. No mic needed — it scores how close your taps land. Pick one:</div></div>
+    <div id="tapList"></div>`;
+  $("#eBack").onclick=goHome;const el=$("#tapList");
+  TAP_PATTERNS.forEach(p=>{const passed=load(mk("tap",p.id+"-paid"),false);const row=document.createElement("div");row.className="kb"+(passed?" done":"");
+    row.innerHTML=`<span class="kb-ic">🥁</span><div class="kb-main"><div class="kb-t">${esc(p.name)}</div><div class="kb-s">${esc(p.say)}</div></div>`;
+    const b=document.createElement("button");b.className="kb-btn";b.textContent="Try it";b.onclick=()=>tapRound(p);row.appendChild(b);el.appendChild(row);});
+}
+function tapRound(pat){
+  if(toneRAF)cancelAnimationFrame(toneRAF);
+  const bpm=84,beat=60/bpm,cellDur=beat/pat.div,barDur=beat*4;
+  let taps=[],expected=[],phase="idle",winTimer=null;
+  function hear(){const a=ac();let t=a.currentTime+0.2;for(let b=0;b<4;b++){click(t,b===0?"accent":"beat");t+=beat;}
+    for(let c=0;c<4*pat.div;c++){if(pat.active.indexOf(c)>=0)click(t,c===0?"accent":(c%pat.div===0?"beat":"sub"));t+=cellDur;}}
+  function go(){taps=[];expected=[];phase="count";const a=ac();let t=a.currentTime+0.3;
+    for(let b=0;b<4;b++){click(t,b===0?"accent":"beat");t+=beat;}
+    const patStart=t;for(let c=0;c<4*pat.div;c++){if(pat.active.indexOf(c)>=0)expected.push(patStart+c*cellDur);}
+    setTimeout(()=>{phase="tap";const s=$("#tapStatus");if(s){s.textContent="Tap now!";s.className="feedback good";}},(patStart-a.currentTime)*1000);
+    winTimer=setTimeout(()=>{phase="done";score();},(patStart+barDur+0.6-a.currentTime)*1000);}
+  function onTap(){if(phase!=="tap")return;taps.push(ac().currentTime);const pad=$("#tapPad");if(pad){pad.classList.add("hit");setTimeout(()=>pad.classList.remove("hit"),90);}}
+  function score(){const win=Math.min(0.2,cellDur*0.95);let inPocket=0,matched=0,errAbs=0;const used=new Set();
+    expected.forEach(e=>{let best=-1,bd=1e9;taps.forEach((d,idx)=>{if(used.has(idx))return;const dd=Math.abs(d-e);if(dd<=win&&dd<bd){bd=dd;best=idx;}});
+      if(best>=0){used.add(best);matched++;errAbs+=bd;if(bd<=POCKET.normal)inPocket++;}});
+    const acc=expected.length?Math.round(100*inPocket/expected.length):0,ms=matched?Math.round(1000*errAbs/matched):0;
+    let note="";if(acc>=70&&activeId()){if(!load(mk("tap",pat.id+"-paid"),false)){addBeans(12);save(mk("tap",pat.id+"-paid"),true);note='<div class="bean-note">+12 🫘</div>';}else{addBeans(2);note='<div class="bean-note">+2 🫘</div>';}beanChip();}
+    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">👆 ${esc(pat.name)}</span></div>
+      <div class="panel" style="text-align:center"><div style="font-size:2.4rem">${acc>=70?"🥁":"🔁"}</div>
+      <div class="q" style="margin-top:8px">${acc}% in the pocket</div>
+      <div class="feedback good">${matched} of ${expected.length} taps landed${ms?" · ±"+ms+" ms":""}</div>${note}
+      <div class="actions"><button class="btn" id="again">Again</button><button class="btn ghost" id="menu">Back</button></div></div>`;
+    $("#eBack").onclick=goHome;$("#again").onclick=()=>tapRound(pat);$("#menu").onclick=tapBackMenu;if(acc>=70)burst($(".q"),12);}
+  teardown=()=>{if(winTimer)clearTimeout(winTimer);};
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">👆 ${esc(pat.name)}</span></div>
+    <div class="panel"><div class="ask">${esc(pat.say)}</div>
+      <div class="actions"><button class="btn" id="hear">▶ Hear it</button><button class="btn" id="go">Tap it →</button></div>
+      <button class="tappad" id="tapPad">TAP</button>
+      <div class="feedback" id="tapStatus">Hear it, then tap “Tap it” and tap the rhythm on the pad.</div></div>`;
+  $("#eBack").onclick=goHome;$("#hear").onclick=hear;$("#go").onclick=go;
+  const pad=$("#tapPad");pad.addEventListener("pointerdown",e=>{e.preventDefault();onTap();});
+}
+function rhythmNameQuiz(){
+  if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  const pool=RHYTHM_PATTERNS;let qi=0,correct=0;const TOTAL=6;
+  function step(){
+    if(qi>=TOTAL){const pass=correct>=4;let note="";
+      if(pass&&activeId()){if(!load(mk("rname","paid"),false)){addBeans(10);save(mk("rname","paid"),true);note='<div class="bean-note">+10 🫘</div>';}else{addBeans(2);note='<div class="bean-note">+2 🫘</div>';}beanChip();}
+      view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🧠 Name That Rhythm</span></div>
+        <div class="panel" style="text-align:center"><div style="font-size:2.4rem">${pass?"🧠":"🔁"}</div>
+        <div class="q" style="margin-top:8px">${correct} / ${TOTAL}</div>${note}
+        <div class="actions"><button class="btn" id="again">Again</button><button class="btn ghost" id="back2">Back</button></div></div>`;
+      $("#eBack").onclick=goHome;$("#again").onclick=rhythmNameQuiz;$("#back2").onclick=goHome;if(pass)burst($(".q"),10);return;}
+    const ans=pool[Math.floor(Math.random()*pool.length)];
+    const others=pool.filter(p=>p.id!==ans.id);for(let i=others.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[others[i],others[j]]=[others[j],others[i]];}
+    const opts=[ans,...others.slice(0,3)];for(let i=opts.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[opts[i],opts[j]]=[opts[j],opts[i]];}
+    const playIt=()=>{const a=ac();let t=a.currentTime+0.15;const div=ans.div,cd=(60/84)/div;for(let c=0;c<4*div;c++){if(ans.active.indexOf(c)>=0)click(t,c===0?"accent":(c%div===0?"beat":"sub"));t+=cd;}};
+    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🧠 Which rhythm?</span>
+       <span style="margin-left:auto;color:var(--muted);font-weight:800;font-size:.8rem">${qi+1}/${TOTAL}</span></div>
+      <div class="panel"><div class="ask">Listen, then pick the rhythm you heard</div>
+      <div class="actions"><button class="btn" id="play">▶ Play</button><button class="btn ghost" id="replay">↻ Again</button></div>
+      <div class="opts" id="opts" style="margin-top:14px"></div><div class="feedback" id="fb"></div>
+      <div class="actions"><button class="btn" id="next" disabled>Next</button></div></div>`;
+    $("#eBack").onclick=goHome;$("#play").onclick=playIt;$("#replay").onclick=playIt;
+    const box=$("#opts");
+    opts.forEach(o=>{const b=document.createElement("button");b.className="opt";b.textContent=o.name;
+      b.onclick=()=>{if(box.dataset.lock)return;if(o.id===ans.id){box.dataset.lock="1";b.classList.add("correct");[...box.children].forEach(c=>c.disabled=true);correct++;$("#fb").textContent="Yes — "+ans.name;$("#fb").className="feedback good";$("#next").disabled=false;$("#next").focus();}
+        else{b.classList.add("wrong");b.disabled=true;$("#fb").textContent="Not that one — listen again ↻";$("#fb").className="feedback try";}};
+      box.appendChild(b);});
+    $("#next").onclick=()=>{qi++;step();};setTimeout(playIt,250);
+  }
+  step();
 }
 
 /* ===== BIOFEEDBACK — Muse 2 live monitor (Web Bluetooth) ===== */
