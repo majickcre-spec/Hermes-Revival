@@ -296,6 +296,8 @@ body.gated .chip.bean{visibility:hidden}
 .claim .cl-name{font-weight:800}
 .claim .cl-st{font-size:.74rem;font-family:"Marcellus",serif;letter-spacing:1px;text-transform:uppercase}
 .claim .cl-st.pending{color:var(--gold)} .claim .cl-st.fulfilled{color:var(--good)}
+.claim .cl-got{font-size:.86rem;color:var(--cream);opacity:.82;font-style:italic;margin-top:3px}
+.claim{align-items:flex-start}
 .empty{color:var(--muted);text-align:center;padding:22px;font-size:.92rem}
 /* grown-up editor */
 .gsec{border-top:1px solid var(--line);margin-top:16px;padding-top:14px}
@@ -1150,13 +1152,20 @@ function claimItem(it){const saved=goals[it.id]||0;if(saved<it.cost)return;
   delete goals[it.id];claims.unshift({id:newId(),itemId:it.id,name:it.name,icon:it.icon,cost:it.cost,online:it.online,url:it.url,ts:Date.now(),status:"pending"});
   persist();updateScore();burst(document.querySelector(".shop-bal"),"star",16);renderShop();}
 function renderTray(){
-  const t=$("#tray");if(!claims.length){t.innerHTML="";return;}
-  t.innerHTML=`<div class="label" style="margin:6px 2px 10px">Your claims</div>`;
-  claims.forEach(c=>{const d=document.createElement("div");d.className="claim";
-    d.innerHTML=`<span class="cl-ic">${esc(c.icon||"🎁")}</span>
+  const t=$("#tray");if(!t)return;if(!claims.length){t.innerHTML="";return;}
+  const pending=claims.filter(c=>c.status!=="fulfilled"),won=claims.filter(c=>c.status==="fulfilled");
+  let html="";
+  if(pending.length){html+=`<div class="label" style="margin:6px 2px 10px">Your claims</div>`;
+    pending.forEach(c=>{html+=`<div class="claim"><span class="cl-ic">${esc(c.icon||"🎁")}</span>
       <div class="cl-main"><div class="cl-name">${esc(c.name)}</div>
-        <div class="cl-st ${c.status==="fulfilled"?"fulfilled":"pending"}">${c.status==="fulfilled"?"Given to you ✓":"Waiting for a grown-up"}</div></div>`;
-    t.appendChild(d);});
+      <div class="cl-st pending">Waiting for a grown-up</div></div></div>`;});}
+  if(won.length){html+=`<div class="label" style="margin:16px 2px 10px">Prizes won 🏆</div>`;
+    won.forEach(c=>{const d=c.doneTs?new Date(c.doneTs).toLocaleDateString():"";
+      html+=`<div class="claim"><span class="cl-ic">${esc(c.icon||"🎁")}</span>
+      <div class="cl-main"><div class="cl-name">${esc(c.name)}</div>
+      <div class="cl-st fulfilled">Given to you ✓${d?" · "+esc(d):""}</div>
+      ${c.note?`<div class="cl-got">“${esc(c.note)}”</div>`:""}</div></div>`;});}
+  t.innerHTML=html;
 }
 
 /* ===== grown-up admin (inside Notes sheet) ===== */
@@ -1173,12 +1182,18 @@ function renderParentAdmin(){
   const ca=$("#claimsAdmin");if(ca){ca.innerHTML="";
     if(!claims.length)ca.innerHTML='<div class="er-sub">No claims yet.</div>';
     claims.forEach(c=>{const r=document.createElement("div");r.className="erow";
+      const done=c.doneTs?" · "+new Date(c.doneTs).toLocaleDateString():"";
       r.innerHTML=`<span style="font-size:1.2rem">${esc(c.icon||"🎁")}</span>
         <div class="er-main"><div>${esc(c.name)} — ${c.cost} 🫘</div>
-        <div class="er-sub">${c.status==="fulfilled"?"fulfilled":"pending"}${c.online&&c.url?' · <a href="'+esc(c.url)+'" target="_blank" rel="noopener" style="color:#9bd0ff">open link</a>':""}</div></div>`;
+        <div class="er-sub">${c.status==="fulfilled"?"fulfilled"+done:"pending"}${c.online&&c.url?' · <a href="'+esc(c.url)+'" target="_blank" rel="noopener" style="color:#9bd0ff">open link</a>':""}</div>
+        <input class="ginput cl-note" placeholder="What did she watch / get?" value="${esc(c.note||"")}" style="margin-top:6px"></div>`;
+      const inp=r.querySelector(".cl-note");
+      inp.onchange=()=>{c.note=inp.value.trim();persist();renderTray();};
       const btn=document.createElement("button");btn.textContent=c.status==="fulfilled"?"Undo":"Mark given";
-      btn.onclick=()=>{c.status=c.status==="fulfilled"?"pending":"fulfilled";persist();renderParentAdmin();};
-      r.appendChild(btn);ca.appendChild(r);});}
+      btn.onclick=()=>{if(c.status==="fulfilled"){c.status="pending";delete c.doneTs;}else{c.note=inp.value.trim();c.status="fulfilled";c.doneTs=Date.now();}persist();renderParentAdmin();renderTray();};
+      const del=document.createElement("button");del.className="del";del.textContent="Remove";
+      del.onclick=()=>{claims=claims.filter(x=>x.id!==c.id);persist();renderParentAdmin();renderTray();};
+      r.appendChild(btn);r.appendChild(del);ca.appendChild(r);});}
 }
 function showItemForm(it){
   const editing=!!it;it=it||{id:newId(),cat:"Art Supplies",name:"",icon:"🎁",cost:100,online:true,url:"",note:""};
