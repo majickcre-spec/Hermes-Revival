@@ -59,13 +59,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
 
-          {/* Mobile Nav Toggle */}
-          <button 
-            className="md:hidden text-muted-foreground hover:text-primary"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            {mobileMenuOpen ? <X /> : <Menu />}
-          </button>
+          {/* Mobile: always-visible Music toggle + menu */}
+          <div className="flex items-center gap-2 md:hidden">
+            <Link
+              href="/music-theory"
+              className="rounded-full border border-primary/50 px-3 py-1.5 text-sm font-semibold text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+            >
+              ♪ Music
+            </Link>
+            <button
+              className="text-muted-foreground hover:text-primary"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X /> : <Menu />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Menu */}
