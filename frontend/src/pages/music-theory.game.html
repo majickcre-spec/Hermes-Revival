@@ -522,6 +522,7 @@ function renderQuiz(){
       let note="";
       if(pass&&!load(mk(T.id,"quiz"),false)){save(mk(T.id,"quiz"),true);
         if(activeId()&&!load(mk(T.id,"quiz-paid"),false)){addBeans(QUIZ_BEANS);save(mk(T.id,"quiz-paid"),true);note='<div class="bean-note">+'+QUIZ_BEANS+' 🫘</div>';}}
+      else if(pass&&activeId()){addBeans(3);note='<div class="bean-note">+3 🫘 practice</div>';}
       $("#tbody").innerHTML=`<div class="panel" style="text-align:center">
         <div style="font-size:2.4rem">${pass?"🎼":"🔁"}</div>
         <div class="q" style="margin-top:8px">${correct} / ${q.length} right</div>

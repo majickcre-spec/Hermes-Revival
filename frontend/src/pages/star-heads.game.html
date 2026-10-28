@@ -541,11 +541,13 @@ function defaultCatalog(){return [
  {id:"h1",cat:"Little Treats",name:"Movie night pick",icon:"🎬",cost:80,online:false,url:"",note:"You choose the film."},
  {id:"h2",cat:"Little Treats",name:"Bakery trip",icon:"🥐",cost:120,online:false,url:"",note:"A treat of your choosing."},
 ];}
-function getCatalog(){let c=load("majick-shop-catalog",null);if(!c){c=defaultCatalog();save("majick-shop-catalog",c);return c;}
-  // migrate: add newer default items once, without disturbing a grown-up's edits
-  if(load("majick-shop-catalog-v",0)<1){const have=new Set(c.map(i=>i.id));
-    defaultCatalog().forEach(di=>{if(["g1","g2","g3","g4"].includes(di.id)&&!have.has(di.id))c.push(di);});
-    save("majick-shop-catalog",c);save("majick-shop-catalog-v",1);}
+function getCatalog(){let c=load("majick-shop-catalog",null);const fresh=!c;if(fresh)c=defaultCatalog();
+  const v=load("majick-shop-catalog-v",0),have=new Set(c.map(i=>i.id));
+  // v1: add newer default items (tech & gadgets), without disturbing a grown-up's edits
+  if(v<1){defaultCatalog().forEach(di=>{if(["g1","g2","g3","g4"].includes(di.id)&&!have.has(di.id))c.push(di);});}
+  // v2: double every price once
+  if(v<2){c.forEach(i=>{if(typeof i.cost==="number")i.cost=i.cost*2;});}
+  save("majick-shop-catalog",c);save("majick-shop-catalog-v",2);
   return c;}
 function setCatalog(c){save("majick-shop-catalog",c);}
 
