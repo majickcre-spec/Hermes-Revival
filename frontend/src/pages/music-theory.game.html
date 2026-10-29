@@ -173,6 +173,9 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .rmeter-f{height:100%;width:0;background:linear-gradient(90deg,var(--good),var(--gold));border-radius:999px;transition:width .06s}
 .tappad{width:100%;height:130px;margin:14px 0 8px;border-radius:16px;border:2px solid var(--violet);background:rgba(165,121,255,.12);color:var(--cream);font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:1.7rem;letter-spacing:4px;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation}
 .tappad.hit{background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#241800;transform:scale(.99)}
+.notestrip{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
+.nchip{font:inherit;font-weight:800;font-size:.92rem;padding:9px 11px;border-radius:10px;background:var(--card2);border:1px solid var(--line);color:var(--cream);cursor:pointer;font-family:"Bricolage Grotesque",system-ui,sans-serif}
+.nchip.sel{background:rgba(255,159,92,.22);border-color:var(--gold);color:#fff}
 .rscore{text-align:center;margin-top:16px}
 .racc{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:2.6rem;line-height:1;color:var(--good)}
 .rfeel{font-size:.95rem;color:var(--muted);font-family:"Nunito Sans",system-ui,sans-serif;margin-top:6px;transition:color .1s;min-height:22px}
@@ -802,12 +805,13 @@ function toneMenu(){
   const cards=[
    {id:"match",ic:"🎯",title:"Match the Pitch",blurb:"Hear a note, then sing it back in tune."},
    {id:"interval",ic:"🎸",title:"Sing the Interval",blurb:"Hear the bottom note, then sing the one above it."},
-   {id:"phrase",ic:"🎵",title:"Sing a Phrase",blurb:"Sing a real song, one note at a time."}
+   {id:"phrase",ic:"🎵",title:"Sing a Phrase",blurb:"Sing a real song — whole phrase, scored, with playback."},
+   {id:"compose",ic:"🎙️",title:"Hum a Melody",blurb:"Make your own tune — hum it, I map the notes, you fix them, save it."}
   ];
   const g=$("#tGrid");
   cards.forEach(c=>{const b=document.createElement("button");b.className="card";
     b.innerHTML=`<span class="ic">${c.ic}</span><h3>${c.title}</h3><span class="blurb">${c.blurb}</span>`;
-    b.onclick=()=>{if(c.id==="match")toneMatchLevels();else if(c.id==="interval")toneIntervalLevels();else tonePhraseLevels();};
+    b.onclick=()=>{if(c.id==="match")toneMatchLevels();else if(c.id==="interval")toneIntervalLevels();else if(c.id==="phrase")tonePhraseLevels();else renderCompose();};
     g.appendChild(b);});
   beanChip();
 }
@@ -866,9 +870,9 @@ function renderMySongs(){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">⭐ My Songs</span></div>
     <div class="panel" style="margin-bottom:12px"><div class="intro">Songs you import from MIDI files. Drop in a melody MIDI, trim it to the phrase you want to practice, and it joins your library with full scoring + playback.</div>
-      <div class="actions"><button class="btn" id="imp">➕ Import a MIDI</button></div></div>
+      <div class="actions"><button class="btn" id="imp">➕ Import a MIDI</button><button class="btn" id="hum">🎙️ Hum a melody</button></div></div>
     <div id="mylist"></div>`;
-  $("#eBack").onclick=tonePhraseLevels;$("#imp").onclick=renderSongImport;
+  $("#eBack").onclick=tonePhraseLevels;$("#imp").onclick=renderSongImport;$("#hum").onclick=renderCompose;
   const el=$("#mylist");
   if(!SONGLIB.length){el.innerHTML='<div class="site-note">No songs yet — tap “Import a MIDI”. Download a melody MIDI in your browser, then load it here.</div>';return;}
   SONGLIB.forEach((s,i)=>{const row=document.createElement("div");row.className="kb";
@@ -1423,6 +1427,75 @@ function rhythmNameQuiz(){
     $("#next").onclick=()=>{qi++;step();};setTimeout(playIt,250);
   }
   step();
+}
+
+/* ===== HUM A MELODY — compose, map notes, correct, save ===== */
+function renderCompose(){
+  if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎙️ Hum a Melody</span></div>
+    <div class="panel" style="text-align:center"><div class="q">Turning on your microphone…</div></div>`;
+  $("#eBack").onclick=goHome;
+  ensureMic().then(ok=>{
+    if(!ok){view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎙️ Hum a Melody</span></div>
+      <div class="panel" style="text-align:center"><div style="font-size:2rem">🎤</div><div class="q" style="margin-top:6px">I need your microphone to hear you</div>
+      <div class="intro" style="border:none;text-align:left;margin:10px auto;max-width:420px">Tap <b>Allow</b> when asked. Works best on the live MAJICK&nbsp;Music site.</div>
+      <div class="actions"><button class="btn" id="retry">Try again</button><button class="btn ghost" id="back2">Back</button></div></div>`;
+      $("#eBack").onclick=goHome;$("#back2").onclick=goHome;$("#retry").onclick=renderCompose;return;}
+    composeUI();
+  });
+}
+const KEY_OPTS=(function(){const roots=["C","C♯","D","E♭","E","F","F♯","G","A♭","A","B♭","B"],rm=[60,61,62,63,64,65,66,67,68,69,70,71],o=[];
+  roots.forEach((r,i)=>o.push({l:r+" major",root:rm[i],sc:[0,2,4,5,7,9,11]}));
+  roots.forEach((r,i)=>o.push({l:r+" minor",root:rm[i],sc:[0,2,3,5,7,8,10]}));return o;})();
+function composeUI(){
+  let notes=[],sel=-1,capRAF=null,capturing=false,capSamples=[],capStart=0,rec=null,recChunks=[],humUrl=null;
+  const maxDur=22;
+  teardown=()=>{if(capRAF)cancelAnimationFrame(capRAF);if(humUrl){try{URL.revokeObjectURL(humUrl);}catch(e){}}stopMic();};
+  function playMelody(){notes.forEach((n,k)=>playSustain(midiToFreq(n.midi),k*0.42,0.4,0.7));}
+  function stopCap(){if(!capturing)return;capturing=false;if(capRAF)cancelAnimationFrame(capRAF);capRAF=null;
+    try{if(rec&&rec.state!=="inactive")rec.stop();}catch(e){}
+    notes=phraseSegment(capSamples).map(s=>({midi:Math.round(s.midi)}));sel=notes.length?0:-1;draw();}
+  function startCap(){
+    if(capturing)return;capturing=true;capSamples=[];capStart=ac().currentTime;recChunks=[];rec=null;
+    try{rec=new MediaRecorder(micStream);rec.ondataavailable=e=>{if(e.data&&e.data.size)recChunks.push(e.data);};
+      rec.onstop=()=>{if(!recChunks.length)return;if(humUrl)try{URL.revokeObjectURL(humUrl);}catch(e){}humUrl=URL.createObjectURL(new Blob(recChunks,{type:(rec&&rec.mimeType)||"audio/webm"}));draw();};rec.start();}catch(e){rec=null;}
+    draw();
+    const buf=new Float32Array(toneAnalyser.fftSize);
+    (function loop(){const now=ac().currentTime;toneAnalyser.getFloatTimeDomainData(buf);const f=autoCorrelate(buf,ac().sampleRate);
+      let midi=null;if(f>=70&&f<=1100)midi=69+12*Math.log2(f/440);capSamples.push({t:now-capStart,midi});
+      const l=$("#cStatus");if(l&&midi!=null)l.textContent="🎤 hearing "+midiName(midi)+" …";
+      if(now-capStart>=maxDur){stopCap();return;}capRAF=requestAnimationFrame(loop);})();
+  }
+  function nudge(d){if(sel<0)return;notes[sel].midi=Math.max(36,Math.min(96,notes[sel].midi+d));playSustain(midiToFreq(notes[sel].midi),0,0.5,0.7);draw();}
+  function snapKey(o){notes.forEach(n=>{let best=n.midi,bd=99;for(let k=-6;k<=6;k++){const cand=n.midi+k,pc=((cand-o.root)%12+12)%12;if(o.sc.indexOf(pc)>=0&&Math.abs(k)<bd){bd=Math.abs(k);best=cand;}}n.midi=best;});draw();}
+  function draw(){
+    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎙️ Hum a Melody</span></div>
+      <div class="panel">
+        <div class="intro">Hum or sing a tune — I'll map the notes. Then fix any that are off, snap it to a key, play it back, and save it as your own song.</div>
+        <div class="rrow2"><span class="rlab">Voice</span><span class="rchips tight" id="cVoice"></span></div>
+        <div class="actions"><button class="btn" id="hum">${capturing?"■ Stop":"🎤 Hum it"}</button><button class="btn ghost" id="playmel" ${notes.length&&!capturing?"":"disabled"}>▶ Play</button>${humUrl&&!capturing?'<button class="btn ghost" id="playhum">▶ My hum</button>':""}</div>
+        <div class="feedback" id="cStatus">${capturing?"🎤 Humming… tap Stop when done":(notes.length?notes.length+" notes mapped — tap a note, then nudge it":"Tap “Hum it” and sing your melody")}</div>
+        <div class="notestrip" id="strip"></div>
+        ${notes.length&&!capturing?`<div class="actions"><button class="btn ghost" id="dn">▼ lower</button><button class="btn ghost" id="up">▲ higher</button><button class="btn ghost" id="del">✕ delete</button></div>
+        <div class="rrow2"><span class="rlab">Snap to key</span><select id="keysel" style="background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit;flex:1">${KEY_OPTS.map((o,i)=>`<option value="${i}">${o.l}</option>`).join("")}</select><button class="rchip sm" id="snap">Snap</button></div>
+        <div class="rrow2"><span class="rlab">Name</span><input id="cname" value="My melody" style="background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit;flex:1"></div>
+        <div class="actions"><button class="btn" id="save">⭐ Save to My Songs</button><button class="btn ghost" id="clear">Clear</button></div>`:""}
+      </div>`;
+    $("#eBack").onclick=goHome;
+    const vc=$("#cVoice");VOICES.forEach(v=>{const b=document.createElement("button");b.className="rchip sm"+(v.id===toneVoice?" sel":"");b.textContent=v.name;b.onclick=()=>{toneVoice=v.id;save("mjk-tonevoice",v.id);draw();};vc.appendChild(b);});
+    $("#hum").onclick=()=>{if(capturing)stopCap();else startCap();};
+    const pm=$("#playmel");if(pm&&!pm.disabled)pm.onclick=playMelody;
+    const ph=$("#playhum");if(ph)ph.onclick=()=>{if(humUrl)playClip(humUrl);};
+    const strip=$("#strip");if(strip){strip.innerHTML="";notes.forEach((n,i)=>{const c=document.createElement("button");c.className="nchip"+(i===sel?" sel":"");c.textContent=midiName(n.midi);c.onclick=()=>{sel=i;playSustain(midiToFreq(n.midi),0,0.45,0.7);draw();};strip.appendChild(c);});}
+    if(notes.length&&!capturing){
+      $("#up").onclick=()=>nudge(1);$("#dn").onclick=()=>nudge(-1);
+      $("#del").onclick=()=>{if(sel<0)return;notes.splice(sel,1);if(sel>=notes.length)sel=notes.length-1;draw();};
+      $("#snap").onclick=()=>snapKey(KEY_OPTS[+$("#keysel").value]);
+      $("#save").onclick=()=>{if(!notes.length)return;const nm=($("#cname").value||"My melody").trim();SONGLIB.push({name:nm,notes:notes.map(n=>n.midi)});save("mjk-songs",SONGLIB);$("#cStatus").textContent="Saved “"+nm+"” to My Songs ⭐";burst($("#strip"),8);};
+      $("#clear").onclick=()=>{notes=[];sel=-1;draw();};
+    }
+  }
+  draw();
 }
 
 /* ===== BIOFEEDBACK — Muse 2 live monitor (Web Bluetooth) ===== */
