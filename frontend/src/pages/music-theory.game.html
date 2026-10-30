@@ -176,6 +176,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .notestrip{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
 .nchip{font:inherit;font-weight:800;font-size:.92rem;padding:9px 11px;border-radius:10px;background:var(--card2);border:1px solid var(--line);color:var(--cream);cursor:pointer;font-family:"Bricolage Grotesque",system-ui,sans-serif}
 .nchip.sel{background:rgba(255,159,92,.22);border-color:var(--gold);color:#fff}
+.staffbox{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:6px;margin:12px 0;overflow-x:auto}
 .rscore{text-align:center;margin-top:16px}
 .racc{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:2.6rem;line-height:1;color:var(--good)}
 .rfeel{font-size:.95rem;color:var(--muted);font-family:"Nunito Sans",system-ui,sans-serif;margin-top:6px;transition:color .1s;min-height:22px}
@@ -525,7 +526,6 @@ function renderQuiz(){
       let note="";
       if(pass&&!load(mk(T.id,"quiz"),false)){save(mk(T.id,"quiz"),true);
         if(activeId()&&!load(mk(T.id,"quiz-paid"),false)){addBeans(QUIZ_BEANS);save(mk(T.id,"quiz-paid"),true);note='<div class="bean-note">+'+QUIZ_BEANS+' 🫘</div>';}}
-      else if(pass&&activeId()){addBeans(3);note='<div class="bean-note">+3 🫘 practice</div>';}
       $("#tbody").innerHTML=`<div class="panel" style="text-align:center">
         <div style="font-size:2.4rem">${pass?"🎼":"🔁"}</div>
         <div class="q" style="margin-top:8px">${correct} / ${q.length} right</div>
@@ -545,7 +545,8 @@ function renderQuiz(){
     opts.forEach(t=>{const b=document.createElement("button");b.className="opt";b.textContent=t;
       b.onclick=()=>{if(box.dataset.lock)return;
         if(t===card.t){box.dataset.lock="1";b.classList.add("correct");[...box.children].forEach(c=>c.disabled=true);
-          correct++;$("#fb").textContent="Yes ♪";$("#fb").className="feedback good";$("#nextQ").disabled=false;$("#nextQ").focus();}
+          correct++;$("#fb").textContent="Yes ♪";$("#fb").className="feedback good";$("#nextQ").disabled=false;$("#nextQ").focus();
+          if(activeId()&&load(mk(T.id,"quiz-paid"),false)){addBeans(1);beanChip();$("#fb").textContent="Yes ♪ +1 🫘";}}
         else{b.classList.add("wrong");b.disabled=true;$("#fb").textContent="Not that one.";$("#fb").className="feedback try";}};
       box.appendChild(b);});
     $("#nextQ").onclick=()=>{i++;step();};
@@ -870,9 +871,10 @@ function renderMySongs(){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">⭐ My Songs</span></div>
     <div class="panel" style="margin-bottom:12px"><div class="intro">Songs you import from MIDI files. Drop in a melody MIDI, trim it to the phrase you want to practice, and it joins your library with full scoring + playback.</div>
-      <div class="actions"><button class="btn" id="imp">➕ Import a MIDI</button><button class="btn" id="hum">🎙️ Hum a melody</button></div></div>
+      <div class="actions"><button class="btn" id="imp">➕ Import a MIDI</button><button class="btn" id="hum">🎙️ Hum a melody</button></div>
+      <div class="actions"><button class="btn ghost" id="build">🎚️ Build a song from sections</button></div></div>
     <div id="mylist"></div>`;
-  $("#eBack").onclick=tonePhraseLevels;$("#imp").onclick=renderSongImport;$("#hum").onclick=renderCompose;
+  $("#eBack").onclick=tonePhraseLevels;$("#imp").onclick=renderSongImport;$("#hum").onclick=renderCompose;$("#build").onclick=renderSongBuilder;
   const el=$("#mylist");
   if(!SONGLIB.length){el.innerHTML='<div class="site-note">No songs yet — tap “Import a MIDI”. Download a melody MIDI in your browser, then load it here.</div>';return;}
   SONGLIB.forEach((s,i)=>{const row=document.createElement("div");row.className="kb";
@@ -1447,6 +1449,10 @@ function renderCompose(){
 const KEY_OPTS=(function(){const roots=["C","C♯","D","E♭","E","F","F♯","G","A♭","A","B♭","B"],rm=[60,61,62,63,64,65,66,67,68,69,70,71],o=[];
   roots.forEach((r,i)=>o.push({l:r+" major",root:rm[i],sc:[0,2,4,5,7,9,11]}));
   roots.forEach((r,i)=>o.push({l:r+" minor",root:rm[i],sc:[0,2,3,5,7,8,10]}));return o;})();
+/* pitch <-> treble-staff position (diatonic step; lines at even step-30) */
+const STAFF_LETTER=[0,0,1,1,2,3,3,4,4,5,5,6],STAFF_SHARP=[0,1,0,1,0,0,1,0,1,0,1,0],STAFF_PC=[0,2,4,5,7,9,11];
+function midiStaff(m){const pc=((m%12)+12)%12,oct=Math.floor(m/12)-1;return {step:oct*7+STAFF_LETTER[pc],sharp:STAFF_SHARP[pc]};}
+function staffMidi(step){const oct=Math.floor(step/7),li=((step%7)+7)%7;return (oct+1)*12+STAFF_PC[li];}
 function composeUI(){
   let notes=[],sel=-1,capRAF=null,capturing=false,capSamples=[],capStart=0,rec=null,recChunks=[],humUrl=null;
   const maxDur=22;
@@ -1468,15 +1474,37 @@ function composeUI(){
   }
   function nudge(d){if(sel<0)return;notes[sel].midi=Math.max(36,Math.min(96,notes[sel].midi+d));playSustain(midiToFreq(notes[sel].midi),0,0.5,0.7);draw();}
   function snapKey(o){notes.forEach(n=>{let best=n.midi,bd=99;for(let k=-6;k<=6;k++){const cand=n.midi+k,pc=((cand-o.root)%12+12)%12;if(o.sc.indexOf(pc)>=0&&Math.abs(k)<bd){bd=Math.abs(k);best=cand;}}n.midi=best;});draw();}
+  function buildStaff(){
+    const box=$("#staffBox");if(!box)return;
+    const NS="http://www.w3.org/2000/svg",W=Math.max(300,44+notes.length*30+24),H=150,yE4=104,per=6;
+    const yStep=s=>yE4-(s-30)*per;
+    const svg=document.createElementNS(NS,"svg");svg.setAttribute("viewBox","0 0 "+W+" "+H);svg.setAttribute("width","100%");svg.setAttribute("height",H);svg.style.touchAction="none";svg.style.maxWidth="100%";
+    for(let k=0;k<5;k++){const y=yStep(30+k*2),ln=document.createElementNS(NS,"line");ln.setAttribute("x1",10);ln.setAttribute("x2",W-10);ln.setAttribute("y1",y);ln.setAttribute("y2",y);ln.setAttribute("stroke","rgba(255,255,255,.32)");ln.setAttribute("stroke-width","1.2");svg.appendChild(ln);}
+    const cl=document.createElementNS(NS,"text");cl.setAttribute("x",12);cl.setAttribute("y",yStep(33));cl.setAttribute("font-size","54");cl.setAttribute("fill","#ff9f5c");cl.textContent="𝄞";svg.appendChild(cl);
+    const g=document.createElementNS(NS,"g");svg.appendChild(g);
+    box.innerHTML="";box.appendChild(svg);
+    function ledger(x,y){const l=document.createElementNS(NS,"line");l.setAttribute("x1",x-11);l.setAttribute("x2",x+11);l.setAttribute("y1",y);l.setAttribute("y2",y);l.setAttribute("stroke","rgba(255,255,255,.32)");l.setAttribute("stroke-width","1.2");g.appendChild(l);}
+    function paint(){g.innerHTML="";notes.forEach((nt,i)=>{const st=midiStaff(nt.midi),x=46+i*30,y=yStep(st.step);
+      if(st.step>38)for(let s=40;s<=st.step;s+=2)ledger(x,yStep(s));
+      if(st.step<30)for(let s=28;s>=st.step;s-=2)ledger(x,yStep(s));
+      if(st.sharp){const sh=document.createElementNS(NS,"text");sh.setAttribute("x",x-17);sh.setAttribute("y",y+5);sh.setAttribute("font-size","17");sh.setAttribute("fill",i===sel?"#fff":"#e8e4d9");sh.textContent="♯";g.appendChild(sh);}
+      const e=document.createElementNS(NS,"ellipse");e.setAttribute("cx",x);e.setAttribute("cy",y);e.setAttribute("rx","6.8");e.setAttribute("ry","5.2");e.setAttribute("fill",i===sel?"#ff9f5c":"#e8e4d9");e.setAttribute("data-i",i);e.style.cursor="grab";g.appendChild(e);});}
+    paint();
+    let dragging=false,dragI=-1;
+    svg.addEventListener("pointerdown",e=>{const t=e.target;if(t.tagName==="ellipse"){dragI=+t.getAttribute("data-i");dragging=true;sel=dragI;try{svg.setPointerCapture(e.pointerId);}catch(_){}paint();playSustain(midiToFreq(notes[dragI].midi),0,0.4,0.7);const l=$("#cStatus");if(l)l.textContent="Selected: "+midiName(notes[dragI].midi);}});
+    svg.addEventListener("pointermove",e=>{if(!dragging||dragI<0)return;const r=svg.getBoundingClientRect();const y=(e.clientY-r.top)*(H/r.height);let step=Math.max(16,Math.min(52,Math.round((yE4-y)/per)+30));const nm=staffMidi(step);if(nm!==notes[dragI].midi){notes[dragI].midi=nm;paint();const l=$("#cStatus");if(l)l.textContent="Selected: "+midiName(nm);}});
+    function end(e){if(dragging){dragging=false;try{svg.releasePointerCapture(e.pointerId);}catch(_){}if(dragI>=0)playSustain(midiToFreq(notes[dragI].midi),0,0.45,0.7);}}
+    svg.addEventListener("pointerup",end);svg.addEventListener("pointercancel",end);
+  }
   function draw(){
     view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎙️ Hum a Melody</span></div>
       <div class="panel">
         <div class="intro">Hum or sing a tune — I'll map the notes. Then fix any that are off, snap it to a key, play it back, and save it as your own song.</div>
         <div class="rrow2"><span class="rlab">Voice</span><span class="rchips tight" id="cVoice"></span></div>
         <div class="actions"><button class="btn" id="hum">${capturing?"■ Stop":"🎤 Hum it"}</button><button class="btn ghost" id="playmel" ${notes.length&&!capturing?"":"disabled"}>▶ Play</button>${humUrl&&!capturing?'<button class="btn ghost" id="playhum">▶ My hum</button>':""}</div>
-        <div class="feedback" id="cStatus">${capturing?"🎤 Humming… tap Stop when done":(notes.length?notes.length+" notes mapped — tap a note, then nudge it":"Tap “Hum it” and sing your melody")}</div>
-        <div class="notestrip" id="strip"></div>
-        ${notes.length&&!capturing?`<div class="actions"><button class="btn ghost" id="dn">▼ lower</button><button class="btn ghost" id="up">▲ higher</button><button class="btn ghost" id="del">✕ delete</button></div>
+        <div class="feedback" id="cStatus">${capturing?"🎤 Humming… tap Stop when done":(notes.length?notes.length+" notes mapped — tap a note on the staff, drag it or use ▲ ▼":"Tap “Hum it” and sing your melody")}</div>
+        ${notes.length&&!capturing?`<div class="staffbox" id="staffBox"></div>`:'<div class="notestrip" id="strip"></div>'}
+        ${notes.length&&!capturing?`<div class="actions"><button class="btn ghost" id="dn">▼ semitone</button><button class="btn ghost" id="up">▲ semitone</button><button class="btn ghost" id="del">✕ delete</button></div>
         <div class="rrow2"><span class="rlab">Snap to key</span><select id="keysel" style="background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit;flex:1">${KEY_OPTS.map((o,i)=>`<option value="${i}">${o.l}</option>`).join("")}</select><button class="rchip sm" id="snap">Snap</button></div>
         <div class="rrow2"><span class="rlab">Name</span><input id="cname" value="My melody" style="background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit;flex:1"></div>
         <div class="actions"><button class="btn" id="save">⭐ Save to My Songs</button><button class="btn ghost" id="clear">Clear</button></div>`:""}
@@ -1486,7 +1514,7 @@ function composeUI(){
     $("#hum").onclick=()=>{if(capturing)stopCap();else startCap();};
     const pm=$("#playmel");if(pm&&!pm.disabled)pm.onclick=playMelody;
     const ph=$("#playhum");if(ph)ph.onclick=()=>{if(humUrl)playClip(humUrl);};
-    const strip=$("#strip");if(strip){strip.innerHTML="";notes.forEach((n,i)=>{const c=document.createElement("button");c.className="nchip"+(i===sel?" sel":"");c.textContent=midiName(n.midi);c.onclick=()=>{sel=i;playSustain(midiToFreq(n.midi),0,0.45,0.7);draw();};strip.appendChild(c);});}
+    buildStaff();
     if(notes.length&&!capturing){
       $("#up").onclick=()=>nudge(1);$("#dn").onclick=()=>nudge(-1);
       $("#del").onclick=()=>{if(sel<0)return;notes.splice(sel,1);if(sel>=notes.length)sel=notes.length-1;draw();};
@@ -1494,6 +1522,40 @@ function composeUI(){
       $("#save").onclick=()=>{if(!notes.length)return;const nm=($("#cname").value||"My melody").trim();SONGLIB.push({name:nm,notes:notes.map(n=>n.midi)});save("mjk-songs",SONGLIB);$("#cStatus").textContent="Saved “"+nm+"” to My Songs ⭐";burst($("#strip"),8);};
       $("#clear").onclick=()=>{notes=[];sel=-1;draw();};
     }
+  }
+  draw();
+}
+
+/* ===== SONG BUILDER — chain saved sections into a song ===== */
+function renderSongBuilder(){
+  if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  let seq=[];
+  const inp='background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit;flex:1';
+  function allNotes(){let n=[];seq.forEach(idx=>{const s=SONGLIB[idx];if(s)n=n.concat(s.notes);});return n;}
+  function draw(){
+    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎚️ Build a Song</span></div>
+      <div class="panel">
+        <div class="intro">Chain your saved pieces (sections) into a full song. Tap a section to add it to the song, in order. Then play it and save it as one new song.</div>
+        <div class="rlab" style="display:block;margin:6px 0 6px">Your sections</div><div id="secList"></div>
+        <div class="rlab" style="display:block;margin:14px 0 6px">Your song (in order)</div><div id="seqList"></div>
+        <div class="actions"><button class="btn" id="play" ${seq.length?"":"disabled"}>▶ Play song</button><button class="btn ghost" id="clear">Clear</button></div>
+        <div class="rrow2"><span class="rlab">Name</span><input id="sgname" value="My song" style="${inp}"></div>
+        <div class="actions"><button class="btn" id="save" ${seq.length?"":"disabled"}>⭐ Save as song</button></div>
+      </div>`;
+    $("#eBack").onclick=renderMySongs;
+    const sl=$("#secList");
+    if(!SONGLIB.length)sl.innerHTML='<div class="site-note">No sections yet — hum or import a melody first.</div>';
+    else{sl.innerHTML="";SONGLIB.forEach((s,i)=>{const row=document.createElement("div");row.className="kb";
+      row.innerHTML=`<span class="kb-ic">🎵</span><div class="kb-main"><div class="kb-t">${esc(s.name)}</div><div class="kb-s">${s.notes.length} notes</div></div>`;
+      const b=document.createElement("button");b.className="kb-btn";b.textContent="+ add";b.onclick=()=>{seq.push(i);draw();};row.appendChild(b);sl.appendChild(row);});}
+    const ql=$("#seqList");
+    if(!seq.length)ql.innerHTML='<div class="site-note">Tap sections above to add them here.</div>';
+    else{ql.innerHTML="";seq.forEach((idx,k)=>{const s=SONGLIB[idx];const row=document.createElement("div");row.className="kb";
+      row.innerHTML=`<span class="kb-ic" style="font-family:'Bricolage Grotesque',sans-serif">${k+1}</span><div class="kb-main"><div class="kb-t">${esc(s?s.name:"(removed)")}</div></div>`;
+      const b=document.createElement("button");b.className="kb-btn";b.textContent="✕";b.onclick=()=>{seq.splice(k,1);draw();};row.appendChild(b);ql.appendChild(row);});}
+    const pb=$("#play");if(pb&&!pb.disabled)pb.onclick=()=>{allNotes().forEach((m,k)=>playSustain(midiToFreq(m),k*0.42,0.4,0.7));};
+    $("#clear").onclick=()=>{seq=[];draw();};
+    const sv=$("#save");if(sv&&!sv.disabled)sv.onclick=()=>{const n=allNotes();if(!n.length)return;SONGLIB.push({name:($("#sgname").value||"My song").trim(),notes:n});save("mjk-songs",SONGLIB);renderMySongs();};
   }
   draw();
 }
@@ -1776,7 +1838,8 @@ function renderRound(level){
       b.onclick=()=>{if(box.dataset.lock)return;
         if(s===semis){box.dataset.lock="1";b.classList.add("correct");[...box.children].forEach(c=>c.disabled=true);
           correct++;$("#fb").innerHTML="Yes — "+INAMES[semis]+" ♪"+(SONGS[semis]?'<div style="font-size:.85rem;color:var(--muted);margin-top:4px;font-family:\'Nunito Sans\',sans-serif">think: '+SONGS[semis]+'</div>':"");
-          $("#fb").className="feedback good";$("#next").disabled=false;$("#next").focus();}
+          $("#fb").className="feedback good";$("#next").disabled=false;$("#next").focus();
+          if(activeId()&&load(mk("ear","lvl"+level),false)){addBeans(1);beanChip();}}
         else{b.classList.add("wrong");b.disabled=true;$("#fb").textContent="Not quite — tap ↻ and listen again.";$("#fb").className="feedback try";}};
       box.appendChild(b);});
     $("#next").onclick=()=>{qi++;step();};

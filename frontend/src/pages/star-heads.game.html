@@ -549,7 +549,9 @@ function getCatalog(){let c=load("majick-shop-catalog",null);const fresh=!c;if(f
   if(v<1){defaultCatalog().forEach(di=>{if(["g1","g2","g3","g4"].includes(di.id)&&!have.has(di.id))c.push(di);});}
   // v2: double every price once
   if(v<2){c.forEach(i=>{if(typeof i.cost==="number")i.cost=i.cost*2;});}
-  save("majick-shop-catalog",c);save("majick-shop-catalog-v",2);
+  // v3: bring prices down 25%
+  if(v<3){c.forEach(i=>{if(typeof i.cost==="number")i.cost=Math.max(1,Math.round(i.cost*0.75));});}
+  save("majick-shop-catalog",c);save("majick-shop-catalog-v",3);
   return c;}
 function setCatalog(c){save("majick-shop-catalog",c);}
 
