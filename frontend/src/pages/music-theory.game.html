@@ -1173,7 +1173,7 @@ function renderSongImport(){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">➕ Import a MIDI</span></div>
     <div class="panel"><div class="intro">Load a <b>melody</b> MIDI from your device. Then pick the track, trim to the phrase (the hook) you want to sing, preview, name it and save. A “melody only” MIDI works best.</div>
-      <input type="file" id="midiFile" accept=".mid,.midi,audio/midi,audio/x-midi" style="color:var(--muted);font-size:.85rem;margin:6px 0">
+      <input type="file" id="midiFile" accept=".mid,.midi,audio/midi,audio/x-midi,audio/sp-midi,application/octet-stream" style="color:var(--muted);font-size:.85rem;margin:6px 0">
       <div id="impBody"></div></div>`;
   $("#eBack").onclick=renderMySongs;
   $("#midiFile").onchange=e=>{const f=e.target.files[0];if(!f)return;const fr=new FileReader();
@@ -2388,7 +2388,7 @@ function renderBeat(focus){
       if(!tips.length)tips.push("solid layered groove — try +/- swing or a 2nd handpan note to taste");
       g.innerHTML='<b>'+drumHits+'</b> drum hits · <b>'+melHits+'</b> handpan notes ('+melNotes.size+' distinct) · bass on '+bassDown+'/'+q+' downbeats.<br><b>Notes:</b> '+tips.slice(0,3).join("; ")+'.';
     } else {
-      const enc=density>0?(melHits&&drumHits?"🔥 You layered drums AND handpan — that's a real beat!":drumHits?"🥁 Nice drum groove!":"🔔 Pretty handpan motif!"):"Add some hits to get started!";
+      const enc=density>0?(melHits&&drumHits?"🔥 You layered drums AND handpan — that's a real beat!":drumHits?"🥁 Nice drum groove!":"🛸 Pretty handpan motif!"):"Add some hits to get started!";
       let tip;if(drumHits&&!melHits)tip="Now play a little handpan tune on top while the drums loop.";else if(bassR>=0&&bassDown<1)tip="Put a low drum (Bass) on beat 1 to make it bump.";else if(melNotes.size===1&&melHits)tip="Try a second handpan note so the melody moves.";else tip="Try the swing slider to make it groove!";
       g.innerHTML=enc+"<br>"+tip;
     }}
@@ -2401,8 +2401,8 @@ function renderBeat(focus){
       '<div class="rrow"><span class="rlab">Swing</span><input type="range" id="bmSwing" min="0" max="60" value="'+swing+'" style="flex:1"><span class="rbpm" id="bmSwingV">'+swing+'%</span></div>'+
       '<div class="actions"><button class="btn" id="bmPlay">'+(running?"⏸ Stop":"▶ Play")+'</button><button class="btn ghost" id="bmArm">● Record</button><button class="btn ghost" id="bmClear">Clear</button></div>'+
       grpHdr("djembe","Djembe","🪘")+'<div class="bmgrid" id="bmGridDj"></div>'+
-      grpHdr("handpan","Handpan","🔔")+'<div class="bmgrid" id="bmGridHp"></div>'+
-      '<div class="rrow2"><span class="rlab">Play live</span><span class="rchips tight"><button class="rchip sm'+(perform==="handpan"?" sel":"")+'" id="bmPerfHp">🔔 Handpan</button><button class="rchip sm'+(perform==="djembe"?" sel":"")+'" id="bmPerfDj">🪘 Djembe</button></span></div>'+
+      grpHdr("handpan","Handpan","🛸")+'<div class="bmgrid" id="bmGridHp"></div>'+
+      '<div class="rrow2"><span class="rlab">Play live</span><span class="rchips tight"><button class="rchip sm'+(perform==="handpan"?" sel":"")+'" id="bmPerfHp">🛸 Handpan</button><button class="rchip sm'+(perform==="djembe"?" sel":"")+'" id="bmPerfDj">🪘 Djembe</button></span></div>'+
       '<div class="site-note" style="margin:0 0 6px">Play the instrument below'+(armed?' <span style="color:var(--gold)">— recording into the grid as it loops</span>':' — arm <b>● Record</b> and hit <b>▶ Play</b> to lay hits in live')+'.</div>'+
       '<div class="bmperf" id="bmPerf"></div>'+
       '<div class="rlab" style="display:block;margin:12px 0 5px">What this beat is</div>'+
@@ -2794,7 +2794,7 @@ function renderNoteEar(){
 }
 const INSTRUMENT_CARDS=[
  {ic:"🎹",title:"Piano",blurb:"Play a real keyboard — tap or use your computer keys, shift octaves, and see the note names. The heart of music theory.",go:()=>renderPiano()},
- {ic:"🔔",title:"Handpan",blurb:"Play a handpan — tap the notes, pick a scale, and follow the glow to learn gentle patterns.",go:()=>renderHandpan()},
+ {ic:"🛸",title:"Handpan",blurb:"Play a handpan — tap the notes, pick a scale, and follow the glow to learn gentle patterns.",go:()=>renderHandpan()},
  {ic:"🎸",title:"Guitar",blurb:"Learn chords with diagrams, the chord family of a key, and strum along to progressions — leveling up as you go.",go:()=>renderStrings("guitar")},
  {ic:"🪕",title:"Ukulele",blurb:"Learn ukulele chords, major-scale chord families, and play along to progressions.",go:()=>renderStrings("ukulele")},
  {ic:"🎸",title:"Bass Guitar",blurb:"Hold down the low end — tap the fretboard, learn bass chord shapes and basslines, follow the glow, record your real bass, and play it back for scoring.",go:()=>renderBass()},
@@ -2828,7 +2828,7 @@ function hpPans(){let p=load(mk("hp","pans"),null);
   return p;}
 function hpSavePans(p){save(mk("hp","pans"),p);}
 /* the live scale list — the player's saved pans first, then the built-in scales */
-function hpScaleList(){const mine=hpPans().map(p=>({name:"🔔 "+p.name,notes:p.notes,mine:true}));return mine.concat(HP_SCALES);}
+function hpScaleList(){const mine=hpPans().map(p=>({name:"🛸 "+p.name,notes:p.notes,mine:true}));return mine.concat(HP_SCALES);}
 const HP_PATTERNS=[
  {name:"Ascend",seq:[[0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[7,1],[8,2]]},
  {name:"Descend",seq:[[8,1],[7,1],[6,1],[5,1],[4,1],[3,1],[2,1],[1,1],[0,2]]},
@@ -2934,7 +2934,7 @@ function renderHandpan(){
   function renderPansList(){const box=$("#tnPans");if(!box)return;const pans=hpPans();
     if(!pans.length){box.innerHTML='<div class="site-note">No saved instruments yet. Map your pan above, then “Save as instrument.”</div>';return;}
     box.innerHTML="";pans.forEach((p,idx)=>{const row=document.createElement("div");row.className="kb";
-      row.innerHTML='<span class="kb-ic">🔔</span><div class="kb-main"><div class="kb-t">'+esc(p.name)+'</div><div class="kb-s">'+p.notes.length+' notes · '+p.notes.map(m=>midiName(m)).join(" ")+'</div></div>';
+      row.innerHTML='<span class="kb-ic">🛸</span><div class="kb-main"><div class="kb-t">'+esc(p.name)+'</div><div class="kb-s">'+p.notes.length+' notes · '+p.notes.map(m=>midiName(m)).join(" ")+'</div></div>';
       const ld=document.createElement("button");ld.className="kb-btn";ld.textContent="✏️";ld.title="Load into the tuner to edit";ld.onclick=()=>{outerCount=Math.max(3,p.notes.length-1);mapSlots=new Array(1+outerCount).fill(null);p.notes.forEach((m,i)=>{if(i<mapSlots.length)mapSlots[i]={name:NOTE_NAMES[((m%12)+12)%12]+(Math.floor(m/12)-1),midi:m};});selSlot=0;saveMap();draw();};
       const rn=document.createElement("button");rn.className="kb-btn";rn.style.marginLeft="6px";rn.textContent="rename";rn.onclick=()=>renamePan(idx);
       const dl=document.createElement("button");dl.className="kb-btn";dl.style.marginLeft="6px";dl.textContent="✕";dl.onclick=()=>{const ps=hpPans();ps.splice(idx,1);hpSavePans(ps);renderPansList();};
@@ -2952,7 +2952,7 @@ function renderHandpan(){
     box.appendChild(mkField(0,sc[0],CX,CY,66,true));
     for(let i=1;i<sc.length;i++){const ang=(-90+(i-1)*(360/nF))*Math.PI/180;box.appendChild(mkField(i,sc[i],CX+R*Math.cos(ang),CY+R*Math.sin(ang),46,false));}}
   function modeBar(){return '<div class="rchips" style="margin-bottom:10px">'+
-    '<button class="rchip sm'+(HP.mode==="play"?" sel":"")+'" id="hpModePlay">🔔 Play</button>'+
+    '<button class="rchip sm'+(HP.mode==="play"?" sel":"")+'" id="hpModePlay">🛸 Play</button>'+
     '<button class="rchip sm'+(HP.mode==="cr"?" sel":"")+'" id="hpModeCR">🔁 Call &amp; response</button>'+
     '<button class="rchip sm'+(HP.mode==="tuner"?" sel":"")+'" id="hpModeTuner">🎤 Tuner</button></div>';}
   function wireMode(){const p=$("#hpModePlay"),cr=$("#hpModeCR"),t=$("#hpModeTuner");
@@ -2962,7 +2962,7 @@ function renderHandpan(){
   function draw(){
     if(HP.scaleIdx>=hpScaleList().length)HP.scaleIdx=0;
     if(HP.mode==="tuner"){
-      view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔔 Handpan</span></div>'+
+      view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🛸 Handpan</span></div>'+
        '<div class="panel">'+modeBar()+
         '<div class="intro">Map your pan by <b>spot</b>: tap a spot on the circle, play that note on your pan, then tap <b>Set</b>. The <b>top of the circle is your fixed reference</b> — turn your pan so its top note sits at the top and keep that orientation to your body. The center is the ding. Fill the spots, then Save.</div>'+
         '<div class="tuner"><div class="tn-note" id="tnNote">—</div>'+
@@ -2987,7 +2987,7 @@ function renderHandpan(){
       renderPanMap();updSlotHint();renderPansList();startTuner();return;
     }
     if(HP.mode==="cr"){
-      view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔔 Handpan</span></div>'+
+      view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🛸 Handpan</span></div>'+
        '<div class="panel">'+modeBar()+
         '<div class="intro">Call &amp; response: I play a phrase, then you play it back on your handpan. Pick <b>1&ndash;4 bars</b> &mdash; longer calls add a variation each bar and resolve at the end. The notes light up on the pan and in the row below, so you always know what&rsquo;s coming.</div>'+
         '<div class="rrow2"><span class="rlab">Scale</span><span class="rchips tight" id="hpScales"></span></div>'+
@@ -3010,7 +3010,7 @@ function renderHandpan(){
       $("#crAns").onclick=()=>crAnswer();
       return;
     }
-    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔔 Handpan</span></div>'+
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🛸 Handpan</span></div>'+
       '<div class="panel">'+modeBar()+
         '<div class="intro">Tap the handpan to play. The <b>ding</b> in the middle is the low note; the fields around it climb the scale. Pick a scale, or tap <b>Play along</b> and follow the glowing notes to learn a pattern. Don&rsquo;t know your real pan&rsquo;s notes? Switch to <b>🎤 Tuner</b>.</div>'+
         '<div class="rrow2"><span class="rlab">Scale</span><span class="rchips tight" id="hpScales"></span></div>'+
@@ -3505,8 +3505,7 @@ function renderSongwriting(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
    {ic:"🎯",title:"Rhyme & Schemes",blurb:"Rhyme schemes (ABAB, AABB), perfect vs near/slant rhyme, and how rhyme makes a line feel resolved — with a rhyme finder.",go:()=>lessonSong("rhyme")},
    {ic:"📐",title:"Prosody & Syllables",blurb:"How stresses, syllables and line length shape the melody — and why form should serve the meaning.",go:()=>lessonSong("prosody")},
    {ic:"✍️",title:"Lyric Lab",blurb:"Write your lyrics section by section with a live syllable counter, rhyme-scheme labels, a rhyme finder, and a coach. Saves for your Song Project.",go:()=>renderLyricLab()},
-   {ic:"🎵",title:"Melody Lab",blurb:"Sing a melody (or pick a saved one) and see the notes, their scale degrees, how long each is held, and the chords that fit — like Hooktheory.",go:()=>renderMelodyLab()}
-  ];
+   {ic:"🎵",title:"Melody Lab",blurb:"Sing a melody (or pick a saved one) and see the notes, their scale degrees, how long each is held, and the chords that fit — like Hooktheory.",go:()=>renderMelodyLab()}  ];
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">✍️ Songwriting</span></div><div class="panel">'+
     '<div class="intro">A song is <b>music + words working as one</b> — what songwriters call <b>prosody</b>: the sound serving the meaning. Learn the pieces — structure, the parts, rhyme and prosody — then write in the <b>Lyric Lab</b>, where the app helps you make it tighter, rhyme better, sing better, and tell a story that lands. <span style="opacity:.75">In the spirit of the MI &amp; Berklee songwriting tradition.</span></div>'+
     '<div class="grid" id="swCards"></div></div>';
@@ -3997,7 +3996,7 @@ function efDayReading(day,arch){const s=arch[day];if(!s)return "No reading for t
 function renderEarthFreq(){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   let voice=load(mk("earth","voice"),"pure"),vol=0.6;
-  let arr=load(mk("earth","arr"),"med"),genre=load(mk("earth","genre"),"house"),bassvar=load(mk("earth","bassvar"),"agg");
+  let arr=load(mk("earth","arr"),"song"),genre=load(mk("earth","genre"),"house"),bassvar=load(mk("earth","bassvar"),"agg");
   let arch=efArch(),selDate=efDayUTC(0),override=null;
   const EF_GLIST=[["house","🏠 Melodic House"],["bass","🛸 Space Bass"],["rock","🎸 Alt Rock"],["lofi","☕ Lo-fi"]];
   teardown=()=>{efStop();};
@@ -4200,9 +4199,9 @@ function renderInstructor(){
    '<div class="site-note">I measure the mix for real (levels, loudness, frequency balance, dynamics, width) and compare it to genre norms and your reference. Sound-<i>selection</i> notes are coaching — I can hear the fingerprints (dull highs, thin sub, harsh mids), but the reference A/B is where the &ldquo;old sounds&rdquo; answer really lives.</div>'+
    '<div class="rlab" style="display:block;margin:12px 0 5px">Genre</div><div class="rchips" id="iGenre"></div>'+
    '<div class="rrow2" style="margin-top:12px"><span class="rlab">Your track</span><span id="iYour" class="site-note" style="margin:0">'+(yourName?("🎵 "+esc(yourName)):"none loaded")+'</span></span></div>'+
-   '<div class="actions" style="margin:6px 0 0;gap:8px;flex-wrap:wrap"><label class="btn ghost" style="cursor:pointer">Choose a file<input type="file" id="iYourF" accept="audio/*" style="display:none"></label><button class="btn ghost" id="iStudio">🎛️ Bounce my Studio mix</button></div>'+
+   '<div class="actions" style="margin:6px 0 0;gap:8px;flex-wrap:wrap"><label class="btn ghost" style="cursor:pointer">Choose a file<input type="file" id="iYourF" accept="audio/*,.mp3,.wav,.m4a,.aac,.aif,.aiff,.caf,.flac,.ogg,.opus" style="display:none"></label><button class="btn ghost" id="iStudio">🎛️ Bounce my Studio mix</button></div>'+
    '<div class="rrow2" style="margin-top:10px"><span class="rlab">Reference <span style="opacity:.6">(optional)</span></span><span id="iRef" class="site-note" style="margin:0">'+(refName?("🎯 "+esc(refName)):"none loaded")+'</span></div>'+
-   '<div class="actions" style="margin:6px 0 0"><label class="btn ghost" style="cursor:pointer">Choose reference<input type="file" id="iRefF" accept="audio/*" style="display:none"></label></div>'+
+   '<div class="actions" style="margin:6px 0 0"><label class="btn ghost" style="cursor:pointer">Choose reference<input type="file" id="iRefF" accept="audio/*,.mp3,.wav,.m4a,.aac,.aif,.aiff,.caf,.flac,.ogg,.opus" style="display:none"></label></div>'+
    '<div class="actions" style="margin:14px 0 4px"><button class="btn" id="iGo"'+(yourBuf?"":" disabled")+'>'+(busy?"Analyzing…":"📝 Grade my track")+'</button></div>'+
    '<div id="iReport"></div>'+
    '<div class="rlab" style="display:block;margin:16px 0 6px">🎚️ '+g.name+' — what makes it sound current</div>'+
@@ -4419,7 +4418,7 @@ function renderBioSession(){
   view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎵 Sound Session</span></div>
     <div class="panel">
       <div class="intro">Play a track (or a pure tone) and watch what it does to your <b>HRV</b> and <b>alpha</b>. Sit quietly first for a baseline, start logging, play the sound, then finish to see the before/during/after.</div>
-      <div class="rrow2"><span class="rlab">Your track</span><input type="file" id="bsFile" accept="audio/*" style="color:var(--muted);font-size:.8rem"></div>
+      <div class="rrow2"><span class="rlab">Your track</span><input type="file" id="bsFile" accept="audio/*,.mp3,.wav,.m4a,.aac,.aif,.aiff,.caf,.flac,.ogg,.opus" style="color:var(--muted);font-size:.8rem"></div>
       <audio id="bsAudio" controls style="width:100%;margin:8px 0;display:none"></audio>
       <div class="rrow2"><span class="rlab">Or pure tone</span><input type="number" id="bsHz" value="${BS.toneHz}" min="40" max="1000" style="width:90px;background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit"><span style="color:var(--muted);font-size:.8rem">Hz</span><button class="rchip sm" id="bsTone">▶ Play tone</button></div>
       <canvas id="bsChart" width="640" height="150" style="width:100%;height:150px;background:var(--card2);border:1px solid var(--line);border-radius:12px;margin:12px 0 6px"></canvas>
