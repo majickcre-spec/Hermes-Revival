@@ -3483,13 +3483,29 @@ function lyricCoach(song){const fb=[],secs=song.sections.filter(s=>s.text.trim()
   if(fb.length<3){fb.push({t:"Craft check: does <b>each verse advance the story</b> toward the chorus, and does the <b>chorus say the one thing</b> the song is about? That&rsquo;s what makes a lyric feel popular — clarity, not cleverness.",k:"story"});}
   if(!fb.length)fb.push({t:"Structure, rhyme and line-lengths are looking tight. The rest is the human part — make every line true and specific.",k:"ok"});
   return fb;}
+function trimLine(line){let t=line
+    .replace(/\bI am\b/gi,"I'm").replace(/\byou are\b/gi,"you're").replace(/\bwe are\b/gi,"we're").replace(/\bthey are\b/gi,"they're")
+    .replace(/\bdo not\b/gi,"don't").replace(/\bdoes not\b/gi,"doesn't").replace(/\bcan ?not\b/gi,"can't").replace(/\bit is\b/gi,"it's")
+    .replace(/\bwill not\b/gi,"won't").replace(/\bI will\b/gi,"I'll").replace(/\bI have\b/gi,"I've").replace(/\bthere is\b/gi,"there's");
+  t=t.replace(/\b(just|really|very|quite|kinda|kind of|sort of|a little|somehow|actually|basically|totally|simply|even|only|oh|yeah)\b/gi,"")
+    .replace(/\bthat\b/gi,"").replace(/\s{2,}/g," ").replace(/\s+([,.!?])/g,"$1").replace(/^[\s,]+/,"").trim();
+  return t;}
+function runCoach(song,cb){const base=lyricCoach(song),extra=[],jobs=[];
+  song.sections.forEach(s=>{const lines=s.text.split(/\n/).map(l=>l.trim()).filter(Boolean);if(lines.length<2)return;const syl=lines.map(lineSyl),sc=schemeFor(lines);
+    lines.forEach((l,i)=>{if(syl[i]>12){const t=trimLine(l);if(t&&t.toLowerCase()!==l.toLowerCase()&&lineSyl(t)<=syl[i]-1&&lineSyl(t)>=3)extra.push({t:"You&rsquo;re close on <b>"+esc(s.tag)+"</b> line "+(i+1)+" — a tighter take: &ldquo;<b>"+esc(t)+"</b>&rdquo; ("+lineSyl(t)+" syl). Same idea, easier to sing. Or trim it your own way to land under ~10."});}});
+    const rhymed=sc.filter((L,i)=>L!=="·"&&sc.indexOf(L)!==i).length;if(lines.length>=4&&rhymed===0){const w=lastWord(lines[0]);if(w)jobs.push({word:w,tag:s.tag});}
+  });
+  const finish=()=>cb(base.concat(extra));
+  if(!jobs.length){finish();return;}
+  Promise.all(jobs.map(j=>new Promise(r=>rhymeFind(j.word,res=>r({j,res}))))).then(rs=>{rs.forEach(({j,res})=>{if(res){const ws=res.perfect.slice(0,4).concat(res.near.slice(0,3));if(ws.length)extra.push({t:"Here&rsquo;s a variation for <b>"+esc(j.tag)+"</b> (no rhyme yet): your first line ends on &ldquo;"+esc(j.word)+"&rdquo; — try landing a later line on <b>"+ws.map(esc).join(", ")+"</b>. Keep your meaning, just steer the last word there."});}});finish();}).catch(finish);}
 function renderSongwriting(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{};
   const MODS=[
    {ic:"🏗️",title:"Song Structure",blurb:"The forms a song can take — verse-chorus, AABA, verse-refrain, 12-bar blues — and when to use each.",go:()=>lessonSong("structure")},
    {ic:"🧩",title:"The Parts",blurb:"What each section does: the verse tells the story, the chorus is the big idea, the bridge is the turn.",go:()=>lessonSong("parts")},
    {ic:"🎯",title:"Rhyme & Schemes",blurb:"Rhyme schemes (ABAB, AABB), perfect vs near/slant rhyme, and how rhyme makes a line feel resolved — with a rhyme finder.",go:()=>lessonSong("rhyme")},
    {ic:"📐",title:"Prosody & Syllables",blurb:"How stresses, syllables and line length shape the melody — and why form should serve the meaning.",go:()=>lessonSong("prosody")},
-   {ic:"✍️",title:"Lyric Lab",blurb:"Write your lyrics section by section with a live syllable counter, rhyme-scheme labels, a rhyme finder, and a coach. Saves for your Song Project.",go:()=>renderLyricLab()}
+   {ic:"✍️",title:"Lyric Lab",blurb:"Write your lyrics section by section with a live syllable counter, rhyme-scheme labels, a rhyme finder, and a coach. Saves for your Song Project.",go:()=>renderLyricLab()},
+   {ic:"🎵",title:"Melody Lab",blurb:"Sing a melody (or pick a saved one) and see the notes, their scale degrees, how long each is held, and the chords that fit — like Hooktheory.",go:()=>renderMelodyLab()}
   ];
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">✍️ Songwriting</span></div><div class="panel">'+
     '<div class="intro">A song is <b>music + words working as one</b> — what songwriters call <b>prosody</b>: the sound serving the meaning. Learn the pieces — structure, the parts, rhyme and prosody — then write in the <b>Lyric Lab</b>, where the app helps you make it tighter, rhyme better, sing better, and tell a story that lands. <span style="opacity:.75">In the spirit of the MI &amp; Berklee songwriting tradition.</span></div>'+
@@ -3563,8 +3579,56 @@ function renderLyricLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=t
     $("#llAdd").onclick=()=>{song.sections.push({tag:"Verse 2",text:""});persist();draw();};
     const rgo=()=>{const w=$("#rfWord").value,out=$("#rfOut");out.innerHTML="finding rhymes for <b>"+esc(w)+"</b>…";rhymeFind(w,(res,err)=>{if(!res){out.innerHTML=err==="offline"?"Rhyme finder needs a connection — works on the live site.":"Type a word first.";return;}out.innerHTML='<b style="color:#5fd38d">Perfect</b><div style="margin:4px 0 10px">'+(res.perfect.length?res.perfect.map(esc).join(" · "):"none")+'</div><b style="color:#e9c46a">Near / slant</b><div style="margin-top:4px">'+(res.near.length?res.near.map(esc).join(" · "):"none")+'</div>';});};
     $("#rfGo").onclick=rgo;$("#rfWord").onkeydown=e=>{if(e.key==="Enter")rgo();};
-    $("#llCoach").onclick=()=>{const fb=lyricCoach(song),el=$("#llFb");el.innerHTML='<div class="rlab" style="display:block;margin:14px 0 6px">🎓 Coach</div>'+fb.map(f=>'<div class="idea-fb" style="margin:6px 0">'+f.t+'</div>').join("");el.scrollIntoView({behavior:"smooth",block:"nearest"});};
+    $("#llCoach").onclick=()=>{const el=$("#llFb");el.innerHTML='<div class="rlab" style="display:block;margin:14px 0 6px">🎓 Coach</div><div class="idea-fb">Reading your lyrics…</div>';runCoach(song,fb=>{el.innerHTML='<div class="rlab" style="display:block;margin:14px 0 6px">🎓 Coach</div>'+fb.map(f=>'<div class="idea-fb" style="margin:6px 0">'+f.t+'</div>').join("");el.scrollIntoView({behavior:"smooth",block:"nearest"});});};
     $("#llSave").onclick=()=>{const lib=load(mk("lyrics","lib"),[]);const nm=(song.title||"Untitled").trim();const ex=lib.findIndex(x=>x.title===nm);const copy={title:nm,sections:song.sections.map(s=>({tag:s.tag,text:s.text})),t:Date.now()};if(ex>=0)lib[ex]=copy;else lib.push(copy);save(mk("lyrics","lib"),lib);if(activeId())addBeans(3);const el=$("#llFb");el.innerHTML='<div class="idea-fb" style="color:#5fd38d">Saved &ldquo;'+esc(nm)+'&rdquo; to your lyrics. It&rsquo;ll be waiting for your Song Project.</div>';};
+  }
+  draw();
+}
+/* ===== MELODY LAB — Hooktheory-style: notes, scale degrees, durations, chords that fit ===== */
+const KPROF_MAJ=[6.35,2.23,3.48,2.33,4.38,4.09,2.52,5.19,2.39,3.66,2.29,2.88];
+const KPROF_MIN=[6.33,2.68,3.52,5.38,2.60,3.53,2.54,4.75,3.98,2.69,3.34,3.17];
+function detectKey(w){let best={score:-1,root:0,mode:"major"};for(let r=0;r<12;r++){let sM=0,sm=0;for(let i=0;i<12;i++){sM+=w[(i+r)%12]*KPROF_MAJ[i];sm+=w[(i+r)%12]*KPROF_MIN[i];}if(sM>best.score)best={score:sM,root:r,mode:"major"};if(sm>best.score)best={score:sm,root:r,mode:"minor"};}return best;}
+const DEG_MAJ={0:"1",2:"2",4:"3",5:"4",7:"5",9:"6",11:"7",1:"♭2",3:"♭3",6:"♯4",8:"♭6",10:"♭7"};
+const DEG_MIN={0:"1",2:"2",3:"♭3",5:"4",7:"5",8:"♭6",10:"♭7",1:"♭2",4:"♮3",6:"♯4",9:"♮6",11:"♮7"};
+function degreeOf(midi,root,mode){const off=((Math.round(midi)-root)%12+12)%12;return (mode==="major"?DEG_MAJ:DEG_MIN)[off]||"?";}
+function inScale(midi,root,mode){const off=((Math.round(midi)-root)%12+12)%12;return (mode==="major"?[0,2,4,5,7,9,11]:[0,2,3,5,7,8,10]).indexOf(off)>=0;}
+function noteOct(midi){return NOTE_NAMES[((Math.round(midi)%12)+12)%12]+(Math.floor(Math.round(midi)/12)-1);}
+function diatonic(root,mode){const steps=mode==="major"?[0,2,4,5,7,9,11]:[0,2,3,5,7,8,10],q=mode==="major"?["","m","m","","","m","°"]:["m","°","","m","m","","" ],rn=mode==="major"?["I","ii","iii","IV","V","vi","vii°"]:["i","ii°","III","iv","v","VI","VII"];
+  return steps.map((s,i)=>({name:NOTE_NAMES[(root+s)%12]+q[i],rn:rn[i]}));}
+function progsFor(mode){return mode==="major"?[["I","V","vi","IV"],["I","IV","V"],["vi","IV","I","V"],["ii","V","I"]]:[["i","VI","III","VII"],["i","iv","v"],["i","VII","VI","V"]];}
+function melAnalyze(notes,beats){const w=new Array(12).fill(0);notes.forEach((m,i)=>{w[((Math.round(m)%12)+12)%12]+=(beats&&beats[i])||1;});const key=detectKey(w);return key;}
+let ML={capturing:false};
+function renderMelodyLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  teardown=()=>{ML.capturing=false;stopMic();};
+  let cur=null; // {name,notes,beats}
+  const withNotes=(typeof SONGLIB!=="undefined"?SONGLIB:[]).filter(s=>s.notes&&s.notes.length);
+  function draw(){
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎵 Melody Lab</span></div><div class="panel">'+
+      '<div class="intro">See the <b>shape</b> of a melody — every note, its <b>scale degree</b> (how it functions in the key), how long it&rsquo;s <b>held</b>, and the <b>chords</b> that fit. Sing one, or pick a melody you saved in Sing a Song.</div>'+
+      '<div class="actions"><button class="btn" id="mlSing">🎤 Sing a melody</button></div>'+
+      (withNotes.length?'<div class="rrow2" style="margin-top:8px"><span class="rlab">Saved</span><span class="rchips tight" id="mlSaved"></span></div>':'<div class="site-note">No saved melodies yet — sing one above, or save one in <b>Make → Sing a Song</b>.</div>')+
+      '<div id="mlStatus" class="site-note"></div>'+
+      '<div id="mlOut"></div></div>';
+    $("#eBack").onclick=()=>{ML.capturing=false;stopMic();renderSongwriting();};
+    $("#mlSing").onclick=sing;
+    const sv=$("#mlSaved");if(sv)withNotes.forEach((s,i)=>{const b=document.createElement("button");b.className="rchip sm";b.textContent=esc(s.name||("Song "+(i+1)));b.onclick=()=>{cur={name:s.name,notes:s.notes,beats:s.beats};show();};sv.appendChild(b);});
+    if(cur)show();
+  }
+  async function sing(){const st=$("#mlStatus");if(st)st.textContent="🎤 Listening — sing a short melody (about 8 seconds)…";const ok=await ensureMic();if(!ok){if(st)st.textContent="I need the mic to hear you.";return;}
+    const buf=new Float32Array(toneAnalyser.fftSize),samples=[],start=ac().currentTime;ML.capturing=true;
+    (function loop(){if(!ML.capturing)return;const now=ac().currentTime;toneAnalyser.getFloatTimeDomainData(buf);const f=autoCorrelate(buf,ac().sampleRate);let midi=null;if(f>=70&&f<=1100)midi=69+12*Math.log2(f/440);samples.push({t:now-start,midi});if(st&&midi!=null)st.textContent="🎤 "+noteOct(midi)+" …";if(now-start>=8){ML.capturing=false;const segs=phraseSegment(samples);if(!segs.length){if(st)st.textContent="Didn&rsquo;t catch a clear melody — try singing steady notes.";return;}const ref=median(segs.map(s=>s.dur))||0.4;cur={name:"Sung melody",notes:segs.map(s=>Math.round(s.midi)),beats:segs.map(s=>quantizeBeat(s.dur/ref))};if(st)st.textContent="";show();return;}requestAnimationFrame(loop);})();}
+  function show(){const out=$("#mlOut");if(!out||!cur)return;const notes=cur.notes,beats=cur.beats||notes.map(()=>1),key=melAnalyze(notes,beats);
+    const kn=NOTE_NAMES[key.root]+" "+key.mode;const mn=Math.min.apply(null,notes),mx=Math.max.apply(null,notes),rows=mx-mn+1,rowH=15,ppb=30;let cum=0;const total=beats.reduce((a,b)=>a+b,0);
+    let roll='<div style="overflow-x:auto;border:1px solid var(--line);border-radius:10px;padding:8px;background:rgba(0,0,0,.22)"><div style="position:relative;height:'+(rows*rowH+6)+'px;width:'+Math.max(240,total*ppb+10)+'px">';
+    notes.forEach((m,i)=>{const bt=beats[i]||1,x=cum*ppb,y=(mx-m)*rowH,w=Math.max(16,bt*ppb-2),ins=inScale(m,key.root,key.mode),deg=degreeOf(m,key.root,key.mode);const col=deg==="1"?"linear-gradient(90deg,#f4b740,#e9a93c)":ins?"linear-gradient(90deg,#b06bff,#8f5bd6)":"linear-gradient(90deg,#e76f51,#c85a40)";roll+='<div title="'+noteOct(m)+'" style="position:absolute;left:'+x+'px;top:'+y+'px;width:'+w+'px;height:'+(rowH-2)+'px;border-radius:4px;background:'+col+';color:#190617;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center">'+deg+'</div>';cum+=bt;});
+    roll+='</div></div>';
+    let list='<div class="rlab" style="display:block;margin:12px 0 5px">Notes</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+notes.map((m,i)=>{const deg=degreeOf(m,key.root,key.mode),bt=beats[i]||1;return '<span class="rchip sm"><b>'+noteOct(m)+'</b> · deg '+deg+' · '+(bt===1?"1 beat":bt+" beats")+'</span>';}).join("")+'</div>';
+    const chords=diatonic(key.root,key.mode),progs=progsFor(key.mode);
+    let harm='<div class="rlab" style="display:block;margin:14px 0 5px">Chords that fit — '+kn+'</div><div class="idea-fb"><div style="margin-bottom:8px">'+chords.map(c=>'<span class="rchip sm" style="margin:2px">'+c.rn+' = <b>'+c.name+'</b></span>').join(" ")+'</div><div class="site-note">Try one of these progressions under it:</div><div style="margin-top:4px">'+progs.map(pr=>'<div style="margin:3px 0"><b>'+pr.join(" – ")+'</b> &nbsp;<span style="opacity:.7">'+pr.map(rn=>{const c=chords.find(x=>x.rn.replace("°","")===rn.replace("°",""));return c?c.name:rn;}).join(" – ")+'</span></div>').join("")+'</div></div>';
+    const up=notes[notes.length-1]>notes[0];
+    out.innerHTML='<div class="idea-fb" style="margin-top:12px"><b style="color:#f4b740">Key: '+kn+'</b> · '+notes.length+' notes · '+total+' beats. The melody '+(up?"rises overall":"falls overall")+', centered around degree '+degreeOf(notes[Math.floor(notes.length/2)],key.root,key.mode)+'.</div>'+
+      '<div class="rlab" style="display:block;margin:12px 0 5px">Melody map <span style="opacity:.6;font-weight:400">(gold = tonic · purple = in key · red = outside)</span></div>'+roll+list+harm+
+      '<div class="site-note" style="margin-top:10px">Key and durations are a best-fit read of what you sang — trust your ear on the edges. The chords are options that fit the key, not the only right answer.</div>';
   }
   draw();
 }
