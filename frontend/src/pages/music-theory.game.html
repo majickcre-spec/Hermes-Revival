@@ -256,6 +256,9 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .pk-blacks{position:absolute;top:0;left:0;width:100%;height:62%;pointer-events:none}
 .pk-b{position:absolute;transform:translateX(-50%);width:6.2%;max-width:28px;height:100%;background:linear-gradient(#352c54,#120f20);border:1px solid #000;border-radius:0 0 5px 5px;pointer-events:auto;cursor:pointer}
 .pk-b.on{background:#ff9f5c}
+.pk.big{height:min(52vh,360px)}
+.pk.big .pk-w{font-size:1.05rem;padding-bottom:14px}
+.pk.big .pk-b{width:9%;max-width:46px}
 .finger-legend{background:var(--card2);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:9px 12px;margin:0 0 12px;color:var(--muted);font-size:.85rem;line-height:1.55}
 .finger-legend b{color:var(--cream)}
 .finger-legend .fg{display:inline-block;min-width:17px;height:17px;line-height:17px;text-align:center;background:#ff9f5c;color:#201a10;border-radius:50%;font-weight:800;font-size:.72rem;margin:0 1px}
@@ -2429,20 +2432,25 @@ function buildKeyboard(low,oct,onKey,labels){
 function noteNameOct(m){return NOTE_NAMES[((m%12)+12)%12]+(Math.floor(m/12)-1);}
 function renderPiano(){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  let low=48,oct=2,labels=true;const KEYMAP="awsedftgyhujk";
+  let low=48,oct=1,labels=true;const KEYMAP="awsedftgyhujk";
   function press(m,el){unlockAudio();playTone(midiToFreq(m),0,1.6);if(el){el.classList.add("on");setTimeout(()=>el.classList.remove("on"),160);}}
   function kd(e){if(e.repeat)return;const idx=KEYMAP.indexOf((e.key||"").toLowerCase());if(idx<0)return;const m=low+idx,el=view.querySelector('[data-m="'+m+'"]');press(m,el);}
   teardown=()=>{document.removeEventListener("keydown",kd);};
   function draw(){
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎹 Piano</span></div><div class="panel">'+
-      '<div class="intro">Play the keyboard — tap the keys, or on a computer use <b>a s d f g h j k</b> for the white notes and <b>w e t y u</b> for the blacks. Use ◀ ▶ to shift octaves.</div>'+
-      '<div class="actions"><button class="btn ghost" id="pkDown">◀ Octave</button><button class="btn ghost" id="pkUp">Octave ▶</button><button class="rchip sm'+(labels?" sel":"")+'" id="pkLab">Labels</button></div>'+
+      '<div class="intro">Play the keyboard — tap the keys, or on a computer use <b>a s d f g h j k</b> for the white notes and <b>w e t y u</b> for the blacks. The <b>1-octave</b> view is big enough for your whole hand on a phone; use ◀ ▶ to move up or down.</div>'+
+      '<div class="rrow2"><span class="rlab">View</span><span class="rchips tight"><button class="rchip sm'+(oct===1?" sel":"")+'" id="pk1">1 octave (big)</button><button class="rchip sm'+(oct===2?" sel":"")+'" id="pk2">2 octaves</button></span></div>'+
+      '<div class="actions"><button class="btn ghost" id="pkDown">◀ lower</button><span class="rbpm" id="pkRange" style="min-width:70px;text-align:center"></span><button class="btn ghost" id="pkUp">higher ▶</button><button class="rchip sm'+(labels?" sel":"")+'" id="pkLab">Labels</button></div>'+
       '<div id="pkBox"></div></div>';
     $("#eBack").onclick=goHome;
+    $("#pk1").onclick=()=>{oct=1;draw();};
+    $("#pk2").onclick=()=>{oct=2;draw();};
     $("#pkDown").onclick=()=>{low=Math.max(24,low-12);draw();};
     $("#pkUp").onclick=()=>{low=Math.min(84,low+12);draw();};
     $("#pkLab").onclick=()=>{labels=!labels;draw();};
-    $("#pkBox").appendChild(buildKeyboard(low,oct,press,labels));}
+    const rg=$("#pkRange");if(rg)rg.textContent=noteNameOct(low)+"–"+noteNameOct(low+oct*12);
+    const kbEl=buildKeyboard(low,oct,press,labels);if(oct===1)kbEl.classList.add("big");kbEl.style.height=oct===1?"min(52vh,360px)":"180px";
+    $("#pkBox").appendChild(kbEl);}
   document.addEventListener("keydown",kd);draw();
 }
 /* ===== IN-HOUSE EAR TRAINING — chords, scales, note ID ===== */
