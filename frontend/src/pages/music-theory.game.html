@@ -200,6 +200,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .hpcell{min-width:30px;padding:6px 9px;text-align:center;border-radius:8px;background:var(--card2);border:1px solid var(--line);color:var(--cream);font-size:.86rem;font-weight:700;transition:background .06s,color .06s,box-shadow .06s}
 .hpcell.ding{border-color:var(--gold)}
 .hpcell.on{background:#ff9f5c;color:#201a10;border-color:#ff9f5c;box-shadow:0 0 12px rgba(255,159,92,.7)}
+.hpbar{width:2px;align-self:stretch;background:rgba(255,159,92,.5);border-radius:2px;margin:0 2px}
 .finger-legend{background:var(--card2);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:9px 12px;margin:0 0 12px;color:var(--muted);font-size:.85rem;line-height:1.55}
 .finger-legend b{color:var(--cream)}
 .finger-legend .fg{display:inline-block;min-width:17px;height:17px;line-height:17px;text-align:center;background:#ff9f5c;color:#201a10;border-radius:50%;font-weight:800;font-size:.72rem;margin:0 1px}
@@ -994,7 +995,7 @@ async function ensureMic(){
     const a=ac();
     micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
     const src=a.createMediaStreamSource(micStream);
-    const mg=a.createGain();mg.gain.value=3.2; // boost so quiet singing registers
+    const mg=a.createGain();mg.gain.value=4.4; // boost so quiet notes/singing register
     toneAnalyser=a.createAnalyser();toneAnalyser.fftSize=2048;toneAnalyser.smoothingTimeConstant=0;
     src.connect(mg);mg.connect(toneAnalyser);
     return true;
@@ -2155,28 +2156,36 @@ function renderHandpan(){
   if(toneRAF)cancelAnimationFrame(toneRAF);hpStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   HP.mode=HP.mode||"play";
   let tRAF=null,tbuf=null,last=null,captured=load(mk("hp","mymap"),[]);
-  let crPhrase=[],crLevel=load(mk("hp","cr-level"),3),crBusy=false,crRAF=null,crSamples=[],crExpected=[];
+  let crPhrase=[],crMeasures=load(mk("hp","cr-meas"),1),crBusy=false,crRAF=null,crSamples=[],crExpected=[];
+  const CR_NPM=4;
   teardown=()=>{hpStop();if(tRAF)cancelAnimationFrame(tRAF);tRAF=null;if(crRAF)cancelAnimationFrame(crRAF);crRAF=null;try{stopMic();}catch(e){}};
   function stopTuner(){if(tRAF)cancelAnimationFrame(tRAF);tRAF=null;try{stopMic();}catch(e){}}
   function crStop(){if(crRAF)cancelAnimationFrame(crRAF);crRAF=null;crBusy=false;}
-  function crGen(){const sc=hpScaleList()[HP.scaleIdx].notes,n=sc.length;crPhrase=[];let cur=Math.floor(Math.random()*Math.min(5,n));
-    for(let i=0;i<crLevel;i++){crPhrase.push(cur);const step=[-2,-1,1,2,0][Math.floor(Math.random()*5)];cur=Math.max(0,Math.min(n-1,cur+step));}crBuildStrip();}
-  function crBuildStrip(){const strip=$("#crStrip");if(!strip)return;const sc=hpScaleList()[HP.scaleIdx].notes;strip.innerHTML="";crPhrase.forEach((idx,i)=>{const c=document.createElement("span");c.className="hpcell";c.id="crS"+i;c.textContent=midiName(sc[Math.min(idx,sc.length-1)]);strip.appendChild(c);});}
+  function crVary(base,m,len){const f=m%3;
+    if(f===1)return base.map(x=>Math.max(0,Math.min(len-1,x+1)));            // measure up a step
+    if(f===2)return base.slice().reverse();                                  // measure reversed
+    const v=base.slice();v[v.length-1]=Math.max(0,v[v.length-1]-1);return v;} // altered ending
+  function crGen(){const sc=hpScaleList()[HP.scaleIdx].notes,n=sc.length;crPhrase=[];
+    let cur=Math.floor(Math.random()*Math.min(5,n));const base=[];
+    for(let i=0;i<CR_NPM;i++){base.push(cur);const step=[-2,-1,1,2,0][Math.floor(Math.random()*5)];cur=Math.max(0,Math.min(n-1,cur+step));}
+    for(let m=0;m<crMeasures;m++){let meas;if(m===0)meas=base.slice();else if(m===crMeasures-1&&crMeasures>=3)meas=base.slice();else meas=crVary(base,m,n);crPhrase=crPhrase.concat(meas);}
+    crBuildStrip();}
+  function crBuildStrip(){const strip=$("#crStrip");if(!strip)return;const sc=hpScaleList()[HP.scaleIdx].notes;strip.innerHTML="";crPhrase.forEach((idx,i)=>{if(i>0&&i%CR_NPM===0)strip.appendChild(Object.assign(document.createElement("span"),{className:"hpbar"}));const c=document.createElement("span");c.className="hpcell";c.id="crS"+i;c.textContent=midiName(sc[Math.min(idx,sc.length-1)]);strip.appendChild(c);});}
   function crLight(i){const strip=$("#crStrip");if(!strip)return;strip.querySelectorAll(".hpcell.on").forEach(e=>e.classList.remove("on"));const el=$("#crS"+i);if(el)el.classList.add("on");}
   function crCall(){unlockAudio();if(crBusy)return;if(!crPhrase.length)crGen();crBusy=true;const fb=$("#crFb");if(fb)fb.style.display="none";
     const sc=hpScaleList()[HP.scaleIdx].notes,spb=60/84,a=ac();let t=a.currentTime+0.3;const base=t;crExpected=[];
     crPhrase.forEach((idx,i)=>{const midi=sc[Math.min(idx,sc.length-1)];handpan(t,midi);setTimeout(()=>{crLight(i);hpLight(idx);},(t-a.currentTime)*1000);crExpected.push({midi,t:t-base});t+=spb;});
     const dur=t-base,st=$("#crStatus");if(st)st.textContent="🎧 Listen…";
     setTimeout(()=>{crBusy=false;crAnswer(dur);},(t-a.currentTime)*1000+120);}
-  function crAnswer(dur){const st=$("#crStatus");if(st)st.textContent="turning on mic…";dur=dur||(60/84*crLevel);
+  function crAnswer(dur){const st=$("#crStatus");if(st)st.textContent="turning on mic…";dur=dur||(60/84*crMeasures*CR_NPM);
     ensureMic().then(ok=>{if(!ok){if(st)st.textContent="🎤 I need the mic to hear your answer.";return;}
       if(st)st.textContent="🎤 Your turn — play the notes above!";
       const buf=new Float32Array(toneAnalyser.fftSize);crSamples=[];const start=ac().currentTime;
       (function loop(){const now=ac().currentTime-start;toneAnalyser.getFloatTimeDomainData(buf);let sum=0;for(let k=0;k<buf.length;k++)sum+=buf[k]*buf[k];const rms=Math.sqrt(sum/buf.length);let f=autoCorrelate(buf,ac().sampleRate);crSamples.push({t:now,rms,f:(f>=55&&f<=1400)?f:0});if(now>=dur+1.0){crScoreAns();return;}crRAF=requestAnimationFrame(loop);})();});}
   function crScoreAns(){if(crRAF)cancelAnimationFrame(crRAF);crRAF=null;
-    const on=[];let floor=0.004,below=true;
-    for(let i=0;i<crSamples.length;i++){const r=crSamples[i].rms;floor=floor*0.97+r*0.03;if(below&&r>Math.max(0.012,floor*2.2)){on.push(i);below=false;}else if(!below&&r<floor*1.3)below=true;}
-    const onset=[];let last2=-1;on.forEach(i=>{const tt=crSamples[i].t;if(last2<0||tt-last2>0.12){onset.push(i);last2=tt;}});
+    const on=[];let floor=0.003,below=true;
+    for(let i=0;i<crSamples.length;i++){const r=crSamples[i].rms;floor=floor*0.97+r*0.03;if(below&&r>Math.max(0.007,floor*1.75)){on.push(i);below=false;}else if(!below&&r<floor*1.25)below=true;}
+    const onset=[];let last2=-1;on.forEach(i=>{const tt=crSamples[i].t;if(last2<0||tt-last2>0.11){onset.push(i);last2=tt;}});
     const detected=onset.map(bi=>{const fs=[];for(let k=bi;k<Math.min(crSamples.length,bi+6);k++)if(crSamples[k].f)fs.push(crSamples[k].f);if(!fs.length)return null;fs.sort((a,b)=>a-b);const f=fs[Math.floor(fs.length/2)];return Math.round(69+12*Math.log2(f/440));}).filter(x=>x!=null);
     let hit=0;crExpected.forEach((e,i)=>{if(detected[i]!=null){const d=(((detected[i]-e.midi)%12)+12)%12;if(d<=1||d>=11)hit++;}});
     const N=crExpected.length,pct=Math.round(100*hit/N),fb=$("#crFb");
@@ -2247,9 +2256,9 @@ function renderHandpan(){
     if(HP.mode==="cr"){
       view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔔 Handpan</span></div>'+
        '<div class="panel">'+modeBar()+
-        '<div class="intro">Call &amp; response: I play a short phrase, then you play it back on your handpan. The notes are shown so you know what&rsquo;s coming &mdash; practice them on the pan below, then answer and I&rsquo;ll listen.</div>'+
+        '<div class="intro">Call &amp; response: I play a phrase, then you play it back on your handpan. Pick <b>1&ndash;4 bars</b> &mdash; longer calls add a variation each bar and resolve at the end. The notes light up on the pan and in the row below, so you always know what&rsquo;s coming.</div>'+
         '<div class="rrow2"><span class="rlab">Scale</span><span class="rchips tight" id="hpScales"></span></div>'+
-        '<div class="rrow2"><span class="rlab">Length</span><span class="rchips tight" id="crLevels"></span></div>'+
+        '<div class="rrow2"><span class="rlab">Measures</span><span class="rchips tight" id="crLevels"></span></div>'+
         '<div class="rlab" style="display:block;margin:10px 0 5px">Play these notes</div>'+
         '<div class="hpstrip" id="crStrip"></div>'+
         '<div class="actions"><button class="btn" id="crCall">▶ Call</button><button class="btn ghost" id="crNew">＋ New phrase</button><button class="btn ghost" id="crAns">🎤 Answer</button></div>'+
@@ -2260,7 +2269,7 @@ function renderHandpan(){
        '</div>';
       $("#eBack").onclick=goHome;wireMode();
       const scc=$("#hpScales");hpScaleList().forEach((s,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===HP.scaleIdx?" sel":"");b.textContent=s.name;b.onclick=()=>{HP.scaleIdx=i;crPhrase=[];draw();};scc.appendChild(b);});
-      const cl=$("#crLevels");[2,3,4,5].forEach(n=>{const b=document.createElement("button");b.className="rchip sm"+(n===crLevel?" sel":"");b.textContent=n+" notes";b.onclick=()=>{crLevel=n;save(mk("hp","cr-level"),n);crPhrase=[];draw();};cl.appendChild(b);});
+      const cl=$("#crLevels");[1,2,3,4].forEach(n=>{const b=document.createElement("button");b.className="rchip sm"+(n===crMeasures?" sel":"");b.textContent=n+(n===1?" bar":" bars");b.onclick=()=>{crMeasures=n;save(mk("hp","cr-meas"),n);crPhrase=[];draw();};cl.appendChild(b);});
       if(!crPhrase.length)crGen();else crBuildStrip();
       buildPan();
       $("#crCall").onclick=crCall;
