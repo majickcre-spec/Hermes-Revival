@@ -1,8 +1,11 @@
+import { useEffect } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import AccountButton from "@/components/AccountButton";
+import { startAutoSync } from "@/lib/sync";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Modules from "@/pages/modules";
@@ -51,10 +54,12 @@ function Router() {
 }
 
 function App() {
+  useEffect(() => { startAutoSync(); }, []);
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
+        <AccountButton />
         <Router />
       </TooltipProvider>
     </QueryClientProvider>

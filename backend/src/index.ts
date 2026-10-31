@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { registerRoutes } from './routes.js';
+import { initAccounts } from './accounts.js';
 
 dotenv.config();
 
@@ -16,8 +17,8 @@ app.use(cors({
     : 'http://localhost:5173',
   credentials: true
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '6mb' }));
+app.use(express.urlencoded({ extended: true, limit: '6mb' }));
 
 // Request logging
 app.use((req, res, next) => {
@@ -40,6 +41,9 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
     error: NODE_ENV === 'production' ? 'Internal server error' : err.message 
   });
 });
+
+// Initialize accounts/progress tables (no-op without DATABASE_URL)
+initAccounts().catch((e) => console.error('initAccounts failed:', e));
 
 // Start server
 app.listen(PORT, () => {
