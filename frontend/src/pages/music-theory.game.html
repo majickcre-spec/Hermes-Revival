@@ -2292,7 +2292,10 @@ function beatToMidi(bt){const PPQ=480,stepTicks=Math.round(PPQ*4/bt.steps),DRUM=
   const head=[0x4D,0x54,0x68,0x64,0,0,0,6,0,0,0,1,(PPQ>>8)&255,PPQ&255];
   const th=[0x4D,0x54,0x72,0x6B,(trk.length>>24)&255,(trk.length>>16)&255,(trk.length>>8)&255,trk.length&255];
   return new Uint8Array(head.concat(th,trk));}
-function downloadBytes(bytes,filename,mime){try{const blob=new Blob([bytes],{type:mime||"application/octet-stream"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(url);},1200);}catch(e){}}
+function blobDownload(bytes,filename,mime){try{const blob=new Blob([bytes],{type:mime||"application/octet-stream"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(url);},1200);}catch(e){}}
+function downloadBytes(bytes,filename,mime){
+  try{if(window.claude&&window.claude.use){window.claude.use("downloads").then(d=>{if(d&&d.save)d.save({filename,data:new Blob([bytes],{type:mime||"application/octet-stream"})}).catch(()=>blobDownload(bytes,filename,mime));else blobDownload(bytes,filename,mime);}).catch(()=>blobDownload(bytes,filename,mime));return;}}catch(e){}
+  blobDownload(bytes,filename,mime);}
 function renderBeat(focus){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   let bpm=load(mk("beat","bpm"),92),steps=load(mk("beat","steps"),16),swing=load(mk("beat","swing"),0);
