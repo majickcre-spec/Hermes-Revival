@@ -259,7 +259,9 @@ function burst(el,count,kind){const fx=$("#fx");if(!el)return;const r=el.getBoun
 function prayerProgress(p){ // 0..1 across 5 fade levels
   return (getLevel(p.id)-1)/4;
 }
-function goHeads(){try{if(window.top&&window.top!==window.self){window.top.location.href="/reader/star-heads";return;}}catch(e){}location.href="/reader/star-heads";}
+function hermApp(){try{return location.pathname.indexOf("/reader/")===0||/railway|localhost|127\.0\.0\.1/.test(location.hostname);}catch(e){return false;}}
+function goHeads(){if(hermApp()){try{if(window.top&&window.top!==window.self){window.top.location.href="/reader/star-heads";return;}}catch(e){}location.href="/reader/star-heads";return;}
+  try{window.open("https://claude.ai/artifact/GDZgiAKZr5usA2DeuLsSx7","_blank","noopener");}catch(e){}}
 function renderHome(){
   updateBeanChip();
   const bh=$("#backHeads");if(bh)bh.onclick=goHeads;

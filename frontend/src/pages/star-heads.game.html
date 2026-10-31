@@ -729,7 +729,9 @@ const FOCUS=[
  {id:3,key:"match",t:"Match",g:"🧩",cls:"f3"},
  {id:4,key:"build",t:"Build",g:"🪄",cls:"f4"},
 ];
-function goPrayers(){try{if(window.top&&window.top!==window.self){window.top.location.href="/reader/prayers";return;}}catch(e){}location.href="/reader/prayers";}
+function hermApp(){try{return location.pathname.indexOf("/reader/")===0||/railway|localhost|127\.0\.0\.1/.test(location.hostname);}catch(e){return false;}}
+function goPrayers(){if(hermApp()){try{if(window.top&&window.top!==window.self){window.top.location.href="/reader/prayers";return;}}catch(e){}location.href="/reader/prayers";return;}
+  try{window.open("https://claude.ai/artifact/PguYPE7WGFWwxJVYYikWjw","_blank","noopener");}catch(e){}}
 function renderHome(){
   updateScore();renderQuest();
   const ap=activeProfile();const nm=$(".hero .nm");if(nm)nm.textContent=ap?ap.name:"traveler";
