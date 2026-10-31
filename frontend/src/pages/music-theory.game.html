@@ -177,6 +177,8 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .nchip{font:inherit;font-weight:800;font-size:.92rem;padding:9px 11px;border-radius:10px;background:var(--card2);border:1px solid var(--line);color:var(--cream);cursor:pointer;font-family:"Bricolage Grotesque",system-ui,sans-serif}
 .nchip.sel{background:rgba(255,159,92,.22);border-color:var(--gold);color:#fff}
 .staffbox{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:6px;margin:12px 0;overflow-x:auto}
+.clefnote{background:var(--card2);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:10px 13px;margin:10px 0;color:var(--muted);font-size:.92rem;line-height:1.55}
+.clefnote b{color:var(--cream)}
 .djlegend{font-size:.82rem;color:var(--muted);font-family:"Nunito Sans",system-ui,sans-serif;margin:8px 2px 4px}
 .rcell.B{color:#c9b3ff;border-color:var(--violet);background:rgba(165,121,255,.14)}
 .rcell.T{color:#ffd9a8;border-color:var(--gold);background:rgba(255,159,92,.14)}
@@ -489,6 +491,18 @@ function mk(id,s){return "music-"+(activeId()||"guest")+"-"+id+"-"+s;}
 function getProfiles(){return load("majick-profiles",[]);}
 function setProfiles(p){save("majick-profiles",p);}
 function newId(){return "u"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+/* custom share links: ?for=Name&focus=guitar,voice (injected by the wrapper, or on the URL) */
+function linkParams(){let name=null,focus=null;
+  try{if(window.__MJK_FOR__)name=window.__MJK_FOR__;if(window.__MJK_FOCUS__)focus=window.__MJK_FOCUS__;}catch(e){}
+  try{const q=new URLSearchParams(location.search);if(!name&&q.get("for"))name=q.get("for");if(!focus&&q.get("focus"))focus=q.get("focus");}catch(e){}
+  try{if(location.hash){const h=new URLSearchParams(location.hash.replace(/^#/,""));if(!name&&h.get("for"))name=h.get("for");if(!focus&&h.get("focus"))focus=h.get("focus");}}catch(e){}
+  return {name:name?String(name).trim().slice(0,18):null,focus:focus?String(focus).toLowerCase():null};}
+function focusBlurb(f){if(!f)return "";const b=[];
+  if(/guitar/.test(f))b.push("guitar chords &amp; progressions");
+  if(/bass/.test(f))b.push("the bass fretboard");
+  if(/voice|sing|vocal/.test(f))b.push("Tone Match and Sing a Song for your voice");
+  if(/rhythm|drum|djembe/.test(f))b.push("rhythm &amp; djembe");
+  return b.length?("There&rsquo;s "+b.join(", ")+" waiting for you. "):"";}
 const QUIZ_BEANS=10, MATCH_BEANS=10, KB_BEANS=5;
 
 function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
@@ -605,6 +619,7 @@ function renderTopic(){
   view.innerHTML=`<div class="play-top"><button class="back" id="tBack" aria-label="Back">←</button><span class="ttitle">${T.icon} ${esc(T.title)}</span></div>
     <div class="tabs">
       <button class="tab ${tab==="learn"?"on":""}" data-t="learn">Learn</button>
+      ${T.id==="staff"?`<button class="tab ${tab==="clefs"?"on":""}" data-t="clefs">Clefs</button>`:""}
       <button class="tab ${tab==="quiz"?"on":""}" data-t="quiz">Quiz</button>
       <button class="tab ${tab==="match"?"on":""}" data-t="match">Match</button>
     </div>
@@ -617,7 +632,7 @@ function renderTopic(){
     </div>`;
   $("#tBack").onclick=goHome;
   view.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{tab=t.dataset.t;renderTopic();});
-  if(tab==="learn")renderLearn();else if(tab==="quiz")renderQuiz();else renderMatch();
+  if(tab==="learn")renderLearn();else if(tab==="clefs")renderClefs();else if(tab==="quiz")renderQuiz();else renderMatch();
   beanChip();window.scrollTo(0,0);
 }
 
@@ -630,6 +645,55 @@ function renderLearn(){
   T.cards.forEach(c=>{const d=document.createElement("div");d.className="flip";
     d.innerHTML=`<div class="flip-inner"><div class="flip-face flip-front">${esc(c.t)}</div><div class="flip-face flip-back">${esc(c.d)}</div></div>`;
     d.querySelector(".flip-inner").onclick=()=>d.classList.toggle("on");f.appendChild(d);});
+}
+
+/* Clefs — visual explainer: grand staff + piano split at Middle C */
+function clefStaffSVG(){
+  const xa=38,xb=408;
+  const TL=[[102,"E"],[88,"G"],[74,"B"],[60,"D"],[46,"F"]];
+  const BL=[[224,"G"],[210,"B"],[196,"D"],[182,"F"],[168,"A"]];
+  let s='<svg viewBox="0 0 462 266" width="100%" style="max-width:470px;display:block;margin:0 auto">';
+  s+='<text x="250" y="28" text-anchor="middle" font-size="12" fill="#ff9f5c" font-weight="700">Treble clef 𝄞 · right hand</text>';
+  s+='<line x1="'+xa+'" y1="46" x2="'+xa+'" y2="224" stroke="rgba(255,255,255,.55)" stroke-width="2.6"/>';
+  TL.concat(BL).forEach(function(r){s+='<line x1="'+xa+'" y1="'+r[0]+'" x2="'+xb+'" y2="'+r[0]+'" stroke="rgba(255,255,255,.34)" stroke-width="1.2"/>';s+='<text x="'+(xb+7)+'" y="'+(r[0]+4)+'" font-size="11" fill="#89a0a8">'+r[1]+'</text>';});
+  s+='<text x="44" y="110" font-size="70" fill="#ff9f5c">𝄞</text>';
+  s+='<text x="48" y="208" font-size="56" fill="#9bd0ff">𝄢</text>';
+  s+='<line x1="234" y1="116" x2="268" y2="116" stroke="rgba(255,255,255,.6)" stroke-width="1.2"/>';
+  s+='<ellipse cx="251" cy="116" rx="9" ry="6.6" transform="rotate(-20 251 116)" fill="#ff9f5c"/>';
+  s+='<line x1="234" y1="154" x2="268" y2="154" stroke="rgba(255,255,255,.6)" stroke-width="1.2"/>';
+  s+='<ellipse cx="251" cy="154" rx="9" ry="6.6" transform="rotate(-20 251 154)" fill="#ff9f5c"/>';
+  s+='<line x1="251" y1="123" x2="251" y2="147" stroke="#ff9f5c" stroke-width="1.3" stroke-dasharray="3 3"/>';
+  s+='<text x="278" y="138" font-size="12" fill="#ff9f5c" font-weight="800">Middle C</text>';
+  s+='<text x="278" y="152" font-size="9.5" fill="#89a0a8">one note, both clefs</text>';
+  s+='<text x="250" y="252" text-anchor="middle" font-size="12" fill="#9bd0ff" font-weight="700">Bass clef 𝄢 · left hand</text>';
+  return s+'</svg>';
+}
+function clefPianoSVG(){
+  const ww=24,wh=96,x0=12,ky=34,bw=15,bh=60;
+  const whites=[["C",3],["D",3],["E",3],["F",3],["G",3],["A",3],["B",3],["C",4],["D",4],["E",4],["F",4],["G",4],["A",4],["B",4],["C",5]];
+  const splitX=x0+7*ww; // left edge of Middle C (C4)
+  let s='<svg viewBox="0 0 384 172" width="100%" style="max-width:440px;display:block;margin:0 auto">';
+  s+='<rect x="'+x0+'" y="4" width="'+(7*ww)+'" height="22" rx="6" fill="rgba(120,170,255,.16)"/>';
+  s+='<rect x="'+splitX+'" y="4" width="'+(8*ww)+'" height="22" rx="6" fill="rgba(255,159,92,.16)"/>';
+  s+='<text x="'+(x0+3.5*ww)+'" y="19" text-anchor="middle" font-size="11" fill="#9bd0ff" font-weight="700">Left hand · Bass 𝄢</text>';
+  s+='<text x="'+(splitX+4*ww)+'" y="19" text-anchor="middle" font-size="11" fill="#ff9f5c" font-weight="700">Right hand · Treble 𝄞</text>';
+  whites.forEach(function(w,i){const x=x0+i*ww,isC4=(w[0]==="C"&&w[1]===4),tint=i<7?"rgba(120,170,255,.13)":"rgba(255,159,92,.11)";
+    s+='<rect x="'+x+'" y="'+ky+'" width="'+(ww-1)+'" height="'+wh+'" rx="3" fill="'+tint+'" stroke="'+(isC4?"#ff9f5c":"rgba(255,255,255,.4)")+'" stroke-width="'+(isC4?2.4:1)+'"/>';
+    if(w[0]==="C")s+='<text x="'+(x+ww/2)+'" y="'+(ky+wh-7)+'" text-anchor="middle" font-size="10" fill="#b9d0d6">C'+w[1]+'</text>';});
+  whites.forEach(function(w,i){if(i===whites.length-1)return;if(["C","D","F","G","A"].indexOf(w[0])<0)return;const x=x0+(i+1)*ww-bw/2;
+    s+='<rect x="'+x+'" y="'+ky+'" width="'+bw+'" height="'+bh+'" rx="2" fill="#15131f" stroke="rgba(255,255,255,.28)" stroke-width="0.6"/>';});
+  s+='<line x1="'+splitX+'" y1="'+(ky-2)+'" x2="'+splitX+'" y2="'+(ky+wh+3)+'" stroke="#ff9f5c" stroke-width="1.6" stroke-dasharray="4 3"/>';
+  s+='<text x="'+(splitX+ww/2)+'" y="'+(ky+wh+18)+'" text-anchor="middle" font-size="11" fill="#ff9f5c" font-weight="800">Middle C</text>';
+  return s+'</svg>';
+}
+function renderClefs(){
+  $("#tbody").innerHTML='<div class="panel">'+
+    '<div class="intro">A <b>clef</b> is the sign at the start of a staff that fixes which note each line and space stands for. The two you&rsquo;ll use most are the <b>treble clef</b> 𝄞 (higher notes) and the <b>bass clef</b> 𝄢 (lower notes). Stacked together with a brace they make the <b>grand staff</b> &mdash; what piano music is written on.</div>'+
+    '<div class="staffbox">'+clefStaffSVG()+'</div>'+
+    '<div class="clefnote"><b>What links them is Middle C.</b> It sits one ledger line <b>below</b> the treble staff and one ledger line <b>above</b> the bass staff &mdash; the very same key on the piano, just written either way. That shared note is where the two clefs meet.</div>'+
+    '<div class="staffbox">'+clefPianoSVG()+'</div>'+
+    '<div class="clefnote">On the keyboard, <b>Middle C</b> is the dividing line. From Middle C <b>to the right</b> is your <b>right hand</b> &mdash; those notes are written in the <b>treble clef</b>. Everything <b>to the left</b> is your <b>left hand</b> &mdash; written in the <b>bass clef</b>. Same idea as the lines-and-spaces sayings on the Learn tab: treble lines are E-G-B-D-F, bass lines are G-B-D-F-A, each read bottom to top.</div>'+
+  '</div>';
 }
 
 /* Quiz — def → pick the term */
@@ -2717,12 +2781,25 @@ const gate=$("#gate");
 function renderGate(){
   document.body.classList.add("gated");
   home.hidden=true;view.hidden=true;gate.hidden=false;
-  const ps=getProfiles();
-  gate.innerHTML=`<div class="hero"><div class="eyebrow">MAJICK Music</div>
-    <h2>Who's playing?</h2>
-    <p>Each player keeps their own progress and Beans. Pick yours, or start a new one.</p></div>
-    <div class="profiles" id="profiles"></div><div id="gateForm"></div>`;
+  const ps=getProfiles(),lp=linkParams();
+  if(lp.name){
+    gate.innerHTML=`<div class="hero"><div class="eyebrow">MAJICK Music · set up for you by Travis</div>
+      <h2>Welcome, <span class="nm">${esc(lp.name)}</span> 🎸🎤</h2>
+      <p>This is a music playground — ear training, guitar, bass, singing, rhythm, and a place to build your own songs. ${focusBlurb(lp.focus)}Tap below to jump in as <b>${esc(lp.name)}</b>. Your progress saves on this device.</p></div>
+      <div class="profiles" id="profiles"></div><div id="gateForm"></div>`;
+  } else {
+    gate.innerHTML=`<div class="hero"><div class="eyebrow">MAJICK Music</div>
+      <h2>Who's playing?</h2>
+      <p>Each player keeps their own progress and Beans. Pick yours, or start a new one.</p></div>
+      <div class="profiles" id="profiles"></div><div id="gateForm"></div>`;
+  }
   const list=$("#profiles");
+  if(lp.name&&!ps.some(p=>(p.name||"").toLowerCase()===lp.name.toLowerCase())){
+    const start=document.createElement("button");start.className="pcard add";
+    start.innerHTML=`<span class="pav">▶</span><span class="pnm">Start as ${esc(lp.name)}</span>`;
+    start.onclick=()=>{const q=getProfiles();const id=newId();q.push({id,name:lp.name,pin:null});setProfiles(q);activate(id);};
+    list.appendChild(start);
+  }
   ps.forEach(p=>{const b=document.createElement("button");b.className="pcard";
     b.innerHTML=`<span class="pav">${esc(p.name.slice(0,1).toUpperCase())}</span><span class="pnm">${esc(p.name)}</span>${p.pin?'<span class="plock">🔒</span>':''}`;
     b.onclick=()=>selectProfile(p);list.appendChild(b);});
