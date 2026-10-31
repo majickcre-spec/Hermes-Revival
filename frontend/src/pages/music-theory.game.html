@@ -221,6 +221,16 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .fxk input{width:100%}
 .recbox{background:var(--bg);border:1px dashed var(--gold);border-radius:10px;padding:10px;margin-top:8px}
 .recopt{display:flex;align-items:center;gap:7px;color:var(--cream);font-size:.88rem;margin:4px 0}
+.dxgrid{margin:12px 0}
+.dxlane{display:flex;align-items:center;gap:8px;margin:5px 0}
+.dxlbl{flex:0 0 32px;text-align:center;font-weight:800;font-family:"Bricolage Grotesque",system-ui,sans-serif;color:var(--muted);font-size:1.05rem;border-radius:8px;padding:5px 0;transition:background .08s,color .08s,box-shadow .08s}
+.dxlbl.hit{color:#201a10;background:#ff9f5c;box-shadow:0 0 14px rgba(255,159,92,.8)}
+.dxcells{flex:1;display:grid;grid-template-columns:repeat(8,1fr);gap:5px}
+.dxcell{height:36px;border-radius:7px;background:var(--card2);border:1px solid var(--line);transition:background .05s}
+.dxcell.beat{height:auto;background:transparent;border:none;text-align:center;color:var(--muted);font-size:.78rem;padding-bottom:2px}
+.dxcell.hit{background:rgba(255,159,92,.26);border-color:var(--gold)}
+.dxcell.col{outline:1px solid rgba(255,255,255,.3)}
+.dxcell.on{background:#ff9f5c;border-color:#ff9f5c;box-shadow:0 0 12px rgba(255,159,92,.7)}
 .finger-legend{background:var(--card2);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:9px 12px;margin:0 0 12px;color:var(--muted);font-size:.85rem;line-height:1.55}
 .finger-legend b{color:var(--cream)}
 .finger-legend .fg{display:inline-block;min-width:17px;height:17px;line-height:17px;text-align:center;background:#ff9f5c;color:#201a10;border-radius:50%;font-weight:800;font-size:.72rem;margin:0 1px}
@@ -2114,6 +2124,63 @@ function djRenderCells(){const box=$("#djCells");if(!box)return;const P=DJP(),di
       d.className="rcell"+(ch&&ch!=="."?" act "+ch:"")+(div===3?" trip":"");d.innerHTML=`<span>${ch&&ch!=="."?ch:"·"}</span>`;grp.appendChild(d);}
     box.appendChild(grp);}
   DJ.litCell=-1;}
+/* ===== HAND INDEPENDENCE / DEXTERITY — left & right working separately ===== */
+const DEX=[
+ {name:"Alternating",L:[0,1,0,1,0,1,0,1],R:[1,0,1,0,1,0,1,0],d:"Right on the beat (1 2 3 4), left on the ‘and’s — hands trade off evenly."},
+ {name:"Left steady · Right 1-2-4",L:[1,1,1,1,1,1,1,1],R:[1,0,1,0,0,0,1,0],d:"Left plays all eighth notes. Right hits 1, 2, (skip 3), 4."},
+ {name:"Right steady · Left 1-2-4",L:[1,0,1,0,0,0,1,0],R:[1,1,1,1,1,1,1,1],d:"Right plays all eighth notes. Left hits 1, 2, (skip 3), 4."},
+ {name:"Quarters vs syncopation",L:[1,0,1,0,1,0,1,0],R:[1,1,0,1,0,1,1,0],d:"Left keeps steady quarter notes; right syncopates around it."},
+ {name:"Clave over quarters",L:[1,0,1,0,1,0,1,0],R:[1,0,0,1,0,0,1,0],d:"Left steady quarters; right plays a 3-side clave — 1, the ‘and’ of 2, and 4."},
+ {name:"Lock, then split",L:[1,0,0,1,1,0,0,1],R:[1,1,0,0,1,1,0,0],d:"Hands meet on 1, then go their own way — a control builder."}
+];
+function renderDexterity(inst){
+  if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  let exIdx=0,bpm=80,running=false,i=0,nextTime=0,raf=null,schID=null,muteL=false,muteR=false,vq=[],taps=[];
+  teardown=()=>{running=false;if(raf)cancelAnimationFrame(raf);if(schID)clearInterval(schID);};
+  const sc=(inst==="handpan")?((hpScaleList()[HP.scaleIdx]||hpScaleList()[0]).notes):null;
+  function playLeft(t){if(inst==="djembe")djembe(t,"tone");else handpan(t,sc[0]);}
+  function playRight(t){if(inst==="djembe")djembe(t,"slap");else handpan(t,sc[Math.min(4,sc.length-1)]);}
+  function stop(){running=false;if(raf)cancelAnimationFrame(raf);raf=null;if(schID)clearInterval(schID);schID=null;const b=$("#dxPlay");if(b)b.textContent="▶ Play";}
+  function schedule(){const ex=DEX[exIdx],cell=(60/bpm)/2,ahead=0.2;
+    while(nextTime<ac().currentTime+ahead){const idx=i,hl=ex.L[idx],hr=ex.R[idx];
+      if(hl&&!muteL)playLeft(nextTime);if(hr&&!muteR)playRight(nextTime);
+      vq.push({t:nextTime,i:idx,L:hl,R:hr});nextTime+=cell;i=(i+1)%8;}}
+  function flash(sel,on){const el=$(sel);if(!el||!on)return;el.classList.remove("hit");void el.offsetWidth;el.classList.add("hit");setTimeout(()=>{if(el)el.classList.remove("hit");},150);}
+  function light(e){document.querySelectorAll(".dxcell.on,.dxcell.col").forEach(c=>c.classList.remove("on","col"));
+    const cl=document.getElementById("dxL"+e.i),cr=document.getElementById("dxR"+e.i);
+    if(cl){cl.classList.add("col");if(e.L)cl.classList.add("on");}
+    if(cr){cr.classList.add("col");if(e.R)cr.classList.add("on");}
+    flash("#dxHandL",e.L&&!muteL);flash("#dxHandR",e.R&&!muteR);}
+  function frame(){const now=ac().currentTime;while(vq.length&&vq[0].t<=now){light(vq.shift());}if(running)raf=requestAnimationFrame(frame);}
+  function start(){unlockAudio();if(running)return;running=true;i=0;vq=[];const spb=60/bpm,a=ac();let t=a.currentTime+0.25;for(let c=0;c<4;c++){click(t,c===0?"accent":"beat");t+=spb;}nextTime=t;schID=setInterval(schedule,25);raf=requestAnimationFrame(frame);const b=$("#dxPlay");if(b)b.textContent="⏸ Stop";}
+  function draw(){const ex=DEX[exIdx];const BL=["1","&","2","&","3","&","4","&"];
+    function lane(prefix,arr){let s="";for(let k=0;k<8;k++)s+='<div class="dxcell'+(arr[k]?" hit":"")+'" id="'+prefix+k+'"></div>';return s;}
+    let beat="";for(let k=0;k<8;k++)beat+='<div class="dxcell beat">'+BL[k]+'</div>';
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">👐 Hand Independence</span></div>'+
+     '<div class="panel">'+
+      '<div class="intro">Train your hands to work on their own — one hand holds a steady pulse while the other plays a different rhythm. Start slow, loop it, and let your hands find it. '+(inst==="djembe"?"Left = tone, right = slap.":"Left = the low ding, right = a higher note.")+'</div>'+
+      '<div class="rrow2"><span class="rlab">Exercise</span><span class="rchips tight" id="dxList"></span></div>'+
+      '<div class="idea-fb" id="dxDesc">'+ex.d+'</div>'+
+      '<div class="dxgrid">'+
+        '<div class="dxlane"><span class="dxlbl"></span><div class="dxcells">'+beat+'</div></div>'+
+        '<div class="dxlane"><span class="dxlbl" id="dxHandL">L</span><div class="dxcells">'+lane("dxL",ex.L)+'</div></div>'+
+        '<div class="dxlane"><span class="dxlbl" id="dxHandR">R</span><div class="dxcells">'+lane("dxR",ex.R)+'</div></div>'+
+      '</div>'+
+      '<div class="rrow2"><span class="rlab">Practice one hand</span><span class="rchips tight"><button class="rchip sm'+(muteL?" sel":"")+'" id="dxMuteL">'+(muteL?"L muted":"Mute L")+'</button><button class="rchip sm'+(muteR?" sel":"")+'" id="dxMuteR">'+(muteR?"R muted":"Mute R")+'</button></span></div>'+
+      '<div class="rrow"><span class="rlab">Tempo</span><input type="range" id="dxBpm" min="40" max="140" value="'+bpm+'" style="flex:1"><span class="rbpm" id="dxBpmV">'+bpm+'</span><button class="rtap" id="dxTap">Tap</button></div>'+
+      '<div class="actions"><button class="btn" id="dxPlay">'+(running?"⏸ Stop":"▶ Play")+'</button><button class="btn ghost" id="dxSlow">🐢 Slow</button></div>'+
+     '</div>';
+    $("#eBack").onclick=()=>{stop();if(inst==="djembe")renderDjembe();else renderHandpan();};
+    const list=$("#dxList");DEX.forEach((e,k)=>{const b=document.createElement("button");b.className="rchip sm"+(k===exIdx?" sel":"");b.textContent=e.name;b.onclick=()=>{stop();exIdx=k;draw();};list.appendChild(b);});
+    $("#dxMuteL").onclick=()=>{muteL=!muteL;draw();};
+    $("#dxMuteR").onclick=()=>{muteR=!muteR;draw();};
+    const bp=$("#dxBpm");bp.oninput=()=>{bpm=+bp.value;$("#dxBpmV").textContent=bpm;};
+    $("#dxTap").onclick=()=>{const now=performance.now();if(taps.length&&now-taps[taps.length-1]>2000)taps=[];taps.push(now);if(taps.length>5)taps.shift();if(taps.length>=2){let s=0;for(let k=1;k<taps.length;k++)s+=taps[k]-taps[k-1];let b=Math.round(60000/(s/(taps.length-1)));b=Math.max(40,Math.min(140,b));bpm=b;bp.value=b;$("#dxBpmV").textContent=b;}};
+    $("#dxSlow").onclick=()=>{bpm=56;bp.value=56;$("#dxBpmV").textContent=56;};
+    $("#dxPlay").onclick=()=>{if(running)stop();else start();};
+  }
+  draw();
+}
 async function renderDjembe(){
   if(toneRAF)cancelAnimationFrame(toneRAF);djStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   teardown=()=>{djStop();stopMic();};
@@ -2129,7 +2196,7 @@ async function renderDjembe(){
           <div class="flashzone" id="drumFlash"></div><div class="drum-lbl" id="drumLbl"></div>
           <div class="djhand" id="djHand">🖐</div>
         </div>
-        <div class="actions"><button class="btn ghost" id="djCR">🔁 Call &amp; Response</button></div>
+        <div class="actions"><button class="btn ghost" id="djCR">🔁 Call &amp; Response</button><button class="btn ghost" id="djDex">👐 Hand independence</button></div>
         <div class="rbanner" id="djBanner" hidden></div>
         <div class="rcells" id="djCells"></div>
         <div class="rrow"><span class="rlab">Tempo</span><input type="range" id="djBpm" min="50" max="180" value="${DJ.bpm}" style="flex:1"><span class="rbpm" id="djBpmV">${DJ.bpm}</span><button class="rtap" id="djTap">Tap</button></div>
@@ -2153,6 +2220,7 @@ async function renderDjembe(){
     $("#tgScore").onclick=async()=>{if(!DJ.scoring){const ok=await ensureMic();if(!ok){DJ.scoring=false;draw();return;}DJ.buf=new Float32Array(toneAnalyser.fftSize);DJ.scoring=true;}else DJ.scoring=false;draw();};
     $("#djStart").onclick=()=>{unlockAudio();if(DJ.running)djStop();else djStart();};
     const crb=$("#djCR");if(crb)crb.onclick=()=>{djStop();renderCR();};
+    const ddx=$("#djDex");if(ddx)ddx.onclick=()=>{djStop();renderDexterity("djembe");};
     const pb=$("#padB"),pt=$("#padT"),ps=$("#padS");
     function pad(el,kind){el.addEventListener("pointerdown",e=>{e.preventDefault();unlockAudio();djembe(ac().currentTime+0.01,kind);el.classList.add("hit");setTimeout(()=>el.classList.remove("hit"),90);});}
     pad(pb,"bass");pad(pt,"tone");pad(ps,"slap");
@@ -2460,7 +2528,7 @@ function renderHandpan(){
         '<div class="hpstrip" id="hpStrip"></div>'+
         '<div class="rrow"><span class="rlab">Tempo</span><input type="range" id="hpBpm" min="45" max="140" value="'+HP.bpm+'" style="flex:1"><span class="rbpm" id="hpBpmV">'+HP.bpm+'</span><button class="rtap" id="hpTap">Tap</button></div>'+
         '<div class="rrow2"><span class="rlab">Sound</span><button class="rchip sm'+(HP.playNotes?" sel":"")+'" id="hpMute">'+(HP.playNotes?"🔊 Plays the notes":"🔇 Just the glow")+'</button></div>'+
-        '<div class="actions"><button class="btn" id="hpStart">'+(HP.running?"⏸ Stop":"▶ Play along")+'</button></div>'+
+        '<div class="actions"><button class="btn" id="hpStart">'+(HP.running?"⏸ Stop":"▶ Play along")+'</button><button class="btn ghost" id="hpDex">👐 Hand independence</button></div>'+
       '</div>';
     $("#eBack").onclick=goHome;wireMode();
     const scc=$("#hpScales");hpScaleList().forEach((s,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===HP.scaleIdx?" sel":"");b.textContent=s.name;b.onclick=()=>{HP.scaleIdx=i;if(HP.running){HP.i=0;HP.nextTime=ac().currentTime+0.1;HP.visQ=[];}draw();};scc.appendChild(b);});
@@ -2471,6 +2539,7 @@ function renderHandpan(){
     $("#hpTap").onclick=()=>{const now=performance.now();if(HP.taps.length&&now-HP.taps[HP.taps.length-1]>2000)HP.taps=[];HP.taps.push(now);if(HP.taps.length>5)HP.taps.shift();if(HP.taps.length>=2){let s=0;for(let i=1;i<HP.taps.length;i++)s+=HP.taps[i]-HP.taps[i-1];let b=Math.round(60000/(s/(HP.taps.length-1)));b=Math.max(45,Math.min(140,b));HP.bpm=b;bp.value=b;$("#hpBpmV").textContent=b;}};
     $("#hpMute").onclick=()=>{HP.playNotes=!HP.playNotes;draw();};
     $("#hpStart").onclick=()=>{unlockAudio();if(HP.running)hpStop();else hpStart();};
+    {const hd=$("#hpDex");if(hd)hd.onclick=()=>{hpStop();renderDexterity("handpan");};}
   }
   draw();
 }
