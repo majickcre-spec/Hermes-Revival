@@ -3339,54 +3339,70 @@ const BIO_CARDS=[
 /* ===== EARTH FREQUENCY — Schumann 7.83 Hz made audible, shaped by today's geomagnetic data ===== */
 let EF=null;
 function efStop(){if(!EF)return;const ef=EF;EF=null;try{const a=ac();ef.master.gain.cancelScheduledValues(a.currentTime);ef.master.gain.setTargetAtTime(0.0001,a.currentTime,0.25);}catch(e){}if(ef.beatTimer)clearInterval(ef.beatTimer);setTimeout(()=>{ef.oscs.forEach(o=>{try{o.stop();}catch(e){}});},700);}
-function efStart(intensity,mode,vol){efStop();unlockAudio();const a=ac(),I=Math.max(0,Math.min(1,(intensity||0)/100)),root=7.83*32,oscs=[];
+const EF_VOICES=[{id:"pure",name:"Pure",t:"sine",det:0},{id:"pad",name:"Warm pad",t:"sawtooth",det:7},{id:"organ",name:"Organ",t:"square",det:0},{id:"crystal",name:"Crystal",t:"triangle",det:3,shimmer:1}];
+function efDayUTC(off){const d=new Date();if(off)d.setUTCDate(d.getUTCDate()+off);return d.toISOString().slice(0,10);}
+function efDateLabel(day){if(day===efDayUTC(0))return "Today";if(day===efDayUTC(-1))return "Yesterday";try{return new Date(day+"T00:00:00Z").toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric",timeZone:"UTC"});}catch(e){return day;}}
+function efArch(){return load(mk("earth","archive"),{});}
+function efSaveArch(a){const days=Object.keys(a).sort().slice(-7),out={};days.forEach(d=>out[d]=a[d]);save(mk("earth","archive"),out);}
+function efFetchHistory(cb){const arch=efArch();
+  try{fetch("https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json",{cache:"no-store"}).then(r=>r.json()).then(rows=>{
+    if(!Array.isArray(rows)||rows.length<2){cb(arch,false);return;}
+    const hdr=rows[0].map(x=>String(x).toLowerCase());let ti=hdr.findIndex(x=>x.indexOf("time")>=0);let ki=hdr.findIndex(x=>x==="kp");if(ki<0)ki=hdr.findIndex(x=>x.indexOf("kp")>=0);if(ti<0)ti=0;if(ki<0)ki=1;
+    const byDay={};for(let i=1;i<rows.length;i++){const r=rows[i],day=String(r[ti]).slice(0,10),kp=parseFloat(r[ki]);if(isNaN(kp))continue;if(byDay[day]==null||kp>byDay[day])byDay[day]=kp;}
+    Object.keys(byDay).forEach(day=>{const kp=byDay[day];arch[day]={kp,intensity:Math.round(kp/9*100),label:efKpLabel(kp)};});
+    efSaveArch(arch);cb(efArch(),true);
+  }).catch(()=>cb(arch,false));}catch(e){cb(arch,false);}}
+function efStart(intensity,mode,vol,voiceId){efStop();unlockAudio();const a=ac(),I=Math.max(0,Math.min(1,(intensity||0)/100)),root=7.83*32,oscs=[];
+  const V=EF_VOICES.find(v=>v.id===voiceId)||EF_VOICES[0],lvlf=(V.t==="sine")?1:0.5;
   const master=a.createGain();master.gain.value=0.0001;master.connect(a.destination);master.gain.setTargetAtTime((vol==null?0.6:vol),a.currentTime,0.6);
   const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=380+I*2000;lp.connect(master);
-  function drone(mult,level){const o=a.createOscillator();o.type="sine";o.frequency.value=root*mult;const g=a.createGain();g.gain.value=level;o.connect(g);g.connect(lp);o.start();oscs.push(o);}
-  if(mode==="binaural"){const L=a.createOscillator();L.type="sine";L.frequency.value=root;const R=a.createOscillator();R.type="sine";R.frequency.value=root+7.83;const gl=a.createGain();gl.gain.value=0.2;const gr=a.createGain();gr.gain.value=0.2;const pl=a.createStereoPanner();pl.pan.value=-1;const pr=a.createStereoPanner();pr.pan.value=1;L.connect(gl);gl.connect(pl);pl.connect(lp);R.connect(gr);gr.connect(pr);pr.connect(lp);L.start();R.start();oscs.push(L,R);}
-  else{drone(1,0.14);drone(2,0.07);drone(1.5,0.06);
+  function voice1(freq,level,pan){const o=a.createOscillator();o.type=V.t;o.frequency.value=freq;const g=a.createGain();g.gain.value=level*lvlf;if(pan!=null&&a.createStereoPanner){const p=a.createStereoPanner();p.pan.value=pan;g.connect(p);p.connect(lp);}else g.connect(lp);o.connect(g);o.start();oscs.push(o);
+    if(V.det){const o2=a.createOscillator();o2.type=V.t;o2.frequency.value=freq;o2.detune.value=V.det;const g2=a.createGain();g2.gain.value=level*lvlf*0.8;o2.connect(g2);g2.connect(lp);o2.start();oscs.push(o2);}}
+  if(mode==="binaural"){voice1(root,0.2,-1);voice1(root+7.83,0.2,1);}
+  else{voice1(root,0.14);voice1(root*2,0.07);voice1(root*1.5,0.06);
     const po=a.createOscillator();po.type="sine";po.frequency.value=root;const pg=a.createGain();pg.gain.value=0.11;po.connect(pg);pg.connect(lp);po.start();oscs.push(po);
     const lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=7.83;const lg=a.createGain();lg.gain.value=0.11;lfo.connect(lg);lg.connect(pg.gain);lfo.start();oscs.push(lfo);}
-  if(I>0.5){[14.3,20.8].forEach(f=>{const o=a.createOscillator();o.type="sine";o.frequency.value=f*16;const g=a.createGain();g.gain.value=0.02*I;o.connect(g);g.connect(lp);o.start();oscs.push(o);});}
+  if(I>0.5||V.shimmer){[14.3,20.8].forEach(f=>{const o=a.createOscillator();o.type="sine";o.frequency.value=f*16;const g=a.createGain();g.gain.value=0.02*(V.shimmer?0.8:I);o.connect(g);g.connect(lp);o.start();oscs.push(o);});}
   const bpm=7.83*60/8,spb=60/bpm;let beatI=0;
   function kick(t,lvl){const o=a.createOscillator();o.type="sine";o.frequency.setValueAtTime(92,t);o.frequency.exponentialRampToValueAtTime(40,t+0.12);const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(lvl,t+0.005);g.gain.exponentialRampToValueAtTime(0.0001,t+0.26);o.connect(g);g.connect(master);o.start(t);o.stop(t+0.3);}
-  const beatTimer=setInterval(()=>{const t=a.currentTime+0.05,step=beatI%4;if(step===0)kick(t,0.5);else if(I>0.6&&step===2)kick(t,0.3);else if(I>0.82&&step%1===0)kick(t,0.16);beatI++;},spb*1000);
+  const beatTimer=setInterval(()=>{const t=a.currentTime+0.05,step=beatI%4;if(step===0)kick(t,0.5);else if(I>0.6&&step===2)kick(t,0.3);else if(I>0.82)kick(t,0.16);beatI++;},spb*1000);
   EF={master,oscs,beatTimer};}
 function efKpLabel(kp){return kp<2?"Quiet":kp<4?"Unsettled":kp<5?"Active":kp<6?"Minor storm (G1)":kp<7?"Storm (G2)":"Strong storm";}
 function renderEarthFreq(){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  let intensity=load(mk("earth","intensity"),24),mode=load(mk("earth","mode"),"iso"),vol=0.6,kp=null;
+  let mode=load(mk("earth","mode"),"iso"),voice=load(mk("earth","voice"),"pure"),vol=0.6;
+  let arch=efArch(),selDate=efDayUTC(0),override=null;
   teardown=()=>{efStop();};
+  function cur(){if(override!=null)return override;const s=arch[selDate];return s?s.intensity:24;}
   function draw(){
+    const s=arch[selDate],days=Object.keys(arch).sort().reverse().slice(0,7);
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌍 Earth Frequency</span></div><div class="panel">'+
-      '<div class="intro">The <b>Schumann resonance</b> is the Earth&rsquo;s background hum in the gap between the ground and the ionosphere — a fundamental around <b>7.83 Hz</b> (plus harmonics). It&rsquo;s below hearing, so here it&rsquo;s octaved up into a <b>drone</b>, pulsed at the real <b>7.83 Hz</b> so you can feel it, and given a slow <b>beat</b> (~59 BPM, the Earth tempo). How calm or spiky it feels today is set from <b>real NOAA geomagnetic data</b>.</div>'+
-      '<div class="rlab" style="display:block;margin:4px 0 6px">Today&rsquo;s spectrogram (Tomsk station)</div>'+
+      '<div class="intro">The <b>Schumann resonance</b> is the Earth&rsquo;s background hum — a fundamental near <b>7.83 Hz</b>. Below hearing, so here it&rsquo;s octaved up into a <b>drone</b>, pulsed at the real 7.83 Hz so you can feel it, over a slow <b>~59 BPM</b> Earth beat. How calm or spiky each day feels comes from <b>real NOAA geomagnetic data</b>.</div>'+
+      '<div class="rlab" style="display:block;margin:4px 0 6px">Live spectrogram (Tomsk station)</div>'+
       '<img id="efImg" alt="Schumann spectrogram" style="width:100%;border-radius:10px;border:1px solid var(--line)" referrerpolicy="no-referrer">'+
-      '<div class="site-note" id="efImgNote">via schumannresonance.today · bright bursts = spikes. One station, so a spike can be local weather, not a global event.</div>'+
-      '<div class="idea-fb" id="efToday">Checking today&rsquo;s geomagnetic activity…</div>'+
-      '<div class="rrow"><span class="rlab">Intensity</span><input type="range" id="efInt" min="0" max="100" value="'+intensity+'" style="flex:1"><span class="rbpm" id="efIntV">'+intensity+'</span></div>'+
-      '<div class="site-note">Calm ← → Spiky. Auto-set from today&rsquo;s data; nudge it to match what you see on the chart.</div>'+
+      '<div class="site-note" id="efImgNote">via schumannresonance.today · bright bursts = spikes. One station, so a spike can be local weather.</div>'+
+      '<div class="rlab" style="display:block;margin:12px 0 5px">Tune in — pick a day</div><div class="rchips" id="efDays"></div>'+
+      '<div class="idea-fb" id="efNow"></div>'+
+      '<div class="rrow2"><span class="rlab">Instrument</span><span class="rchips tight" id="efVoices"></span></div>'+
       '<div class="rrow2"><span class="rlab">Mode</span><span class="rchips tight"><button class="rchip sm'+(mode==="iso"?" sel":"")+'" id="efIso">🔊 Isochronic</button><button class="rchip sm'+(mode==="binaural"?" sel":"")+'" id="efBin">🎧 Binaural</button></span></div>'+
+      '<div class="rrow"><span class="rlab">Intensity</span><input type="range" id="efInt" min="0" max="100" value="'+cur()+'" style="flex:1"><span class="rbpm" id="efIntV">'+cur()+'</span></div>'+
       '<div class="rrow"><span class="rlab">Volume</span><input type="range" id="efVol" min="0" max="1" step="0.01" value="'+vol+'" style="flex:1"></div>'+
-      '<div class="actions"><button class="btn" id="efPlay">▶ Play the Earth tone</button></div>'+
-      '<div class="site-note">Headphones recommended — essential for the Binaural mode (the 7.83 Hz lives in the difference between your ears).</div></div>';
+      '<div class="actions"><button class="btn" id="efPlay">'+(EF?"⏸ Stop":"▶ Play this day")+'</button></div>'+
+      '<div class="site-note">Headphones recommended — essential for Binaural (the 7.83 Hz lives between your ears). We keep the last 7 days.</div></div>';
     $("#eBack").onclick=goHome;
     const img=$("#efImg");img.src="https://schumannresonance.today/live/tomsk1.jpg?t="+Date.now();img.onerror=()=>{img.style.display="none";const n=$("#efImgNote");if(n)n.innerHTML='Couldn&rsquo;t load the live chart here — see it at <a href="https://schumannresonance.today/" target="_blank" rel="noopener" style="color:#9bd0ff">schumannresonance.today ↗</a>';};
-    const ii=$("#efInt");ii.oninput=()=>{intensity=+ii.value;$("#efIntV").textContent=intensity;save(mk("earth","intensity"),intensity);if(EF)efStart(intensity,mode,vol);};
-    $("#efIso").onclick=()=>{mode="iso";save(mk("earth","mode"),mode);draw();if(EF)efStart(intensity,mode,vol);};
-    $("#efBin").onclick=()=>{mode="binaural";save(mk("earth","mode"),mode);draw();if(EF)efStart(intensity,mode,vol);};
+    const dc=$("#efDays");if(!days.length){dc.innerHTML='<span class="site-note">Fetching the last 7 days…</span>';}
+    days.forEach(d=>{const b=document.createElement("button");b.className="rchip sm"+(d===selDate?" sel":"");b.textContent=efDateLabel(d);b.onclick=()=>{selDate=d;override=null;draw();if(EF)efStart(cur(),mode,vol,voice);};dc.appendChild(b);});
+    const nw=$("#efNow");if(nw)nw.innerHTML=s?("<b>"+efDateLabel(selDate)+"</b> — Kp "+s.kp.toFixed(1)+" · "+s.label+". Fundamental 7.83 Hz · ~59 BPM."):"No reading for this day yet — tune in daily and the week fills in.";
+    const vc=$("#efVoices");EF_VOICES.forEach(v=>{const b=document.createElement("button");b.className="rchip sm"+(v.id===voice?" sel":"");b.textContent=v.name;b.onclick=()=>{voice=v.id;save(mk("earth","voice"),voice);draw();if(EF)efStart(cur(),mode,vol,voice);};vc.appendChild(b);});
+    $("#efIso").onclick=()=>{mode="iso";save(mk("earth","mode"),mode);draw();if(EF)efStart(cur(),mode,vol,voice);};
+    $("#efBin").onclick=()=>{mode="binaural";save(mk("earth","mode"),mode);draw();if(EF)efStart(cur(),mode,vol,voice);};
+    const ii=$("#efInt");ii.oninput=()=>{override=+ii.value;$("#efIntV").textContent=override;if(EF)efStart(cur(),mode,vol,voice);};
     const vv=$("#efVol");vv.oninput=()=>{vol=+vv.value;if(EF&&EF.master)EF.master.gain.setTargetAtTime(vol,ac().currentTime,0.1);};
-    $("#efPlay").onclick=()=>{if(EF){efStop();$("#efPlay").textContent="▶ Play the Earth tone";}else{efStart(intensity,mode,vol);$("#efPlay").textContent="⏸ Stop";}};
-    fetchKp();
+    $("#efPlay").onclick=()=>{if(EF){efStop();$("#efPlay").textContent="▶ Play this day";}else{efStart(cur(),mode,vol,voice);$("#efPlay").textContent="⏸ Stop";}};
   }
-  function fetchKp(){const box=$("#efToday");
-    try{fetch("https://services.swpc.noaa.gov/json/planetary_k_index_1m.json",{cache:"no-store"}).then(r=>r.json()).then(d=>{
-      if(Array.isArray(d)&&d.length){const last=d[d.length-1];kp=parseFloat(last.kp_index!=null?last.kp_index:(last.estimated_kp!=null?last.estimated_kp:last.kp));
-        if(!isNaN(kp)){const auto=Math.round(kp/9*100);if(box)box.innerHTML="🌍 Today: <b>Kp "+kp.toFixed(1)+" · "+efKpLabel(kp)+"</b> (NOAA, live). Earth tempo 58.7 BPM · fundamental 7.83 Hz.";
-          intensity=auto;const ii=$("#efInt");if(ii){ii.value=auto;$("#efIntV").textContent=auto;}save(mk("earth","intensity"),auto);return;}}
-      if(box)box.innerHTML="Couldn&rsquo;t read live data here — set the intensity yourself from the chart above.";
-    }).catch(()=>{if(box)box.innerHTML="Couldn&rsquo;t reach NOAA from here — set the intensity yourself from the chart above.";});}catch(e){if(box)box.textContent="Set the intensity yourself from the chart above.";}}
   draw();
+  efFetchHistory((a)=>{arch=a;if(arch[efDayUTC(0)])selDate=efDayUTC(0);draw();});
 }
 const MUSE_SVC=0xfe8d, MUSE_CTRL="273e0001-4c4d-454d-96be-f03bac821358",
   MUSE_TELE="273e000b-4c4d-454d-96be-f03bac821358",
