@@ -6,6 +6,14 @@ import gameHtml from "./music-theory.game.html?raw";
 
 export default function MusicTheory() {
   let html = gameHtml;
+  // Tell the sandboxed game where the backend is, so its login/sync can reach it.
+  try {
+    const apiBase = ((import.meta.env.VITE_API_URL as string) || "").replace(/\/+$/, "");
+    const apiInj = "<script>window.__MJK_API__=" + JSON.stringify(apiBase) + ";</scr" + "ipt>";
+    html = html.replace("</head>", apiInj + "</head>");
+  } catch (e) {
+    /* no api base */
+  }
   try {
     const q = new URLSearchParams(window.location.search);
     const forName = q.get("for");

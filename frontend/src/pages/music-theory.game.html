@@ -578,7 +578,7 @@ const KB=[
 /* ===== state (beans shared via active traveler) ===== */
 const $=s=>document.querySelector(s);
 function load(k,d){try{const r=localStorage.getItem(k);return r?JSON.parse(r):d;}catch(e){return d;}}
-function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}try{if(typeof cloudPush==="function")cloudPush();}catch(e){}}
 function activeId(){return load("majick-active",null);}
 function activeName(){try{const p=load("majick-profiles",[]).find(x=>x.id===activeId());return p?p.name:null;}catch(e){return null;}}
 function getBeans(){const id=activeId();return id?(load("majick-p-"+id+"-beans",0)||0):0;}
@@ -4574,6 +4574,47 @@ function renderSongQuiz(){
   step();
 }
 
+/* ===== Cloud account — sync players & progress across devices ===== */
+var MMU_API=(typeof window!=="undefined"&&window.__MJK_API__?String(window.__MJK_API__):"").replace(/\/+$/,"");
+function syncOn(){return !!MMU_API;}
+function acctTok(){try{return localStorage.getItem("majick-token")||null;}catch(e){return null;}}
+function acctName(){try{return localStorage.getItem("majick-acct")||null;}catch(e){return null;}}
+function setAcct(tok,name){try{localStorage.setItem("majick-token",tok);localStorage.setItem("majick-acct",name||"");}catch(e){}}
+function clearAcct(){try{localStorage.removeItem("majick-token");localStorage.removeItem("majick-acct");}catch(e){}}
+function _syncKeys(){var a=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&(k.indexOf("music-")===0||k.indexOf("majick-")===0)&&k!=="majick-token"&&k!=="majick-acct")a.push(k);}return a;}
+function _snapshot(){var o={};_syncKeys().forEach(function(k){try{o[k]=localStorage.getItem(k);}catch(e){}});return o;}
+function _restore(d){if(!d)return;Object.keys(d).forEach(function(k){if((k.indexOf("music-")===0||k.indexOf("majick-")===0)&&typeof d[k]==="string"){try{localStorage.setItem(k,d[k]);}catch(e){}}});}
+function _api(path,opts){opts=opts||{};opts.headers=opts.headers||{};var t=acctTok();if(t)opts.headers["Authorization"]="Bearer "+t;return fetch(MMU_API+path,opts).then(function(r){return r.json().catch(function(){return {};}).then(function(j){if(!r.ok){if(r.status===401)clearAcct();throw new Error(j&&j.error?j.error:"Something went wrong.");}return j;});});}
+function acctRegister(u,c){return _api("/api/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,code:c})});}
+function acctLogin(u,c){return _api("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,code:c})});}
+function acctLoad(){return _api("/api/state",{});}
+function acctSaveNow(){if(!syncOn()||!acctTok())return Promise.resolve();return _api("/api/state",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:_snapshot()})}).catch(function(){});}
+var _pushT=null;
+function cloudPush(){if(!syncOn()||!acctTok())return;if(_pushT)clearTimeout(_pushT);_pushT=setTimeout(function(){_pushT=null;acctSaveNow();},1600);}
+function acctSignIn(mode,u,c){var p=(mode==="register")?acctRegister(u,c):acctLogin(u,c);return p.then(function(res){setAcct(res.token,res.username||u);return acctLoad().then(function(st){var data=(st&&st.data)?st.data:{};if(data&&Object.keys(data).length){_restore(data);return {name:res.username||u,pulled:true};}return acctSaveNow().then(function(){return {name:res.username||u,pulled:false};});});});}
+(function(){try{var s=document.createElement("style");s.textContent="#cloudBar{margin:20px auto 0;max-width:420px}.cloudnote{font-size:.82rem;color:var(--muted);text-align:center;line-height:1.55}.cloudnote a{color:var(--muted)}.cloudtabs{display:flex;gap:6px;margin-bottom:10px}.ctab{flex:1;padding:.5rem;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:transparent;color:var(--muted);cursor:pointer;font-size:.86rem}.ctab.sel{background:rgba(165,121,255,.18);color:#fff;border-color:rgba(165,121,255,.5)}";document.head.appendChild(s);}catch(e){}})();
+function renderCloudBar(){var el=$("#cloudBar");if(!el)return;
+  if(!syncOn()){el.innerHTML='<div class="cloudnote">On the full site you can create an account to sync your players across devices.</div>';return;}
+  if(acctTok()){el.innerHTML='<div class="cloudnote">☁ Synced as <b>'+esc(acctName()||"")+'</b> · <a href="#" id="cloudOut">Sign out</a></div>';var o=$("#cloudOut");if(o)o.onclick=function(e){e.preventDefault();clearAcct();renderGate();};return;}
+  el.innerHTML='<button class="btn ghost" id="cloudBtn" style="width:100%">☁ Sign in / create account — sync across devices</button><div id="cloudForm"></div>';
+  var b=$("#cloudBtn");if(b)b.onclick=showCloudForm;}
+function showCloudForm(){var f=$("#cloudForm");if(!f)return;var mode="login";
+  function go(){var u=($("#caName").value||"").trim(),c=$("#caCode").value||"",fb=$("#caFb");
+    if(u.length<2){fb.textContent="Enter an account name (2+ characters).";return;}
+    if(c.length<4){fb.textContent="Code must be at least 4 characters.";return;}
+    fb.textContent="One moment…";var g=$("#caGo");if(g)g.disabled=true;
+    acctSignIn(mode,u,c).then(function(){renderGate();}).catch(function(e){fb.textContent=(e&&e.message)?e.message:"Could not sign in.";var g2=$("#caGo");if(g2)g2.disabled=false;});}
+  function paint(){f.innerHTML='<div class="create"><div class="cloudtabs"><button type="button" class="ctab'+(mode==="login"?" sel":"")+'" data-m="login">Log in</button><button type="button" class="ctab'+(mode==="register"?" sel":"")+'" data-m="register">Create account</button></div>'+
+    '<div class="ulabel">Account name</div><input class="pin-input name" id="caName" maxlength="24" placeholder="a name for your account" aria-label="account name">'+
+    '<div class="ulabel">Code &mdash; 4+ characters</div><input class="pin-input" id="caCode" type="password" maxlength="32" placeholder="your secret code" aria-label="code">'+
+    '<div class="feedback try" id="caFb"></div>'+
+    '<div class="actions"><button class="btn ghost" id="caCancel">Cancel</button><button class="btn" id="caGo">'+(mode==="register"?"Create &amp; sync":"Log in &amp; sync")+'</button></div></div>';
+    f.querySelectorAll(".ctab").forEach(function(t){t.onclick=function(){mode=t.getAttribute("data-m");paint();};});
+    $("#caCancel").onclick=function(){f.innerHTML="";};
+    $("#caGo").onclick=go;
+    $("#caCode").addEventListener("keydown",function(e){if(e.key==="Enter")go();});
+    setTimeout(function(){var n=$("#caName");if(n)n.focus();},60);}
+  paint();}
 /* ===== player profiles (soft login) ===== */
 const gate=$("#gate");
 function renderGate(){
@@ -4584,12 +4625,12 @@ function renderGate(){
     gate.innerHTML=`<div class="hero"><div class="eyebrow">Majick Music University · set up for you by Travis</div>
       <h2>Welcome, <span class="nm">${esc(lp.name)}</span> 🎸🎤</h2>
       <p>This is a music playground — ear training, guitar, bass, singing, rhythm, and a place to build your own songs. ${focusBlurb(lp.focus)}Tap below to jump in as <b>${esc(lp.name)}</b>. Your progress saves on this device.</p></div>
-      <div class="profiles" id="profiles"></div><div id="gateForm"></div>`;
+      <div class="profiles" id="profiles"></div><div id="gateForm"></div><div id="cloudBar"></div>`;
   } else {
     gate.innerHTML=`<div class="hero"><div class="eyebrow">Majick Music University</div>
       <h2>Who's playing?</h2>
       <p>Each player keeps their own progress and Beans. Pick yours, or start a new one.</p></div>
-      <div class="profiles" id="profiles"></div><div id="gateForm"></div>`;
+      <div class="profiles" id="profiles"></div><div id="gateForm"></div><div id="cloudBar"></div>`;
   }
   const list=$("#profiles");
   if(lp.name&&!ps.some(p=>(p.name||"").toLowerCase()===lp.name.toLowerCase())){
@@ -4604,6 +4645,7 @@ function renderGate(){
   const add=document.createElement("button");add.className="pcard add";
   add.innerHTML=`<span class="pav">＋</span><span class="pnm">New player</span>`;
   add.onclick=showCreate;list.appendChild(add);
+  renderCloudBar();
 }
 function selectProfile(p){
   if(p.pin){$("#gateForm").innerHTML=`<div class="unlock"><div class="ulabel">${esc(p.name)}'s code</div>
