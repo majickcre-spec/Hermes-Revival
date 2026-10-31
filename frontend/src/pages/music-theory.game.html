@@ -1,4 +1,4 @@
-<title>MAJICK Music</title>
+<title>Majick Music University</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -402,7 +402,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 <div id="fx"></div>
 <div class="wrap">
   <div class="top">
-    <div class="brand"><span class="sigil">♪</span><h1>MAJICK Music</h1></div>
+    <div class="brand"><span class="sigil">♪</span><h1>Majick Music University</h1></div>
     <div class="score">
       <button class="chip who" id="switchProfile" title="Switch player">🎧 <span id="profileName">—</span></button>
       <span class="chip" id="beanChipM" hidden>🫘 <span id="beanNumM">0</span></span>
@@ -413,7 +413,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 
   <div id="home" hidden>
     <div class="hero">
-      <div class="eyebrow">MAJICK Music · Learning Platform</div>
+      <div class="eyebrow">Majick Music University</div>
       <h2>Three ways to learn, <span class="nm">Star</span>.</h2>
       <p>Music lives in the head, the ear, and the hands. So we learn it three ways: study the ideas, train your ear with our own games, and play it on the keyboard and instruments — all right here.</p>
       <div class="pillars"><span class="pillar">🎯 <b>Know it</b></span><span class="pillar">👂 <b>Hear it</b></span><span class="pillar">🥁 <b>Feel it</b></span><span class="pillar">🎹 <b>Play it</b></span></div>
@@ -637,7 +637,7 @@ function renderQuest(){const box=$("#questBox");if(!box)return;const id=activeId
       ${modeToggleHTML("adult")}</div>`;
   } else {
     const bl=qLife(id),li=levelInfo(bl),pct=Math.round(100*li.into/li.need),today=Math.max(0,bl-(q.base||0));
-    box.innerHTML=`<div class="quest"><div class="q-eyebrow">⚔️ MAJICK Music · Hero's Journey</div>
+    box.innerHTML=`<div class="quest"><div class="q-eyebrow">⚔️ Majick Music University · Hero's Journey</div>
       <div class="quest-top"><span class="q-lvl">Lv ${li.level} · ${esc(li.rank)}</span><span class="q-streak">🔥 ${q.streak||0}</span><button class="q-tro" id="qTro">🏆 Trophies</button></div>
       <div class="q-bar"><div class="q-fill" style="width:${pct}%"></div></div>
       <div class="q-sub">${li.into}/${li.need} XP to Lv ${li.level+1} · daily goal ${Math.min(today,20)}/20 🫘${q.goalDate===qDay(0)?" ✓ +10":""}</div>
@@ -2715,7 +2715,7 @@ const MAKE_CARDS=[
  {ic:"🧩",title:"Beat Maker",blurb:"Build layered beats & motifs on a grid — djembe and handpan together. Play the instrument live into the sequencer, loop, save, and get feedback.",go:()=>renderBeat()},
  {ic:"🎼",title:"Learn a Song",blurb:"Bring in a song you're practicing — paste a chord sheet or build it — and get a play-along chord chart with loop, tempo, and transpose.",go:()=>renderLearnSong()},
  {ic:"🎼",title:"Song Project (final)",blurb:"The big one — assemble your sections into a full song: intro, verses, choruses, bridge, outro. Finish it to earn Songwriter.",go:()=>renderSongBuilder()},
- {ic:"🎓",title:"Majick Music University",blurb:"Your mix teacher. Drop in a track (or a section you bounced) and get a real mix report — gain staging, tonal balance, low end, dynamics, stereo — graded for YOUR genre. Save it as a track project and track your progress version to version. Add a reference to hear why yours sounds older.",go:()=>renderInstructor()}
+ {ic:"🎓",title:"The Instructor",blurb:"Your mix teacher. Drop in a track (or a section you bounced) and get a real mix report — gain staging, tonal balance, low end, dynamics, stereo — graded for YOUR genre. Save it as a track project and track your progress version to version. Add a reference to hear why yours sounds older.",go:()=>renderInstructor()}
 ];
 /* handpan voice — mellow metallic bell with octave + twelfth overtones, long decay */
 function handpan(time,midi){const a=ac(),out=pianoMaster(a),f=midiToFreq(midi);
@@ -3418,16 +3418,16 @@ function efCrash(a,out,t,lvl){djNoise(a,t,1.1,6500,lvl||0.18,out,true);}
 function efRiser(a,out,t,dur){const s=a.createBufferSource();s.buffer=noiseBuf(a);s.loop=true;const bp=a.createBiquadFilter();bp.type="bandpass";bp.frequency.setValueAtTime(400,t);bp.frequency.exponentialRampToValueAtTime(8000,t+dur);bp.Q.value=1.6;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.1,t+dur);g.gain.exponentialRampToValueAtTime(0.0001,t+dur+0.12);s.connect(bp);bp.connect(g);g.connect(out);s.start(t);s.stop(t+dur+0.18);}
 const EF_CH=[[0,3,7],[8,12,15],[3,7,10],[10,14,17]],EF_BR=[0,8,3,10],EF_CH7=[[0,3,7,10],[8,12,15,19],[3,7,10,14],[10,14,17,21]];
 const EF_GENRES={
- house:{name:"Melodic House",bpm:117.4,duck:0.6,
-  step(s,bar,t,I,c){const ch=c.CH[bar%4],rt=c.BR[bar%4],drop=bar>=4&&bar!==6;
+ house:{name:"Melodic House",bpm:121,duck:0.62,swing:0.06,
+  step(s,bar,t0,I,c){const sw=(s%2===1)?c.stepDur*c.g.swing:0,t=t0+sw,ch=c.CH[bar%4],rt=c.BR[bar%4],drop=bar>=4&&bar!==6;
    if(bar>=2&&bar!==6&&s%4===0){efKick(c.a,c.master,t,false);c.duck(t);}
-   if(bar>=3&&(s===4||s===12))efClap(c.a,c.master,t,0.5*(0.7+I*0.4));
-   if(bar>=2&&bar!==6){if(s%4===2)efHat(c.a,c.master,t,0.06+0.05*I,true);else if(s%2===1)efHat(c.a,c.master,t,0.03+0.03*I,false);}
-   if(bar>=1&&[2,6,10,14].includes(s))efBassNote(c.a,c.pump,t,c.f(rt),c.stepDur*1.5,"sawtooth");
-   if(s===0)ch.forEach(n=>efPadVoice(c.a,c.pump,t,c.f(n+12),c.spb*4,900+I*1800));
-   if(drop&&[0,3,6,8,11,14].includes(s))efStabNote(c.a,c.pump,t,c.f(ch[s%ch.length]+24),c.stepDur*1.4,"sawtooth",2600+I*1500);
+   if(bar>=2&&bar!==6){if(s%4===2)efHat(c.a,c.master,t,0.05+0.04*I,true);if(s%2===1)djNoise(c.a,t,0.03,8200,0.022+0.02*I,c.master,true);}
+   if(bar>=3&&(s===4||s===12)){efClap(c.a,c.master,t,0.4*(0.7+I*0.3));djNoise(c.a,t,0.22,2500,0.07,c.rev,false);}
+   if(bar>=1&&[2,6,10,14].includes(s))efBassNote(c.a,c.pump,t,c.f(rt),c.stepDur*1.7,"triangle");
+   if(s===0){ch.forEach(n=>efPadVoice(c.a,c.pump,t,c.f(n+12),c.spb*4,700+I*1100));ch.forEach(n=>efPadVoice(c.a,c.pump,t,c.f(n+24),c.spb*4,1400+I*1300));}
+   if(drop&&[0,6,10].includes(s))efStabNote(c.a,c.pump,t,c.f([7,10,12][[0,6,10].indexOf(s)]+24),c.spb*0.9,"triangle",1700+I*1200);
    if(bar===7&&s===0)efRiser(c.a,c.master,t,c.spb*4);
-   if((bar===4||bar===6)&&s===0)efCrash(c.a,c.master,t,0.16);}},
+   if(bar===4&&s===0)efCrash(c.a,c.master,t,0.14);}},
  bass:{name:"Space Bass",bpm:140,duck:0.5,
   GP:[{d:3,m:2},null,null,{d:1,m:1},{d:2,m:2},null,null,{d:1,m:4},{d:3,m:2},null,{d:1,m:3},null,{d:2,m:2},null,{d:1,m:4},null],
   step(s,bar,t,I,c){const ch=c.CH[bar%4],rt=c.BR[bar%4],drop=(bar===4||bar===5||bar===7),bpl=c.g.bpm/60,chill=c.var==="chill";
@@ -3542,7 +3542,7 @@ function renderEarthFreq(){
       '<div class="rrow2"><span class="rlab">Feel</span><span class="rchips tight"><button class="rchip sm'+(arr==="med"?" sel":"")+'" id="efArrMed">🧘 Meditation</button><button class="rchip sm'+(arr==="binaural"?" sel":"")+'" id="efArrBin">🌀 Binaural</button><button class="rchip sm'+(arr==="song"?" sel":"")+'" id="efArrSong">🎶 Song</button></span></div>'+
       (arr==="song"?'<div class="rrow2"><span class="rlab">Genre</span><span class="rchips tight" id="efGenres"></span></div>'+
         (genre==="bass"?'<div class="rrow2"><span class="rlab">Vibe</span><span class="rchips tight"><button class="rchip sm'+(bassvar==="agg"?" sel":"")+'" id="efBvAgg">⚡ Aggressive</button><button class="rchip sm'+(bassvar==="chill"?" sel":"")+'" id="efBvChill">🌙 Chill</button></span></div>':'')+
-        '<div class="site-note" style="margin:2px 0 6px">Each genre is built on the day&rsquo;s 7.83 Hz fundamental as the bass (house ~117, Space Bass halftime ~140, rock ~124, lo-fi ~84). <b>Space Bass</b> is heavy psychedelic halftime — growling, wobbling designed bass through distortion, big clean sub pressure and cosmic melodics. <b>Aggressive</b> brings the screech leads and double-time filth; <b>Chill</b> leans into the downtempo, cosmic side. Built fresh in tribute to <b>LSDREAM&rsquo;s</b> style — inspired by it, not sampled from it.</div>':
+        '<div class="site-note" style="margin:2px 0 6px">Each genre is built on the day&rsquo;s 7.83 Hz fundamental as the bass (house ~121, Space Bass halftime ~140, rock ~124, lo-fi ~84). <b>Melodic House</b> is deep, driving and euphoric — rolling bass, lush sidechained pads and soulful plucks, in tribute to <b>RÜFÜS DU SOL&rsquo;s</b> <i>Inhale / Exhale</i> era. <b>Space Bass</b> is heavy psychedelic halftime — growling designed bass, big sub pressure and cosmic melodics, in tribute to <b>LSDREAM</b>; <b>Aggressive</b> brings the screech &amp; filth, <b>Chill</b> the cosmic downtempo side. All inspired by their styles, not sampled from them.</div>':
         arr==="binaural"?'<div class="rrow2"><span class="rlab">Instrument</span><span class="rchips tight" id="efVoices"></span></div><div class="site-note" style="margin:2px 0 6px">🎧 <b>Headphones essential.</b> Three carriers on the day&rsquo;s fundamental, each with a Schumann-harmonic beat between your ears (7.83 / 14.3 / 20.8 Hz), breathing slowly. Calmer days stay soft and low; charged days add brightness and shimmer.</div>':
         '<div class="rrow2"><span class="rlab">Instrument</span><span class="rchips tight" id="efVoices"></span></div><div class="site-note" style="margin:2px 0 6px">A drone octaved up from 7.83 Hz, pulsed isochronically at the real 7.83 Hz over a slow ~59 BPM Earth beat — made for long, easy breathing.</div>')+
       '<div class="rrow"><span class="rlab">Intensity</span><input type="range" id="efInt" min="0" max="100" value="'+cur()+'" style="flex:1"><span class="rbpm" id="efIntV">'+cur()+'</span></div>'+
@@ -3719,7 +3719,7 @@ function renderInstructor(){
  if(_mmuPreset){gk=_mmuPreset.genre||gk;curProjId=_mmuPreset.id||null;_mmuPreset=null;}
  function draw(){
   const g=GENRES[gk];
-  view.innerHTML='<div class="play-top"><button class="back" id="iBack">←</button><span class="ttitle">🎓 Majick Music University</span></div><div class="panel">'+
+  view.innerHTML='<div class="play-top"><button class="back" id="iBack">←</button><span class="ttitle">🎓 The Instructor</span></div><div class="panel">'+
    '<div class="intro">Drop in a track — a full bounce, or a section you exported from Ableton — and I&rsquo;ll give you a real mix report: gain staging, tonal balance, low end, dynamics and stereo, <b>graded for your genre</b>. Add a <b>reference track</b> (a current song whose sound you want) and I&rsquo;ll tell you exactly why yours sounds different.</div>'+
    '<div class="site-note">I measure the mix for real (levels, loudness, frequency balance, dynamics, width) and compare it to genre norms and your reference. Sound-<i>selection</i> notes are coaching — I can hear the fingerprints (dull highs, thin sub, harsh mids), but the reference A/B is where the &ldquo;old sounds&rdquo; answer really lives.</div>'+
    '<div class="rlab" style="display:block;margin:12px 0 5px">Genre</div><div class="rchips" id="iGenre"></div>'+
@@ -3868,7 +3868,7 @@ function openBio(){
     view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🧠 Live Monitor</span></div>
       <div class="panel" style="text-align:center"><div style="font-size:2rem">🧠</div>
       <div class="q" style="margin-top:6px">Web Bluetooth isn't available here</div>
-      <div class="intro" style="border:none;text-align:left;margin:10px auto;max-width:440px">To connect a Muse, open <b>MAJICK Music on the live site</b> in <b>Chrome or Edge</b>, on a computer or Android phone. (iPhone/Safari and the in‑app preview don't allow Bluetooth.)</div>
+      <div class="intro" style="border:none;text-align:left;margin:10px auto;max-width:440px">To connect a Muse, open <b>Majick Music University on the live site</b> in <b>Chrome or Edge</b>, on a computer or Android phone. (iPhone/Safari and the in‑app preview don't allow Bluetooth.)</div>
       <div class="actions"><button class="btn ghost" id="back2">Back</button></div></div>`;
     $("#eBack").onclick=goHome;$("#back2").onclick=goHome;return;
   }
@@ -4106,12 +4106,12 @@ function renderGate(){
   home.hidden=true;view.hidden=true;gate.hidden=false;
   const ps=getProfiles(),lp=linkParams();
   if(lp.name){
-    gate.innerHTML=`<div class="hero"><div class="eyebrow">MAJICK Music · set up for you by Travis</div>
+    gate.innerHTML=`<div class="hero"><div class="eyebrow">Majick Music University · set up for you by Travis</div>
       <h2>Welcome, <span class="nm">${esc(lp.name)}</span> 🎸🎤</h2>
       <p>This is a music playground — ear training, guitar, bass, singing, rhythm, and a place to build your own songs. ${focusBlurb(lp.focus)}Tap below to jump in as <b>${esc(lp.name)}</b>. Your progress saves on this device.</p></div>
       <div class="profiles" id="profiles"></div><div id="gateForm"></div>`;
   } else {
-    gate.innerHTML=`<div class="hero"><div class="eyebrow">MAJICK Music</div>
+    gate.innerHTML=`<div class="hero"><div class="eyebrow">Majick Music University</div>
       <h2>Who's playing?</h2>
       <p>Each player keeps their own progress and Beans. Pick yours, or start a new one.</p></div>
       <div class="profiles" id="profiles"></div><div id="gateForm"></div>`;

@@ -139,7 +139,7 @@ footer .hz{font-family:"Cormorant Garamond",serif;font-style:italic;font-size:17
 <footer>
   <div class="rule"></div>
   <p class="hz">Per sonum, ad astra.</p>
-  <p>Tuned to 7.83 Hz &mdash; the Earth&rsquo;s ground note. A frequency portal from <b style="color:var(--cream);font-weight:500">Majick Music</b>, in gratitude to <a href="https://instagram.com/theboujeehealer" target="_blank" rel="noopener">Gayle Fuller</a>.</p>
+  <p>Tuned to 7.83 Hz &mdash; the Earth&rsquo;s ground note. A frequency portal from <b style="color:var(--cream);font-weight:500">Majick Music University</b>, in gratitude to <a href="https://instagram.com/theboujeehealer" target="_blank" rel="noopener">Gayle Fuller</a>.</p>
 </footer>
 
 <script>
@@ -148,7 +148,7 @@ function load(k,d){try{var v=localStorage.getItem(k);return v==null?d:JSON.parse
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 var $=function(s){return document.querySelector(s);};
 function esc(s){return (s==null?'':''+s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
-/* ==== Schumann audio engine (extracted verbatim from MAJICK Music) ==== */
+/* ==== Schumann audio engine (extracted verbatim from Majick Music University) ==== */
 let AC=null,_audioUnlocked=false,NOISE_BUF=null;
 function ac(){if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();return AC;}
 function unlockAudio(){const a=ac();try{a.resume();}catch(e){}if(_audioUnlocked)return;_audioUnlocked=true;
@@ -220,16 +220,16 @@ function efCrash(a,out,t,lvl){djNoise(a,t,1.1,6500,lvl||0.18,out,true);}
 function efRiser(a,out,t,dur){const s=a.createBufferSource();s.buffer=noiseBuf(a);s.loop=true;const bp=a.createBiquadFilter();bp.type="bandpass";bp.frequency.setValueAtTime(400,t);bp.frequency.exponentialRampToValueAtTime(8000,t+dur);bp.Q.value=1.6;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.1,t+dur);g.gain.exponentialRampToValueAtTime(0.0001,t+dur+0.12);s.connect(bp);bp.connect(g);g.connect(out);s.start(t);s.stop(t+dur+0.18);}
 const EF_CH=[[0,3,7],[8,12,15],[3,7,10],[10,14,17]],EF_BR=[0,8,3,10],EF_CH7=[[0,3,7,10],[8,12,15,19],[3,7,10,14],[10,14,17,21]];
 const EF_GENRES={
- house:{name:"Melodic House",bpm:117.4,duck:0.6,
-  step(s,bar,t,I,c){const ch=c.CH[bar%4],rt=c.BR[bar%4],drop=bar>=4&&bar!==6;
+ house:{name:"Melodic House",bpm:121,duck:0.62,swing:0.06,
+  step(s,bar,t0,I,c){const sw=(s%2===1)?c.stepDur*c.g.swing:0,t=t0+sw,ch=c.CH[bar%4],rt=c.BR[bar%4],drop=bar>=4&&bar!==6;
    if(bar>=2&&bar!==6&&s%4===0){efKick(c.a,c.master,t,false);c.duck(t);}
-   if(bar>=3&&(s===4||s===12))efClap(c.a,c.master,t,0.5*(0.7+I*0.4));
-   if(bar>=2&&bar!==6){if(s%4===2)efHat(c.a,c.master,t,0.06+0.05*I,true);else if(s%2===1)efHat(c.a,c.master,t,0.03+0.03*I,false);}
-   if(bar>=1&&[2,6,10,14].includes(s))efBassNote(c.a,c.pump,t,c.f(rt),c.stepDur*1.5,"sawtooth");
-   if(s===0)ch.forEach(n=>efPadVoice(c.a,c.pump,t,c.f(n+12),c.spb*4,900+I*1800));
-   if(drop&&[0,3,6,8,11,14].includes(s))efStabNote(c.a,c.pump,t,c.f(ch[s%ch.length]+24),c.stepDur*1.4,"sawtooth",2600+I*1500);
+   if(bar>=2&&bar!==6){if(s%4===2)efHat(c.a,c.master,t,0.05+0.04*I,true);if(s%2===1)djNoise(c.a,t,0.03,8200,0.022+0.02*I,c.master,true);}
+   if(bar>=3&&(s===4||s===12)){efClap(c.a,c.master,t,0.4*(0.7+I*0.3));djNoise(c.a,t,0.22,2500,0.07,c.rev,false);}
+   if(bar>=1&&[2,6,10,14].includes(s))efBassNote(c.a,c.pump,t,c.f(rt),c.stepDur*1.7,"triangle");
+   if(s===0){ch.forEach(n=>efPadVoice(c.a,c.pump,t,c.f(n+12),c.spb*4,700+I*1100));ch.forEach(n=>efPadVoice(c.a,c.pump,t,c.f(n+24),c.spb*4,1400+I*1300));}
+   if(drop&&[0,6,10].includes(s))efStabNote(c.a,c.pump,t,c.f([7,10,12][[0,6,10].indexOf(s)]+24),c.spb*0.9,"triangle",1700+I*1200);
    if(bar===7&&s===0)efRiser(c.a,c.master,t,c.spb*4);
-   if((bar===4||bar===6)&&s===0)efCrash(c.a,c.master,t,0.16);}},
+   if(bar===4&&s===0)efCrash(c.a,c.master,t,0.14);}},
  bass:{name:"Space Bass",bpm:140,duck:0.5,
   GP:[{d:3,m:2},null,null,{d:1,m:1},{d:2,m:2},null,null,{d:1,m:4},{d:3,m:2},null,{d:1,m:3},null,{d:2,m:2},null,{d:1,m:4},null],
   step(s,bar,t,I,c){const ch=c.CH[bar%4],rt=c.BR[bar%4],drop=(bar===4||bar===5||bar===7),bpl=c.g.bpm/60,chill=c.var==="chill";
@@ -342,7 +342,7 @@ function drawGenre(){var w=$('#genreWrap');w.innerHTML='';if(arr!=='song')return
   var g=document.createElement('div');g.className='chips';g.style.marginTop='10px';
   GLIST.forEach(function(o){var b=document.createElement('button');b.className='chip'+(genre===o[0]?' sel':'');b.textContent=o[1];b.onclick=function(){genre=o[0];save('schumann-genre',genre);drawGenre();drawModeNote();if(EF)go();};g.appendChild(b);});w.appendChild(g);
   if(genre==='bass'){var v=document.createElement('div');v.className='chips';v.style.marginTop='8px';[['agg','⚡ Aggressive'],['chill','🌙 Chill']].forEach(function(o){var b=document.createElement('button');b.className='chip'+(bassvar===o[0]?' sel':'');b.textContent=o[1];b.onclick=function(){bassvar=o[0];save('schumann-bassvar',bassvar);drawGenre();if(EF)go();};v.appendChild(b);});w.appendChild(v);}}
-function drawModeNote(){var t;if(arr==='song'){t='Built on the day&rsquo;s 7.83 Hz as the bass. <b>Space Bass</b> is heavy psychedelic halftime (LSDREAM-style) &mdash; <b>Aggressive</b> for the screech &amp; filth, <b>Chill</b> for the cosmic downtempo side.';}else if(arr==='binaural'){t='🎧 Headphones essential. Three carriers on the day&rsquo;s fundamental with a Schumann-harmonic beat between your ears (7.83 / 14.3 / 20.8 Hz), breathing slowly.';}else{t='A drone octaved up from 7.83 Hz, pulsed at the real 7.83 Hz over a slow ~59 BPM Earth beat &mdash; made for long, easy breathing.';}$('#modeNote').innerHTML=t;}
+function drawModeNote(){var t;if(arr==='song'){t='Built on the day&rsquo;s 7.83 Hz as the bass. <b>Melodic House</b> is deep &amp; euphoric in tribute to <b>R\u00DCF\u00DCS DU SOL</b>; <b>Space Bass</b> is heavy halftime in tribute to <b>LSDREAM</b> (Aggressive = screech &amp; filth, Chill = cosmic downtempo). Inspired by their styles, not sampled.';}else if(arr==='binaural'){t='🎧 Headphones essential. Three carriers on the day&rsquo;s fundamental with a Schumann-harmonic beat between your ears (7.83 / 14.3 / 20.8 Hz), breathing slowly.';}else{t='A drone octaved up from 7.83 Hz, pulsed at the real 7.83 Hz over a slow ~59 BPM Earth beat &mdash; made for long, easy breathing.';}$('#modeNote').innerHTML=t;}
 function syncInt(){$('#int').value=cur();$('#intV').textContent=cur();}
 
 $('#int').oninput=function(){override=+this.value;$('#intV').textContent=override;if(!liveData){var kp=override/100*9;arch[selDate]={kp:kp,intensity:override,label:efKpLabel(kp)};drawReading();}if(EF)go();};
