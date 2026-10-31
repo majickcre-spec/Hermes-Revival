@@ -2391,26 +2391,60 @@ function prgFrame(){const now=ac().currentTime;while(PRG.visQ.length&&PRG.visQ[0
 function prgStart(){unlockAudio();if(PRG.running)return;const a=ac();PRG.running=true;PRG.idx=0;PRG.loops=0;PRG.paid=false;PRG.nextTime=a.currentTime+0.2;PRG.visQ=[];PRG.schID=setInterval(prgSchedule,25);PRG.raf=requestAnimationFrame(prgFrame);const b=$("#prgStart");if(b)b.textContent="⏸ Stop";}
 function strProg(inst){
   if(toneRAF)cancelAnimationFrame(toneRAF);prgStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  let pi=0;PRG.inst=inst;
+  let pi=0,crRaf=null;PRG.inst=inst;
+  function prgHL(i){document.querySelectorAll("#prgChordRow .pchip").forEach((el,k)=>el.classList.toggle("on",k===i));}
+  function prgCR(){
+    prgStop();if(crRaf)cancelAnimationFrame(crRaf);const st=$("#prgStatus");if(st)st.textContent="turning on mic…";const fb=$("#prgFb");if(fb)fb.style.display="none";
+    ensureMic().then(ok=>{
+      if(!ok){if(st)st.textContent="🎤 I need the mic to hear your strums.";return;}
+      const P=PROGS[pi],spb=60/PRG.bpm,barDur=spb*4,a=ac();let t=a.currentTime+0.35;
+      for(let c=0;c<4;c++){click(t,c===0?"accent":"beat");t+=spb;}
+      const callStart=t;P.chords.forEach((ch,i)=>{const fr=CHORDS[inst][ch];if(fr)strum(inst,fr,t,true);setTimeout(()=>prgHL(i),(t-a.currentTime)*1000);t+=barDur;});
+      const passDur=t-callStart;t+=spb;
+      const respCountStart=t;for(let c=0;c<4;c++){click(t,c===0?"accent":"beat");t+=spb;}
+      const respStart=t,expected=[];for(let i=0;i<P.chords.length;i++)expected.push(i*barDur);
+      setTimeout(()=>{if(st)st.textContent="🎧 Listen to the call…";},(callStart-a.currentTime)*1000);
+      setTimeout(()=>{if(st)st.textContent="🎸 Your turn — strum each chord in time!";},(respCountStart-a.currentTime)*1000);
+      const buf=new Float32Array(toneAnalyser.fftSize);const samples=[];
+      setTimeout(()=>{const start=ac().currentTime;
+        (function loop(){const now=ac().currentTime-start;toneAnalyser.getFloatTimeDomainData(buf);let sum=0;for(let k=0;k<buf.length;k++)sum+=buf[k]*buf[k];samples.push({t:now,rms:Math.sqrt(sum/buf.length)});if(now>=passDur+0.7){crScore(samples,expected,barDur);return;}crRaf=requestAnimationFrame(loop);})();
+      },(respStart-a.currentTime)*1000);
+    });
+  }
+  function crScore(samples,expected,barDur){
+    if(crRaf)cancelAnimationFrame(crRaf);crRaf=null;
+    const on=[];let floor=0.005,below=true;
+    for(let i=0;i<samples.length;i++){const r=samples[i].rms;floor=floor*0.97+r*0.03;if(below&&r>Math.max(0.02,floor*2.4)){on.push(samples[i].t);below=false;}else if(!below&&r<floor*1.4)below=true;}
+    const onset=[];let last=-1;on.forEach(tt=>{if(last<0||tt-last>0.15){onset.push(tt);last=tt;}});
+    const win=Math.min(0.35,barDur*0.5);let hit=0,errSum=0;
+    expected.forEach(e=>{let bd=1e9;onset.forEach(o=>{const d=Math.abs(o-e);if(d<bd)bd=d;});if(bd<=win){hit++;errSum+=bd;}});
+    const N=expected.length,pct=Math.round(100*hit/N),errMs=hit?Math.round(1000*errSum/hit):0;
+    const st=$("#prgStatus");if(st)st.textContent="Tap “Play it back” to try again";
+    const fb=$("#prgFb");if(fb){fb.style.display="";fb.innerHTML=(pct>=75?"🔥 ":pct>=50?"👍 ":"🎸 ")+"You landed <b>"+hit+"/"+N+"</b> chord changes in time"+(hit?" (avg "+errMs+" ms off)":"")+". "+(pct>=75?"Tight! Try a faster tempo.":pct>=50?"Close — watch the downbeats.":"Strum right on each chord as the row lights up.");}
+    if(pct>=70&&activeId()&&!isAdult()){addBeans(6);beanChip();}
+  }
   function draw(){
     const P=PROGS[pi];PRG.chords=P.chords;PRG.onName=P.name.replace(/\W/g,"");
     view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔁 Progressions</span></div>
       <div class="panel">
-        <div class="intro">Pick a progression — it loops on tempo with a click, showing each chord as it comes. Strum along on your ${STRING_INSTR[inst].name.toLowerCase()}. One chord per bar.</div>
+        <div class="intro">Pick a progression — it loops on tempo with a click, showing each chord as it comes. Strum along on your ${STRING_INSTR[inst].name.toLowerCase()}. One chord per bar. Or tap <b>Play it back</b> for call &amp; response — I'll play it, then listen to your strum timing.</div>
         <div class="rchips" id="prgList"></div>
         <div id="prgChordRow" class="prg-chordrow"></div>
         <div class="prg-now" id="prgNow">${P.chords[0]}</div>
         <div class="chordgrid" id="prgDia" style="justify-content:center"></div>
         <div class="rrow"><span class="rlab">Tempo</span><input type="range" id="prgBpm" min="50" max="140" value="${PRG.bpm}" style="flex:1"><span class="rbpm" id="prgBpmV">${PRG.bpm}</span></div>
-        <div class="actions"><button class="btn" id="prgStart">▶ Play along</button></div>
+        <div class="actions"><button class="btn" id="prgStart">▶ Play along</button><button class="btn ghost" id="prgCR">🎤 Play it back</button></div>
+        <div class="feedback" id="prgStatus"></div>
+        <div class="idea-fb" id="prgFb" style="display:none"></div>
         <div class="bean-note" id="prgNote"></div>
       </div>`;
-    $("#eBack").onclick=()=>{prgStop();renderStrings(inst);};
-    const pl=$("#prgList");PROGS.forEach((p,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===pi?" sel":"");b.textContent=p.name;b.onclick=()=>{prgStop();pi=i;draw();};pl.appendChild(b);});
+    $("#eBack").onclick=()=>{prgStop();if(crRaf)cancelAnimationFrame(crRaf);try{stopMic();}catch(e){}renderStrings(inst);};
+    const pl=$("#prgList");PROGS.forEach((p,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===pi?" sel":"");b.textContent=p.name;b.onclick=()=>{prgStop();if(crRaf)cancelAnimationFrame(crRaf);pi=i;draw();};pl.appendChild(b);});
     const row=$("#prgChordRow");P.chords.forEach((c,i)=>{const s=document.createElement("span");s.className="pchip"+(i===0?" on":"");s.textContent=c;row.appendChild(s);});
     const dia=$("#prgDia");const f0=CHORDS[inst][P.chords[0]];if(f0)dia.appendChild(chordDiagram(inst,f0));
     const bp=$("#prgBpm");bp.oninput=()=>{PRG.bpm=+bp.value;$("#prgBpmV").textContent=PRG.bpm;};
     $("#prgStart").onclick=()=>{if(PRG.running)prgStop();else prgStart();};
+    $("#prgCR").onclick=prgCR;
   }
   draw();
 }
@@ -2449,8 +2483,9 @@ function bgGlow(midi){const p=bgPos(midi);if(!p)return;const el=document.getElem
 function bgStop(){BG.running=false;if(BG.schID){clearInterval(BG.schID);BG.schID=null;}if(BG.raf){cancelAnimationFrame(BG.raf);BG.raf=null;}const b=$("#bgStart");if(b)b.textContent="▶ Play along";}
 function bgSchedule(){const L=BASS_LINES[BG.lineIdx],spb=60/BG.bpm,ahead=0.25;
   while(BG.nextTime<ac().currentTime+ahead){const i=BG.i,b=L.beats[i]||1;
-    bassVoice(L.notes[i],BG.nextTime,Math.max(0.18,b*spb*0.85),0.6);BG.visQ.push({t:BG.nextTime,m:L.notes[i]});BG.nextTime+=b*spb;BG.i=(BG.i+1)%L.notes.length;}}
-function bgFrame(){const now=ac().currentTime;while(BG.visQ.length&&BG.visQ[0].t<=now){bgGlow(BG.visQ.shift().m);}if(BG.running)BG.raf=requestAnimationFrame(bgFrame);}
+    bassVoice(L.notes[i],BG.nextTime,Math.max(0.18,b*spb*0.85),0.6);BG.visQ.push({t:BG.nextTime,m:L.notes[i],step:i});BG.nextTime+=b*spb;BG.i=(BG.i+1)%L.notes.length;}}
+function bgLightStrip(step){const strip=document.getElementById("bgStrip");if(!strip)return;strip.querySelectorAll(".hpcell.on").forEach(e=>e.classList.remove("on"));const el=document.getElementById("bgS"+step);if(el)el.classList.add("on");}
+function bgFrame(){const now=ac().currentTime;while(BG.visQ.length&&BG.visQ[0].t<=now){const e=BG.visQ.shift();bgGlow(e.m);bgLightStrip(e.step);}if(BG.running)BG.raf=requestAnimationFrame(bgFrame);}
 function bgStart(){unlockAudio();if(BG.running)return;BG.running=true;BG.i=0;BG.visQ=[];BG.nextTime=ac().currentTime+0.25;BG.schID=setInterval(bgSchedule,25);BG.raf=requestAnimationFrame(bgFrame);const b=$("#bgStart");if(b)b.textContent="⏸ Stop";}
 function bgCrit(timingPct,notePct,hit,N,errMs,level){
   if(level==="pro"){const tips=[];
@@ -2485,6 +2520,8 @@ function renderBass(){
     let panel="";
     if(BG.mode==="lines"){
       panel='<div class="rrow2"><span class="rlab">Bassline</span><span class="rchips tight" id="bgList"></span></div>'+
+        '<div class="rlab" style="display:block;margin:10px 0 5px">The line — lights up as it plays</div>'+
+        '<div class="hpstrip" id="bgStrip"></div>'+
         '<div class="rrow"><span class="rlab">Tempo</span><input type="range" id="bgBpm" min="50" max="150" value="'+BG.bpm+'" style="flex:1"><span class="rbpm" id="bgBpmV">'+BG.bpm+'</span></div>'+
         '<div class="actions"><button class="btn" id="bgStart">▶ Play along</button><button class="btn ghost" id="bgPlayback">🎤 Play it back</button></div>'+
         '<div class="feedback" id="bgStatus"></div>'+
@@ -2516,6 +2553,7 @@ function renderBass(){
     view.querySelectorAll("#bgModes .rchip").forEach(b=>{b.onclick=()=>{bgStop();if(recOn)stopRec();BG.mode=b.getAttribute("data-mode");draw();};});
     if(BG.mode==="lines"){
       const list=$("#bgList");BASS_LINES.forEach((l,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===BG.lineIdx?" sel":"");b.textContent=l.name;b.onclick=()=>{bgStop();BG.lineIdx=i;crit="";draw();};list.appendChild(b);});
+      const strip=$("#bgStrip");if(strip){const L=BASS_LINES[BG.lineIdx];strip.innerHTML="";L.notes.forEach((m,i)=>{const c=document.createElement("span");c.className="hpcell";c.id="bgS"+i;c.textContent=midiName(m);strip.appendChild(c);});}
       const bp=$("#bgBpm");bp.oninput=()=>{BG.bpm=+bp.value;$("#bgBpmV").textContent=BG.bpm;};
       $("#bgStart").onclick=()=>{if(BG.running)bgStop();else bgStart();};
       $("#bgKid").onclick=()=>{save("mjk-fblevel","kid");draw();};
