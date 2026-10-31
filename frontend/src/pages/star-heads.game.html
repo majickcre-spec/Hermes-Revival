@@ -1347,5 +1347,8 @@ $("#grantBtn").onclick=()=>{const v=parseInt($("#grantInput").value,10);if(v>0){
   size();frame();addEventListener("resize",size);
 })();
 
+/* one-time seed: a Travis / Adult traveler, waiting on first load */
+(function seedTravis(){try{if(load("majick-seed-travis",false))return;save("majick-seed-travis",true);
+  const ps=getProfiles();if(!ps.some(p=>(p.name||"").trim().toLowerCase()==="travis")){ps.push({id:newId(),name:"Travis",pin:null,mode:"adult"});setProfiles(ps);}}catch(e){}})();
 renderGate();
 </script>
