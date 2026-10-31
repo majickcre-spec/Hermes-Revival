@@ -3597,6 +3597,14 @@ function diatonic(root,mode){const steps=mode==="major"?[0,2,4,5,7,9,11]:[0,2,3,
   return steps.map((s,i)=>({name:NOTE_NAMES[(root+s)%12]+q[i],rn:rn[i]}));}
 function progsFor(mode){return mode==="major"?[["I","V","vi","IV"],["I","IV","V"],["vi","IV","I","V"],["ii","V","I"]]:[["i","VI","III","VII"],["i","iv","v"],["i","VII","VI","V"]];}
 function melAnalyze(notes,beats){const w=new Array(12).fill(0);notes.forEach((m,i)=>{w[((Math.round(m)%12)+12)%12]+=(beats&&beats[i])||1;});const key=detectKey(w);return key;}
+const MEL_SAMPLES=[
+ {name:"Twinkle Twinkle",notes:[60,60,67,67,69,69,67,65,65,64,64,62,62,60],beats:[1,1,1,1,1,1,2,1,1,1,1,1,1,2]},
+ {name:"Ode to Joy",notes:[64,64,65,67,67,65,64,62,60,60,62,64,64,62,62],beats:[1,1,1,1,1,1,1,1,1,1,1,1,1.5,0.5,2]},
+ {name:"Mary Had a Lamb",notes:[64,62,60,62,64,64,64,62,62,62,64,67,67],beats:[1,1,1,1,1,1,2,1,1,2,1,1,2]},
+ {name:"Frère Jacques",notes:[60,62,64,60,60,62,64,60,64,65,67,64,65,67],beats:[1,1,1,1,1,1,1,1,1,1,2,1,1,2]},
+ {name:"Für Elise",notes:[76,75,76,75,76,71,74,72,69],beats:[0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,1.5]}
+];
+const PROG_SONGS={"I-V-vi-IV":"“Let It Be”, “With or Without You”, “No Woman No Cry”","I-IV-V":"“La Bamba”, “Twist and Shout”, blues & rock","vi-IV-I-V":"“Africa”, “Zombie”, tons of pop","ii-V-I":"the backbone of jazz standards","i-VI-III-VII":"minor pop & EDM (“Despacito” feel)","i-iv-v":"minor blues & folk","i-VII-VI-V":"the Andalusian cadence — flamenco, “Hit the Road Jack”"};
 let ML={capturing:false};
 function renderMelodyLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   teardown=()=>{ML.capturing=false;stopMic();};
@@ -3606,11 +3614,14 @@ function renderMelodyLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎵 Melody Lab</span></div><div class="panel">'+
       '<div class="intro">See the <b>shape</b> of a melody — every note, its <b>scale degree</b> (how it functions in the key), how long it&rsquo;s <b>held</b>, and the <b>chords</b> that fit. Sing one, or pick a melody you saved in Sing a Song.</div>'+
       '<div class="actions"><button class="btn" id="mlSing">🎤 Sing a melody</button></div>'+
+      '<div class="rrow2" style="margin-top:8px"><span class="rlab">Examples</span><span class="rchips tight" id="mlEx"></span></div>'+
+      '<div class="site-note">Examples are <b>public-domain melodies</b> — free to study. (Hooktheory&rsquo;s popular-song tabs are fan transcriptions synced to YouTube; we can&rsquo;t copy those, but you can sing or import any song to analyze it here.)</div>'+
       (withNotes.length?'<div class="rrow2" style="margin-top:8px"><span class="rlab">Saved</span><span class="rchips tight" id="mlSaved"></span></div>':'<div class="site-note">No saved melodies yet — sing one above, or save one in <b>Make → Sing a Song</b>.</div>')+
       '<div id="mlStatus" class="site-note"></div>'+
       '<div id="mlOut"></div></div>';
     $("#eBack").onclick=()=>{ML.capturing=false;stopMic();renderSongwriting();};
     $("#mlSing").onclick=sing;
+    const ex=$("#mlEx");if(ex)MEL_SAMPLES.forEach(s=>{const b=document.createElement("button");b.className="rchip sm";b.textContent=s.name;b.onclick=()=>{cur={name:s.name,notes:s.notes,beats:s.beats};show();};ex.appendChild(b);});
     const sv=$("#mlSaved");if(sv)withNotes.forEach((s,i)=>{const b=document.createElement("button");b.className="rchip sm";b.textContent=esc(s.name||("Song "+(i+1)));b.onclick=()=>{cur={name:s.name,notes:s.notes,beats:s.beats};show();};sv.appendChild(b);});
     if(cur)show();
   }
@@ -3624,7 +3635,7 @@ function renderMelodyLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=
     roll+='</div></div>';
     let list='<div class="rlab" style="display:block;margin:12px 0 5px">Notes</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+notes.map((m,i)=>{const deg=degreeOf(m,key.root,key.mode),bt=beats[i]||1;return '<span class="rchip sm"><b>'+noteOct(m)+'</b> · deg '+deg+' · '+(bt===1?"1 beat":bt+" beats")+'</span>';}).join("")+'</div>';
     const chords=diatonic(key.root,key.mode),progs=progsFor(key.mode);
-    let harm='<div class="rlab" style="display:block;margin:14px 0 5px">Chords that fit — '+kn+'</div><div class="idea-fb"><div style="margin-bottom:8px">'+chords.map(c=>'<span class="rchip sm" style="margin:2px">'+c.rn+' = <b>'+c.name+'</b></span>').join(" ")+'</div><div class="site-note">Try one of these progressions under it:</div><div style="margin-top:4px">'+progs.map(pr=>'<div style="margin:3px 0"><b>'+pr.join(" – ")+'</b> &nbsp;<span style="opacity:.7">'+pr.map(rn=>{const c=chords.find(x=>x.rn.replace("°","")===rn.replace("°",""));return c?c.name:rn;}).join(" – ")+'</span></div>').join("")+'</div></div>';
+    let harm='<div class="rlab" style="display:block;margin:14px 0 5px">Chords that fit — '+kn+'</div><div class="idea-fb"><div style="margin-bottom:8px">'+chords.map(c=>'<span class="rchip sm" style="margin:2px">'+c.rn+' = <b>'+c.name+'</b></span>').join(" ")+'</div><div class="site-note">Try one of these progressions under it:</div><div style="margin-top:4px">'+progs.map(pr=>{const ref=PROG_SONGS[pr.join("-")];return '<div style="margin:5px 0"><b>'+pr.join(" – ")+'</b> &nbsp;<span style="opacity:.7">'+pr.map(rn=>{const c=chords.find(x=>x.rn.replace("°","")===rn.replace("°",""));return c?c.name:rn;}).join(" – ")+'</span>'+(ref?'<div class="site-note" style="margin:1px 0 0">heard in: '+ref+'</div>':'')+'</div>';}).join("")+'</div></div>';
     const up=notes[notes.length-1]>notes[0];
     out.innerHTML='<div class="idea-fb" style="margin-top:12px"><b style="color:#f4b740">Key: '+kn+'</b> · '+notes.length+' notes · '+total+' beats. The melody '+(up?"rises overall":"falls overall")+', centered around degree '+degreeOf(notes[Math.floor(notes.length/2)],key.root,key.mode)+'.</div>'+
       '<div class="rlab" style="display:block;margin:12px 0 5px">Melody map <span style="opacity:.6;font-weight:400">(gold = tonic · purple = in key · red = outside)</span></div>'+roll+list+harm+
