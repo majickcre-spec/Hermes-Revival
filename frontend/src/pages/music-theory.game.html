@@ -190,16 +190,16 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .drum-head{position:absolute;left:0;top:0;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle at 50% 40%,#e3d2ab,#c3a670 58%,#6b5432 100%);border:6px solid #3a2a16;box-shadow:0 12px 26px rgba(0,0,0,.45),inset 0 -12px 22px rgba(0,0,0,.3)}
 .drum-edge{position:absolute;left:16px;top:16px;width:168px;height:168px;border-radius:50%;border:2px dashed rgba(60,40,20,.45)}
 .drum-bass{position:absolute;left:58px;top:58px;width:84px;height:84px;border-radius:50%;border:2px dashed rgba(60,40,20,.45);display:flex;align-items:center;justify-content:center;font-size:.7rem;letter-spacing:1px;color:rgba(50,34,16,.6);font-family:"Bricolage Grotesque",system-ui,sans-serif}
-.flashzone{position:absolute;border-radius:50%;opacity:0;pointer-events:none}
-.flashzone.on{animation:drumflash .24s ease-out}
-@keyframes drumflash{0%{opacity:.9;transform:scale(.55)}100%{opacity:0;transform:scale(1.3)}}
-.drum-lbl{position:absolute;left:0;top:84px;width:200px;text-align:center;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:2rem;font-weight:800;opacity:0;pointer-events:none}
-.drum-lbl.on{animation:lblpop .3s ease-out}
-@keyframes lblpop{0%{opacity:.95;transform:scale(1.2)}100%{opacity:0;transform:scale(1)}}
-.hand{position:absolute;bottom:0;font-size:2.1rem;transition:transform .09s ease-out;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))}
-.hand.hl{left:14px;transform:scaleX(-1)} .hand.hr{right:14px}
-.hand.hl.hit{transform:scaleX(-1) translateY(-40px) scale(1.1)}
-.hand.hr.hit{transform:translateY(-40px) scale(1.1)}
+.flashzone{position:absolute;border-radius:50%;opacity:0;pointer-events:none;mix-blend-mode:screen}
+.flashzone.on{animation:drumflash .28s ease-out}
+@keyframes drumflash{0%{opacity:1;transform:scale(.45)}55%{opacity:.95}100%{opacity:0;transform:scale(1.35)}}
+.flashzone.slap.on{animation:drumflash .15s ease-out}
+.drum-lbl{position:absolute;left:0;top:150px;width:200px;text-align:center;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:2px;opacity:0;pointer-events:none;text-shadow:0 2px 6px rgba(0,0,0,.6)}
+.drum-lbl.on{animation:lblpop .36s ease-out}
+@keyframes lblpop{0%{opacity:1;transform:translateY(4px) scale(1.15)}100%{opacity:0;transform:translateY(0) scale(1)}}
+.djhand{position:absolute;font-size:2.1rem;opacity:0;pointer-events:none;filter:drop-shadow(0 2px 4px rgba(0,0,0,.55))}
+.djhand.press{animation:handpress .22s ease-out}
+@keyframes handpress{0%{opacity:0;transform:translateY(-18px) scale(1.3)}40%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(0) scale(.92)}}
 .handpan{position:relative;width:260px;height:260px;margin:14px auto 6px;border-radius:50%;background:radial-gradient(circle at 50% 42%,#b4bcc3,#808890 55%,#3c4249 100%);border:6px solid #2a2f34;box-shadow:0 14px 30px rgba(0,0,0,.5),inset 0 -14px 26px rgba(0,0,0,.35)}
 .hp-field{position:absolute;border-radius:50%;border:2px solid rgba(255,255,255,.22);background:radial-gradient(circle at 50% 38%,rgba(255,255,255,.26),rgba(0,0,0,.22));color:#eef2f5;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:800;font-size:.82rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .08s,box-shadow .12s,border-color .12s}
 .hp-field.ding{font-size:.98rem}
@@ -1647,7 +1647,12 @@ const DJEMBE_PATTERNS=[
  {name:"Kuku (simple)",div:4,pat:"B..TT..SB..TT..S"},
  {name:"Djansa (simple)",div:4,pat:"B.T.S.T.B.T.S.T."},
  {name:"Sunu (simple)",div:4,pat:"BT.STB.SBT.STB.S"},
- {name:"6/8 Groove",div:3,pat:"B.TS.TB.TS.T"}
+ {name:"Kassa (simple)",div:4,pat:"B.TTS.TTB.TTS.TT"},
+ {name:"Fanga (simple)",div:4,pat:"B.T.BTS.B.T.BTS."},
+ {name:"Bass & Slap",div:4,pat:"B..SB..SB..SB..S"},
+ {name:"Tone roll",div:4,pat:"TTTTTTTTTTTTTTTT"},
+ {name:"6/8 Groove",div:3,pat:"B.TS.TB.TS.T"},
+ {name:"12/8 Bembe",div:3,pat:"B.TS.TBT.S.T"}
 ];
 const DJ={bpm:100,patIdx:0,running:false,cur:0,nextTime:0,schID:null,raf:null,visQ:[],litCell:-1,barCount:0,
   playPattern:true,metClick:true,scoring:false,countIn:1,t0:0,countEndTime:0,taps:[],hand:"R",
@@ -1666,15 +1671,16 @@ function djSchedule(){const a=ac(),ahead=0.12,P=DJP(),div=P.div,cells=4*div,cell
   }}
 function djLight(cell){const cells=document.querySelectorAll("#djCells .rcell");if(DJ.litCell>=0&&cells[DJ.litCell])cells[DJ.litCell].classList.remove("on");if(cells[cell])cells[cell].classList.add("on");DJ.litCell=cell;}
 function djHit(stroke){const fl=$("#drumFlash");if(!fl)return;
-  DJ.hand=DJ.hand==="L"?"R":"L";const h=DJ.hand==="L"?$("#handL"):$("#handR");
-  if(h){h.classList.remove("hit");void h.offsetWidth;h.classList.add("hit");setTimeout(()=>{if(h)h.classList.remove("hit");},130);}
-  let x,y,size,col;
-  if(stroke==="B"){x=100;y=100;size=98;col="rgba(165,121,255,.75)";}
-  else{const left=DJ.hand==="L";x=left?58:142;y=74;size=56;col=stroke==="T"?"rgba(255,159,92,.8)":"rgba(85,214,232,.85)";}
+  DJ.hand=DJ.hand==="L"?"R":"L";const left=DJ.hand==="L";
+  let x,y,size,col,lbl;
+  if(stroke==="B"){x=100;y=100;size=110;col="rgba(165,121,255,.95)";lbl="BASS";}          // center
+  else if(stroke==="T"){x=left?62:138;y=66;size=64;col="rgba(255,159,92,.95)";lbl="TONE";} // upper edge
+  else{x=left?40:160;y=118;size=50;col="rgba(85,214,232,1)";lbl="SLAP";}                    // side edge, sharp
   fl.style.width=fl.style.height=size+"px";fl.style.left=(x-size/2)+"px";fl.style.top=(y-size/2)+"px";
-  fl.style.background="radial-gradient(circle,"+col+",transparent 70%)";
-  fl.classList.remove("on");void fl.offsetWidth;fl.classList.add("on");
-  const lbl=$("#drumLbl");if(lbl){lbl.textContent=stroke;lbl.style.color=stroke==="B"?"#c9b3ff":stroke==="T"?"#ffd9a8":"#bfe3ff";lbl.classList.remove("on");void lbl.offsetWidth;lbl.classList.add("on");}}
+  fl.style.background="radial-gradient(circle,"+col+" 0%,transparent 70%)";
+  fl.className="flashzone"+(stroke==="S"?" slap":"");fl.classList.remove("on");void fl.offsetWidth;fl.classList.add("on");
+  const hand=$("#djHand");if(hand){hand.style.left=(x-15)+"px";hand.style.top=(y-16)+"px";hand.classList.remove("press");void hand.offsetWidth;hand.classList.add("press");}
+  const L=$("#drumLbl");if(L){L.textContent=lbl;L.style.color=stroke==="B"?"#c9b3ff":stroke==="T"?"#ffd9a8":"#bfe3ff";L.classList.remove("on");void L.offsetWidth;L.classList.add("on");}}
 function djDetect(now,record){if(!DJ.buf)return;toneAnalyser.getFloatTimeDomainData(DJ.buf);let peak=0,sum=0;for(let i=0;i<DJ.buf.length;i++){const v=Math.abs(DJ.buf[i]);if(v>peak)peak=v;sum+=v*v;}
   DJ.floor=(DJ.floor==null)?Math.sqrt(sum/DJ.buf.length):DJ.floor*0.96+Math.sqrt(sum/DJ.buf.length)*0.04;
   const mf=$("#djMeterF");if(mf)mf.style.width=Math.min(100,Math.round(peak*180))+"%";
@@ -1709,8 +1715,9 @@ async function renderDjembe(){
         <div class="drum">
           <div class="drum-head"></div><div class="drum-edge"></div><div class="drum-bass">bass</div>
           <div class="flashzone" id="drumFlash"></div><div class="drum-lbl" id="drumLbl"></div>
-          <div class="hand hl" id="handL">🖐</div><div class="hand hr" id="handR">🖐</div>
+          <div class="djhand" id="djHand">🖐</div>
         </div>
+        <div class="actions"><button class="btn ghost" id="djCR">🔁 Call &amp; Response</button></div>
         <div class="rbanner" id="djBanner" hidden></div>
         <div class="rcells" id="djCells"></div>
         <div class="rrow"><span class="rlab">Tempo</span><input type="range" id="djBpm" min="50" max="180" value="${DJ.bpm}" style="flex:1"><span class="rbpm" id="djBpmV">${DJ.bpm}</span><button class="rtap" id="djTap">Tap</button></div>
@@ -1733,9 +1740,85 @@ async function renderDjembe(){
     $("#tgClick").onclick=()=>{DJ.metClick=!DJ.metClick;draw();};
     $("#tgScore").onclick=async()=>{if(!DJ.scoring){const ok=await ensureMic();if(!ok){DJ.scoring=false;draw();return;}DJ.buf=new Float32Array(toneAnalyser.fftSize);DJ.scoring=true;}else DJ.scoring=false;draw();};
     $("#djStart").onclick=()=>{unlockAudio();if(DJ.running)djStop();else djStart();};
+    const crb=$("#djCR");if(crb)crb.onclick=()=>{djStop();renderCR();};
     const pb=$("#padB"),pt=$("#padT"),ps=$("#padS");
     function pad(el,kind){el.addEventListener("pointerdown",e=>{e.preventDefault();unlockAudio();djembe(ac().currentTime+0.01,kind);el.classList.add("hit");setTimeout(()=>el.classList.remove("hit"),90);});}
     pad(pb,"bass");pad(pt,"tone");pad(ps,"slap");
+  }
+  draw();
+}
+
+/* ===== CALL & RESPONSE — app plays a rhythm twice, you play it back, scored ===== */
+const CR={measures:2,raf:null,running:false,viz:[],expected:[],detected:[],buf:null,floor:null,lastPeak:0,lastOnset:0,resolved:0,inPocket:0,matched:0,errAbs:0,callStart:0,respStart:0,respEnd:0};
+function crDetect(now){toneAnalyser.getFloatTimeDomainData(CR.buf);let peak=0,sum=0;for(let i=0;i<CR.buf.length;i++){const v=Math.abs(CR.buf[i]);if(v>peak)peak=v;sum+=v*v;}
+  CR.floor=(CR.floor==null)?Math.sqrt(sum/CR.buf.length):CR.floor*0.96+Math.sqrt(sum/CR.buf.length)*0.04;
+  const mf=$("#crMeterF");if(mf)mf.style.width=Math.min(100,Math.round(peak*180))+"%";
+  const thr=Math.max(0.02,CR.floor*3);
+  if(peak>thr&&CR.lastPeak<=thr*0.6&&now-CR.lastOnset>0.1){CR.detected.push(now);CR.lastOnset=now;}CR.lastPeak=peak;}
+function crMatch(now){const P=DJP(),cellDur=(60/DJ.bpm)/P.div,win=Math.min(0.2,cellDur*0.95);
+  for(const e of CR.expected){if(e.done||e.t>=now-win)continue;let best=null,bd=1e9;for(const d of CR.detected){const dd=Math.abs(d-e.t);if(dd<=win&&dd<bd){bd=dd;best=d;}}if(best!==null){CR.matched++;CR.errAbs+=bd;if(bd<=POCKET.normal)CR.inPocket++;}CR.resolved++;e.done=true;}}
+function crFrame(){const now=ac().currentTime;
+  while(CR.viz.length&&CR.viz[0].t<=now){const e=CR.viz.shift();djLight(e.cell);djHit(e.stroke);}
+  const st=$("#crStatus");
+  if(now<CR.respStart){if(st)st.textContent=now<CR.callStart+(CR.respStart-CR.callStart)/2?"🔊 Listen…":"🔊 Listen again…";}
+  else if(now<CR.respEnd){if(st)st.textContent="🥁 Your turn — play it back!";crDetect(now);crMatch(now);}
+  else{CR.running=false;crScore();return;}
+  CR.raf=requestAnimationFrame(crFrame);}
+async function crGo(){
+  const ok=await ensureMic();const st=$("#crStatus");
+  if(!ok){if(st)st.textContent="I need the mic to hear you play.";return;}
+  CR.buf=new Float32Array(toneAnalyser.fftSize);
+  const a=ac(),P=DJP(),div=P.div,steps=djSteps(P),spb=60/DJ.bpm,cellDur=spb/div,barDur=spb*4,cpb=4*div;
+  CR.viz=[];CR.expected=[];CR.detected=[];CR.floor=null;CR.lastPeak=0;CR.lastOnset=0;CR.resolved=0;CR.inPocket=0;CR.matched=0;CR.errAbs=0;
+  const res=$("#crResults");if(res)res.innerHTML="";
+  let t=a.currentTime+0.3;
+  for(let b=0;b<4;b++)click(t+b*spb,b===0?"accent":"beat");
+  CR.callStart=t+barDur;t+=barDur;
+  for(let r=0;r<2;r++)for(let bar=0;bar<CR.measures;bar++){for(let c=0;c<cpb;c++){const ct=t+c*cellDur;if(c%div===0)click(ct,c===0?"accent":"beat");const ch=steps[c];if(ch&&ch!=="."){djembe(ct,ch==="B"?"bass":ch==="T"?"tone":"slap");CR.viz.push({t:ct,cell:c,stroke:ch});}}t+=barDur;}
+  CR.respStart=t;
+  for(let bar=0;bar<CR.measures;bar++){for(let c=0;c<cpb;c++){const ct=t+c*cellDur;if(c%div===0)click(ct,c===0?"accent":"beat");const ch=steps[c];if(ch&&ch!==".")CR.expected.push({t:ct,done:false});}t+=barDur;}
+  CR.respEnd=t;CR.running=true;
+  if(CR.raf)cancelAnimationFrame(CR.raf);CR.raf=requestAnimationFrame(crFrame);
+}
+function crScore(){const acc=CR.resolved?Math.round(100*CR.inPocket/CR.resolved):0,ms=CR.matched?Math.round(1000*CR.errAbs/CR.matched):0;
+  let note="";if(acc>=70&&activeId()){const key="cr-"+DJ.patIdx+"-"+CR.measures;if(!load(mk("cr",key),false)){addBeans(14);save(mk("cr",key),true);note='<div class="bean-note">+14 🫘</div>';}else{addBeans(3);note='<div class="bean-note">+3 🫘</div>';}beanChip();}
+  const sEl=$("#crStatus");if(sEl)sEl.textContent=acc>=70?"Nice — you played it back!":"Listen for the pattern and try again.";
+  const res=$("#crResults");if(res){res.innerHTML=`<div class="rscore"><div class="racc">${acc}%</div><div class="rfeel">${CR.matched}/${CR.expected.length} hits${ms?" · ±"+ms+" ms":""} · ${acc>=80?"locked in 🔥":acc>=55?"close":"keep going"}</div></div>${note}
+    <div class="actions"><button class="btn" id="crAgain">🔁 Again</button><button class="btn ghost" id="crBack">Back</button></div>`;
+    $("#crAgain").onclick=crGo;$("#crBack").onclick=renderDjembe;if(acc>=80)burst(res,10);}}
+function renderCR(){
+  if(toneRAF)cancelAnimationFrame(toneRAF);if(CR.raf)cancelAnimationFrame(CR.raf);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  teardown=()=>{if(CR.raf)cancelAnimationFrame(CR.raf);CR.running=false;stopMic();};
+  function draw(){
+    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔁 Call & Response</span></div>
+      <div class="panel">
+        <div class="intro">I play the rhythm <b>twice</b> — listen and watch the hands. Then it's <b>your turn</b> to play it back on the pads or your real djembe, and your timing gets scored. Start at 2 bars, graduate to 4.</div>
+        <div class="rrow2"><span class="rlab">Pattern</span><span class="rchips tight" id="crPat"></span></div>
+        <div class="rrow2"><span class="rlab">Length</span><span class="rchips tight" id="crLen"></span></div>
+        <div class="rrow"><span class="rlab">Tempo</span><input type="range" id="crBpm" min="50" max="160" value="${DJ.bpm}" style="flex:1"><span class="rbpm" id="crBpmV">${DJ.bpm}</span></div>
+        <div class="drum">
+          <div class="drum-head"></div><div class="drum-edge"></div><div class="drum-bass">bass</div>
+          <div class="flashzone" id="drumFlash"></div><div class="drum-lbl" id="drumLbl"></div><div class="djhand" id="djHand">🖐</div>
+        </div>
+        <div class="rcells" id="djCells"></div>
+        <div class="rrow2"><span class="rlab">Mic</span><div class="rmeter"><div class="rmeter-f" id="crMeterF"></div></div></div>
+        <div class="feedback" id="crStatus">Tap Start — listen, then play it back.</div>
+        <div class="actions"><button class="btn" id="crStart">▶ Start</button></div>
+        <div class="dpads">
+          <button class="dpad bass" id="padB"><span>Bass</span><span class="pl">B</span></button>
+          <button class="dpad tone" id="padT"><span>Tone</span><span class="pl">T</span></button>
+          <button class="dpad slap" id="padS"><span>Slap</span><span class="pl">S</span></button>
+        </div>
+        <div id="crResults"></div>
+      </div>`;
+    $("#eBack").onclick=goHome;
+    const pc=$("#crPat");DJEMBE_PATTERNS.forEach((p,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===DJ.patIdx?" sel":"");b.textContent=p.name;b.onclick=()=>{DJ.patIdx=i;draw();};pc.appendChild(b);});
+    const lc=$("#crLen");[[1,"1 bar"],[2,"2 bars"],[4,"4 bars"]].forEach(([m,lab])=>{const b=document.createElement("button");b.className="rchip sm"+(m===CR.measures?" sel":"");b.textContent=lab;b.onclick=()=>{CR.measures=m;draw();};lc.appendChild(b);});
+    djRenderCells();
+    const bp=$("#crBpm");bp.oninput=()=>{DJ.bpm=+bp.value;$("#crBpmV").textContent=DJ.bpm;};
+    $("#crStart").onclick=()=>{unlockAudio();crGo();};
+    function pad(el,kind){el.addEventListener("pointerdown",e=>{e.preventDefault();unlockAudio();djembe(ac().currentTime+0.01,kind);el.classList.add("hit");setTimeout(()=>el.classList.remove("hit"),90);});}
+    pad($("#padB"),"bass");pad($("#padT"),"tone");pad($("#padS"),"slap");
   }
   draw();
 }
@@ -1760,7 +1843,11 @@ const HP_PATTERNS=[
  {name:"Descend",seq:[[8,1],[7,1],[6,1],[5,1],[4,1],[3,1],[2,1],[1,1],[0,2]]},
  {name:"Waves",seq:[[0,1],[2,1],[1,1],[3,1],[2,1],[4,1],[3,1],[5,1],[4,2]]},
  {name:"Circle",seq:[[0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[7,1],[8,1],[7,1],[6,1],[5,1],[4,1],[3,1],[2,1],[1,1]]},
- {name:"Lullaby",seq:[[0,2],[2,2],[1,2],[3,2],[2,2],[0,4]]}
+ {name:"Lullaby",seq:[[0,2],[2,2],[1,2],[3,2],[2,2],[0,4]]},
+ {name:"Pentatonic hop",seq:[[0,1],[2,1],[4,1],[6,1],[8,1],[6,1],[4,1],[2,1]]},
+ {name:"Gentle rain",seq:[[8,1],[6,1],[7,1],[5,1],[6,1],[4,1],[5,1],[3,1],[4,2]]},
+ {name:"Question & answer",seq:[[0,1],[2,1],[4,2],[3,1],[1,1],[0,2]]},
+ {name:"Meditation",seq:[[0,4],[4,4],[2,4],[6,4],[0,4]]}
 ];
 const HP={scaleIdx:0,patIdx:0,bpm:72,running:false,i:0,nextTime:0,schID:null,raf:null,visQ:[],playNotes:true,taps:[]};
 function hpStop(){HP.running=false;if(HP.schID){clearInterval(HP.schID);HP.schID=null;}if(HP.raf){cancelAnimationFrame(HP.raf);HP.raf=null;}const b=$("#hpStart");if(b)b.textContent="▶ Play along";}
