@@ -2697,7 +2697,8 @@ const MAKE_CARDS=[
  {ic:"🎛️",title:"Studio",blurb:"Multi-track recorder — lay down each real instrument and voice, stack them in sections, then mix with volume, pan, mute/solo and effects.",go:()=>renderStudio()},
  {ic:"🧩",title:"Beat Maker",blurb:"Build layered beats & motifs on a grid — djembe and handpan together. Play the instrument live into the sequencer, loop, save, and get feedback.",go:()=>renderBeat()},
  {ic:"🎼",title:"Learn a Song",blurb:"Bring in a song you're practicing — paste a chord sheet or build it — and get a play-along chord chart with loop, tempo, and transpose.",go:()=>renderLearnSong()},
- {ic:"🎼",title:"Song Project (final)",blurb:"The big one — assemble your sections into a full song: intro, verses, choruses, bridge, outro. Finish it to earn Songwriter.",go:()=>renderSongBuilder()}
+ {ic:"🎼",title:"Song Project (final)",blurb:"The big one — assemble your sections into a full song: intro, verses, choruses, bridge, outro. Finish it to earn Songwriter.",go:()=>renderSongBuilder()},
+ {ic:"🎓",title:"The Instructor",blurb:"Drop in a track (or a section you bounced) and get a real mix report — gain staging, tonal balance, low end, dynamics, stereo — graded for YOUR genre. Add a reference track to hear why yours sounds older. Take a midterm anytime.",go:()=>renderInstructor()}
 ];
 /* handpan voice — mellow metallic bell with octave + twelfth overtones, long decay */
 function handpan(time,midi){const a=ac(),out=pianoMaster(a),f=midiToFreq(midi);
@@ -3367,13 +3368,39 @@ function efStart(intensity,mode,vol,voiceId){efStop();unlockAudio();const a=ac()
   function kick(t,lvl){const o=a.createOscillator();o.type="sine";o.frequency.setValueAtTime(92,t);o.frequency.exponentialRampToValueAtTime(40,t+0.12);const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(lvl,t+0.005);g.gain.exponentialRampToValueAtTime(0.0001,t+0.26);o.connect(g);g.connect(master);o.start(t);o.stop(t+0.3);}
   const beatTimer=setInterval(()=>{const t=a.currentTime+0.05,step=beatI%4;if(step===0)kick(t,0.5);else if(I>0.6&&step===2)kick(t,0.3);else if(I>0.82)kick(t,0.16);beatI++;},spb*1000);
   EF={master,oscs,beatTimer};}
+function efSong(intensity,voice,vol){efStop();unlockAudio();const a=ac(),I=Math.max(0,Math.min(1,(intensity||0)/100));
+  const root=7.83*16,f=s=>root*Math.pow(2,s/12),oscs=[];
+  const master=a.createGain();master.gain.value=0.0001;master.connect(a.destination);master.gain.setTargetAtTime(vol==null?0.6:vol,a.currentTime,0.7);
+  const delay=a.createDelay(0.6);delay.delayTime.value=0.34;const dfb=a.createGain();dfb.gain.value=0.32;delay.connect(dfb);dfb.connect(delay);const dwet=a.createGain();dwet.gain.value=0.2;delay.connect(dwet);dwet.connect(master);
+  (function(){const o=a.createOscillator();o.type="sine";o.frequency.value=root*2;const g=a.createGain();g.gain.value=0.05;o.connect(g);g.connect(master);o.start();oscs.push(o);
+    const po=a.createOscillator();po.type="sine";po.frequency.value=root*2;const pg=a.createGain();pg.gain.value=0.05;po.connect(pg);pg.connect(master);po.start();oscs.push(po);
+    const lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=7.83;const lg=a.createGain();lg.gain.value=0.05;lfo.connect(lg);lg.connect(pg.gain);lfo.start();oscs.push(lfo);})();
+  function bass(t,s,d){const o=a.createOscillator();o.type="triangle";o.frequency.value=f(s);const o2=a.createOscillator();o2.type="sawtooth";o2.frequency.value=f(s);const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=520;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.5,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+d);const g2=a.createGain();g2.gain.value=0.22;o.connect(lp);o2.connect(g2);g2.connect(lp);lp.connect(g);g.connect(master);o.start(t);o2.start(t);o.stop(t+d+0.05);o2.stop(t+d+0.05);}
+  function kick(t){const o=a.createOscillator();o.type="sine";o.frequency.setValueAtTime(110,t);o.frequency.exponentialRampToValueAtTime(42,t+0.1);const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.7,t+0.004);g.gain.exponentialRampToValueAtTime(0.0001,t+0.22);o.connect(g);g.connect(master);o.start(t);o.stop(t+0.26);}
+  function hat(t,lvl){djNoise(a,t,0.025,9000,lvl,master,true);}
+  function pad(t,ch,d){ch.forEach(s=>{const o=a.createOscillator();o.type="sawtooth";o.frequency.value=f(s+12);o.detune.value=Math.random()*8-4;const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=700+I*1800;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(0.05,t+0.4);g.gain.setValueAtTime(0.05,t+Math.max(0.5,d-0.5));g.gain.exponentialRampToValueAtTime(0.0001,t+d);o.connect(lp);lp.connect(g);g.connect(master);g.connect(delay);o.start(t);o.stop(t+d+0.05);});}
+  function lead(t,s,d){const o=a.createOscillator();o.type="square";o.frequency.value=f(s+24);const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=2600;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.07,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+d);o.connect(lp);lp.connect(g);g.connect(master);g.connect(delay);o.start(t);o.stop(t+d+0.05);}
+  const CH=[[0,3,7],[8,12,15],[3,7,10],[10,14,17]],bassRoot=[0,8,3,10];
+  const bassPat=[1,0,0,1,0,1,0,0,1,0,0,1,0,1,0,0],leadMotif=[7,null,5,null,3,null,5,7,null,null,3,null,2,null,0,null];
+  const bpm=58.7*2,spb=60/bpm,stepDur=spb/2;let step=0,bar=0;
+  const schID=setInterval(()=>{const t=a.currentTime+0.06,s=step%16,ch=CH[bar%4],rt=bassRoot[bar%4];
+    if(bassPat[s])bass(t,rt,stepDur*(s===0?2:1.4));
+    if(bar>=1){if(I>0.45?(s%4===0):(s===0||s===8))kick(t);}
+    if(bar>=2){if(s%2===1)hat(t,0.04+0.05*I);if(I>0.6&&s%4===2)hat(t,0.07);}
+    if(bar>=3&&s===0)pad(t,ch,spb*4);
+    if(bar>=4&&leadMotif[s]!=null)lead(t,leadMotif[s],stepDur*1.3);
+    step++;if(step%16===0)bar=(bar+1)%8;
+  },stepDur*1000);
+  EF={master,oscs,beatTimer:schID};}
 function efKpLabel(kp){return kp<2?"Quiet":kp<4?"Unsettled":kp<5?"Active":kp<6?"Minor storm (G1)":kp<7?"Storm (G2)":"Strong storm";}
 function renderEarthFreq(){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   let mode=load(mk("earth","mode"),"iso"),voice=load(mk("earth","voice"),"pure"),vol=0.6;
+  let arr=load(mk("earth","arr"),"med");
   let arch=efArch(),selDate=efDayUTC(0),override=null;
   teardown=()=>{efStop();};
   function cur(){if(override!=null)return override;const s=arch[selDate];return s?s.intensity:24;}
+  function go(){arr==="song"?efSong(cur(),voice,vol):efStart(cur(),mode,vol,voice);}
   function draw(){
     const s=arch[selDate],days=Object.keys(arch).sort().reverse().slice(0,7);
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌍 Earth Frequency</span></div><div class="panel">'+
@@ -3384,7 +3411,8 @@ function renderEarthFreq(){
       '<div class="rlab" style="display:block;margin:12px 0 5px">Tune in — pick a day</div><div class="rchips" id="efDays"></div>'+
       '<div class="idea-fb" id="efNow"></div>'+
       '<div class="rrow2"><span class="rlab">Instrument</span><span class="rchips tight" id="efVoices"></span></div>'+
-      '<div class="rrow2"><span class="rlab">Mode</span><span class="rchips tight"><button class="rchip sm'+(mode==="iso"?" sel":"")+'" id="efIso">🔊 Isochronic</button><button class="rchip sm'+(mode==="binaural"?" sel":"")+'" id="efBin">🎧 Binaural</button></span></div>'+
+      '<div class="rrow2"><span class="rlab">Feel</span><span class="rchips tight"><button class="rchip sm'+(arr==="med"?" sel":"")+'" id="efArrMed">🧘 Meditation</button><button class="rchip sm'+(arr==="song"?" sel":"")+'" id="efArrSong">🎶 Song</button></span></div>'+
+      (arr==="med"?'<div class="rrow2"><span class="rlab">Mode</span><span class="rchips tight"><button class="rchip sm'+(mode==="iso"?" sel":"")+'" id="efIso">🔊 Isochronic</button><button class="rchip sm'+(mode==="binaural"?" sel":"")+'" id="efBin">🎧 Binaural</button></span></div>':'<div class="site-note" style="margin:2px 0 6px">Song mode builds an arrangement on the day&rsquo;s 7.83 Hz fundamental as the bass — a syncopated bassline, kick &amp; hats, pad chords and a lead motif that layer in over 8 bars. Calm days stay sparse; spiky days drive harder.</div>')+
       '<div class="rrow"><span class="rlab">Intensity</span><input type="range" id="efInt" min="0" max="100" value="'+cur()+'" style="flex:1"><span class="rbpm" id="efIntV">'+cur()+'</span></div>'+
       '<div class="rrow"><span class="rlab">Volume</span><input type="range" id="efVol" min="0" max="1" step="0.01" value="'+vol+'" style="flex:1"></div>'+
       '<div class="actions"><button class="btn" id="efPlay">'+(EF?"⏸ Stop":"▶ Play this day")+'</button></div>'+
@@ -3392,17 +3420,163 @@ function renderEarthFreq(){
     $("#eBack").onclick=goHome;
     const img=$("#efImg");img.src="https://schumannresonance.today/live/tomsk1.jpg?t="+Date.now();img.onerror=()=>{img.style.display="none";const n=$("#efImgNote");if(n)n.innerHTML='Couldn&rsquo;t load the live chart here — see it at <a href="https://schumannresonance.today/" target="_blank" rel="noopener" style="color:#9bd0ff">schumannresonance.today ↗</a>';};
     const dc=$("#efDays");if(!days.length){dc.innerHTML='<span class="site-note">Fetching the last 7 days…</span>';}
-    days.forEach(d=>{const b=document.createElement("button");b.className="rchip sm"+(d===selDate?" sel":"");b.textContent=efDateLabel(d);b.onclick=()=>{selDate=d;override=null;draw();if(EF)efStart(cur(),mode,vol,voice);};dc.appendChild(b);});
+    days.forEach(d=>{const b=document.createElement("button");b.className="rchip sm"+(d===selDate?" sel":"");b.textContent=efDateLabel(d);b.onclick=()=>{selDate=d;override=null;draw();if(EF)go();};dc.appendChild(b);});
     const nw=$("#efNow");if(nw)nw.innerHTML=s?("<b>"+efDateLabel(selDate)+"</b> — Kp "+s.kp.toFixed(1)+" · "+s.label+". Fundamental 7.83 Hz · ~59 BPM."):"No reading for this day yet — tune in daily and the week fills in.";
-    const vc=$("#efVoices");EF_VOICES.forEach(v=>{const b=document.createElement("button");b.className="rchip sm"+(v.id===voice?" sel":"");b.textContent=v.name;b.onclick=()=>{voice=v.id;save(mk("earth","voice"),voice);draw();if(EF)efStart(cur(),mode,vol,voice);};vc.appendChild(b);});
-    $("#efIso").onclick=()=>{mode="iso";save(mk("earth","mode"),mode);draw();if(EF)efStart(cur(),mode,vol,voice);};
-    $("#efBin").onclick=()=>{mode="binaural";save(mk("earth","mode"),mode);draw();if(EF)efStart(cur(),mode,vol,voice);};
-    const ii=$("#efInt");ii.oninput=()=>{override=+ii.value;$("#efIntV").textContent=override;if(EF)efStart(cur(),mode,vol,voice);};
+    const vc=$("#efVoices");EF_VOICES.forEach(v=>{const b=document.createElement("button");b.className="rchip sm"+(v.id===voice?" sel":"");b.textContent=v.name;b.onclick=()=>{voice=v.id;save(mk("earth","voice"),voice);draw();if(EF)go();};vc.appendChild(b);});
+    $("#efArrMed").onclick=()=>{arr="med";save(mk("earth","arr"),arr);draw();if(EF)go();};
+    $("#efArrSong").onclick=()=>{arr="song";save(mk("earth","arr"),arr);draw();if(EF)go();};
+    const iso=$("#efIso"),bin=$("#efBin");if(iso)iso.onclick=()=>{mode="iso";save(mk("earth","mode"),mode);draw();if(EF)go();};if(bin)bin.onclick=()=>{mode="binaural";save(mk("earth","mode"),mode);draw();if(EF)go();};
+    const ii=$("#efInt");ii.oninput=()=>{override=+ii.value;$("#efIntV").textContent=override;if(EF)go();};
     const vv=$("#efVol");vv.oninput=()=>{vol=+vv.value;if(EF&&EF.master)EF.master.gain.setTargetAtTime(vol,ac().currentTime,0.1);};
-    $("#efPlay").onclick=()=>{if(EF){efStop();$("#efPlay").textContent="▶ Play this day";}else{efStart(cur(),mode,vol,voice);$("#efPlay").textContent="⏸ Stop";}};
+    $("#efPlay").onclick=()=>{if(EF){efStop();$("#efPlay").textContent="▶ Play this day";}else{go();$("#efPlay").textContent="⏸ Stop";}};
   }
   draw();
   efFetchHistory((a)=>{arch=a;if(arch[efDayUTC(0)])selDate=efDayUTC(0);draw();});
+}
+/* ===== THE INSTRUCTOR — real mix analysis + genre-aware feedback ===== */
+function _fft(re,im){const n=re.length;for(let i=1,j=0;i<n;i++){let bit=n>>1;for(;j&bit;bit>>=1)j^=bit;j^=bit;if(i<j){let t=re[i];re[i]=re[j];re[j]=t;t=im[i];im[i]=im[j];im[j]=t;}}for(let len=2;len<=n;len<<=1){const ang=-2*Math.PI/len,wr=Math.cos(ang),wi=Math.sin(ang),h=len>>1;for(let i=0;i<n;i+=len){let cr=1,ci=0;for(let k=0;k<h;k++){const ar=re[i+k+h]*cr-im[i+k+h]*ci,ai=re[i+k+h]*ci+im[i+k+h]*cr,ur=re[i+k],ui=im[i+k];re[i+k]=ur+ar;im[i+k]=ui+ai;re[i+k+h]=ur-ar;im[i+k+h]=ui-ai;const ncr=cr*wr-ci*wi;ci=cr*wi+ci*wr;cr=ncr;}}}}
+function _spectrum(mono,sr){const N=4096,bins=N>>1,hann=new Float32Array(N);for(let i=0;i<N;i++)hann[i]=0.5-0.5*Math.cos(2*Math.PI*i/(N-1));const acc=new Float64Array(bins);let frames=0;const span=mono.length-N;if(span<=0)return{mag:acc,sr,N};const hop=Math.max(N,Math.floor(span/400));for(let off=0;off+N<=mono.length;off+=hop){const re=new Float64Array(N),im=new Float64Array(N);for(let i=0;i<N;i++)re[i]=mono[off+i]*hann[i];_fft(re,im);for(let b=0;b<bins;b++)acc[b]+=re[b]*re[b]+im[b]*im[b];frames++;}if(frames)for(let b=0;b<bins;b++)acc[b]/=frames;return{mag:acc,sr,N};}
+function _bandDb(sp,lo,hi){const{mag,sr,N}=sp;let s=0;const b0=Math.max(1,Math.floor(lo*N/sr)),b1=Math.min(mag.length-1,Math.ceil(hi*N/sr));for(let b=b0;b<=b1;b++)s+=mag[b];return 10*Math.log10(s+1e-12);}
+function _biquad(x,b0,b1,b2,a1,a2){const n=x.length,y=new Float32Array(n);let x1=0,x2=0,y1=0,y2=0;for(let i=0;i<n;i++){const xn=x[i],yn=b0*xn+b1*x1+b2*x2-a1*y1-a2*y2;x2=x1;x1=xn;y2=y1;y1=yn;y[i]=yn;}return y;}
+function _kWeight(x){const s1=_biquad(x,1.53512485958697,-2.69169618940638,1.19839281085285,-1.69065929318241,0.73248077421585);return _biquad(s1,1,-2,1,-1.99004745483398,0.99007225036621);}
+function analyzeBuffer(buf){const sr=buf.sampleRate,n=buf.length,ch=buf.numberOfChannels,L=buf.getChannelData(0),R=ch>1?buf.getChannelData(1):L;
+  let peak=0,sq=0,clip=0;for(let i=0;i<n;i++){const p=Math.max(Math.abs(L[i]),Math.abs(R[i]));if(p>peak)peak=p;if(p>0.985)clip++;sq+=L[i]*L[i]+R[i]*R[i];}
+  const rms=Math.sqrt(sq/(n*2)),peakDb=20*Math.log10(peak+1e-9),rmsDb=20*Math.log10(rms+1e-9),crestDb=peakDb-rmsDb,clipPct=clip/n*100;
+  const kL=_kWeight(L),kR=ch>1?_kWeight(R):kL;let ms=0;for(let i=0;i<n;i++)ms+=kL[i]*kL[i]+kR[i]*kR[i];ms/=n;const lufs=-0.691+10*Math.log10(ms+1e-12);
+  const bs=Math.floor(sr*0.4),blocks=[];for(let o=0;o+bs<=n;o+=bs){let b=0;for(let i=0;i<bs;i++){const s=0.5*(L[o+i]+R[o+i]);b+=s*s;}const bl=-0.691+10*Math.log10(b/bs+1e-12);if(bl>-60)blocks.push(bl);}
+  blocks.sort((a,b)=>a-b);const dynLU=blocks.length>4?(blocks[Math.floor(blocks.length*0.95)]-blocks[Math.floor(blocks.length*0.1)]):0;
+  const mono=new Float32Array(n);for(let i=0;i<n;i++)mono[i]=0.5*(L[i]+R[i]);const sp=_spectrum(mono,sr),tot=_bandDb(sp,20,20000);
+  const B={sub:_bandDb(sp,20,60)-tot,bass:_bandDb(sp,60,150)-tot,lowmid:_bandDb(sp,150,400)-tot,mud:_bandDb(sp,200,500)-tot,mid:_bandDb(sp,400,2000)-tot,pres:_bandDb(sp,2000,5000)-tot,bril:_bandDb(sp,5000,10000)-tot,air:_bandDb(sp,10000,18000)-tot};
+  const mudExcess=B.mud-B.mid,harsh=B.pres-B.mid,airBal=B.air-B.pres,subBal=B.sub-B.bass,tilt=_bandDb(sp,3000,18000)-_bandDb(sp,30,300);
+  let width=0,corr=1,bassMono=20;if(ch>1){let midsq=0,sidesq=0,lr=0,ll=0,rr=0;for(let i=0;i<n;i++){const mid=0.5*(L[i]+R[i]),side=0.5*(L[i]-R[i]);midsq+=mid*mid;sidesq+=side*side;lr+=L[i]*R[i];ll+=L[i]*L[i];rr+=R[i]*R[i];}width=Math.sqrt(sidesq/(midsq+1e-12));corr=lr/(Math.sqrt(ll*rr)+1e-12);const side=new Float32Array(n);for(let i=0;i<n;i++)side[i]=0.5*(L[i]-R[i]);const spS=_spectrum(side,sr);bassMono=_bandDb(sp,20,150)-_bandDb(spS,20,150);}
+  return{sr,ch,dur:n/sr,peakDb,rmsDb,crestDb,clipPct,lufs,dynLU,B,mudExcess,harsh,airBal,subBal,tilt,width,corr,bassMono};}
+const GENRES={
+ house:{name:"Melodic House / EDM",lufs:[-10,-6.5],crest:[5,9],sub:1,air:1,width:1,
+   brief:["Low end is the whole game: one clean sub (sine/triangle) owning 30–60 Hz, mono below ~120 Hz, tight with a short release. Weak or muddy sub is the #1 'amateur' tell.","Sidechain everything (bass, pads, often reverb returns) to the kick — even 1–2 dB of pump glues it and reads instantly modern.","Current top end is bright and airy — a high shelf up top, exciter/saturation for 'expensive' sheen. Dull, rolled-off highs are the main reason a track sounds 2012.","Supersaw-stack leads sound dated now; reach for softer, detuned/granular or FM textures, movement from automation and subtle wavetable morphing, not static presets.","Space = modern reverb/delay with low-cut on the returns and width on the sides; keep the center (kick/bass/lead) focused.","Saturation (Ableton Saturator/Roar, soft clip) adds harmonics so parts cut without just being louder."],
+   ref:"a current Anjunadeep / Lane 8 / RÜFÜS DU SOL master"},
+ pop:{name:"Pop",lufs:[-10,-7],crest:[6,10],sub:1,air:1,width:0,
+   brief:["Vocal is the star — forward, bright, compressed, de-essed, with a clear pocket carved for it (dip 2–4 kHz in the music behind it).","Modern low end is deep but controlled; sub present, mono below ~120 Hz.","Bright, airy top (high shelf + saturation) is expected; dark mixes read dated.","Keep arrangements wide on sides, mono/centered on the core.","Parallel compression for punch without squashing."],
+   ref:"a current major-label pop single you admire"},
+ alt:{name:"Alternative Rock",lufs:[-12,-8],crest:[7,12],sub:0,air:0,width:1,
+   brief:["Guitars live 1–4 kHz — carve space so they don't fight the vocal; pan doubles hard L/R for width.","Drums want punch and room, not hyper-polish; parallel compression and real transient life.","Bass and kick share the low end — HPF guitars, let bass own 80–200 Hz.","Keep some dynamics; over-limited alt rock loses its energy.","A little tasteful saturation/amp grit beats sterile clean tones."],
+   ref:"a modern alt record you love the sound of"},
+ rock:{name:"Rock",lufs:[-12,-8],crest:[8,13],sub:-1,air:0,width:1,
+   brief:["Energy from performance and transients — don't flatten the drums.","Midrange is where rock lives; don't scoop all the mids out of guitars.","Bass glued to kick; HPF everything that isn't bass/kick to clear the low end.","Width from doubled guitars and stereo room, core stays centered.","Light bus compression to glue, not to crush."],
+   ref:"a classic or modern rock mix in your lane"},
+ singer:{name:"Singer-Songwriter",lufs:[-15,-11],crest:[9,14],sub:-1,air:1,width:0,
+   brief:["Intimacy and dynamics matter more than loudness — don't over-limit; let it breathe.","Vocal and main instrument (guitar/piano) forward and natural; gentle compression.","Air on the vocal (high shelf) for closeness; tame harsh 2–5 kHz if it bites.","Keep low end clean and modest — HPF the guitar around 80–100 Hz so it doesn't cloud the vocal.","Reverb/delay for depth, but keep it subtle and low-cut so words stay clear."],
+   ref:"a current acoustic/singer-songwriter record you admire"},
+ country:{name:"Country",lufs:[-12,-9],crest:[7,12],sub:0,air:1,width:0,
+   brief:["Vocal clarity and storytelling up front — bright, present, de-essed.","Acoustic guitars crisp (presence + air), electric and steel carved around the vocal.","Tight, punchy drums; bass supports without boom.","Modern country is polished and bright — dull mixes sound dated here too.","Keep it wide but anchored; vocal dead center."],
+   ref:"a current Nashville release you like the sound of"},
+ bluegrass:{name:"Bluegrass / Acoustic",lufs:[-16,-12],crest:[10,16],sub:-1,air:1,width:1,
+   brief:["Capture the room and the performance — minimal processing, lots of dynamics.","Natural tone on every instrument; banjo/mandolin bright and present, upright bass round but defined.","Light compression only; preserve the pick attack and transients.","Air and presence for the 'in the room' feel; avoid heavy limiting.","Pan the pickers around a natural stereo stage; keep it honest."],
+   ref:"a well-recorded live/acoustic bluegrass album"},
+ classical:{name:"Classical / Orchestral",lufs:[-23,-16],crest:[14,22],sub:0,air:1,width:1,
+   brief:["Dynamics ARE the music — do NOT limit or heavily compress; protect the quiet-to-loud range.","Natural, full-range tonal balance; capture the hall, don't 'mix' it loud.","Wide, realistic stereo image from the recording; mono-compatible.","Leave real headroom (peaks around -3 to -6 dBFS); loudness is not the goal.","Any EQ is gentle and corrective, not stylistic."],
+   ref:"a reference orchestral recording from a good label"},
+ hiphop:{name:"Hip-Hop / Trap",lufs:[-10,-6.5],crest:[5,9],sub:1,air:1,width:0,
+   brief:["808/sub is the foundation — tuned to the key, clean, mono below ~120 Hz, controlled with saturation + light compression so it translates on small speakers.","Vocal forward, bright, compressed, de-essed; carve space behind it.","Crisp, bright hats and top end; dull highs sound dated.","Keep the center (808, kick, vocal) focused; width on ad-libs and FX.","Saturate the 808 so it's audible on phones that can't reproduce the sub."],
+   ref:"a current hip-hop/trap master you rate"}
+};
+function _gradeCat(k,label,score,verdict,fix){return{k,label,score:Math.max(5,Math.min(100,Math.round(score))),verdict,fix};}
+function gradeTrack(m,gk,ref){const g=GENRES[gk],cats=[];
+ // Loudness / gain staging
+ let ls=100,lv,lf;const[llo,lhi]=g.lufs;const over=m.peakDb> -0.1||m.clipPct>0.02;
+ if(m.lufs<llo-3){ls=70;lv="Quiet for "+g.name+" ("+m.lufs.toFixed(1)+" LUFS).";lf="You've got headroom — for this genre, push the bus/limiter toward "+llo+" to "+lhi+" LUFS. Gain-stage first (aim each track's peaks near -12 to -6 dBFS going into the mix).";}
+ else if(m.lufs>lhi+1.5){ls=g.crest&&m.crestDb<4?45:72;lv="Loud ("+m.lufs.toFixed(1)+" LUFS)"+(m.crestDb<4?" and squashed":"")+".";lf=m.crestDb<4?"It's crushed — back the limiter off a few dB and fix balance with EQ/clip gain instead of pushing level.":"Fine if it's intentional, but you're above typical "+g.name+" loudness; make sure it's not at the cost of punch.";}
+ else{ls=92;lv="Loudness sits right for "+g.name+" ("+m.lufs.toFixed(1)+" LUFS).";lf="Good target. Keep gain-staging clean so the limiter is only doing a dB or two.";}
+ if(over){ls=Math.min(ls,55);lv+=" Peaks are hitting the ceiling"+(m.clipPct>0.02?" and clipping":"")+".";lf="Set a true-peak ceiling of -1 dBTP; your peak is "+m.peakDb.toFixed(1)+" dBFS. Clipping adds the brittle, harsh edge people hear as 'cheap'.";}
+ cats.push(_gradeCat("gain","Gain staging & loudness",ls,lv,lf));
+ // Dynamics
+ let ds=100,dv,df;const[clo,chi]=g.crest;
+ if(m.crestDb<clo-1){ds=55;dv="Low dynamics (crest "+m.crestDb.toFixed(1)+" dB) — flat and fatiguing.";df="Ease off bus compression/limiting. For "+g.name+" aim for ~"+clo+"–"+chi+" dB crest. Use transient shaping and clip gain instead of squashing.";}
+ else if(m.crestDb>chi+3){ds=78;dv="Very dynamic (crest "+m.crestDb.toFixed(1)+" dB).";df=g.crest[0]>9?"Good — that openness suits "+g.name+".":"If it feels weak/uneven, gentle bus compression (2:1, 1–2 dB) will glue and add drive.";}
+ else{ds=90;dv="Dynamics are healthy (crest "+m.crestDb.toFixed(1)+" dB"+(m.dynLU?", range "+m.dynLU.toFixed(1)+" LU":"")+").";df="Nice punch-vs-consistency balance for "+g.name+".";}
+ cats.push(_gradeCat("dyn","Dynamics & punch",ds,dv,df));
+ // Low end
+ let bs=90,bv,bf;
+ if(g.sub>0&&m.subBal<-9){bs=55;bv="Thin low end — not much true sub under the bass.";bf="For "+g.name+" you want real energy at 30–60 Hz. Add/layer a clean sine sub, tune it to the key, and saturate it so it reads on small speakers.";}
+ else if(g.sub<0&&m.subBal>-1){bs=68;bv="Heavy sub for "+g.name+" — can cloud the mix.";bf="HPF the non-bass tracks (~80–100 Hz) and trim the sub so the midrange and vocal stay clear.";}
+ else if(m.mudExcess>5){bs=60;bv="Low-mids are built up (mud around 200–500 Hz).";bf="Dip a dB or two around 250–400 Hz on the busiest parts (guitars, pads, piano) to clear the congestion.";}
+ else{bs=88;bv="Low end is balanced for "+g.name+".";bf="Keep the sub mono below ~120 Hz so it translates everywhere.";}
+ if(m.ch>1&&m.bassMono<4&&g.sub>=0){bs=Math.min(bs,62);bv+=" Bass isn't mono.";bf="Your low end has stereo content — collapse everything below ~120 Hz to mono (Utility/mono-maker) for a tight, club-safe bottom.";}
+ cats.push(_gradeCat("low","Low end",bs,bv,bf));
+ // Tonal balance / brightness (the 'dated' axis)
+ let ts=90,tv,tf;
+ if(m.airBal<-13){ts=52;tv="Top end is rolled off / dark (air sits "+m.airBal.toFixed(0)+" dB under the presence band).";tf="This is the classic 'old sounds' tell. Add a high shelf above ~10 kHz, use an exciter/saturator for harmonic air, and check your sound selection — swap dull/dark samples & presets for brighter modern ones.";}
+ else if(m.harsh>4){ts=62;tv="Forward/harsh upper mids (2–5 kHz hotter than the body).";tf="Tame 2.5–4 kHz with a gentle dynamic EQ, de-ess bright elements, and soften any aggressive presets. Harshness also reads as cheap/dated.";}
+ else if(m.mudExcess>5){ts=66;tv="Midrange is a little muddy.";tf="Clean 200–400 Hz on the layered parts; it'll open up and sound more pro.";}
+ else if(g.air>0&&m.airBal>-5&&m.harsh<3){ts=93;tv="Bright, open, modern top end.";tf="This is the sheen current "+g.name+" has. Keep it.";}
+ else{ts=85;tv="Tonal balance is solid for "+g.name+".";tf="Compare against your reference to fine-tune the top octave.";}
+ cats.push(_gradeCat("tone","Tonal balance & 'modern' top",ts,tv,tf));
+ // Stereo
+ let ss=90,sv,sf;
+ if(m.ch===1){ss=70;sv="Mono file — no stereo image to judge.";sf="Bounce in stereo so width, panning and mono-compatibility can be assessed.";}
+ else if(m.corr<-0.1){ss=45;sv="Phase problem — L/R are partly out of phase (correlation "+m.corr.toFixed(2)+").";sf="Something's inverted or a wide effect is cancelling. Check in mono; fix the offending part before anything else.";}
+ else if(g.width>0&&m.width<0.25){ss=68;sv="Fairly narrow for "+g.name+".";sf="Widen sides (pads, FX, doubles, reverb returns) with Utility/width or stereo delays — keep the core centered.";}
+ else if(m.width>0.9){ss=66;sv="Very wide — watch mono-compatibility.";sf="Check it in mono; if parts vanish, pull the width back on the low and mid elements.";}
+ else{ss=90;sv="Stereo image is healthy (width "+m.width.toFixed(2)+", correlation "+m.corr.toFixed(2)+").";sf="Core focused, sides open — good.";}
+ cats.push(_gradeCat("stereo","Stereo image",ss,sv,sf));
+ // Reference deltas
+ let refOut=null;
+ if(ref){const d=[],cap=v=>Math.min(24,Math.abs(v));const dl=m.lufs-ref.lufs,da=m.airBal-ref.airBal,dsb=m.subBal-ref.subBal,dmu=m.mudExcess-ref.mudExcess,dc=m.crestDb-ref.crestDb,dw=(m.ch>1&&ref.ch>1)?m.width-ref.width:null;
+   if(Math.abs(dl)>1.5)d.push("You're "+cap(dl).toFixed(1)+" LU "+(dl<0?"quieter":"louder")+" than the reference.");
+   if(da<-4)d.push("Your highs are ~"+cap(da).toFixed(0)+" dB darker up top — the biggest reason yours can read older. Brighten the top shelf and your sound selection toward the reference.");
+   else if(da>4)d.push("Your top is ~"+cap(da).toFixed(0)+" dB brighter than the reference — watch for harshness.");
+   if(dsb<-4)d.push("Your sub is ~"+cap(dsb).toFixed(0)+" dB lighter — the reference has more weight down low.");
+   else if(dsb>4)d.push("You've got ~"+cap(dsb).toFixed(0)+" dB more sub than the reference.");
+   if(dmu>3)d.push("You've got more low-mid buildup (~"+cap(dmu).toFixed(0)+" dB) than the reference — clean 250–400 Hz.");
+   if(dc<-2)d.push("Yours is ~"+cap(dc).toFixed(0)+" dB more compressed/flat than the reference.");else if(dc>3)d.push("Yours is ~"+cap(dc).toFixed(0)+" dB more dynamic than the reference.");
+   if(dw!=null&&dw<-0.15)d.push("The reference is noticeably wider.");
+   if(!d.length)d.push("You're already close to the reference across loudness, balance, low end and dynamics — nice.");
+   refOut=d;}
+ // Modern-sound read
+ let modern=[];
+ if(m.airBal<-13)modern.push("Dark/rolled-off highs — the single most common reason a track sounds 'old'. Brightness + air + the right sample/preset choices fix most of it.");
+ if(m.harsh>4)modern.push("Harsh upper-mids read as cheap; smooth them.");
+ if(g.sub>0&&m.subBal<-9)modern.push("Weak sub makes it feel small and amateur on modern systems.");
+ if(m.crestDb<g.crest[0]-1&&g.crest[0]<10)modern.push("It's a little flat/squashed — modern productions still breathe; don't over-limit.");
+ if(m.ch>1&&m.bassMono<4&&g.sub>=0)modern.push("Non-mono bass is a translation problem that pros always fix.");
+ if(!modern.length)modern.push("Nothing here screams 'dated' — your balance is in a modern ballpark. The rest is sound selection and arrangement: A/B against a reference and chase the top-end sheen and sub weight.");
+ const overall=Math.round(cats.reduce((s,c)=>s+c.score,0)/cats.length);
+ return{overall,grade:overall>=90?"A":overall>=80?"B":overall>=70?"C":overall>=60?"D":"F",cats,modern,ref:refOut,g};}
+function renderInstructor(){
+ if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{};
+ let gk=load(mk("inst","genre"),"house"),yourBuf=null,yourName="",refBuf=null,refName="",busy=false;
+ function draw(){
+  const g=GENRES[gk];
+  view.innerHTML='<div class="play-top"><button class="back" id="iBack">←</button><span class="ttitle">🎓 The Instructor</span></div><div class="panel">'+
+   '<div class="intro">Drop in a track — a full bounce, or a section you exported from Ableton — and I&rsquo;ll give you a real mix report: gain staging, tonal balance, low end, dynamics and stereo, <b>graded for your genre</b>. Add a <b>reference track</b> (a current song whose sound you want) and I&rsquo;ll tell you exactly why yours sounds different.</div>'+
+   '<div class="site-note">I measure the mix for real (levels, loudness, frequency balance, dynamics, width) and compare it to genre norms and your reference. Sound-<i>selection</i> notes are coaching — I can hear the fingerprints (dull highs, thin sub, harsh mids), but the reference A/B is where the &ldquo;old sounds&rdquo; answer really lives.</div>'+
+   '<div class="rlab" style="display:block;margin:12px 0 5px">Genre</div><div class="rchips" id="iGenre"></div>'+
+   '<div class="rrow2" style="margin-top:12px"><span class="rlab">Your track</span><span id="iYour" class="site-note" style="margin:0">'+(yourName?("🎵 "+esc(yourName)):"none loaded")+'</span></span></div>'+
+   '<div class="actions" style="margin:6px 0 0"><label class="btn ghost" style="cursor:pointer">Choose your track<input type="file" id="iYourF" accept="audio/*" style="display:none"></label></div>'+
+   '<div class="rrow2" style="margin-top:10px"><span class="rlab">Reference <span style="opacity:.6">(optional)</span></span><span id="iRef" class="site-note" style="margin:0">'+(refName?("🎯 "+esc(refName)):"none loaded")+'</span></div>'+
+   '<div class="actions" style="margin:6px 0 0"><label class="btn ghost" style="cursor:pointer">Choose reference<input type="file" id="iRefF" accept="audio/*" style="display:none"></label></div>'+
+   '<div class="actions" style="margin:14px 0 4px"><button class="btn" id="iGo"'+(yourBuf?"":" disabled")+'>'+(busy?"Analyzing…":"📝 Grade my track")+'</button></div>'+
+   '<div id="iReport"></div>'+
+   '<div class="rlab" style="display:block;margin:16px 0 6px">🎚️ '+g.name+' — what makes it sound current</div>'+
+   '<div class="idea-fb"><ul style="margin:0;padding-left:18px;line-height:1.5">'+g.brief.map(b=>'<li>'+b+'</li>').join("")+'</ul><div class="site-note" style="margin-top:8px">Reference target: '+g.ref+'.</div></div>'+
+   '</div>';
+  $("#iBack").onclick=goHome;
+  const gc=$("#iGenre");Object.keys(GENRES).forEach(k=>{const b=document.createElement("button");b.className="rchip sm"+(k===gk?" sel":"");b.textContent=GENRES[k].name;b.onclick=()=>{gk=k;save(mk("inst","genre"),gk);if(yourBuf&&lastReport)renderReport();draw();};gc.appendChild(b);});
+  $("#iYourF").onchange=e=>loadFile(e.target.files[0],"your");
+  $("#iRefF").onchange=e=>loadFile(e.target.files[0],"ref");
+  $("#iGo").onclick=runGrade;
+  if(lastReport)renderReport();
+ }
+ let lastReport=null;
+ function loadFile(file,which){if(!file)return;const nm=file.name;const status=$(which==="your"?"#iYour":"#iRef");if(status)status.textContent="decoding "+nm+"…";file.arrayBuffer().then(ab=>ac().decodeAudioData(ab.slice(0))).then(buf=>{if(which==="your"){yourBuf=buf;yourName=nm;lastReport=null;}else{refBuf=buf;refName=nm;}draw();}).catch(()=>{if(status)status.textContent="couldn't read that file — try a WAV or MP3";});}
+ function runGrade(){if(!yourBuf||busy)return;busy=true;draw();setTimeout(()=>{try{const m=analyzeBuffer(yourBuf);const rm=refBuf?analyzeBuffer(refBuf):null;lastReport=gradeTrack(m,gk,rm);}catch(e){lastReport={error:(e&&e.message)||"analysis failed"};}busy=false;draw();if(!lastReport.error){addBeans(10,"Mix critique");burst(12);}},60);}
+ function renderReport(){const rep=lastReport,el=$("#iReport");if(!el||!rep)return;if(rep.error){el.innerHTML='<div class="idea-fb" style="color:#e76f51">Couldn&rsquo;t analyze that file ('+esc(rep.error)+'). Try exporting a standard WAV or MP3.</div>';return;}
+  const col=s=>s>=80?"#5fd38d":s>=60?"#e9c46a":"#e76f51";const bar=s=>'<div style="height:7px;background:var(--line);border-radius:5px;overflow:hidden;margin:5px 0 2px"><div style="height:100%;width:'+s+'%;background:'+col(s)+'"></div></div>';
+  let h='<div class="idea-fb" style="text-align:center;margin-top:12px"><div style="font-size:13px;opacity:.7">Midterm · '+rep.g.name+'</div><div style="font-size:44px;font-weight:800;line-height:1.1;color:'+col(rep.overall)+'">'+rep.grade+'</div><div style="font-size:13px;opacity:.7">'+rep.overall+'/100</div></div>';
+  rep.cats.forEach(c=>{h+='<div style="margin:12px 0"><div style="display:flex;justify-content:space-between;font-weight:700"><span>'+c.label+'</span><span style="color:'+col(c.score)+'">'+c.score+'</span></div>'+bar(c.score)+'<div style="font-size:14px;margin:3px 0 2px">'+esc(c.verdict)+'</div><div style="font-size:13px;opacity:.82"><b>Fix:</b> '+esc(c.fix)+'</div></div>';});
+  if(rep.ref){h+='<div class="rlab" style="display:block;margin:14px 0 5px">🎯 vs your reference</div><div class="idea-fb"><ul style="margin:0;padding-left:18px;line-height:1.5">'+rep.ref.map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></div>';}
+  h+='<div class="rlab" style="display:block;margin:14px 0 5px">✨ Does it sound dated?</div><div class="idea-fb"><ul style="margin:0;padding-left:18px;line-height:1.5">'+rep.modern.map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></div>';
+  el.innerHTML=h;}
+ draw();
 }
 const MUSE_SVC=0xfe8d, MUSE_CTRL="273e0001-4c4d-454d-96be-f03bac821358",
   MUSE_TELE="273e000b-4c4d-454d-96be-f03bac821358",
