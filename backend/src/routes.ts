@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from 'express';
-import { storage } from './storage';
-import { register, login, verifyToken, loadState, saveState } from './accounts';
+import { storage } from './storage.js';
+import { register, login, verifyToken, loadState, saveState } from './accounts.js';
 
 function requireAuth(req: Request, res: Response): string | null {
   const h = req.headers.authorization || '';
