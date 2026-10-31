@@ -1,9 +1,4 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>The Prayers</title>
+<title>Prayer Memorization</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -124,19 +119,21 @@ h1,h2,h3,h4{font-family:"Marcellus",Georgia,serif;font-weight:400;margin:0;text-
   100%{transform:translate(calc(-50% + var(--dx,0px)),calc(-50% + var(--dy,-110px))) rotate(var(--dr,0deg));opacity:0}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
-</head>
-<body>
+
 <canvas id="sky"></canvas>
 <div id="fx"></div>
 <div class="wrap">
   <div class="top">
-    <div class="brand"><span class="sigil">☿</span><h1>The Prayers</h1></div>
-    <span class="chip" id="beanChipP" hidden>🫘 <span id="beanNumP">0</span></span>
+    <div class="brand"><span class="sigil">☿</span><h1>Prayer Memorization</h1></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="chip" id="backHeads" title="Back to the learning page">← Learning page</button>
+      <span class="chip" id="beanChipP" hidden>🫘 <span id="beanNumP">0</span></span>
+    </div>
   </div>
 
   <div id="home">
     <div class="hero">
-      <div class="eyebrow">Corpus Hermeticum</div>
+      <div class="eyebrow">Corpus Hermeticum · Prayer Memorization</div>
       <h2>Learn them by heart, <span class="nm">Star</span>.</h2>
       <p>There are only a few prayers in the whole book, and they are worth carrying in memory. You learn a prayer by saying it — so read it, then let the words fade a little at a time until you can speak it from the heart.</p>
     </div>
@@ -262,8 +259,10 @@ function burst(el,count,kind){const fx=$("#fx");if(!el)return;const r=el.getBoun
 function prayerProgress(p){ // 0..1 across 5 fade levels
   return (getLevel(p.id)-1)/4;
 }
+function goHeads(){try{if(window.top&&window.top!==window.self){window.top.location.href="/reader/star-heads";return;}}catch(e){}location.href="/reader/star-heads";}
 function renderHome(){
   updateBeanChip();
+  const bh=$("#backHeads");if(bh)bh.onclick=goHeads;
   const nm=activeName();if(nm){const h=document.querySelector(".hero h2 .nm");if(h)h.textContent=nm;}
   const list=$("#prayerList");list.innerHTML="";
   PRAYERS.forEach(p=>{
@@ -468,5 +467,3 @@ function drawOrder(){
 
 renderHome();
 </script>
-</body>
-</html>

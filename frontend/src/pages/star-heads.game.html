@@ -47,6 +47,12 @@ h1,h2,h3,h4{font-family:"Marcellus",Georgia,serif;font-weight:400;margin:0;text-
 .chip.who:hover{border-color:var(--gold-deep)}
 body.gated .chip.star,body.gated .chip.heart,body.gated .chip.who,body.gated .rankline{visibility:hidden}
 /* gate / profiles */
+.modepick{display:flex;gap:10px;margin:4px 0 8px;flex-wrap:wrap}
+.modeopt{flex:1 1 140px;cursor:pointer;color:inherit;font:inherit;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 13px;display:flex;flex-direction:column;gap:2px;transition:border-color .15s,background .15s}
+.modeopt .mo-ic{font-size:1.3rem}
+.modeopt .mo-t{font-weight:600}
+.modeopt .mo-s{font-size:.8rem;color:var(--muted,#9aa)}
+.modeopt.sel{border-color:#9bd0ff;background:rgba(155,208,255,.12);box-shadow:0 0 0 1px #9bd0ff inset}
 .profiles{display:flex;flex-wrap:wrap;gap:12px;margin-top:6px}
 .pcard{cursor:pointer;color:inherit;font:inherit;background:var(--card);border:1px solid var(--line);
   border-radius:16px;padding:16px 18px;min-width:118px;display:flex;flex-direction:column;align-items:center;gap:9px;
@@ -397,10 +403,13 @@ body.gated .chip.bean{visibility:hidden}
     <div class="label">Ways to study</div>
     <div class="primary-modes" id="primaryModes"></div>
 
+    <div class="label">Prayer memorization</div>
+    <div id="prayerEntry"></div>
+
     <div class="label">Focused practice</div>
     <div class="focus-row" id="focusRow"></div>
 
-    <div class="label">Treasury</div>
+    <div class="label" id="treasuryLabel">Treasury</div>
     <div id="treasuryEntry"></div>
 
     <div class="parent-link"><button id="openParent">Notes &amp; attribution</button></div>
@@ -425,6 +434,15 @@ body.gated .chip.bean{visibility:hidden}
     <div class="note"><b>Review</b> (the banner on her home screen) gathers every head she missed or needed a hint on. Mastering one cleanly — no hints — clears it from Review.</div>
 
     <div class="gsec">
+      <h3>Learner mode <span id="modeWho" style="color:#9bd0ff;font-weight:400"></span></h3>
+      <div class="note" style="margin:0 0 8px">Kids earn <b>Beans</b> and spend them in the shop (the Hero's Journey). Adults see a <b>progress report</b> with stars and milestones — no beans, no shop. Same lessons either way.</div>
+      <div class="modepick" id="modePickAdmin">
+        <button type="button" class="modeopt" data-m="kid"><span class="mo-ic">🫘</span><span class="mo-t">Kid</span><span class="mo-s">Beans, shop &amp; Hero's Journey</span></button>
+        <button type="button" class="modeopt" data-m="adult"><span class="mo-ic">📈</span><span class="mo-t">Adult</span><span class="mo-s">Progress reports &amp; stars</span></button>
+      </div>
+    </div>
+
+    <div class="gsec" id="beansGsec">
       <h3>Beans &amp; rewards</h3>
       <div class="grow">
         <div><div class="ulabel">Beans per star</div><input class="ginput" id="rateInput" inputmode="numeric" placeholder="10"></div>
@@ -541,16 +559,24 @@ const HERMETIC_BADGES=[
  {name:"3-Day Streak",ic:"🔥",has:()=>{const q=load("majick-p-"+activeId+"-quest",{});return (q.streak||0)>=3;}}
 ];
 function renderQuest(){const box=$("#questBox");if(!box)return;if(!activeId){box.innerHTML="";return;}
-  questDaily(activeId);const bl=qLife(activeId),li=levelInfo(bl),q=load("majick-p-"+activeId+"-quest",{}),pct=Math.round(100*li.into/li.need),today=Math.max(0,bl-(q.base||0));
+  questDaily(activeId);const q=load("majick-p-"+activeId+"-quest",{});
+  if(isAdult()){
+    const mastered=done.size,total=HEADS.length,pct=Math.round(100*mastered/Math.max(1,total)),rc=reviewSet().size;
+    box.innerHTML=`<div class="quest adult"><div class="q-eyebrow">📈 Progress report</div>
+      <div class="quest-top"><span class="q-lvl">${mastered}/${total} heads mastered</span><span class="q-streak">🔥 ${q.streak||0}-day</span><button class="q-tro" id="qTro">🎖️ Milestones</button></div>
+      <div class="q-bar"><div class="q-fill" style="width:${pct}%"></div></div>
+      <div class="q-sub">${pct}% complete · ⭐ ${done.size} mastered${rc?` · ${rc} to review`:""}${q.goalDate===qDay(0)?" · studied today ✓":""}</div></div>`;
+    $("#qTro").onclick=renderTrophies;return;}
+  const bl=qLife(activeId),li=levelInfo(bl),pct=Math.round(100*li.into/li.need),today=Math.max(0,bl-(q.base||0));
   box.innerHTML=`<div class="quest"><div class="q-eyebrow">⚔️ MAJICK · Hero's Journey</div>
     <div class="quest-top"><span class="q-lvl">Lv ${li.level} · ${li.rank}</span><span class="q-streak">🔥 ${q.streak||0}</span><button class="q-tro" id="qTro">🏆 Trophies</button></div>
     <div class="q-bar"><div class="q-fill" style="width:${pct}%"></div></div>
     <div class="q-sub">${li.into}/${li.need} XP to Lv ${li.level+1} · daily goal ${Math.min(today,20)}/20 🫘${q.goalDate===qDay(0)?" ✓ +10":""}</div></div>`;
   $("#qTro").onclick=renderTrophies;}
 function renderTrophies(){home.hidden=true;play.hidden=true;$("#shop").hidden=true;const tr=$("#trophies");if(!tr)return;tr.hidden=false;window.scrollTo(0,0);
-  const got=HERMETIC_BADGES.filter(b=>{try{return b.has();}catch(e){return false;}}).length;
-  tr.innerHTML=`<div class="play-top"><button class="back" id="trBack" aria-label="Back">←</button><span class="play-title">🏆 Hero's Journey</span></div>
-    <div class="note" style="margin:8px 2px 12px">Your trophies — <b>${got}/${HERMETIC_BADGES.length}</b> earned. Your level rises from Beans earned across Star's studies <b>and</b> MAJICK Music together.</div>
+  const got=HERMETIC_BADGES.filter(b=>{try{return b.has();}catch(e){return false;}}).length,ad=isAdult();
+  tr.innerHTML=`<div class="play-top"><button class="back" id="trBack" aria-label="Back">←</button><span class="play-title">${ad?"🎖️ Milestones":"🏆 Hero's Journey"}</span></div>
+    <div class="note" style="margin:8px 2px 12px">${ad?`Milestones — <b>${got}/${HERMETIC_BADGES.length}</b> reached. They unlock as you master more of the Heads.`:`Your trophies — <b>${got}/${HERMETIC_BADGES.length}</b> earned. Your level rises from Beans earned across Star's studies <b>and</b> MAJICK Music together.`}</div>
     <div class="trgrid" id="trg"></div>`;
   $("#trBack").onclick=()=>{tr.hidden=true;showHome();};
   const g=$("#trg");HERMETIC_BADGES.forEach(b=>{let has=false;try{has=b.has();}catch(e){}const c=document.createElement("div");c.className="trophy"+(has?" got":"");c.innerHTML=`<div class="tr-ic">${has?b.ic:"🔒"}</div><div class="tr-nm">${b.name}</div>`;g.appendChild(c);});}
@@ -579,6 +605,9 @@ function reviewQueue(){const seen=new Set(),order=[];
 function getProfiles(){return load("majick-profiles",[]);}
 function setProfiles(p){save("majick-profiles",p);}
 function newId(){return "u"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function activeProfile(){return getProfiles().find(x=>x.id===activeId)||null;}
+function activeMode(){const p=activeProfile();return (p&&p.mode)||"kid";}
+function isAdult(){return activeMode()==="adult";}
 /* shop catalog (shared — set by a grown-up). online:true = buy online (add a link); false = we already have it. */
 function defaultCatalog(){return [
  {id:"t1",cat:"Custom T-Shirts",name:"Design-your-own tee",icon:"👕",cost:400,online:true,url:"",note:"Pick the art — we print it."},
@@ -622,6 +651,9 @@ function updateScore(){
   $("#starNum").textContent=done.size;
   $("#heartNum").textContent=hearts;
   const bn=$("#beanNum");if(bn)bn.textContent=beans;
+  const ad=isAdult();
+  const bc=$("#beanChip");if(bc)bc.style.display=ad?"none":"";
+  const hc=document.querySelector(".chip.heart");if(hc)hc.style.display=ad?"none":"";
   $("#rankLine").textContent=rankName(done.size);
   const sg=document.querySelector(".sage");
   if(sg){const k=Math.min(streak,10);sg.style.setProperty("--aura",1+k*0.06);sg.style.setProperty("--glow",(0.22+k*0.05).toFixed(2));}
@@ -697,8 +729,16 @@ const FOCUS=[
  {id:3,key:"match",t:"Match",g:"🧩",cls:"f3"},
  {id:4,key:"build",t:"Build",g:"🪄",cls:"f4"},
 ];
+function goPrayers(){try{if(window.top&&window.top!==window.self){window.top.location.href="/reader/prayers";return;}}catch(e){}location.href="/reader/prayers";}
 function renderHome(){
   updateScore();renderQuest();
+  const ap=activeProfile();const nm=$(".hero .nm");if(nm)nm.textContent=ap?ap.name:"traveler";
+  const pe=$("#prayerEntry");if(pe){pe.innerHTML=`<button class="review-banner" id="prayerBtn">
+      <span class="rb-ic">🙏</span>
+      <span class="rb-main"><span class="rb-t">Prayer Memorization</span>
+        <span class="rb-s">Read the Hermetic prayers, fade them to memory, and put the lines back in order.</span></span>
+      <span class="rb-go">Open ▸</span></button>`;
+    $("#prayerBtn").onclick=goPrayers;}
   const mastered=done.size,total=HEADS.length,pct=Math.round(mastered/total*100);
   // Review banner — the heads she missed or needed hints on
   const rv=$("#reviewEntry");const rc=reviewSet().size;
@@ -729,13 +769,16 @@ function renderHome(){
     b.onclick=()=>startFocused(f.id);
     fr.appendChild(b);
   });
-  const tz=$("#treasuryEntry");
-  tz.innerHTML=`<div class="treasury" id="treasuryCard">
-    <span class="tz-ic">🫘</span>
-    <div class="tz-main"><div class="tz-bal">${beans} Beans</div>
-      <div class="tz-sub">Earned from your stars · spend them in the shop</div></div>
-    <span class="tz-go">Shop ▸</span></div>`;
-  $("#treasuryCard").onclick=openShop;
+  const tz=$("#treasuryEntry"),tzl=$("#treasuryLabel"),ad=isAdult();
+  if(tzl)tzl.style.display=ad?"none":"";
+  if(ad){tz.innerHTML="";tz.style.display="none";}
+  else{tz.style.display="";
+    tz.innerHTML=`<div class="treasury" id="treasuryCard">
+      <span class="tz-ic">🫘</span>
+      <div class="tz-main"><div class="tz-bal">${beans} Beans</div>
+        <div class="tz-sub">Earned from your stars · spend them in the shop</div></div>
+      <span class="tz-go">Shop ▸</span></div>`;
+    $("#treasuryCard").onclick=openShop;}
 }
 function goHome(){play.hidden=true;home.hidden=false;renderHome();window.scrollTo(0,0);}
 
@@ -1128,17 +1171,24 @@ function selectProfile(p){
   } else activate(p.id);
 }
 function showCreate(){
+  let mode="kid";
   $("#gateForm").innerHTML=`<div class="create"><div class="ulabel">Name</div>
     <input class="pin-input name" id="newName" maxlength="18" placeholder="your name" aria-label="name">
+    <div class="ulabel">Who is this for?</div>
+    <div class="modepick" id="modePick">
+      <button type="button" class="modeopt sel" data-m="kid"><span class="mo-ic">🫘</span><span class="mo-t">Kid</span><span class="mo-s">Beans, shop &amp; the Hero's Journey</span></button>
+      <button type="button" class="modeopt" data-m="adult"><span class="mo-ic">📈</span><span class="mo-t">Adult</span><span class="mo-s">Progress reports &amp; stars — no beans</span></button>
+    </div>
     <div class="ulabel">Secret code — optional, 4 digits</div>
     <input class="pin-input" id="newPin" inputmode="numeric" maxlength="4" placeholder="leave blank for none" aria-label="code">
     <div class="feedback try" id="newfb"></div>
     <div class="actions"><button class="btn ghost" id="newCancel">Cancel</button><button class="btn" id="newGo">Begin</button></div></div>`;
+  $("#modePick").querySelectorAll(".modeopt").forEach(b=>{b.onclick=()=>{mode=b.getAttribute("data-m");$("#modePick").querySelectorAll(".modeopt").forEach(x=>x.classList.toggle("sel",x===b));};});
   $("#newCancel").onclick=()=>{$("#gateForm").innerHTML="";};
   $("#newGo").onclick=()=>{const name=$("#newName").value.trim(),pin=$("#newPin").value.trim();
     if(!name){$("#newfb").textContent="Please enter a name.";return;}
     if(pin&&!/^\d{4}$/.test(pin)){$("#newfb").textContent="The code must be 4 digits, or left blank.";return;}
-    const ps=getProfiles();const id=newId();ps.push({id,name,pin:pin||null});setProfiles(ps);activate(id);};
+    const ps=getProfiles();const id=newId();ps.push({id,name,pin:pin||null,mode});setProfiles(ps);activate(id);};
   setTimeout(()=>$("#newName").focus(),60);
 }
 function activate(id){activeId=id;save("majick-active",id);loadProfileState();showHome();}
@@ -1221,8 +1271,14 @@ function renderTray(){
 }
 
 /* ===== grown-up admin (inside Notes sheet) ===== */
+function setProfileMode(m){const ps=getProfiles(),p=ps.find(x=>x.id===activeId);if(p){p.mode=m;setProfiles(ps);}}
 function renderParentAdmin(){
   const ri=$("#rateInput");if(ri)ri.value=getRate();
+  const ap=activeProfile(),mode=activeMode();
+  const mw=$("#modeWho");if(mw)mw.textContent=ap?"· "+ap.name:"";
+  const mp=$("#modePickAdmin");if(mp)mp.querySelectorAll(".modeopt").forEach(b=>{b.classList.toggle("sel",b.getAttribute("data-m")===mode);
+    b.onclick=()=>{setProfileMode(b.getAttribute("data-m"));renderParentAdmin();updateScore();};});
+  const bg=$("#beansGsec");if(bg)bg.style.display=isAdult()?"none":"";
   const el=$("#editorList");if(el){el.innerHTML="";
     getCatalog().forEach(it=>{const r=document.createElement("div");r.className="erow";
       r.innerHTML=`<span style="font-size:1.2rem">${esc(it.icon||"🎁")}</span>
@@ -1267,7 +1323,7 @@ function showItemForm(it){
     setCatalog(list);$("#editorForm").innerHTML="";renderParentAdmin();};
   setTimeout(()=>{const f=$("#fName");if(f)f.focus();},50);
 }
-$("#beanChip").onclick=()=>{if(activeId)openShop();};
+$("#beanChip").onclick=()=>{if(activeId&&!isAdult())openShop();};
 $("#addItemBtn").onclick=()=>showItemForm(null);
 $("#rateInput").addEventListener("change",e=>{const v=parseInt(e.target.value,10);if(v>0){setRate(v);}});
 $("#grantBtn").onclick=()=>{const v=parseInt($("#grantInput").value,10);if(v>0){beans+=v;beansLife+=v;persist();updateScore();$("#grantInput").value="";burst(document.querySelector(".chip.bean"),"bean",6);}};
