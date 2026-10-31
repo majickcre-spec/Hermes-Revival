@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anatomy of a Song</title>
+<meta name="description" content="What a song actually is — its elements, how they balance, why it has to move and breathe, what harmony and the glue really do, and why each genre sounds the way it does. A lesson from Majick Music University.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* MMU lesson page — aubergine void, violet→magenta→gold, Cinzel over Hanken Grotesk. Editorial long-read: one hero, left-aligned sections, layer diagram, genre grid. */
+:root{
+  --void:#0b0715; --panel:#140d26; --panel-2:#1b1333;
+  --line:rgba(236,226,255,.12);
+  --ink:#f4effc; --mist:#b3a4d6;
+  --violet:#b06bff; --magenta:#ec4899; --gold:#f4b740;
+  --radius:16px; color-scheme:dark;
+}
+*{box-sizing:border-box} html,body{margin:0}
+body{
+  background:
+    radial-gradient(900px 620px at 18% -6%, rgba(176,107,255,.18), transparent 60%),
+    radial-gradient(820px 560px at 90% 4%, rgba(236,72,153,.14), transparent 58%),
+    radial-gradient(1000px 720px at 55% 112%, rgba(244,183,64,.10), transparent 60%),
+    var(--void);
+  color:var(--ink); font-family:"Hanken Grotesk",system-ui,-apple-system,sans-serif; font-weight:400; line-height:1.68;
+  -webkit-font-smoothing:antialiased; overflow-x:hidden;
+}
+.star{position:fixed;width:2px;height:2px;border-radius:50%;background:#fff;opacity:.5;pointer-events:none;z-index:0}
+.wrap{max-width:760px;margin:0 auto;padding:0 20px;position:relative;z-index:1}
+.gradtext{background:linear-gradient(100deg,var(--violet),var(--magenta) 55%,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+
+.hero{text-align:center;padding:66px 20px 20px}
+.hero .mark{width:104px;height:104px;filter:drop-shadow(0 10px 36px rgba(236,72,153,.32))}
+.hero .eyebrow{font-family:"Cinzel",serif;font-size:11.5px;letter-spacing:.34em;text-transform:uppercase;color:var(--gold);margin:20px 0 10px}
+.hero h1{font-family:"Cinzel",serif;font-weight:700;letter-spacing:.06em;line-height:1.1;font-size:clamp(30px,6.5vw,50px);margin:0;text-wrap:balance}
+.hero .sub{color:var(--mist);max-width:54ch;margin:14px auto 0;font-size:16px}
+
+section{padding:26px 0;border-top:1px solid var(--line)}
+section:first-of-type{border-top:0}
+.eyebrow{font-family:"Cinzel",serif;font-size:11.5px;letter-spacing:.32em;text-transform:uppercase;color:var(--gold);display:flex;align-items:center;gap:12px;margin:0 0 8px}
+.eyebrow::before{content:"";width:24px;height:1px;background:linear-gradient(90deg,var(--gold),transparent)}
+h2{font-family:"Cinzel",serif;font-weight:600;font-size:clamp(20px,3.6vw,28px);margin:0 0 14px;letter-spacing:.01em;text-wrap:balance}
+h3{font-size:17px;font-weight:700;margin:20px 0 4px}
+p{margin:0 0 14px;max-width:66ch}
+.lead{color:var(--mist)}
+strong,b{font-weight:600}
+em{color:var(--ink);font-style:italic}
+
+/* layer stack */
+.stack{display:flex;flex-direction:column;gap:7px;margin:18px 0 6px}
+.layer{display:flex;align-items:center;gap:14px;border:1px solid var(--line);border-radius:12px;padding:12px 15px;background:linear-gradient(90deg,var(--panel),var(--panel-2))}
+.layer .lh{font-family:"Cinzel",serif;font-weight:600;font-size:15px;min-width:116px;flex:none}
+.layer .ld{color:var(--mist);font-size:14px}
+.layer.l1{border-left:3px solid #b06bff}.layer.l2{border-left:3px solid #d05fb8}
+.layer.l3{border-left:3px solid #ec4899}.layer.l4{border-left:3px solid #f0894f}
+.layer.l5{border-left:3px solid #f4b740}.layer.l6{border-left:3px solid #ffd27a}
+
+/* spectrum bar */
+.spectrum{display:flex;border-radius:10px;overflow:hidden;border:1px solid var(--line);margin:14px 0 6px;font-size:11px;font-weight:600;text-align:center;color:#160a1e}
+.spectrum div{padding:9px 4px}
+.sp1{background:#8a5bd0;flex:1.1}.sp2{background:#b85fb0;flex:1.3}.sp3{background:#ec4899;flex:1.5}.sp4{background:#f0894f;flex:1.2}.sp5{background:#f4b740;flex:1}
+.cap{font-size:12.5px;color:var(--mist);margin-top:4px}
+
+.callout{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:12px;padding:16px 18px;margin:16px 0}
+.callout p{margin:0;color:var(--ink)}
+
+/* genre grid */
+.genres{display:grid;gap:14px;grid-template-columns:1fr 1fr;margin-top:8px}
+@media(max-width:620px){.genres{grid-template-columns:1fr}}
+.gcard{border:1px solid var(--line);border-radius:14px;padding:16px;background:linear-gradient(180deg,var(--panel),var(--panel-2))}
+.gcard h4{font-family:"Cinzel",serif;font-weight:600;font-size:17px;margin:0 0 2px}
+.gcard .bpm{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:8px}
+.gcard p{font-size:13.5px;color:var(--mist);margin:0 0 8px;max-width:none}
+.gcard .who{font-size:12.5px;color:var(--ink)}
+.gcard .who b{color:var(--mist);font-weight:600}
+
+.btn{appearance:none;cursor:pointer;text-decoration:none;font-family:"Hanken Grotesk",sans-serif;font-size:15px;font-weight:600;color:#160a1e;background:linear-gradient(100deg,var(--violet),var(--magenta) 55%,var(--gold));border:0;border-radius:999px;padding:13px 26px;display:inline-block}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+footer{text-align:center;padding:40px 20px 72px}
+footer .rule{height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent);max-width:420px;margin:0 auto 26px}
+footer .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+footer p{color:var(--mist);font-size:13px;max-width:52ch;margin:18px auto 0}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="mmuGrad" x1="12" y1="8" x2="108" y2="112" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#b06bff"/><stop offset="0.52" stop-color="#ec4899"/><stop offset="1" stop-color="#f4b740"/>
+  </linearGradient>
+  <symbol id="mmuMark" viewBox="0 0 120 120">
+    <circle cx="60" cy="60" r="53" fill="none" stroke="url(#mmuGrad)" stroke-width="1.8"/>
+    <circle cx="60" cy="60" r="46" fill="none" stroke="url(#mmuGrad)" stroke-width="3.3" stroke-dasharray="0.6 6.3" stroke-linecap="round" opacity="0.6"/>
+    <g fill="none" stroke="url(#mmuGrad)" stroke-width="2.4" stroke-linecap="round" opacity="0.85">
+      <path d="M80 48 Q88 60 80 72"/><path d="M40 48 Q32 60 40 72"/></g>
+    <g fill="none" stroke="url(#mmuGrad)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M47 41 V67 Q47 79 60 79 Q73 79 73 67 V41"/><path d="M60 79 V92"/></g>
+    <circle cx="60" cy="96.5" r="3.6" fill="url(#mmuGrad)"/>
+    <path d="M60 15 C61.6 24 63 25.4 72 27 C63 28.6 61.6 30 60 39 C58.4 30 57 28.6 48 27 C57 25.4 58.4 24 60 15 Z" fill="#f6c452"/>
+  </symbol>
+</defs></svg>
+
+<header class="hero">
+  <svg class="mark" viewBox="0 0 120 120" aria-label="Majick Music University mark"><use href="#mmuMark"/></svg>
+  <div class="eyebrow">A lesson from Majick Music University</div>
+  <h1 class="gradtext">Anatomy of a Song</h1>
+  <p class="sub">What a song actually is, why each piece has to be there, how they balance — and why your favorite genres sound the way they do.</p>
+</header>
+
+<div class="wrap">
+
+  <section>
+    <p class="eyebrow">What a song is</p>
+    <h2>A song is a stack of jobs</h2>
+    <p class="lead">A song isn&rsquo;t one thing — it&rsquo;s a few parts each doing a different job at the same time, from the floor up. Take any one away and you feel the hole. Here&rsquo;s the stack, bottom to top:</p>
+    <div class="stack">
+      <div class="layer l1"><span class="lh">Groove</span><span class="ld">Drums &amp; percussion. The pulse and the feel — what your body moves to. Sets the tempo and the pocket.</span></div>
+      <div class="layer l2"><span class="lh">Bass</span><span class="ld">The foundation. Ties the rhythm to the harmony — it&rsquo;s both a drum and a note. The weight you feel in your chest.</span></div>
+      <div class="layer l3"><span class="lh">Harmony</span><span class="ld">Chords &amp; pads. The emotional colour — tension, warmth, sadness, lift. The bed everything sits in.</span></div>
+      <div class="layer l4"><span class="lh">Melody</span><span class="ld">The lead line or hook — the part you hum walking away. The thing the ear follows.</span></div>
+      <div class="layer l5"><span class="lh">Texture</span><span class="ld">Atmosphere, FX, risers, ear-candy. Air and depth — makes it a <em>place</em>, not just notes.</span></div>
+      <div class="layer l6"><span class="lh">Vocal / Top</span><span class="ld">The voice or the focal lead — usually the star, carved its own space above everything.</span></div>
+    </div>
+    <p class="cap">You don&rsquo;t need all six every second. But a song that keeps the listener usually has a foundation (groove + bass), a reason to feel (harmony), and a reason to remember (melody or vocal).</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Balance</p>
+    <h2>Every part needs its own lane</h2>
+    <p class="lead">The reason a mix sounds <em>clear</em> isn&rsquo;t volume — it&rsquo;s that each element owns a different slice of the frequency range and a different spot in the stereo field. When two parts fight for the same space, the mix turns to mud. Think of the spectrum as lanes:</p>
+    <div class="spectrum">
+      <div class="sp1">SUB<br>20–60</div><div class="sp2">BASS<br>60–250</div><div class="sp3">MIDS<br>250–2k</div><div class="sp4">PRESENCE<br>2k–6k</div><div class="sp5">AIR<br>6k–20k</div>
+    </div>
+    <p class="cap">Kick and sub own the bottom. Bass sits just above. Vocals, guitars and keys share the crowded mids — so you carve space (a dip here lets a part there breathe). Presence is where things cut through; air is the expensive-sounding sparkle up top.</p>
+    <p>Balance is also <strong>loudness staging</strong>: keep headroom so nothing clips, let the most important element (usually the vocal or the lead) sit a hair above the rest, and make sure the low end is controlled — a clean, often mono, bottom end is what makes a track translate from a phone to a club.</p>
+    <div class="callout"><p><b>The one rule:</b> if you want something louder, first ask what you can turn <em>down</em> or carve <em>out</em> to make room for it. Mixing is mostly making space, not adding volume.</p></div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Motion</p>
+    <h2>A good song moves and evolves</h2>
+    <p class="lead">Nothing kills interest faster than eight bars that never change for three minutes. The ear habituates — it stops hearing what stays the same. So a song is built to <strong>evolve</strong>: it adds, subtracts, brightens, and opens up over time, so there&rsquo;s always a small new thing arriving.</p>
+    <p>That&rsquo;s what structure is for. Most songs move through <em>intro → build → a peak (chorus or drop) → a breakdown → another peak → outro</em>. Each section changes the energy on purpose. Inside sections, producers automate — a filter slowly opening, reverb swelling, a part drifting wider — so even a looping groove feels alive.</p>
+    <p>Underneath it all is <strong>tension and release</strong>: you build pressure (a riser, a held chord, drums dropping out) so that when the release lands (the beat returns, the chord resolves), it hits. No tension, no payoff.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Space</p>
+    <h2>Restraint is the secret weapon</h2>
+    <p class="lead">Beginners add. Pros <em>take away</em>. When everything plays at once all the time, the listener is overwhelmed and nothing stands out — it&rsquo;s exhausting and, strangely, boring. Power comes from <strong>contrast</strong>.</p>
+    <p>The drop hits hard <em>because</em> of the quiet breakdown before it. The chorus feels huge <em>because</em> the verse held back. Silence and space are instruments — a bar where the drums cut out, a moment with just voice and one chord, a gap before the hook. Give the ear room to breathe and it leans back in.</p>
+    <div class="callout"><p>If a section feels cluttered, the fix is almost never &ldquo;add something to tie it together.&rdquo; It&rsquo;s <em>mute a layer and see what you don&rsquo;t miss.</em></p></div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Harmony &amp; the glue</p>
+    <h2>What holds it together</h2>
+    <p class="lead"><strong>Harmony</strong> is notes sounding at once. A <em>chord</em> is three or more notes stacked; a <em>chord progression</em> is how they move. Consonant intervals feel settled, dissonant ones feel tense and want to resolve — and that push-and-pull is where a song&rsquo;s emotion lives. Staying in one <em>key</em> is what makes a bunch of separate parts feel like they belong to the same world.</p>
+    <p>Then there&rsquo;s the <strong>glue</strong> — the things that make separate recordings feel like one performance in one room:</p>
+    <h3>The pocket</h3>
+    <p>When every part sits in the same rhythmic feel — slightly ahead, behind, or dead-on the beat together — it <em>grooves</em>. Timing is glue.</p>
+    <h3>Shared space</h3>
+    <p>Sending parts to the same reverb/delay puts them in the same room. Bus compression gently moving on the whole mix makes everything breathe as one.</p>
+    <h3>Sidechain &amp; balance</h3>
+    <p>In dance music, ducking the bass and pads under the kick (that &ldquo;pump&rdquo;) locks the low end together. And plain old balance — levels, panning, EQ carving — is the quiet glue underneath all of it.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">The genres</p>
+    <h2>Why genres sound the way they do</h2>
+    <p class="lead">Every genre is a set of answers to the same questions — how fast, what&rsquo;s on the bottom, how much space, how loud, what sounds. Those answers come from history: where the music was played, on what gear, for whom. A quick map:</p>
+    <div class="genres">
+
+      <div class="gcard"><h4>House</h4><div class="bpm">120–128 BPM · four-on-the-floor</div><p>Born in 1980s Chicago from disco and the drum machine. A steady kick on every beat for the dancefloor, offbeat hi-hats, rolling bass, soulful chords. Its melodic/organic branch adds lush pads and emotion.</p><p class="who"><b>Listen:</b> Frankie Knuckles, Daft Punk, Disclosure, RÜFÜS DU SOL.</p></div>
+
+      <div class="gcard"><h4>Techno</h4><div class="bpm">125–140 BPM · hypnotic</div><p>Detroit&rsquo;s machine music — stripped, repetitive, futuristic. Fewer melodies, more texture and relentless drive; built for long, trance-like sets. Modern melodic techno adds big emotional synth arcs.</p><p class="who"><b>Listen:</b> Jeff Mills, Carl Cox, Charlotte de Witte, Tale Of Us.</p></div>
+
+      <div class="gcard"><h4>Trance</h4><div class="bpm">132–140 BPM · euphoric</div><p>Built on long builds and soaring, repeating melodic &ldquo;leads&rdquo; that climb to a release. Named for the hypnotic, uplifting state it chases. Lush, bright, emotional.</p><p class="who"><b>Listen:</b> Armin van Buuren, Above &amp; Beyond, Paul van Dyk.</p></div>
+
+      <div class="gcard"><h4>Dubstep / Bass</h4><div class="bpm">140 BPM (half-time feel ~70)</div><p>From London&rsquo;s dub and garage roots — a sparse half-time beat so a massive, designed <em>bass</em> can be the lead instrument. US &ldquo;brostep&rdquo; made it aggressive; the psychedelic/space-bass wing made it cosmic.</p><p class="who"><b>Listen:</b> Skream, Skrillex, Excision, LSDREAM.</p></div>
+
+      <div class="gcard"><h4>Drum &amp; Bass</h4><div class="bpm">170–175 BPM · breakbeat</div><p>Fast chopped breakbeats over a deep sub — grew out of UK jungle and rave. The drums fly while the bass sits heavy and slow underneath, so it feels fast and grounded at once.</p><p class="who"><b>Listen:</b> Goldie, Sub Focus, Netsky, Noisia.</p></div>
+
+      <div class="gcard"><h4>Hip-Hop / Trap</h4><div class="bpm">60–90 BPM (hats double-time)</div><p>Started with breakbeats and sampling in 1970s New York; the voice is the lead. Trap (from the South) brought booming 808 sub-bass, rattling hi-hats and sparse, dark beats.</p><p class="who"><b>Listen:</b> Dr. Dre, J Dilla, Metro Boomin, Kendrick Lamar.</p></div>
+
+      <div class="gcard"><h4>Pop</h4><div class="bpm">100–130 BPM · hook-first</div><p>Not one sound but a goal: maximum memorability. Built around a huge vocal and a chorus hook, borrowing whatever production is current. Bright, polished, every second earning its place.</p><p class="who"><b>Listen:</b> Michael Jackson, Max Martin productions, Dua Lipa.</p></div>
+
+      <div class="gcard"><h4>Rock</h4><div class="bpm">110–140 BPM · band energy</div><p>Guitars, bass, drums, voice — energy from a real band playing together. Lives in the midrange; power and dynamics over polish. From blues roots to arena anthems.</p><p class="who"><b>Listen:</b> Led Zeppelin, Queen, Foo Fighters.</p></div>
+
+      <div class="gcard"><h4>Alternative / Indie</h4><div class="bpm">90–140 BPM · texture-forward</div><p>Rock&rsquo;s experimental cousin — mood, texture and studio craft over straight-ahead riffs. Room to be weird, atmospheric and emotional.</p><p class="who"><b>Listen:</b> Radiohead, The Cure, Tame Impala.</p></div>
+
+      <div class="gcard"><h4>Country</h4><div class="bpm">90–140 BPM · story-first</div><p>American folk storytelling — the lyric and the vocal lead. Acoustic and electric guitar, steel, fiddle; modern country is polished and bright but still built around the song.</p><p class="who"><b>Listen:</b> Johnny Cash, Dolly Parton, Chris Stapleton.</p></div>
+
+      <div class="gcard"><h4>Bluegrass / Folk</h4><div class="bpm">Often fast, 120–180 · acoustic</div><p>All-acoustic and all-performance — banjo, mandolin, fiddle, upright bass, trading fast solos live in a room. Minimal production; the magic is the playing and the harmony singing.</p><p class="who"><b>Listen:</b> Bill Monroe, Alison Krauss, Billy Strings.</p></div>
+
+      <div class="gcard"><h4>Jazz</h4><div class="bpm">Any tempo · improvised</div><p>Built on improvisation over rich, shifting harmony and swing feel. The structure is a framework for players to converse in real time — sophisticated chords, deep interplay.</p><p class="who"><b>Listen:</b> Miles Davis, John Coltrane, Herbie Hancock.</p></div>
+
+      <div class="gcard"><h4>R&amp;B / Soul</h4><div class="bpm">60–100 BPM · groove &amp; voice</div><p>Gospel and blues turned to groove and feeling — a laid-back pocket, lush chords, and expressive vocals out front. Neo-soul loosened the timing for a human, behind-the-beat feel.</p><p class="who"><b>Listen:</b> Stevie Wonder, D&rsquo;Angelo, SZA.</p></div>
+
+      <div class="gcard"><h4>Classical / Orchestral</h4><div class="bpm">Any tempo · fully dynamic</div><p>Centuries of harmony and form played by acoustic ensembles. Dynamics <em>are</em> the music — huge quiet-to-loud range, no limiting, the hall itself part of the sound.</p><p class="who"><b>Listen:</b> Bach, Beethoven, Hans Zimmer.</p></div>
+
+    </div>
+    <p class="cap" style="margin-top:14px">Notice the pattern: the <em>tempo</em> sets the body feel, the <em>low end</em> sets the weight, the amount of <em>space</em> sets the mood, and the <em>sound selection</em> dates it or keeps it current. Learn those four and you can hear any genre from the inside.</p>
+  </section>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="rule"></div>
+    <div class="cta">
+      <a class="btn" href="https://frontend-production-19da.up.railway.app/music-theory">Go make one</a>
+      <a class="btn ghost" href="https://frontend-production-19da.up.railway.app/university">Back to the University</a>
+    </div>
+    <p>A lesson from <b style="color:var(--ink)">Majick Music University</b> — learn it, then go build it.</p>
+  </div>
+</footer>
+
+<script>
+(function(){var n=24;for(var i=0;i<n;i++){var s=document.createElement('div');s.className='star';s.style.left=(Math.random()*100)+'vw';s.style.top=(Math.random()*100)+'vh';s.style.opacity=(0.2+Math.random()*0.5).toFixed(2);s.style.transform='scale('+(0.6+Math.random()*1.2).toFixed(2)+')';document.body.appendChild(s);}})();
+</script>
+</body>
+</html>
