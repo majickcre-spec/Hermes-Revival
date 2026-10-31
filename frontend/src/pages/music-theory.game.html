@@ -2807,6 +2807,7 @@ const MAKE_CARDS=[
  {ic:"🎛️",title:"Studio",blurb:"Multi-track recorder — lay down each real instrument and voice, stack them in sections, then mix with volume, pan, mute/solo and effects.",go:()=>renderStudio()},
  {ic:"🧩",title:"Beat Maker",blurb:"Build layered beats & motifs on a grid — djembe and handpan together. Play the instrument live into the sequencer, loop, save, and get feedback.",go:()=>renderBeat()},
  {ic:"🎼",title:"Learn a Song",blurb:"Bring in a song you're practicing — paste a chord sheet or build it — and get a play-along chord chart with loop, tempo, and transpose.",go:()=>renderLearnSong()},
+ {ic:"✍️",title:"Songwriting",blurb:"Learn to write songs that work — structure, the parts, rhyme schemes and prosody — then write your lyrics in the Lyric Lab with a syllable counter, a rhyme finder, and a coach that tightens them. This is where your midterm & final lyrics come from.",go:()=>renderSongwriting()},
  {ic:"🎼",title:"Song Project (final)",blurb:"The big one — assemble your sections into a full song: intro, verses, choruses, bridge, outro. Finish it to earn Songwriter.",go:()=>renderSongBuilder()},
  {ic:"🎓",title:"The Instructor",blurb:"Your mix teacher. Drop in a track (or a section you bounced) and get a real mix report — gain staging, tonal balance, low end, dynamics, stereo — graded for YOUR genre. Save it as a track project and track your progress version to version. Add a reference to hear why yours sounds older.",go:()=>renderInstructor()}
 ];
@@ -3448,6 +3449,125 @@ const BIO_CARDS=[
  {ic:"🧠",title:"Live Monitor",blurb:"Connect your Muse and watch your brainwaves (alpha/theta/beta) and heart rhythm in real time.",go:()=>openBio()},
  {ic:"🌍",title:"Schumann Resonance",blurb:"The Earth resonance — today's meditation & song. The 7.83 Hz Schumann resonance made audible and shaped by today's real geomagnetic activity.",go:()=>renderEarthFreq()}
 ];
+/* ===== SONGWRITING — structure, parts, rhyme, prosody + Lyric Lab (syllables, rhyme finder, coach) ===== */
+function sylCount(w){w=(w||"").toLowerCase().replace(/[^a-z]/g,"");if(!w)return 0;if(w.length<=3)return 1;w=w.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/,"");w=w.replace(/^y/,"");const m=w.match(/[aeiouy]{1,2}/g);return m?Math.max(1,m.length):1;}
+function lineSyl(line){return (line.trim().split(/\s+/).filter(Boolean)).reduce((a,w)=>a+sylCount(w),0);}
+function lastWord(line){const m=(line||"").trim().match(/[a-zA-Z']+(?=[^a-zA-Z']*$)/);return m?m[0]:"";}
+function rhymeKey(w){w=(w||"").toLowerCase().replace(/[^a-z]/g,"");const m=w.match(/[aeiouy]+[^aeiouy]*$/);return m?m[0]:w;}
+function schemeFor(lines){const seen={};let next=65;return lines.map(l=>{const k=rhymeKey(lastWord(l));if(!k)return "·";if(seen[k])return seen[k];const L=String.fromCharCode(next++);seen[k]=L;return L;});}
+function rhymeFind(word,cb){word=(word||"").trim().toLowerCase().replace(/[^a-z'\- ]/g,"").split(" ").pop();if(!word){cb(null,"type a word");return;}
+  const base="https://api.datamuse.com/words?max=24&";
+  Promise.all([fetch(base+"rel_rhy="+encodeURIComponent(word)).then(r=>r.json()),fetch(base+"rel_nry="+encodeURIComponent(word)).then(r=>r.json())])
+  .then(([per,near])=>{const pw=per.map(x=>x.word),pset={};pw.forEach(w=>pset[w]=1);cb({perfect:pw,near:near.map(x=>x.word).filter(w=>!pset[w])});}).catch(()=>cb(null,"offline"));}
+function lyricCoach(song){const fb=[],secs=song.sections.filter(s=>s.text.trim());
+  if(!secs.length)return [{t:"Write a verse and a chorus to get started.",k:"start"}];
+  const tags=secs.map(s=>s.tag.toLowerCase());
+  const chor=secs.filter(s=>s.tag.toLowerCase().includes("chorus")&&!s.tag.toLowerCase().includes("pre"));
+  const verses=secs.filter(s=>s.tag.toLowerCase().includes("verse"));
+  if(!chor.length)fb.push({t:"No chorus yet. The chorus is your <b>one big idea</b> — the most memorable, repeated part that usually holds the title. Even a 2–4 line hook gives the song a center.",k:"struct"});
+  if(!verses.length&&chor.length)fb.push({t:"You&rsquo;ve got a hook but no verse. Verses carry the <b>story</b> that earns the chorus — add one that sets up the big idea.",k:"struct"});
+  // chorus identical?
+  if(chor.length>=2){const a=chor[0].text.trim(),diff=chor.slice(1).some(c=>c.text.trim()!==a);if(diff)fb.push({t:"Your choruses aren&rsquo;t identical. A chorus usually repeats <b>word-for-word</b> — that sameness is what makes it stick.",k:"hook"});}
+  secs.forEach(s=>{const lines=s.text.split(/\n/).map(l=>l.trim()).filter(Boolean);if(lines.length<2)return;const syl=lines.map(lineSyl),sc=schemeFor(lines);
+    // long lines
+    syl.forEach((n,i)=>{if(n>13)fb.push({t:"<b>"+esc(s.tag)+"</b>, line "+(i+1)+" is long ("+n+" syllables) — hard to fit a melody. Try splitting it or trimming words.",k:"prosody"});});
+    // consistency of rhyming lines
+    const byL={};sc.forEach((L,i)=>{if(L!=="·"){(byL[L]=byL[L]||[]).push(syl[i]);}});let jumpy=false;Object.values(byL).forEach(arr=>{if(arr.length>=2&&Math.max.apply(null,arr)-Math.min.apply(null,arr)>4)jumpy=true;});
+    if(jumpy)fb.push({t:"In <b>"+esc(s.tag)+"</b>, rhyming lines are very different lengths. For a melody that repeats, keep matched lines close in syllable count — it&rsquo;ll sing far better.",k:"prosody"});
+    // no rhyme at all in a 4+ line section
+    const rhymed=sc.filter((L,i)=>sc.indexOf(L)!==i&&L!=="·").length;if(lines.length>=4&&rhymed===0)fb.push({t:"<b>"+esc(s.tag)+"</b> has no rhymes landing. Rhyme gives the ear a payoff — try an <b>ABAB</b> or <b>AABB</b> scheme (use the Rhyme Finder for options).",k:"rhyme"});
+  });
+  // hook line repeated anywhere
+  const allLines=secs.flatMap(s=>s.text.split(/\n/).map(l=>l.trim().toLowerCase()).filter(Boolean));const counts={};allLines.forEach(l=>counts[l]=(counts[l]||0)+1);const rep=Object.values(counts).some(c=>c>=2);
+  if(!rep&&chor.length)fb.push({t:"Nothing repeats yet. A song lives on repetition — a title line or hook that comes back lodges it in the listener&rsquo;s head.",k:"hook"});
+  if(fb.length<3){fb.push({t:"Craft check: does <b>each verse advance the story</b> toward the chorus, and does the <b>chorus say the one thing</b> the song is about? That&rsquo;s what makes a lyric feel popular — clarity, not cleverness.",k:"story"});}
+  if(!fb.length)fb.push({t:"Structure, rhyme and line-lengths are looking tight. The rest is the human part — make every line true and specific.",k:"ok"});
+  return fb;}
+function renderSongwriting(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{};
+  const MODS=[
+   {ic:"🏗️",title:"Song Structure",blurb:"The forms a song can take — verse-chorus, AABA, verse-refrain, 12-bar blues — and when to use each.",go:()=>lessonSong("structure")},
+   {ic:"🧩",title:"The Parts",blurb:"What each section does: the verse tells the story, the chorus is the big idea, the bridge is the turn.",go:()=>lessonSong("parts")},
+   {ic:"🎯",title:"Rhyme & Schemes",blurb:"Rhyme schemes (ABAB, AABB), perfect vs near/slant rhyme, and how rhyme makes a line feel resolved — with a rhyme finder.",go:()=>lessonSong("rhyme")},
+   {ic:"📐",title:"Prosody & Syllables",blurb:"How stresses, syllables and line length shape the melody — and why form should serve the meaning.",go:()=>lessonSong("prosody")},
+   {ic:"✍️",title:"Lyric Lab",blurb:"Write your lyrics section by section with a live syllable counter, rhyme-scheme labels, a rhyme finder, and a coach. Saves for your Song Project.",go:()=>renderLyricLab()}
+  ];
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">✍️ Songwriting</span></div><div class="panel">'+
+    '<div class="intro">A song is <b>music + words working as one</b> — what songwriters call <b>prosody</b>: the sound serving the meaning. Learn the pieces — structure, the parts, rhyme and prosody — then write in the <b>Lyric Lab</b>, where the app helps you make it tighter, rhyme better, sing better, and tell a story that lands. <span style="opacity:.75">In the spirit of the MI &amp; Berklee songwriting tradition.</span></div>'+
+    '<div class="grid" id="swCards"></div></div>';
+  $("#eBack").onclick=goHome;
+  const cc=$("#swCards");MODS.forEach(c=>{const b=document.createElement("button");b.className="card";b.innerHTML=`<span class="ic">${c.ic}</span><h3>${esc(c.title)}</h3><span class="blurb">${esc(c.blurb)}</span>`;b.onclick=c.go;cc.appendChild(b);});
+}
+function lessonSong(which){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{};
+  const L={
+   structure:{t:"🏗️ Song Structure",h:
+     '<p class="intro">Structure is the <b>shape</b> of a song — the order of sections and how they repeat. Repetition is what makes a song feel like a song; contrast is what keeps it interesting. A few proven forms:</p>'+
+     '<div class="idea-fb"><b style="color:#c9b3ff">Verse – Chorus</b> &nbsp;<span style="opacity:.7">Intro · V1 · Chorus · V2 · Chorus · Bridge · Chorus</span><br>The modern default. The <b>chorus</b> is the big repeated idea (and usually the title); <b>verses</b> tell the story that leads to it. Most pop, rock, country, and EDM live here.<div class="site-note">e.g. nearly every song on the radio.</div></div>'+
+     '<div class="idea-fb"><b style="color:#c9b3ff">AABA (32-bar)</b> &nbsp;<span style="opacity:.7">A · A · B · A</span><br>The classic &ldquo;standard.&rdquo; The <b>A</b> sections share a melody and often end on a refrain line; <b>B</b> is the bridge — a lift and contrast — before the final A returns.<div class="site-note">e.g. &ldquo;Yesterday&rdquo; (Beatles), &ldquo;Over the Rainbow.&rdquo;</div></div>'+
+     '<div class="idea-fb"><b style="color:#c9b3ff">Verse – Refrain</b> &nbsp;<span style="opacity:.7">V1…refrain · V2…refrain · V3…refrain</span><br>No separate chorus — each verse <b>ends on the same line</b> (often the title). Story-forward; folk and singer-songwriter.<div class="site-note">e.g. much of Bob Dylan&rsquo;s catalog.</div></div>'+
+     '<div class="idea-fb"><b style="color:#c9b3ff">12-bar Blues</b> &nbsp;<span style="opacity:.7">I·I·I·I / IV·IV·I·I / V·IV·I·V</span><br>A fixed 12-bar chord loop with an <b>AAB</b> lyric: a line, the same line again, then a punch line that answers it.<div class="site-note">e.g. Robert Johnson, B.B. King, early rock &amp; roll.</div></div>'+
+     '<p>Start by choosing where the <b>title</b> lives (chorus? end of each verse?) — that one decision picks your form.</p>'},
+   parts:{t:"🧩 The Parts",h:
+     '<p class="intro">Each section has a <b>job</b>. Knowing the job tells you what to write.</p>'+
+     '<div class="idea-fb"><b style="color:#9bd0ff">Verse</b> — the <b>story &amp; detail</b>. New words each time; lower energy, more lines. It sets up and leads toward the chorus. This is where you&rsquo;re specific and concrete.</div>'+
+     '<div class="idea-fb"><b style="color:#9bd0ff">Pre-Chorus</b> — the <b>lift</b>. A short connector that builds tension and launches the chorus. Optional, but it makes the chorus hit harder.</div>'+
+     '<div class="idea-fb"><b style="color:#9bd0ff">Chorus</b> — the <b>one big idea</b>. The emotional center and the hook — same words every time, most memorable, highest energy, usually holds the title. If a stranger remembers one thing, it&rsquo;s this.</div>'+
+     '<div class="idea-fb"><b style="color:#9bd0ff">Bridge</b> — the <b>turn</b>. A one-time contrast: a new angle, new chords, a twist in the story. It keeps the final chorus from feeling old by making you miss it.</div>'+
+     '<p><b>The rule of thumb:</b> verses zoom <em>in</em> (details, story), the chorus zooms <em>out</em> (the big truth). The bridge looks at it from a new window.</p>'},
+   rhyme:{t:"🎯 Rhyme & Schemes",h:
+     '<p class="intro">Rhyme is a <b>sound payoff</b> — the ear hears it land and feels satisfied. A <b>rhyme scheme</b> is the pattern of which lines rhyme, written as letters:</p>'+
+     '<div class="idea-fb"><b>AABB</b> — couplets. Each pair rhymes. Simple, strong, sing-songy.<br><b>ABAB</b> — alternating. More sophisticated, keeps forward motion.<br><b>ABCB</b> — only lines 2 &amp; 4 rhyme. Loose and conversational (great for verses).<br><b>Internal rhyme</b> — rhymes <em>inside</em> a line, not just at the ends. Adds flow (think hip-hop).</div>'+
+     '<p><b>Types of rhyme:</b></p>'+
+     '<div class="idea-fb"><b style="color:#5fd38d">Perfect rhyme</b> — the sounds match exactly: <em>light / night</em>, <em>away / today</em>. Feels fully resolved.<br><b style="color:#e9c46a">Near / slant rhyme</b> — close but not exact: <em>home / alone</em>, <em>shape / fate</em>. Feels more open and modern — most current lyrics lean on these.<br><b>Assonance</b> — matching vowel sounds: <em>lake / fade</em>. <b>Consonance</b> — matching consonants: <em>blank / think</em>.</div>'+
+     '<div class="callout" style="background:var(--card2);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:12px;padding:14px"><b>Stable vs unstable:</b> a perfect rhyme on an even number of lines feels <em>closed</em> (good for a chorus landing). Holding back the rhyme, or using a near rhyme, feels <em>open</em> and pulls the listener forward (good for verses). Use that on purpose.</div>'+
+     '<div class="rlab" style="display:block;margin:16px 0 6px">🔎 Rhyme finder</div><div class="rrow2"><input id="rfWord" placeholder="a word to rhyme…" style="flex:1;background:rgba(255,255,255,.06);color:inherit;border:1px solid var(--line);border-radius:8px;padding:8px"><button class="btn" id="rfGo" style="margin-left:8px">Find</button></div><div id="rfOut" class="idea-fb" style="margin-top:8px">Type a word and tap Find — I&rsquo;ll pull perfect and near rhymes.</div>'},
+   prosody:{t:"📐 Prosody & Syllables",h:
+     '<p class="intro"><b>Prosody</b> is the master craft: the <b>sound matching the meaning</b>. When the words, the melody, and the rhythm all point the same way, a song feels inevitable. Here&rsquo;s how the words carry rhythm:</p>'+
+     '<div class="idea-fb"><b style="color:#c9b3ff">Stressed &amp; unstressed syllables.</b> Say &ldquo;<b>GUI</b>-tar&rdquo; — the stress is natural. Your lyric&rsquo;s stresses should land on the strong beats of the melody. When they don&rsquo;t (&ldquo;gui-<b>TAR</b>&rdquo;), the line fights the music and feels awkward to sing.</div>'+
+     '<div class="idea-fb"><b style="color:#c9b3ff">Syllable count &amp; line length.</b> Lines you want to feel parallel (and share a melody) should have <b>similar syllable counts</b>. Long lines feel breathless and urgent; short lines feel punchy and final. Pick on purpose. (The Lyric Lab counts them for you.)</div>'+
+     '<div class="idea-fb"><b style="color:#c9b3ff">Number of lines.</b> An <b>even</b> number of lines feels resolved and stable; an <b>odd</b> number feels unfinished and pushes forward. Use even to land a section, odd to keep momentum.</div>'+
+     '<div class="idea-fb"><b style="color:#c9b3ff">Form serves meaning.</b> A settled lyric wants stable form (even lines, perfect rhyme, on-the-beat stresses). A restless, yearning lyric wants instability (odd lines, held-back rhyme, syncopation). Match the shape to the feeling.</div>'+
+     '<p>Great writers obsess over this because it&rsquo;s invisible when it works and painful when it doesn&rsquo;t. Read your lyric out loud — if it trips your tongue, the prosody needs work.</p>'}
+  }[which];
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+L.t+'</span></div><div class="panel">'+L.h+
+    '<div class="actions" style="margin-top:16px"><button class="btn" id="toLab">✍️ Open the Lyric Lab</button></div></div>';
+  $("#eBack").onclick=renderSongwriting;$("#toLab").onclick=renderLyricLab;
+  if(which==="rhyme"){const go=()=>{const w=$("#rfWord").value,out=$("#rfOut");out.innerHTML="finding rhymes for <b>"+esc(w)+"</b>…";rhymeFind(w,(res,err)=>{if(!res){out.innerHTML=err==="offline"?"The rhyme finder needs a connection — it works on the live site. (The in-app preview can block it.)":"Type a word first.";return;}out.innerHTML='<div><b style="color:#5fd38d">Perfect rhymes</b><div style="margin:4px 0 10px">'+(res.perfect.length?res.perfect.map(esc).join(" · "):"none found")+'</div><b style="color:#e9c46a">Near / slant rhymes</b><div style="margin-top:4px">'+(res.near.length?res.near.map(esc).join(" · "):"none found")+'</div></div>';});};$("#rfGo").onclick=go;$("#rfWord").onkeydown=e=>{if(e.key==="Enter")go();};}
+}
+function lyricLoad(){return load(mk("lyrics","draft"),{title:"",sections:[{tag:"Verse 1",text:""},{tag:"Chorus",text:""}]});}
+function renderLyricLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{};
+  let song=lyricLoad();const TAGS=["Verse 1","Verse 2","Verse 3","Pre-Chorus","Chorus","Bridge","Intro","Outro","Hook"];
+  function persist(){save(mk("lyrics","draft"),song);}
+  function breakdown(text){const lines=text.split(/\n/);const nonEmpty=lines.filter(l=>l.trim());const sc=schemeFor(nonEmpty);let si=0;
+    return lines.map(l=>{if(!l.trim())return '<div style="height:6px"></div>';const n=lineSyl(l),L=sc[si++];const col=n>13?"#e76f51":"#8a7fb0";return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:1px 0"><span style="opacity:.55">'+esc(l)+'</span><span style="flex:none;color:'+col+'"><b>'+L+'</b> · '+n+'</span></div>';}).join("");}
+  function draw(){
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">✍️ Lyric Lab</span></div><div class="panel">'+
+      '<div class="rrow2"><span class="rlab">Title</span><input id="llTitle" placeholder="song title" value="'+esc(song.title)+'" style="flex:1;background:rgba(255,255,255,.06);color:inherit;border:1px solid var(--line);border-radius:8px;padding:8px"></div>'+
+      '<div class="site-note">Each line shows its <b>syllable count</b> and <b>rhyme letter</b> (lines with the same letter rhyme). Keep matched lines close in syllables; use the rhyme finder for words.</div>'+
+      '<div id="llSecs"></div>'+
+      '<div class="actions" style="margin:8px 0"><button class="btn ghost" id="llAdd">+ Add section</button></div>'+
+      '<div class="rlab" style="display:block;margin:12px 0 6px">🔎 Rhyme finder</div><div class="rrow2"><input id="rfWord" placeholder="a word to rhyme…" style="flex:1;background:rgba(255,255,255,.06);color:inherit;border:1px solid var(--line);border-radius:8px;padding:8px"><button class="btn" id="rfGo" style="margin-left:8px">Find</button></div><div id="rfOut" class="idea-fb" style="margin-top:8px">Type a word to get perfect &amp; near rhymes.</div>'+
+      '<div class="actions" style="margin-top:14px"><button class="btn" id="llCoach">🎓 Coach my lyrics</button><button class="btn ghost" id="llSave">💾 Save</button></div>'+
+      '<div id="llFb"></div>'+
+      '<div class="site-note" style="margin-top:10px">Saved lyrics feed your <b>Song Project</b> — this is where your midterm &amp; final words come from.</div></div>';
+    $("#eBack").onclick=renderSongwriting;
+    $("#llTitle").oninput=e=>{song.title=e.target.value;persist();};
+    const sc=$("#llSecs");sc.innerHTML="";
+    song.sections.forEach((s,i)=>{const box=document.createElement("div");box.style.cssText="margin:12px 0;padding:10px;border:1px solid var(--line);border-radius:12px";
+      box.innerHTML='<div class="rrow2" style="margin:0 0 6px"><select class="llTag" data-i="'+i+'" style="background:rgba(255,255,255,.06);color:inherit;border:1px solid var(--line);border-radius:8px;padding:6px">'+TAGS.map(t=>'<option'+(t===s.tag?" selected":"")+'>'+t+'</option>').join("")+'</select><button class="rchip sm llDel" data-i="'+i+'" style="margin-left:auto">✕</button></div>'+
+        '<textarea class="llText" data-i="'+i+'" rows="4" placeholder="write '+esc(s.tag.toLowerCase())+'…" style="width:100%;background:rgba(0,0,0,.25);color:inherit;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:14px;line-height:1.5;resize:vertical">'+esc(s.text)+'</textarea>'+
+        '<div class="llBd" data-i="'+i+'" style="margin-top:6px">'+breakdown(s.text)+'</div>';
+      sc.appendChild(box);});
+    sc.querySelectorAll(".llText").forEach(t=>{t.oninput=()=>{const i=+t.dataset.i;song.sections[i].text=t.value;persist();const bd=sc.querySelector('.llBd[data-i="'+i+'"]');if(bd)bd.innerHTML=breakdown(t.value);};});
+    sc.querySelectorAll(".llTag").forEach(sel=>{sel.onchange=()=>{song.sections[+sel.dataset.i].tag=sel.value;persist();};});
+    sc.querySelectorAll(".llDel").forEach(b=>{b.onclick=()=>{if(song.sections.length<=1)return;song.sections.splice(+b.dataset.i,1);persist();draw();};});
+    $("#llAdd").onclick=()=>{song.sections.push({tag:"Verse 2",text:""});persist();draw();};
+    const rgo=()=>{const w=$("#rfWord").value,out=$("#rfOut");out.innerHTML="finding rhymes for <b>"+esc(w)+"</b>…";rhymeFind(w,(res,err)=>{if(!res){out.innerHTML=err==="offline"?"Rhyme finder needs a connection — works on the live site.":"Type a word first.";return;}out.innerHTML='<b style="color:#5fd38d">Perfect</b><div style="margin:4px 0 10px">'+(res.perfect.length?res.perfect.map(esc).join(" · "):"none")+'</div><b style="color:#e9c46a">Near / slant</b><div style="margin-top:4px">'+(res.near.length?res.near.map(esc).join(" · "):"none")+'</div>';});};
+    $("#rfGo").onclick=rgo;$("#rfWord").onkeydown=e=>{if(e.key==="Enter")rgo();};
+    $("#llCoach").onclick=()=>{const fb=lyricCoach(song),el=$("#llFb");el.innerHTML='<div class="rlab" style="display:block;margin:14px 0 6px">🎓 Coach</div>'+fb.map(f=>'<div class="idea-fb" style="margin:6px 0">'+f.t+'</div>').join("");el.scrollIntoView({behavior:"smooth",block:"nearest"});};
+    $("#llSave").onclick=()=>{const lib=load(mk("lyrics","lib"),[]);const nm=(song.title||"Untitled").trim();const ex=lib.findIndex(x=>x.title===nm);const copy={title:nm,sections:song.sections.map(s=>({tag:s.tag,text:s.text})),t:Date.now()};if(ex>=0)lib[ex]=copy;else lib.push(copy);save(mk("lyrics","lib"),lib);if(activeId())addBeans(3);const el=$("#llFb");el.innerHTML='<div class="idea-fb" style="color:#5fd38d">Saved &ldquo;'+esc(nm)+'&rdquo; to your lyrics. It&rsquo;ll be waiting for your Song Project.</div>';};
+  }
+  draw();
+}
 /* ===== MEDITATION — binaural brainwaves, breathwork + HRV, rhythm mind, sessions ===== */
 let MED={master:null,oscs:[],timer:null};
 function medStop(){if(MED.timer){clearInterval(MED.timer);MED.timer=null;}if(!MED.master)return;const a=ac(),m=MED.master,os=MED.oscs;MED.master=null;MED.oscs=[];try{m.gain.cancelScheduledValues(a.currentTime);m.gain.setTargetAtTime(0.0001,a.currentTime,0.3);}catch(e){}setTimeout(()=>{os.forEach(o=>{try{o.stop();}catch(e){}});},800);}
