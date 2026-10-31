@@ -3385,51 +3385,138 @@ function efStart(intensity,mode,vol,voiceId){efStop();unlockAudio();const a=ac()
   function kick(t,lvl){const o=a.createOscillator();o.type="sine";o.frequency.setValueAtTime(92,t);o.frequency.exponentialRampToValueAtTime(40,t+0.12);const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(lvl,t+0.005);g.gain.exponentialRampToValueAtTime(0.0001,t+0.26);o.connect(g);g.connect(master);o.start(t);o.stop(t+0.3);}
   const beatTimer=setInterval(()=>{const t=a.currentTime+0.05,step=beatI%4;if(step===0)kick(t,0.5);else if(I>0.6&&step===2)kick(t,0.3);else if(I>0.82)kick(t,0.16);beatI++;},spb*1000);
   EF={master,oscs,beatTimer};}
-function efSong(intensity,voice,vol){efStop();unlockAudio();const a=ac(),I=Math.max(0,Math.min(1,(intensity||0)/100));
-  const root=7.83*16,f=s=>root*Math.pow(2,s/12),oscs=[];
-  const master=a.createGain();master.gain.value=0.0001;master.connect(a.destination);master.gain.setTargetAtTime(vol==null?0.6:vol,a.currentTime,0.7);
-  const delay=a.createDelay(0.6);delay.delayTime.value=0.34;const dfb=a.createGain();dfb.gain.value=0.32;delay.connect(dfb);dfb.connect(delay);const dwet=a.createGain();dwet.gain.value=0.2;delay.connect(dwet);dwet.connect(master);
-  (function(){const o=a.createOscillator();o.type="sine";o.frequency.value=root*2;const g=a.createGain();g.gain.value=0.05;o.connect(g);g.connect(master);o.start();oscs.push(o);
-    const po=a.createOscillator();po.type="sine";po.frequency.value=root*2;const pg=a.createGain();pg.gain.value=0.05;po.connect(pg);pg.connect(master);po.start();oscs.push(po);
-    const lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=7.83;const lg=a.createGain();lg.gain.value=0.05;lfo.connect(lg);lg.connect(pg.gain);lfo.start();oscs.push(lfo);})();
-  function bass(t,s,d){const o=a.createOscillator();o.type="triangle";o.frequency.value=f(s);const o2=a.createOscillator();o2.type="sawtooth";o2.frequency.value=f(s);const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=520;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.5,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+d);const g2=a.createGain();g2.gain.value=0.22;o.connect(lp);o2.connect(g2);g2.connect(lp);lp.connect(g);g.connect(master);o.start(t);o2.start(t);o.stop(t+d+0.05);o2.stop(t+d+0.05);}
-  function kick(t){const o=a.createOscillator();o.type="sine";o.frequency.setValueAtTime(110,t);o.frequency.exponentialRampToValueAtTime(42,t+0.1);const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.7,t+0.004);g.gain.exponentialRampToValueAtTime(0.0001,t+0.22);o.connect(g);g.connect(master);o.start(t);o.stop(t+0.26);}
-  function hat(t,lvl){djNoise(a,t,0.025,9000,lvl,master,true);}
-  function pad(t,ch,d){ch.forEach(s=>{const o=a.createOscillator();o.type="sawtooth";o.frequency.value=f(s+12);o.detune.value=Math.random()*8-4;const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=700+I*1800;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(0.05,t+0.4);g.gain.setValueAtTime(0.05,t+Math.max(0.5,d-0.5));g.gain.exponentialRampToValueAtTime(0.0001,t+d);o.connect(lp);lp.connect(g);g.connect(master);g.connect(delay);o.start(t);o.stop(t+d+0.05);});}
-  function lead(t,s,d){const o=a.createOscillator();o.type="square";o.frequency.value=f(s+24);const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=2600;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.07,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+d);o.connect(lp);lp.connect(g);g.connect(master);g.connect(delay);o.start(t);o.stop(t+d+0.05);}
-  const CH=[[0,3,7],[8,12,15],[3,7,10],[10,14,17]],bassRoot=[0,8,3,10];
-  const bassPat=[1,0,0,1,0,1,0,0,1,0,0,1,0,1,0,0],leadMotif=[7,null,5,null,3,null,5,7,null,null,3,null,2,null,0,null];
-  const bpm=58.7*2,spb=60/bpm,stepDur=spb/2;let step=0,bar=0;
-  const schID=setInterval(()=>{const t=a.currentTime+0.06,s=step%16,ch=CH[bar%4],rt=bassRoot[bar%4];
-    if(bassPat[s])bass(t,rt,stepDur*(s===0?2:1.4));
-    if(bar>=1){if(I>0.45?(s%4===0):(s===0||s===8))kick(t);}
-    if(bar>=2){if(s%2===1)hat(t,0.04+0.05*I);if(I>0.6&&s%4===2)hat(t,0.07);}
-    if(bar>=3&&s===0)pad(t,ch,spb*4);
-    if(bar>=4&&leadMotif[s]!=null)lead(t,leadMotif[s],stepDur*1.3);
-    step++;if(step%16===0)bar=(bar+1)%8;
-  },stepDur*1000);
-  EF={master,oscs,beatTimer:schID};}
+/* ---- Earth song: shared synth voices ---- */
+function _dist(a,k){const ws=a.createWaveShaper(),n=1024,c=new Float32Array(n),kk=k||30;for(let i=0;i<n;i++){const x=i*2/n-1;c[i]=(1+kk)*x/(1+kk*Math.abs(x));}ws.curve=c;ws.oversample="2x";return ws;}
+function efKick(a,out,t,hard){const o=a.createOscillator();o.type="sine";o.frequency.setValueAtTime(hard?175:120,t);o.frequency.exponentialRampToValueAtTime(hard?42:46,t+(hard?0.09:0.11));const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(hard?1.1:0.85,t+0.004);g.gain.exponentialRampToValueAtTime(0.0001,t+(hard?0.3:0.26));o.connect(g);g.connect(out);o.start(t);o.stop(t+0.34);const c=a.createOscillator();c.type="triangle";c.frequency.value=1500;const cg=a.createGain();cg.gain.setValueAtTime(0.4,t);cg.gain.exponentialRampToValueAtTime(0.001,t+0.015);c.connect(cg);cg.connect(out);c.start(t);c.stop(t+0.02);}
+function efSnare(a,out,t,lvl){djNoise(a,t,0.13,1800,0.5*lvl,out,false);djNoise(a,t,0.07,4500,0.3*lvl,out,true);const o=a.createOscillator();o.type="triangle";o.frequency.setValueAtTime(190,t);o.frequency.exponentialRampToValueAtTime(140,t+0.08);const g=a.createGain();g.gain.setValueAtTime(0.4*lvl,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.1);o.connect(g);g.connect(out);o.start(t);o.stop(t+0.12);}
+function efRim(a,out,t,lvl){const o=a.createOscillator();o.type="triangle";o.frequency.value=330;const g=a.createGain();g.gain.setValueAtTime(0.5*lvl,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.03);o.connect(g);g.connect(out);o.start(t);o.stop(t+0.04);djNoise(a,t,0.02,3000,0.3*lvl,out,true);}
+function efHat(a,out,t,lvl,open){djNoise(a,t,open?0.11:0.028,9500,lvl,out,true);}
+function efClap(a,out,t,lvl){[0,0.008,0.017,0.028].forEach((d,i)=>djNoise(a,t+d,0.05,2100,lvl*(i===3?0.6:0.35),out,false));}
+function efSubNote(a,out,t,freq,dur){const o=a.createOscillator();o.type="sine";o.frequency.value=freq;const o2=a.createOscillator();o2.type="triangle";o2.frequency.value=freq;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.6,t+0.012);g.gain.setValueAtTime(0.55,t+Math.max(0.05,dur*0.75));g.gain.exponentialRampToValueAtTime(0.0001,t+dur);const g2=a.createGain();g2.gain.value=0.18;o2.connect(g2);g2.connect(g);o.connect(g);g.connect(out);o.start(t);o2.start(t);o.stop(t+dur+0.04);o2.stop(t+dur+0.04);}
+function efBassNote(a,out,t,freq,dur,type){const o=a.createOscillator();o.type=type||"triangle";o.frequency.value=freq;const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=700;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.42,t+0.008);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(lp);lp.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.04);efSubNote(a,out,t,freq/2,Math.min(dur,0.5));}
+function efReese(a,out,t,freq,dur,I){const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.setValueAtTime(350,t);lp.frequency.linearRampToValueAtTime(1100+I*1600,t+dur*0.5);lp.frequency.linearRampToValueAtTime(350,t+dur);lp.Q.value=7;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.4,t+0.02);g.gain.setValueAtTime(0.38,t+dur*0.8);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);[-14,-7,0,0.3,7].forEach(det=>{const o=a.createOscillator();o.type="sawtooth";o.frequency.value=freq;o.detune.value=det;o.connect(lp);o.start(t);o.stop(t+dur+0.04);});lp.connect(g);g.connect(out);efSubNote(a,out,t,freq/2,dur);}
+function efStabNote(a,out,t,freq,dur,type,cut){const o=a.createOscillator();o.type=type||"sawtooth";o.frequency.value=freq;const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.setValueAtTime(cut||3200,t);lp.frequency.exponentialRampToValueAtTime(600,t+dur);lp.Q.value=2;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.13,t+0.005);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(lp);lp.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.03);}
+function efPadVoice(a,out,t,freq,dur,cut){const o=a.createOscillator();o.type="sawtooth";o.frequency.value=freq;o.detune.value=Math.random()*10-5;const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=cut||1200;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(0.04,t+0.5);g.gain.setValueAtTime(0.04,t+Math.max(0.6,dur-0.7));g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(lp);lp.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.05);}
+function efRhodes(a,out,t,freq,dur){[[1,0.12],[2,0.05],[3,0.02]].forEach(([m,l])=>{const o=a.createOscillator();o.type="sine";o.frequency.value=freq*m;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(l,t+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);const trem=a.createOscillator();trem.type="sine";trem.frequency.value=4.5;const tg=a.createGain();tg.gain.value=l*0.3;trem.connect(tg);tg.connect(g.gain);trem.start(t);trem.stop(t+dur);o.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.04);});}
+function efLeadNote(a,out,t,freq,dur,type,cut){const o=a.createOscillator();o.type=type||"square";o.frequency.value=freq;const o2=a.createOscillator();o2.type=type||"square";o2.frequency.value=freq;o2.detune.value=6;const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=cut||2800;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.08,t+0.012);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(lp);o2.connect(lp);lp.connect(g);g.connect(out);o.start(t);o2.start(t);o.stop(t+dur+0.04);o2.stop(t+dur+0.04);}
+function efPower(a,out,t,freqs,dur){const ws=_dist(a,24),lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=3200;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.16,t+0.008);g.gain.setValueAtTime(0.15,t+Math.max(0.05,dur*0.7));g.gain.exponentialRampToValueAtTime(0.0001,t+dur);ws.connect(lp);lp.connect(g);g.connect(out);freqs.forEach(fr=>{const o=a.createOscillator();o.type="sawtooth";o.frequency.value=fr;o.connect(ws);o.start(t);o.stop(t+dur+0.03);});}
+function efCrash(a,out,t,lvl){djNoise(a,t,1.1,6500,lvl||0.18,out,true);}
+function efRiser(a,out,t,dur){const s=a.createBufferSource();s.buffer=noiseBuf(a);s.loop=true;const bp=a.createBiquadFilter();bp.type="bandpass";bp.frequency.setValueAtTime(400,t);bp.frequency.exponentialRampToValueAtTime(8000,t+dur);bp.Q.value=1.6;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.1,t+dur);g.gain.exponentialRampToValueAtTime(0.0001,t+dur+0.12);s.connect(bp);bp.connect(g);g.connect(out);s.start(t);s.stop(t+dur+0.18);}
+const EF_CH=[[0,3,7],[8,12,15],[3,7,10],[10,14,17]],EF_BR=[0,8,3,10],EF_CH7=[[0,3,7,10],[8,12,15,19],[3,7,10,14],[10,14,17,21]];
+const EF_GENRES={
+ house:{name:"Melodic House",bpm:117.4,duck:0.6,
+  step(s,bar,t,I,c){const ch=c.CH[bar%4],rt=c.BR[bar%4],drop=bar>=4&&bar!==6;
+   if(bar>=2&&bar!==6&&s%4===0){efKick(c.a,c.master,t,false);c.duck(t);}
+   if(bar>=3&&(s===4||s===12))efClap(c.a,c.master,t,0.5*(0.7+I*0.4));
+   if(bar>=2&&bar!==6){if(s%4===2)efHat(c.a,c.master,t,0.06+0.05*I,true);else if(s%2===1)efHat(c.a,c.master,t,0.03+0.03*I,false);}
+   if(bar>=1&&[2,6,10,14].includes(s))efBassNote(c.a,c.pump,t,c.f(rt),c.stepDur*1.5,"sawtooth");
+   if(s===0)ch.forEach(n=>efPadVoice(c.a,c.pump,t,c.f(n+12),c.spb*4,900+I*1800));
+   if(drop&&[0,3,6,8,11,14].includes(s))efStabNote(c.a,c.pump,t,c.f(ch[s%ch.length]+24),c.stepDur*1.4,"sawtooth",2600+I*1500);
+   if(bar===7&&s===0)efRiser(c.a,c.master,t,c.spb*4);
+   if((bar===4||bar===6)&&s===0)efCrash(c.a,c.master,t,0.16);}},
+ bass:{name:"Bass · DnB",bpm:176,duck:0.5,
+  step(s,bar,t,I,c){const ch=c.CH[bar%4],rt=c.BR[bar%4],drop=bar>=4&&bar!==6;
+   if(bar>=2&&bar!==6){if(s===0||s===10)efKick(c.a,c.master,t,true);if(s===4||s===12){efSnare(c.a,c.master,t,0.9);c.duck(t);}if(I>0.5&&(s===7||s===15))efSnare(c.a,c.master,t,0.3);}
+   if(bar>=2&&bar!==6&&s%2===1)efHat(c.a,c.master,t,0.04+0.04*I,s%4===3);
+   if(bar>=1&&(s===0||s===6||s===11))efReese(c.a,c.pump,t,c.f(rt),s===0?c.stepDur*6:c.stepDur*4,I);
+   if(s===0)ch.forEach(n=>efPadVoice(c.a,c.pump,t,c.f(n+12),c.spb*4,700+I*1500));
+   if(drop&&[0,4,8,12].includes(s))efStabNote(c.a,c.pump,t,c.f(ch[(s/4)%ch.length]+24),c.stepDur*2,"square",2400+I*1600);
+   if(bar===7&&s===0)efRiser(c.a,c.master,t,c.spb*4);
+   if((bar===4||bar===6)&&s===0)efCrash(c.a,c.master,t,0.15);}},
+ rock:{name:"Alt Rock",bpm:124,duck:0,
+  step(s,bar,t,I,c){const ch=c.CH[bar%4],rt=c.BR[bar%4],drop=bar>=4&&bar!==6;
+   if(bar>=2&&bar!==6){if(s===0||s===8||(s===6&&I>0.4))efKick(c.a,c.master,t,true);if(s===4||s===12)efSnare(c.a,c.master,t,1.0);if(s%2===0)efHat(c.a,c.master,t,0.05,s===8);}
+   if(bar>=1&&s%2===0)efBassNote(c.a,c.master,t,c.f(rt-12<0?rt:rt),c.stepDur*1.8,"sawtooth");
+   if(drop){if([0,3,6,8,11,14].includes(s))efPower(c.a,c.pump,t,[c.f(ch[0]+12),c.f(ch[0]+19),c.f(ch[0]+24)],c.stepDur*2.2);}
+   else if(bar<4&&s===0)ch.forEach(n=>efPadVoice(c.a,c.pump,t,c.f(n+12),c.spb*4,1200+I*1400));
+   if(bar===6&&[0,4,8,12].includes(s))efStabNote(c.a,c.pump,t,c.f(ch[(s/4)%ch.length]+24),c.stepDur*2,"square",2600);
+   if(bar>=5&&drop&&[2,6,10,14].includes(s))efLeadNote(c.a,c.pump,t,c.f([7,10,12,10][(s-2)/4%4]+24),c.stepDur*1.6,"sawtooth",3200);
+   if((bar===4)&&s===0)efCrash(c.a,c.master,t,0.2);}},
+ lofi:{name:"Lo-fi",bpm:84,duck:0.25,swing:0.34,
+  setup(c){const s=c.a.createBufferSource();s.buffer=noiseBuf(c.a);s.loop=true;const lp=c.a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=5000;const hp=c.a.createBiquadFilter();hp.type="highpass";hp.frequency.value=1500;const g=c.a.createGain();g.gain.value=0.012;s.connect(hp);hp.connect(lp);lp.connect(g);g.connect(c.master);s.start();c.oscs.push(s);},
+  step(s,bar,t0,I,c){const sw=(s%2===1)?c.stepDur*c.g.swing:0,t=t0+sw,ch=c.CH7[bar%4],rt=c.BR[bar%4],drop=bar>=3&&bar!==6;
+   if(bar>=2&&bar!==6){if(s===0||s===10)efKick(c.a,c.master,t,false);if(s===4||s===12){efRim(c.a,c.master,t,0.8);c.duck(t);}if(s%2===1)efHat(c.a,c.master,t,0.03,false);}
+   if(bar>=1&&(s===0||s===6||s===8||s===14))efBassNote(c.a,c.master,t,c.f(rt),c.stepDur*2.2,"triangle");
+   if(drop&&(s===2||s===10))ch.forEach(n=>efRhodes(c.a,c.pump,t,c.f(n+12),c.spb*1.6));
+   else if(s===0)ch.forEach(n=>efRhodes(c.a,c.pump,t,c.f(n+12),c.spb*3));
+   if(bar>=4&&[4,12].includes(s))efLeadNote(c.a,c.pump,t,c.f([3,7,10][bar%3]+24),c.stepDur*2,"sine",2000);}}
+};
+function efSong(intensity,vol,genreKey){efStop();unlockAudio();const a=ac(),I=Math.max(0,Math.min(1,(intensity||0)/100));
+  const G=EF_GENRES[genreKey]||EF_GENRES.house,root=7.83*16,f=s=>root*Math.pow(2,s/12),oscs=[];
+  const master=a.createGain();master.gain.value=0.0001;const comp=a.createDynamicsCompressor();comp.threshold.value=-15;comp.knee.value=22;comp.ratio.value=2.6;comp.attack.value=0.004;comp.release.value=0.2;master.connect(comp);comp.connect(a.destination);master.gain.setTargetAtTime(vol==null?0.6:vol,a.currentTime,0.5);
+  const rev=a.createConvolver();rev.buffer=makeIR(a,2.4,2.6);const rg=a.createGain();rg.gain.value=0.85;rev.connect(rg);rg.connect(master);
+  const del=a.createDelay(1.0);del.delayTime.value=(60/G.bpm)*0.75;const dfb=a.createGain();dfb.gain.value=0.33;del.connect(dfb);dfb.connect(del);const dg=a.createGain();dg.gain.value=0.55;del.connect(dg);dg.connect(master);
+  const pump=a.createGain();pump.gain.value=1;const music=a.createGain();pump.connect(music);music.connect(master);
+  const rs=a.createGain();rs.gain.value=0.16;music.connect(rs);rs.connect(rev);const ds=a.createGain();ds.gain.value=0.12;music.connect(ds);ds.connect(del);
+  const spb=60/G.bpm,stepDur=spb/4;const dd=G.duck||0;
+  function duck(t){if(dd<=0)return;try{pump.gain.cancelScheduledValues(t);pump.gain.setValueAtTime(1-dd,t);pump.gain.linearRampToValueAtTime(1,t+Math.min(0.24,spb*0.85));}catch(e){}}
+  const c={a,master,pump,music,rev,del,root,f,CH:EF_CH,CH7:EF_CH7,BR:EF_BR,I,spb,stepDur,duck,oscs,g:G};
+  if(G.setup)G.setup(c);
+  let step=0,nextTime=a.currentTime+0.14;
+  const timer=setInterval(()=>{if(!EF){clearInterval(timer);return;}const now=a.currentTime;while(nextTime<now+0.14){const s=step%16,bar=Math.floor(step/16)%8;try{G.step(s,bar,nextTime,I,c);}catch(e){}nextTime+=stepDur;step++;}},25);
+  EF={master,oscs,beatTimer:timer};}
+function efBinaural(intensity,vol){efStop();unlockAudio();const a=ac(),I=Math.max(0,Math.min(1,(intensity||0)/100));
+  const root=7.83*16,oscs=[],base=root,SCH=[7.83,14.3,20.8];
+  const master=a.createGain();master.gain.value=0.0001;master.connect(a.destination);master.gain.setTargetAtTime(vol==null?0.55:vol,a.currentTime,0.8);
+  const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=1800;lp.connect(master);
+  // three binaural layers: each a carrier panned L/R with a Schumann-harmonic interaural beat
+  const carriers=[base,base*1.5,base*2];
+  carriers.forEach((car,i)=>{const beat=SCH[i];const detune=beat/2;
+    [["L",-1,-detune],["R",1,detune]].forEach(([_,panv,off])=>{
+      const o=a.createOscillator();o.type="sine";o.frequency.value=car+off;
+      const pan=a.createStereoPanner?a.createStereoPanner():null;if(pan)pan.pan.value=panv;
+      const g=a.createGain();g.gain.value=(i===0?0.16:i===1?0.1:0.06)*(0.7+I*0.5);
+      // slow swell so it breathes
+      const sw=a.createOscillator();sw.type="sine";sw.frequency.value=0.05+0.03*i;const sg=a.createGain();sg.gain.value=g.gain.value*0.5;sw.connect(sg);sg.connect(g.gain);sw.start();oscs.push(sw);
+      o.connect(pan||g);if(pan)pan.connect(g);g.connect(lp);o.start();oscs.push(o);});});
+  // soft pad underneath for warmth (centered), brighter on more active days
+  [0,3,7].forEach(n=>{const o=a.createOscillator();o.type="sine";o.frequency.value=base*Math.pow(2,n/12)*2;const g=a.createGain();g.gain.value=0.03+0.02*I;const trem=a.createOscillator();trem.type="sine";trem.frequency.value=0.08;const tg=a.createGain();tg.gain.value=0.015;trem.connect(tg);tg.connect(g.gain);trem.start();oscs.push(trem);o.connect(g);g.connect(lp);o.start();oscs.push(o);});
+  // gentle 7.83 Hz isochronic shimmer on the top carrier so the pulse is felt even without perfect headphones
+  const sho=a.createOscillator();sho.type="sine";sho.frequency.value=base*2;const shg=a.createGain();shg.gain.value=0.0;const shlfo=a.createOscillator();shlfo.type="sine";shlfo.frequency.value=7.83;const shlg=a.createGain();shlg.gain.value=0.03*(0.5+I*0.6);shlfo.connect(shlg);shlg.connect(shg.gain);shlfo.start();oscs.push(shlfo);sho.connect(shg);shg.connect(lp);sho.start();oscs.push(sho);
+  EF={master,oscs,beatTimer:null};}
 function efKpLabel(kp){return kp<2?"Quiet":kp<4?"Unsettled":kp<5?"Active":kp<6?"Minor storm (G1)":kp<7?"Storm (G2)":"Strong storm";}
+function efDayReading(day,arch){const s=arch[day];if(!s)return "No reading for this day yet — tune in daily and the week fills in.";
+  const kp=s.kp,days=Object.keys(arch).sort(),idx=days.indexOf(day),prev=idx>0?arch[days[idx-1]]:null,dkp=prev?kp-prev.kp:0;
+  const band=kp<2?"quiet":kp<4?"unsettled":kp<5?"active":"storm";
+  const trend=!prev?"":dkp>0.8?("climbing from Kp "+prev.kp.toFixed(1)+" the day before — the field is stirring"):dkp<-0.8?("settling from Kp "+prev.kp.toFixed(1)+" the day before — the field is calming"):"holding near the day before";
+  const harm=band==="quiet"?"only the lowest harmonics (7.83 and 14.3 Hz) are really present — warm and round, little up top":
+    band==="unsettled"?"the first harmonics (7.83 → 20.8 Hz) are active — a bit more texture and motion":
+    band==="active"?"the upper harmonics push through (up to 27.3 Hz) — more edge and brightness in the field":
+    "the whole stack lights up (7.83 → 33.8 Hz and beyond) — bright, busy, electric";
+  const feel=band==="quiet"?"grounded and spacious — an easy day to drop in, breathe long, and let the low hum carry you":
+    band==="unsettled"?"a gentle charge in the air — better for a light, moving focus than deep stillness":
+    band==="active"?"switched-on and alert — energy to ride; the body may want to move more than sit":
+    "electric and a little scattered — shorter, steadier sessions tend to land better than long ones";
+  const songread=band==="quiet"?"So the song stays sparse and warm — fewer layers, softer filters, space between the hits.":
+    band==="unsettled"?"So the song adds gentle movement — the groove steps forward and the filters open a touch.":
+    band==="active"?"So the song drives harder — fuller drums, brighter top end, the drop comes sooner.":
+    "So the song runs its hottest — densest drums, widest and brightest mix, the full build-and-drop.";
+  return '<b>'+efDateLabel(day)+'</b> · Kp '+kp.toFixed(1)+' — '+s.label+'.'+(trend?' The geomagnetic field is '+trend+'.':'')+
+    ' On the live spectrogram, days like this read '+(kp>=4?"brighter and busier across the bands":kp>=2?"with a few soft bursts":"mostly calm, thin lines")+'. In the field itself, '+harm+'.'+
+    ' Either way the <b>7.83 Hz fundamental is the bass</b> of the track (tuned up to ~250 Hz so you can hear it); '+(kp>=4?"the brighter harmonics shimmer on top":"the higher harmonics stay low and warm")+'.'+
+    ' <i>How it tends to land:</i> '+feel+'. '+songread;}
 function renderEarthFreq(){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  let mode=load(mk("earth","mode"),"iso"),voice=load(mk("earth","voice"),"pure"),vol=0.6;
-  let arr=load(mk("earth","arr"),"med");
+  let voice=load(mk("earth","voice"),"pure"),vol=0.6;
+  let arr=load(mk("earth","arr"),"med"),genre=load(mk("earth","genre"),"house");
   let arch=efArch(),selDate=efDayUTC(0),override=null;
+  const EF_GLIST=[["house","🏠 Melodic House"],["bass","🔊 Bass · DnB"],["rock","🎸 Alt Rock"],["lofi","☕ Lo-fi"]];
   teardown=()=>{efStop();};
   function cur(){if(override!=null)return override;const s=arch[selDate];return s?s.intensity:24;}
-  function go(){arr==="song"?efSong(cur(),voice,vol):efStart(cur(),mode,vol,voice);}
+  function go(){if(arr==="song")efSong(cur(),vol,genre);else if(arr==="binaural")efBinaural(cur(),vol);else efStart(cur(),"iso",vol,voice);}
   function draw(){
     const s=arch[selDate],days=Object.keys(arch).sort().reverse().slice(0,7);
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌍 Earth Frequency</span></div><div class="panel">'+
-      '<div class="intro">The <b>Schumann resonance</b> is the Earth&rsquo;s background hum — a fundamental near <b>7.83 Hz</b>. Below hearing, so here it&rsquo;s octaved up into a <b>drone</b>, pulsed at the real 7.83 Hz so you can feel it, over a slow <b>~59 BPM</b> Earth beat. How calm or spiky each day feels comes from <b>real NOAA geomagnetic data</b>.</div>'+
+      '<div class="intro">The <b>Schumann resonance</b> is the Earth&rsquo;s background hum — a fundamental near <b>7.83 Hz</b>, below hearing, octaved up so you can feel it. Pick a day, read what&rsquo;s happening in the field, then hear it as a <b>Meditation</b>, a between-the-ears <b>Binaural</b>, or a full <b>Song</b> in your genre — all built on that 7.83 Hz as the bass. How calm or spiky each day feels comes from <b>real NOAA geomagnetic data</b>.</div>'+
       '<div class="rlab" style="display:block;margin:4px 0 6px">Live spectrogram (Tomsk station)</div>'+
       '<img id="efImg" alt="Schumann spectrogram" style="width:100%;border-radius:10px;border:1px solid var(--line)" referrerpolicy="no-referrer">'+
       '<div class="site-note" id="efImgNote">via schumannresonance.today · bright bursts = spikes. One station, so a spike can be local weather.</div>'+
       '<div class="rlab" style="display:block;margin:12px 0 5px">Tune in — pick a day</div><div class="rchips" id="efDays"></div>'+
       '<div class="idea-fb" id="efNow"></div>'+
-      '<div class="rrow2"><span class="rlab">Instrument</span><span class="rchips tight" id="efVoices"></span></div>'+
-      '<div class="rrow2"><span class="rlab">Feel</span><span class="rchips tight"><button class="rchip sm'+(arr==="med"?" sel":"")+'" id="efArrMed">🧘 Meditation</button><button class="rchip sm'+(arr==="song"?" sel":"")+'" id="efArrSong">🎶 Song</button></span></div>'+
-      (arr==="med"?'<div class="rrow2"><span class="rlab">Mode</span><span class="rchips tight"><button class="rchip sm'+(mode==="iso"?" sel":"")+'" id="efIso">🔊 Isochronic</button><button class="rchip sm'+(mode==="binaural"?" sel":"")+'" id="efBin">🎧 Binaural</button></span></div>':'<div class="site-note" style="margin:2px 0 6px">Song mode builds an arrangement on the day&rsquo;s 7.83 Hz fundamental as the bass — a syncopated bassline, kick &amp; hats, pad chords and a lead motif that layer in over 8 bars. Calm days stay sparse; spiky days drive harder.</div>')+
+      '<div class="rrow2"><span class="rlab">Feel</span><span class="rchips tight"><button class="rchip sm'+(arr==="med"?" sel":"")+'" id="efArrMed">🧘 Meditation</button><button class="rchip sm'+(arr==="binaural"?" sel":"")+'" id="efArrBin">🌀 Binaural</button><button class="rchip sm'+(arr==="song"?" sel":"")+'" id="efArrSong">🎶 Song</button></span></div>'+
+      (arr==="song"?'<div class="rrow2"><span class="rlab">Genre</span><span class="rchips tight" id="efGenres"></span></div><div class="site-note" style="margin:2px 0 6px">Each genre is built on the day&rsquo;s 7.83 Hz fundamental as the bass, at a tempo tied to the Earth beat (house ~117, DnB ~176, rock ~124, lo-fi ~84). It layers in over 8 bars with a build and a drop. The day&rsquo;s intensity sets how hard it hits.</div>':
+        arr==="binaural"?'<div class="rrow2"><span class="rlab">Instrument</span><span class="rchips tight" id="efVoices"></span></div><div class="site-note" style="margin:2px 0 6px">🎧 <b>Headphones essential.</b> Three carriers on the day&rsquo;s fundamental, each with a Schumann-harmonic beat between your ears (7.83 / 14.3 / 20.8 Hz), breathing slowly. Calmer days stay soft and low; charged days add brightness and shimmer.</div>':
+        '<div class="rrow2"><span class="rlab">Instrument</span><span class="rchips tight" id="efVoices"></span></div><div class="site-note" style="margin:2px 0 6px">A drone octaved up from 7.83 Hz, pulsed isochronically at the real 7.83 Hz over a slow ~59 BPM Earth beat — made for long, easy breathing.</div>')+
       '<div class="rrow"><span class="rlab">Intensity</span><input type="range" id="efInt" min="0" max="100" value="'+cur()+'" style="flex:1"><span class="rbpm" id="efIntV">'+cur()+'</span></div>'+
       '<div class="rrow"><span class="rlab">Volume</span><input type="range" id="efVol" min="0" max="1" step="0.01" value="'+vol+'" style="flex:1"></div>'+
       '<div class="actions"><button class="btn" id="efPlay">'+(EF?"⏸ Stop":"▶ Play this day")+'</button></div>'+
@@ -3438,11 +3525,12 @@ function renderEarthFreq(){
     const img=$("#efImg");img.src="https://schumannresonance.today/live/tomsk1.jpg?t="+Date.now();img.onerror=()=>{img.style.display="none";const n=$("#efImgNote");if(n)n.innerHTML='Couldn&rsquo;t load the live chart here — see it at <a href="https://schumannresonance.today/" target="_blank" rel="noopener" style="color:#9bd0ff">schumannresonance.today ↗</a>';};
     const dc=$("#efDays");if(!days.length){dc.innerHTML='<span class="site-note">Fetching the last 7 days…</span>';}
     days.forEach(d=>{const b=document.createElement("button");b.className="rchip sm"+(d===selDate?" sel":"");b.textContent=efDateLabel(d);b.onclick=()=>{selDate=d;override=null;draw();if(EF)go();};dc.appendChild(b);});
-    const nw=$("#efNow");if(nw)nw.innerHTML=s?("<b>"+efDateLabel(selDate)+"</b> — Kp "+s.kp.toFixed(1)+" · "+s.label+". Fundamental 7.83 Hz · ~59 BPM."):"No reading for this day yet — tune in daily and the week fills in.";
-    const vc=$("#efVoices");EF_VOICES.forEach(v=>{const b=document.createElement("button");b.className="rchip sm"+(v.id===voice?" sel":"");b.textContent=v.name;b.onclick=()=>{voice=v.id;save(mk("earth","voice"),voice);draw();if(EF)go();};vc.appendChild(b);});
+    const nw=$("#efNow");if(nw)nw.innerHTML=efDayReading(selDate,arch);
+    const vc=$("#efVoices");if(vc)EF_VOICES.forEach(v=>{const b=document.createElement("button");b.className="rchip sm"+(v.id===voice?" sel":"");b.textContent=v.name;b.onclick=()=>{voice=v.id;save(mk("earth","voice"),voice);draw();if(EF)go();};vc.appendChild(b);});
+    const gc=$("#efGenres");if(gc)EF_GLIST.forEach(([k,nm])=>{const b=document.createElement("button");b.className="rchip sm"+(k===genre?" sel":"");b.textContent=nm;b.onclick=()=>{genre=k;save(mk("earth","genre"),genre);draw();if(EF)go();};gc.appendChild(b);});
     $("#efArrMed").onclick=()=>{arr="med";save(mk("earth","arr"),arr);draw();if(EF)go();};
+    $("#efArrBin").onclick=()=>{arr="binaural";save(mk("earth","arr"),arr);draw();if(EF)go();};
     $("#efArrSong").onclick=()=>{arr="song";save(mk("earth","arr"),arr);draw();if(EF)go();};
-    const iso=$("#efIso"),bin=$("#efBin");if(iso)iso.onclick=()=>{mode="iso";save(mk("earth","mode"),mode);draw();if(EF)go();};if(bin)bin.onclick=()=>{mode="binaural";save(mk("earth","mode"),mode);draw();if(EF)go();};
     const ii=$("#efInt");ii.oninput=()=>{override=+ii.value;$("#efIntV").textContent=override;if(EF)go();};
     const vv=$("#efVol");vv.oninput=()=>{vol=+vv.value;if(EF&&EF.master)EF.master.gain.setTargetAtTime(vol,ac().currentTime,0.1);};
     $("#efPlay").onclick=()=>{if(EF){efStop();$("#efPlay").textContent="▶ Play this day";}else{go();$("#efPlay").textContent="⏸ Stop";}};
