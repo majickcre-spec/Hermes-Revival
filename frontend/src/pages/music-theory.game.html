@@ -1950,6 +1950,23 @@ async function playSection(section,when){const a=ac();studioGraph();const anySol
 function studioStop(){STU.playing=false;STU.sources.forEach(s=>{try{s.stop();}catch(e){}});STU.sources=[];STU.els.forEach(e=>{try{e.pause();}catch(e2){}});STU.els=[];}
 async function playSong(song,onDone){studioStop();const a=ac();STU.playing=true;let when=a.currentTime+0.1;for(const sec of song.sections){if(!STU.playing)break;const d=await playSection(sec,when);when+=d+0.03;}
   const total=(when-a.currentTime)*1000;setTimeout(()=>{if(onDone)onDone();},total+50);}
+async function studioRenderOffline(song){const sr=ac().sampleRate;const secBufs=[];let any=false;
+  for(const sec of song.sections){const tb=[],anySolo=sec.tracks.some(t=>t.solo);
+    for(const track of sec.tracks){try{const blob=await idbGet(track.takeId);if(!blob)continue;const ab=await blob.arrayBuffer();const buffer=await ac().decodeAudioData(ab.slice(0));tb.push({track,buffer,eff:track.mute||(anySolo&&!track.solo)});any=true;}catch(e){}}
+    secBufs.push(tb);}
+  if(!any)return null;
+  const starts=[];let cursor=0;secBufs.forEach(tb=>{starts.push(cursor);let d=0;tb.forEach(x=>d=Math.max(d,x.buffer.duration));cursor+=d+0.03;});
+  const OAC=window.OfflineAudioContext||window.webkitOfflineAudioContext;const octx=new OAC(2,Math.ceil((cursor+2)*sr),sr);
+  const master=octx.createGain();master.gain.value=song.master==null?1:song.master;const comp=octx.createDynamicsCompressor();master.connect(comp);comp.connect(octx.destination);
+  const conv=octx.createConvolver();conv.buffer=makeIR(octx,1.8,2.2);const revRet=octx.createGain();revRet.gain.value=0.9;conv.connect(revRet);revRet.connect(master);
+  const del=octx.createDelay(1.0);del.delayTime.value=0.33;const fb=octx.createGain();fb.gain.value=0.34;del.connect(fb);fb.connect(del);const delRet=octx.createGain();delRet.gain.value=0.9;del.connect(delRet);delRet.connect(master);
+  secBufs.forEach((tb,i)=>{const when=starts[i];tb.forEach(({track,buffer,eff})=>{const tone=octx.createBiquadFilter();tone.type="highshelf";tone.frequency.value=2600;tone.gain.value=(track.tone||0)*12;const pan=octx.createStereoPanner?octx.createStereoPanner():null;if(pan)pan.pan.value=Math.max(-1,Math.min(1,track.pan||0));const vol=octx.createGain();vol.gain.value=eff?0:(track.vol==null?1:track.vol);tone.connect(pan||vol);if(pan)pan.connect(vol);vol.connect(master);const rs=octx.createGain();rs.gain.value=eff?0:(track.reverb||0);vol.connect(rs);rs.connect(conv);const ds=octx.createGain();ds.gain.value=eff?0:(track.delay||0);vol.connect(ds);ds.connect(del);const src=octx.createBufferSource();src.buffer=buffer;src.connect(tone);src.start(when);});});
+  return await octx.startRendering();}
+function bufferToWav(buf){const nch=buf.numberOfChannels,sr=buf.sampleRate,n=buf.length,chs=[];for(let c=0;c<nch;c++)chs.push(buf.getChannelData(c));
+  const dataLen=n*nch*2,ab=new ArrayBuffer(44+dataLen),v=new DataView(ab),ws=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
+  ws(0,"RIFF");v.setUint32(4,36+dataLen,true);ws(8,"WAVE");ws(12,"fmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,nch,true);v.setUint32(24,sr,true);v.setUint32(28,sr*nch*2,true);v.setUint16(32,nch*2,true);v.setUint16(34,16,true);ws(36,"data");v.setUint32(40,dataLen,true);
+  let off=44;for(let i=0;i<n;i++)for(let c=0;c<nch;c++){const s=Math.max(-1,Math.min(1,chs[c][i]));v.setInt16(off,s<0?s*0x8000:s*0x7FFF,true);off+=2;}
+  return new Uint8Array(ab);}
 function renderStudio(){
   if(toneRAF)cancelAnimationFrame(toneRAF);studioStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   const song=studioLoad();if(STU.master)STU.master.gain.value=song.master==null?1:song.master;
@@ -3543,7 +3560,7 @@ function gradeTrack(m,gk,ref){const g=GENRES[gk],cats=[];
  return{overall,grade:overall>=90?"A":overall>=80?"B":overall>=70?"C":overall>=60?"D":"F",cats,modern,ref:refOut,g};}
 function renderInstructor(){
  if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{};
- let gk=load(mk("inst","genre"),"house"),yourBuf=null,yourName="",refBuf=null,refName="",busy=false;
+ let gk=load(mk("inst","genre"),"house"),yourBuf=null,yourName="",refBuf=null,refName="",busy=false,studioBuf=null;
  function draw(){
   const g=GENRES[gk];
   view.innerHTML='<div class="play-top"><button class="back" id="iBack">←</button><span class="ttitle">🎓 The Instructor</span></div><div class="panel">'+
@@ -3551,7 +3568,7 @@ function renderInstructor(){
    '<div class="site-note">I measure the mix for real (levels, loudness, frequency balance, dynamics, width) and compare it to genre norms and your reference. Sound-<i>selection</i> notes are coaching — I can hear the fingerprints (dull highs, thin sub, harsh mids), but the reference A/B is where the &ldquo;old sounds&rdquo; answer really lives.</div>'+
    '<div class="rlab" style="display:block;margin:12px 0 5px">Genre</div><div class="rchips" id="iGenre"></div>'+
    '<div class="rrow2" style="margin-top:12px"><span class="rlab">Your track</span><span id="iYour" class="site-note" style="margin:0">'+(yourName?("🎵 "+esc(yourName)):"none loaded")+'</span></span></div>'+
-   '<div class="actions" style="margin:6px 0 0"><label class="btn ghost" style="cursor:pointer">Choose your track<input type="file" id="iYourF" accept="audio/*" style="display:none"></label></div>'+
+   '<div class="actions" style="margin:6px 0 0;gap:8px;flex-wrap:wrap"><label class="btn ghost" style="cursor:pointer">Choose a file<input type="file" id="iYourF" accept="audio/*" style="display:none"></label><button class="btn ghost" id="iStudio">🎛️ Bounce my Studio mix</button></div>'+
    '<div class="rrow2" style="margin-top:10px"><span class="rlab">Reference <span style="opacity:.6">(optional)</span></span><span id="iRef" class="site-note" style="margin:0">'+(refName?("🎯 "+esc(refName)):"none loaded")+'</span></div>'+
    '<div class="actions" style="margin:6px 0 0"><label class="btn ghost" style="cursor:pointer">Choose reference<input type="file" id="iRefF" accept="audio/*" style="display:none"></label></div>'+
    '<div class="actions" style="margin:14px 0 4px"><button class="btn" id="iGo"'+(yourBuf?"":" disabled")+'>'+(busy?"Analyzing…":"📝 Grade my track")+'</button></div>'+
@@ -3563,11 +3580,12 @@ function renderInstructor(){
   const gc=$("#iGenre");Object.keys(GENRES).forEach(k=>{const b=document.createElement("button");b.className="rchip sm"+(k===gk?" sel":"");b.textContent=GENRES[k].name;b.onclick=()=>{gk=k;save(mk("inst","genre"),gk);if(yourBuf&&lastReport)renderReport();draw();};gc.appendChild(b);});
   $("#iYourF").onchange=e=>loadFile(e.target.files[0],"your");
   $("#iRefF").onchange=e=>loadFile(e.target.files[0],"ref");
+  $("#iStudio").onclick=async()=>{const st=$("#iYour");if(st)st.textContent="bouncing your Studio mix…";try{unlockAudio();const song=studioLoad();const rb=await studioRenderOffline(song);if(!rb){if(st)st.textContent="Studio is empty — record some tracks there first.";return;}yourBuf=rb;studioBuf=rb;yourName="Studio mix · "+(song.name||"My Song");lastReport=null;draw();runGrade();}catch(e){if(st)st.textContent="couldn't bounce the Studio mix";}};
   $("#iGo").onclick=runGrade;
   if(lastReport)renderReport();
  }
  let lastReport=null;
- function loadFile(file,which){if(!file)return;const nm=file.name;const status=$(which==="your"?"#iYour":"#iRef");if(status)status.textContent="decoding "+nm+"…";file.arrayBuffer().then(ab=>ac().decodeAudioData(ab.slice(0))).then(buf=>{if(which==="your"){yourBuf=buf;yourName=nm;lastReport=null;}else{refBuf=buf;refName=nm;}draw();}).catch(()=>{if(status)status.textContent="couldn't read that file — try a WAV or MP3";});}
+ function loadFile(file,which){if(!file)return;const nm=file.name;const status=$(which==="your"?"#iYour":"#iRef");if(status)status.textContent="decoding "+nm+"…";file.arrayBuffer().then(ab=>ac().decodeAudioData(ab.slice(0))).then(buf=>{if(which==="your"){yourBuf=buf;yourName=nm;studioBuf=null;lastReport=null;}else{refBuf=buf;refName=nm;}draw();}).catch(()=>{if(status)status.textContent="couldn't read that file — try a WAV or MP3";});}
  function runGrade(){if(!yourBuf||busy)return;busy=true;draw();setTimeout(()=>{try{const m=analyzeBuffer(yourBuf);const rm=refBuf?analyzeBuffer(refBuf):null;lastReport=gradeTrack(m,gk,rm);}catch(e){lastReport={error:(e&&e.message)||"analysis failed"};}busy=false;draw();if(!lastReport.error){addBeans(10,"Mix critique");burst(12);}},60);}
  function renderReport(){const rep=lastReport,el=$("#iReport");if(!el||!rep)return;if(rep.error){el.innerHTML='<div class="idea-fb" style="color:#e76f51">Couldn&rsquo;t analyze that file ('+esc(rep.error)+'). Try exporting a standard WAV or MP3.</div>';return;}
   const col=s=>s>=80?"#5fd38d":s>=60?"#e9c46a":"#e76f51";const bar=s=>'<div style="height:7px;background:var(--line);border-radius:5px;overflow:hidden;margin:5px 0 2px"><div style="height:100%;width:'+s+'%;background:'+col(s)+'"></div></div>';
@@ -3575,7 +3593,9 @@ function renderInstructor(){
   rep.cats.forEach(c=>{h+='<div style="margin:12px 0"><div style="display:flex;justify-content:space-between;font-weight:700"><span>'+c.label+'</span><span style="color:'+col(c.score)+'">'+c.score+'</span></div>'+bar(c.score)+'<div style="font-size:14px;margin:3px 0 2px">'+esc(c.verdict)+'</div><div style="font-size:13px;opacity:.82"><b>Fix:</b> '+esc(c.fix)+'</div></div>';});
   if(rep.ref){h+='<div class="rlab" style="display:block;margin:14px 0 5px">🎯 vs your reference</div><div class="idea-fb"><ul style="margin:0;padding-left:18px;line-height:1.5">'+rep.ref.map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></div>';}
   h+='<div class="rlab" style="display:block;margin:14px 0 5px">✨ Does it sound dated?</div><div class="idea-fb"><ul style="margin:0;padding-left:18px;line-height:1.5">'+rep.modern.map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></div>';
-  el.innerHTML=h;}
+  if(studioBuf)h+='<div class="actions" style="margin:12px 0 2px"><button class="btn ghost" id="iWav">⬇ Download this mix (WAV)</button></div>';
+  el.innerHTML=h;
+  const wb=$("#iWav");if(wb)wb.onclick=()=>downloadBytes(bufferToWav(studioBuf),(yourName||"studio-mix").replace(/[^a-z0-9]+/gi,"_").replace(/^_|_$/g,"")+".wav","audio/wav");}
  draw();
 }
 const MUSE_SVC=0xfe8d, MUSE_CTRL="273e0001-4c4d-454d-96be-f03bac821358",
