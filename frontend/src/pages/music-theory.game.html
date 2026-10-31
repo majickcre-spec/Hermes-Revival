@@ -159,8 +159,12 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .rsay{text-align:center;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:1.15rem;letter-spacing:1px;color:var(--gold);margin:4px 0 14px;min-height:24px}
 .rcells{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:6px 0 16px}
 .rbeat{display:flex;gap:5px}
-.rcell{width:34px;height:44px;border-radius:9px;background:var(--card2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:.9rem;color:var(--muted);transition:background .05s,transform .05s}
+.rcell{width:34px;height:46px;border-radius:9px;background:var(--card2);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:.9rem;color:var(--muted);transition:background .05s,transform .05s}
 .rcell.act{color:var(--cream);border-color:var(--violet);background:rgba(165,121,255,.14)}
+.rcell.acc{border-color:var(--gold);background:rgba(255,206,110,.14);box-shadow:inset 0 2.5px 0 var(--gold)}
+.rcell.acc span{font-weight:800}
+.rcell.ghost{opacity:.52}
+.rcell.ghost span{font-size:.76rem}
 .rcell.on{background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#241800;border-color:var(--gold);transform:translateY(-3px);box-shadow:0 6px 16px rgba(255,111,163,.5)}
 .rcell.on span{font-weight:800}
 .rrow{display:flex;align-items:center;gap:12px;margin:10px 2px}
@@ -2226,34 +2230,42 @@ function renderSongBuilder(){
 let NOISE_BUF=null;
 function noiseBuf(a){if(NOISE_BUF)return NOISE_BUF;const n=Math.floor(a.sampleRate*0.3),b=a.createBuffer(1,n,a.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;return NOISE_BUF=b;}
 function djNoise(a,time,dur,freq,lvl,out,hp){const s=a.createBufferSource();s.buffer=noiseBuf(a);const f=a.createBiquadFilter();f.type=hp?"highpass":"bandpass";f.frequency.value=freq;f.Q.value=0.8;const g=a.createGain();g.gain.setValueAtTime(lvl,time);g.gain.exponentialRampToValueAtTime(0.0001,time+dur);s.connect(f);f.connect(g);g.connect(out);s.start(time);s.stop(time+dur+0.02);}
-function djembe(time,kind){const a=ac(),out=pianoMaster(a);
+function djembe(time,kind,vel){const a=ac(),out=pianoMaster(a),v=vel==null?1:Math.max(0.15,Math.min(1,vel));
   if(kind==="bass"){const o=a.createOscillator(),g=a.createGain();o.type="sine";o.frequency.setValueAtTime(120,time);o.frequency.exponentialRampToValueAtTime(52,time+0.14);
-    g.gain.setValueAtTime(0.0001,time);g.gain.exponentialRampToValueAtTime(0.95,time+0.004);g.gain.exponentialRampToValueAtTime(0.0001,time+0.4);o.connect(g);g.connect(out);o.start(time);o.stop(time+0.42);}
+    g.gain.setValueAtTime(0.0001,time);g.gain.exponentialRampToValueAtTime(0.95*v,time+0.004);g.gain.exponentialRampToValueAtTime(0.0001,time+0.4);o.connect(g);g.connect(out);o.start(time);o.stop(time+0.42);}
   else if(kind==="tone"){const o=a.createOscillator(),g=a.createGain();o.type="sine";o.frequency.setValueAtTime(215,time);o.frequency.exponentialRampToValueAtTime(178,time+0.1);
-    g.gain.setValueAtTime(0.0001,time);g.gain.exponentialRampToValueAtTime(0.7,time+0.004);g.gain.exponentialRampToValueAtTime(0.0001,time+0.26);o.connect(g);g.connect(out);o.start(time);o.stop(time+0.28);
-    djNoise(a,time,0.05,1300,0.28,out,false);}
-  else{djNoise(a,time,0.09,2800,0.6,out,true);const o=a.createOscillator(),g=a.createGain();o.type="triangle";o.frequency.value=400;
-    g.gain.setValueAtTime(0.0001,time);g.gain.exponentialRampToValueAtTime(0.3,time+0.003);g.gain.exponentialRampToValueAtTime(0.0001,time+0.06);o.connect(g);g.connect(out);o.start(time);o.stop(time+0.07);}}
+    g.gain.setValueAtTime(0.0001,time);g.gain.exponentialRampToValueAtTime(0.7*v,time+0.004);g.gain.exponentialRampToValueAtTime(0.0001,time+0.26);o.connect(g);g.connect(out);o.start(time);o.stop(time+0.28);
+    djNoise(a,time,0.05,1300,0.28*v,out,false);}
+  else{djNoise(a,time,0.09,2800,0.6*v,out,true);const o=a.createOscillator(),g=a.createGain();o.type="triangle";o.frequency.value=400;
+    g.gain.setValueAtTime(0.0001,time);g.gain.exponentialRampToValueAtTime(0.3*v,time+0.003);g.gain.exponentialRampToValueAtTime(0.0001,time+0.06);o.connect(g);g.connect(out);o.start(time);o.stop(time+0.07);}}
+/* stick/dyn: one char per HIT (R-lead; mirrored for a left lead). dyn A=accent(hard) n=normal o=ghost(soft) */
 const DJEMBE_PATTERNS=[
- {name:"Warm-up · Bass–Tone–Slap",div:4,pat:"B...T...S...T..."},
- {name:"Tone–Slap eighths",div:4,pat:"T.S.T.S.T.S.T.S."},
- {name:"Gallop (B T T)",div:4,pat:"B.TTB.TTB.TTB.TT"},
- {name:"Kuku (simple)",div:4,pat:"B..TT..SB..TT..S"},
- {name:"Djansa (simple)",div:4,pat:"B.T.S.T.B.T.S.T."},
- {name:"Sunu (simple)",div:4,pat:"BT.STB.SBT.STB.S"},
- {name:"Kassa (simple)",div:4,pat:"B.TTS.TTB.TTS.TT"},
- {name:"Fanga (simple)",div:4,pat:"B.T.BTS.B.T.BTS."},
- {name:"Bass & Slap",div:4,pat:"B..SB..SB..SB..S"},
- {name:"Tone roll",div:4,pat:"TTTTTTTTTTTTTTTT"},
- {name:"6/8 Groove",div:3,pat:"B.TS.TB.TS.T"},
+ {name:"Warm-up · Bass–Tone–Slap",div:4,pat:"B...T...S...T...",stick:"RLRL",dyn:"Annn"},
+ {name:"Tone–Slap eighths",div:4,pat:"T.S.T.S.T.S.T.S.",stick:"RLRLRLRL",dyn:"AnAnAnAn"},
+ {name:"Gallop (B T T)",div:4,pat:"B.TTB.TTB.TTB.TT",stick:"RLRRLRRLRRLR",dyn:"AnoAnoAnoAno"},
+ {name:"Kuku",div:4,pat:"B..TT..SB..TT..S",stick:"RLRLRLRL",dyn:"AnonAnon"},
+ {name:"Djansa",div:4,pat:"B.T.S.T.B.T.S.T.",stick:"RLRLRLRL",dyn:"AnAnAnAn"},
+ {name:"Sunu",div:4,pat:"BT.STB.SBT.STB.S",stick:"RLRLRLRLRLRL",dyn:"AnnnAnAnnnAn"},
+ {name:"Kassa",div:4,pat:"B.TTS.TTB.TTS.TT",stick:"RLRLRLRLRLRL",dyn:"AnonnoAnonno"},
+ {name:"Fanga",div:4,pat:"B.T.BTS.B.T.BTS.",stick:"RLRLRLRLRL",dyn:"AnAnnAnAnn"},
+ {name:"Bass & Slap",div:4,pat:"B..SB..SB..SB..S",stick:"RLRLRLRL",dyn:"AnAnAnAn"},
+ {name:"Tone roll",div:4,pat:"TTTTTTTTTTTTTTTT",stick:"RLRLRLRLRLRLRLRL",dyn:"AnnnAnnnAnnnAnnn"},
+ {name:"6/8 Groove",div:3,pat:"B.TS.TB.TS.T",stick:"RLRLRLRL",dyn:"AnnnAnnn"},
  {name:"12/8 Bembe",div:3,pat:"B.TS.TBT.S.T"}
 ];
 const DJ={bpm:100,patIdx:0,running:false,cur:0,nextTime:0,schID:null,raf:null,visQ:[],litCell:-1,barCount:0,
-  playPattern:true,metClick:true,scoring:false,countIn:1,t0:0,countEndTime:0,taps:[],hand:"R",lead:"R",stick:null,measures:4,playEndTime:1/0,endTime:1/0,refresh:null,
+  playPattern:true,metClick:true,scoring:false,countIn:1,t0:0,countEndTime:0,taps:[],hand:"R",lead:"R",stick:null,dyn:null,measures:4,playEndTime:1/0,endTime:1/0,refresh:null,
   buf:null,floor:null,lastPeak:0,lastOnset:0,detected:[],expected:[],resolved:0,inPocket:0,matched:0,errAbs:0};
 function DJP(){return DJEMBE_PATTERNS[DJ.patIdx];}
 function djSteps(P){const s=P.pat.split("");while(s.length<4*P.div)s.push(".");return s;}
-function djStick(P,lead){const st=djSteps(P),out=new Array(st.length).fill(null);let h=lead||"R";for(let i=0;i<st.length;i++){if(st[i]&&st[i]!=="."){out[i]=h;h=(h==="R"?"L":"R");}}return out;}
+const DJVEL={A:1.0,n:0.72,o:0.42};
+function djStick(P,lead){const st=djSteps(P),out=new Array(st.length).fill(null),S=P.stick||"";let k=0,alt="R";
+  for(let i=0;i<st.length;i++){if(st[i]&&st[i]!=="."){const h=(S[k]==="R"||S[k]==="L")?S[k]:alt;out[i]=h;alt=(alt==="R"?"L":"R");k++;}}
+  if((lead||"R")==="L"){for(let i=0;i<out.length;i++)if(out[i])out[i]=(out[i]==="R"?"L":"R");}
+  return out;}
+function djDyn(P){const st=djSteps(P),out=new Array(st.length).fill(null),D=P.dyn||"";let k=0;
+  for(let i=0;i<st.length;i++){if(st[i]&&st[i]!=="."){let d=D[k];if(d!=="A"&&d!=="o")d="n";out[i]=d;k++;}}
+  return out;}
 function djScoreKey(){return mk("djscore",DJ.patIdx+"m"+DJ.measures);}
 function djScores(){return load(djScoreKey(),[]);}
 function djSaveScore(){if(!DJ.scoring||DJ.resolved<6)return;const acc=Math.round(100*DJ.inPocket/DJ.resolved),ms=DJ.matched?Math.round(1000*DJ.errAbs/DJ.matched):0;const arr=djScores();arr.push({t:Date.now(),bpm:DJ.bpm,acc,ms,bars:DJ.measures});while(arr.length>40)arr.shift();save(djScoreKey(),arr);DJ.resolved=0;if(activeId())addBeans(acc>=80?3:1);}
@@ -2262,7 +2274,7 @@ function djSchedule(){const a=ac(),ahead=0.12,P=DJP(),div=P.div,cells=4*div,cell
   while(DJ.nextTime<a.currentTime+ahead){if(DJ.nextTime>=DJ.playEndTime)break;const cell=DJ.cur,onBeat=cell%div===0,inCount=DJ.barCount<DJ.countIn,ch=st[cell];
     if(DJ.metClick&&onBeat)click(DJ.nextTime,cell===0?"accent":"beat");
     if(!inCount){
-      if(DJ.playPattern&&ch&&ch!==".")djembe(DJ.nextTime,ch==="B"?"bass":ch==="T"?"tone":"slap");
+      if(DJ.playPattern&&ch&&ch!==".")djembe(DJ.nextTime,ch==="B"?"bass":ch==="T"?"tone":"slap",DJVEL[(DJ.dyn&&DJ.dyn[cell])||"n"]||0.72);
       if(DJ.scoring&&ch&&ch!==".")DJ.expected.push({t:DJ.nextTime,done:false});
     }
     DJ.visQ.push({t:DJ.nextTime,cell,hit:(!inCount&&ch&&ch!==".")?ch:null});DJ.nextTime+=cellDur;DJ.cur=(DJ.cur+1)%cells;if(DJ.cur===0)DJ.barCount++;
@@ -2293,14 +2305,14 @@ function djFrame(){const now=ac().currentTime;while(DJ.visQ.length&&DJ.visQ[0].t
   if(DJ.scoring){djDetect(now,!inCount);if(!inCount)djMatch(now);djScoreUI();}
   if(DJ.running&&DJ.scoring&&now>=DJ.endTime){djStop();if(DJ.refresh)DJ.refresh();return;}
   DJ.raf=requestAnimationFrame(djFrame);}
-function djStart(){unlockAudio();if(DJ.running)return;const a=ac();DJ.running=true;DJ.cur=0;DJ.nextTime=a.currentTime+0.15;DJ.visQ=[];DJ.litCell=-1;DJ.barCount=0;
+function djStart(){unlockAudio();if(DJ.running)return;const a=ac();DJ.stick=djStick(DJP(),DJ.lead);DJ.dyn=djDyn(DJP());DJ.running=true;DJ.cur=0;DJ.nextTime=a.currentTime+0.15;DJ.visQ=[];DJ.litCell=-1;DJ.barCount=0;
   DJ.t0=DJ.nextTime;const barDur=(60/DJ.bpm)*4;DJ.countEndTime=DJ.t0+DJ.countIn*barDur;DJ.expected=[];DJ.detected=[];DJ.resolved=0;DJ.inPocket=0;DJ.matched=0;DJ.errAbs=0;DJ.floor=null;DJ.lastPeak=0;
   if(DJ.scoring){DJ.playEndTime=DJ.countEndTime+DJ.measures*barDur;DJ.endTime=DJ.playEndTime+0.4;}else{DJ.playEndTime=1/0;DJ.endTime=1/0;}
   DJ.schID=setInterval(djSchedule,25);DJ.raf=requestAnimationFrame(djFrame);const b=$("#djStart");if(b)b.textContent="⏸ Stop";}
-function djRenderCells(){const box=$("#djCells");if(!box)return;const P=DJP(),div=P.div,st=djSteps(P);DJ.stick=djStick(P,DJ.lead);box.innerHTML="";
+function djRenderCells(){const box=$("#djCells");if(!box)return;const P=DJP(),div=P.div,st=djSteps(P);DJ.stick=djStick(P,DJ.lead);DJ.dyn=djDyn(P);box.innerHTML="";
   for(let beat=0;beat<4;beat++){const grp=document.createElement("div");grp.className="rbeat";
-    for(let s=0;s<div;s++){const cell=beat*div+s,ch=st[cell],hit=ch&&ch!==".",h=DJ.stick[cell],d=document.createElement("div");
-      d.className="rcell"+(hit?" act "+ch:"")+(div===3?" trip":"");d.innerHTML=`<span>${hit?ch:"·"}</span>`+(hit?`<i class="djst ${h==="R"?"r":"l"}">${h}</i>`:"");grp.appendChild(d);}
+    for(let s=0;s<div;s++){const cell=beat*div+s,ch=st[cell],hit=ch&&ch!==".",h=DJ.stick[cell],dy=DJ.dyn[cell],d=document.createElement("div");
+      d.className="rcell"+(hit?" act "+ch:"")+(div===3?" trip":"")+(hit&&dy==="A"?" acc":hit&&dy==="o"?" ghost":"");d.innerHTML=`<span>${hit?ch:"·"}</span>`+(hit?`<i class="djst ${h==="R"?"r":"l"}">${h}</i>`:"");grp.appendChild(d);}
     box.appendChild(grp);}
   DJ.litCell=-1;}
 /* ===== BEAT MAKER — layered step sequencer: djembe + handpan together ===== */
@@ -2497,6 +2509,64 @@ function renderDexterity(inst){
   }
   draw();
 }
+/* ===== STRIKE CHECK — reads the sound of each hit to grade slap/tone/bass quality ===== */
+function djStrikeFeat(){const N=toneAnalyser.frequencyBinCount,freq=new Float32Array(N);toneAnalyser.getFloatFrequencyData(freq);const bin=ac().sampleRate/toneAnalyser.fftSize;
+  let tot=0,cen=0,sub=0,low=0,mid=0,pres=0,high=0,air=0;
+  for(let i=1;i<N;i++){const f=i*bin,m=Math.pow(10,freq[i]/20);if(!isFinite(m)||m<=0)continue;tot+=m;cen+=f*m;
+    if(f<120)sub+=m;else if(f<300)low+=m;else if(f<900)mid+=m;else if(f<2500)pres+=m;else if(f<7000)high+=m;else air+=m;}
+  if(tot<=0)return null;return {centroid:cen/tot,lowness:(sub+low)/tot,midness:mid/tot,bright:(high+air)/tot};}
+function djStrikeScore(ft,target){const cl=x=>Math.max(0,Math.min(1,x));let score,heard;
+  if(ft.lowness>0.48&&ft.centroid<340)heard="bass";else if(ft.bright>0.28&&ft.centroid>1500)heard="slap";else heard="tone";
+  if(target==="bass")score=(ft.lowness*0.6+cl(1-(ft.centroid-110)/360)*0.4)*100;
+  else if(target==="slap")score=(ft.bright*0.55+cl((ft.centroid-1200)/2600)*0.45)*100;
+  else score=(cl(1-Math.abs(ft.centroid-620)/680)*0.55+ft.midness*0.45)*100;
+  score=Math.round(Math.max(5,Math.min(100,score)));
+  const tips={bass:"Flat whole hand in the CENTER, bounce off and let it resonate — think deep &amp; round.",tone:"Fingers together on the EDGE, bounce off cleanly — think clear &amp; ringing.",slap:"Relaxed fingers SNAP off the rim, let them crack — think bright &amp; sharp."};
+  return {score,heard,tip:tips[target]};}
+const STK={target:"slap",hits:[],listening:false,raf:null,floor:null,lastPeak:0,lastOn:0,buf:null,need:6};
+const STK_NAMES={bass:"Bass",tone:"Tone",slap:"Slap"};
+function renderStrikeCheck(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  STK.hits=[];STK.listening=false;
+  teardown=()=>{if(STK.raf)cancelAnimationFrame(STK.raf);STK.raf=null;stopMic();};
+  function draw(){
+    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎯 Strike Check</span></div>
+      <div class="panel">
+        <div class="intro">Check the <b>quality of your strikes</b> on your real djembe. Pick a stroke, press <b>Listen</b>, and play it <b>${STK.need} times</b>. I read the <b>sound</b> of each hit — is it landing bright and sharp like a slap, deep and round like a bass, clear and ringing like a tone? — and score how clean and consistent they are.</div>
+        <div class="rrow2"><span class="rlab">Stroke</span><span class="rchips tight">${["bass","tone","slap"].map(k=>`<button class="rchip sm${STK.target===k?" sel":""}" data-k="${k}">${STK_NAMES[k]}</button>`).join("")}</span></div>
+        <div class="djlegend" id="stkTip"></div>
+        <div class="actions"><button class="btn" id="stkGo">${STK.listening?"■ Stop":"🎤 Listen"}</button></div>
+        <div class="rscore"><div class="racc" id="stkCount">${STK.hits.length}/${STK.need}</div><div class="rfeel" id="stkLive">Pick a stroke and press Listen</div></div>
+        <div id="stkList"></div><div id="stkSummary"></div>
+        <div class="djlegend" style="opacity:.75;margin-top:8px">A practice mirror, not a judge — mic, drum and room all colour the sound. Use it to hear whether your three strokes are <b>distinct</b> and landing where they should.</div>
+      </div>`;
+    $("#eBack").onclick=()=>{if(STK.raf)cancelAnimationFrame(STK.raf);STK.raf=null;stopMic();renderDjembe();};
+    view.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{if(STK.listening)return;STK.target=b.dataset.k;STK.hits=[];draw();});
+    $("#stkTip").innerHTML="How to play it: "+djStrikeScore({centroid:0,lowness:0,midness:0,bright:0},STK.target).tip;
+    $("#stkGo").onclick=toggleListen;renderList();renderSummary();}
+  function renderList(){const el=$("#stkList");if(!el)return;if(!STK.hits.length){el.innerHTML="";return;}
+    el.innerHTML='<div class="rlab" style="display:block;margin:10px 0 5px">Your hits</div>'+STK.hits.map((h,i)=>{const c=h.score>=75?"#5fd38d":h.score>=50?"#e9c46a":"#e76f51",ok=h.heard===STK.target;return `<div style="display:flex;justify-content:space-between;padding:6px 2px;border-bottom:1px solid var(--line)"><span>#${i+1} · heard as <b style="color:${ok?'#5fd38d':'#e9c46a'}">${h.heard}</b></span><b style="color:${c}">${h.score}</b></div>`;}).join("");}
+  function renderSummary(){const el=$("#stkSummary");if(!el)return;if(STK.hits.length<STK.need){el.innerHTML="";return;}
+    const avg=Math.round(STK.hits.reduce((a,b)=>a+b.score,0)/STK.hits.length),right=STK.hits.filter(h=>h.heard===STK.target).length,
+      scores=STK.hits.map(h=>h.score),spread=Math.max.apply(null,scores)-Math.min.apply(null,scores),
+      consist=spread<=18?"very consistent":spread<=32?"fairly consistent":"inconsistent — work on evening them out",
+      col=avg>=75?"#5fd38d":avg>=50?"#e9c46a":"#e76f51",tgt=STK_NAMES[STK.target].toLowerCase();
+    const c={bass:0,tone:0,slap:0};STK.hits.forEach(h=>c[h.heard]++);let other="tone",mx=-1;for(const k in c)if(k!==STK.target&&c[k]>mx){mx=c[k];other=k;}
+    let msg=right>=STK.need-1&&avg>=75?("Clean "+tgt+"s — landing right and "+consist+". 🔥"):right>=Math.ceil(STK.need/2)?("Getting there — most read as "+tgt+"s. "+STK.hits[0].tip):("They&rsquo;re reading as "+other+"s more than "+tgt+"s. "+STK.hits[0].tip);
+    const key=mk("djstrike",STK.target),arr=load(key,[]);arr.push({t:Date.now(),avg,right});while(arr.length>40)arr.shift();save(key,arr);if(activeId())addBeans(avg>=75?3:1);
+    let hist="";if(arr.length>=2){const best=Math.max.apply(null,arr.map(x=>x.avg)),last=arr[arr.length-1].avg,prev=arr[arr.length-2].avg,tr=last>prev+3?"▲ up":last<prev-3?"▼ down":"→ steady";hist=`<div class="djlegend" style="margin-top:8px">Best ${best} · last ${last} · ${arr.length} checks · ${tr}</div>`;}
+    el.innerHTML=`<div class="idea-fb" style="margin-top:12px;text-align:center"><div style="font-size:2rem;font-weight:800;color:${col}">${avg}</div><div style="opacity:.7;font-size:13px">${right}/${STK.need} landed as a ${tgt} · ${consist}</div><div style="margin-top:8px">${msg}</div>${hist}</div><div class="actions"><button class="btn" id="stkAgain">Again</button></div>`;
+    $("#stkAgain").onclick=()=>{STK.hits=[];draw();};}
+  async function toggleListen(){
+    if(STK.listening){STK.listening=false;if(STK.raf)cancelAnimationFrame(STK.raf);STK.raf=null;draw();return;}
+    const ok=await ensureMic();if(!ok){const l=$("#stkLive");if(l)l.textContent="I need the mic to hear your drum.";return;}
+    STK.buf=new Float32Array(toneAnalyser.fftSize);STK.hits=[];STK.floor=null;STK.lastPeak=0;STK.lastOn=0;STK.listening=true;draw();
+    const live=$("#stkLive");if(live)live.textContent="Listening… play your "+STK_NAMES[STK.target].toLowerCase();
+    (function loop(){if(!STK.listening)return;const now=ac().currentTime;toneAnalyser.getFloatTimeDomainData(STK.buf);let peak=0,sum=0;for(let i=0;i<STK.buf.length;i++){const v=Math.abs(STK.buf[i]);if(v>peak)peak=v;sum+=v*v;}
+      const rms=Math.sqrt(sum/STK.buf.length);STK.floor=STK.floor==null?rms:STK.floor*0.95+rms*0.05;const thr=Math.max(0.03,STK.floor*4);
+      if(peak>thr&&STK.lastPeak<=thr*0.6&&now-STK.lastOn>0.14){STK.lastOn=now;const ft=djStrikeFeat();if(ft){const r=djStrikeScore(ft,STK.target);STK.hits.push(r);const cEl=$("#stkCount");if(cEl)cEl.textContent=STK.hits.length+"/"+STK.need;const lv=$("#stkLive");if(lv)lv.innerHTML="heard a <b>"+r.heard+"</b> · "+r.score;renderList();if(STK.hits.length>=STK.need){STK.listening=false;STK.raf=null;draw();return;}}}
+      STK.lastPeak=peak;STK.raf=requestAnimationFrame(loop);})();}
+  draw();
+}
 async function renderDjembe(){
   if(toneRAF)cancelAnimationFrame(toneRAF);djStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   teardown=()=>{djStop();stopMic();};
@@ -2506,14 +2576,14 @@ async function renderDjembe(){
       <div class="panel">
         <div class="intro">Pick a pattern — it loops with <b>bass/tone/slap</b> so you can play along and lock the tempo. Mute the pattern to keep just the click, or turn on <b>Score</b> to check your timing with the mic. Tap the pads to practice the three strokes.</div>
         <div class="rchips" id="djChips"></div>
-        <div class="djlegend"><b style="color:#c9b3ff">B</b> Bass (center) · <b style="color:#ffd9a8">T</b> Tone (edge) · <b style="color:#bfe3ff">S</b> Slap (sharp edge) — the <b style="color:#ffce6e">R</b>/<b style="color:#8fd0ff">L</b> letter shows which hand strikes each one (hands alternate).</div>
+        <div class="djlegend"><b style="color:#c9b3ff">B</b> Bass (center) · <b style="color:#ffd9a8">T</b> Tone (edge) · <b style="color:#bfe3ff">S</b> Slap (sharp edge). The <b style="color:#ffce6e">R</b>/<b style="color:#8fd0ff">L</b> under each hit is the <b>sticking</b> (which hand). A <b style="color:#ffce6e">gold top</b> = accent (hit harder); a <b>dimmed</b> cell = ghost note (soft). That&rsquo;s the dynamics — loud and soft are what make it groove.</div>
         <div class="rrow2"><span class="rlab">Lead hand</span>${toggleChip("djLeadR","✋ Right",DJ.lead==="R")}${toggleChip("djLeadL","🤚 Left",DJ.lead==="L")}</div>
         <div class="drum">
           <div class="drum-head"></div><div class="drum-edge"></div><div class="drum-bass">bass</div>
           <div class="flashzone" id="drumFlash"></div><div class="drum-lbl" id="drumLbl"></div>
           <div class="djhand" id="djHand"></div>
         </div>
-        <div class="actions"><button class="btn ghost" id="djCR">🔁 Call &amp; Response</button><button class="btn ghost" id="djDex">👐 Hand independence</button><button class="btn ghost" id="djBeat">🧩 Beat Maker</button></div>
+        <div class="actions"><button class="btn ghost" id="djStrike">🎯 Strike Check</button><button class="btn ghost" id="djCR">🔁 Call &amp; Response</button><button class="btn ghost" id="djDex">👐 Hand independence</button><button class="btn ghost" id="djBeat">🧩 Beat Maker</button></div>
         <div class="rbanner" id="djBanner" hidden></div>
         <div class="rcells" id="djCells"></div>
         <div class="rrow"><span class="rlab">Tempo</span><input type="range" id="djBpm" min="50" max="180" value="${DJ.bpm}" style="flex:1"><span class="rbpm" id="djBpmV">${DJ.bpm}</span><button class="rtap" id="djTap">Tap</button></div>
@@ -2543,6 +2613,7 @@ async function renderDjembe(){
     $("#djStart").onclick=()=>{unlockAudio();DJ.refresh=draw;if(DJ.running){djStop();draw();}else djStart();};
     const mz=$("#djMeas");if(mz){[1,2,3,4,8].forEach(n=>{const b=document.createElement("button");b.className="rchip sm"+(DJ.measures===n?" sel":"");b.textContent=n+(n===1?" bar":" bars");b.onclick=()=>{DJ.measures=n;draw();};mz.appendChild(b);});}
     const hist=$("#djHist");if(hist){const sc=djScores();if(sc.length){const best=Math.max.apply(null,sc.map(x=>x.acc)),last=sc[sc.length-1].acc,prev=sc.slice(0,-1),avgPrev=prev.length?Math.round(prev.reduce((a,b)=>a+b.acc,0)/prev.length):null,trend=avgPrev!=null?(last>avgPrev+3?"▲ improving":last<avgPrev-3?"▼ off today":"→ steady"):"";hist.innerHTML='<b>Your progress</b> · Best <b style="color:#5fd38d">'+best+'%</b> · Last '+last+'% · '+sc.length+' run'+(sc.length>1?"s":"")+(trend?' · '+trend:'');}else{hist.innerHTML='Play a scored round and press Stop — your best and last for <b>'+esc(DJP().name)+'</b> will track here.';}}
+    const stk=$("#djStrike");if(stk)stk.onclick=()=>{djStop();renderStrikeCheck();};
     const crb=$("#djCR");if(crb)crb.onclick=()=>{djStop();renderCR();};
     const ddx=$("#djDex");if(ddx)ddx.onclick=()=>{djStop();renderDexterity("djembe");};
     const dbt=$("#djBeat");if(dbt)dbt.onclick=()=>{djStop();renderBeat("djembe");};
@@ -2573,7 +2644,7 @@ async function crGo(){
   const ok=await ensureMic();const st=$("#crStatus");
   if(!ok){if(st)st.textContent="I need the mic to hear you play.";return;}
   CR.buf=new Float32Array(toneAnalyser.fftSize);
-  const a=ac(),P=DJP(),div=P.div,steps=djSteps(P),spb=60/DJ.bpm,cellDur=spb/div,barDur=spb*4,cpb=4*div;DJ.stick=djStick(P,DJ.lead);
+  const a=ac(),P=DJP(),div=P.div,steps=djSteps(P),spb=60/DJ.bpm,cellDur=spb/div,barDur=spb*4,cpb=4*div;DJ.stick=djStick(P,DJ.lead);DJ.dyn=djDyn(P);
   CR.viz=[];CR.expected=[];CR.detected=[];CR.floor=null;CR.lastPeak=0;CR.lastOnset=0;CR.resolved=0;CR.inPocket=0;CR.matched=0;CR.errAbs=0;
   const res=$("#crResults");if(res)res.innerHTML="";
   let t=a.currentTime+0.3;
