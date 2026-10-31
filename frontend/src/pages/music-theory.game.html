@@ -3333,8 +3333,61 @@ function renderBass(){
 
 /* ===== BIOFEEDBACK — Muse 2 live monitor (Web Bluetooth) ===== */
 const BIO_CARDS=[
- {ic:"🧠",title:"Live Monitor",blurb:"Connect your Muse and watch your brainwaves (alpha/theta/beta) and heart rhythm in real time.",go:()=>openBio()}
+ {ic:"🧠",title:"Live Monitor",blurb:"Connect your Muse and watch your brainwaves (alpha/theta/beta) and heart rhythm in real time.",go:()=>openBio()},
+ {ic:"🌍",title:"Earth Frequency",blurb:"The Schumann resonance (7.83 Hz) made audible — a drone, a felt pulse, and a slow beat shaped by today's real geomagnetic activity.",go:()=>renderEarthFreq()}
 ];
+/* ===== EARTH FREQUENCY — Schumann 7.83 Hz made audible, shaped by today's geomagnetic data ===== */
+let EF=null;
+function efStop(){if(!EF)return;const ef=EF;EF=null;try{const a=ac();ef.master.gain.cancelScheduledValues(a.currentTime);ef.master.gain.setTargetAtTime(0.0001,a.currentTime,0.25);}catch(e){}if(ef.beatTimer)clearInterval(ef.beatTimer);setTimeout(()=>{ef.oscs.forEach(o=>{try{o.stop();}catch(e){}});},700);}
+function efStart(intensity,mode,vol){efStop();unlockAudio();const a=ac(),I=Math.max(0,Math.min(1,(intensity||0)/100)),root=7.83*32,oscs=[];
+  const master=a.createGain();master.gain.value=0.0001;master.connect(a.destination);master.gain.setTargetAtTime((vol==null?0.6:vol),a.currentTime,0.6);
+  const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=380+I*2000;lp.connect(master);
+  function drone(mult,level){const o=a.createOscillator();o.type="sine";o.frequency.value=root*mult;const g=a.createGain();g.gain.value=level;o.connect(g);g.connect(lp);o.start();oscs.push(o);}
+  if(mode==="binaural"){const L=a.createOscillator();L.type="sine";L.frequency.value=root;const R=a.createOscillator();R.type="sine";R.frequency.value=root+7.83;const gl=a.createGain();gl.gain.value=0.2;const gr=a.createGain();gr.gain.value=0.2;const pl=a.createStereoPanner();pl.pan.value=-1;const pr=a.createStereoPanner();pr.pan.value=1;L.connect(gl);gl.connect(pl);pl.connect(lp);R.connect(gr);gr.connect(pr);pr.connect(lp);L.start();R.start();oscs.push(L,R);}
+  else{drone(1,0.14);drone(2,0.07);drone(1.5,0.06);
+    const po=a.createOscillator();po.type="sine";po.frequency.value=root;const pg=a.createGain();pg.gain.value=0.11;po.connect(pg);pg.connect(lp);po.start();oscs.push(po);
+    const lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=7.83;const lg=a.createGain();lg.gain.value=0.11;lfo.connect(lg);lg.connect(pg.gain);lfo.start();oscs.push(lfo);}
+  if(I>0.5){[14.3,20.8].forEach(f=>{const o=a.createOscillator();o.type="sine";o.frequency.value=f*16;const g=a.createGain();g.gain.value=0.02*I;o.connect(g);g.connect(lp);o.start();oscs.push(o);});}
+  const bpm=7.83*60/8,spb=60/bpm;let beatI=0;
+  function kick(t,lvl){const o=a.createOscillator();o.type="sine";o.frequency.setValueAtTime(92,t);o.frequency.exponentialRampToValueAtTime(40,t+0.12);const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(lvl,t+0.005);g.gain.exponentialRampToValueAtTime(0.0001,t+0.26);o.connect(g);g.connect(master);o.start(t);o.stop(t+0.3);}
+  const beatTimer=setInterval(()=>{const t=a.currentTime+0.05,step=beatI%4;if(step===0)kick(t,0.5);else if(I>0.6&&step===2)kick(t,0.3);else if(I>0.82&&step%1===0)kick(t,0.16);beatI++;},spb*1000);
+  EF={master,oscs,beatTimer};}
+function efKpLabel(kp){return kp<2?"Quiet":kp<4?"Unsettled":kp<5?"Active":kp<6?"Minor storm (G1)":kp<7?"Storm (G2)":"Strong storm";}
+function renderEarthFreq(){
+  if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  let intensity=load(mk("earth","intensity"),24),mode=load(mk("earth","mode"),"iso"),vol=0.6,kp=null;
+  teardown=()=>{efStop();};
+  function draw(){
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌍 Earth Frequency</span></div><div class="panel">'+
+      '<div class="intro">The <b>Schumann resonance</b> is the Earth&rsquo;s background hum in the gap between the ground and the ionosphere — a fundamental around <b>7.83 Hz</b> (plus harmonics). It&rsquo;s below hearing, so here it&rsquo;s octaved up into a <b>drone</b>, pulsed at the real <b>7.83 Hz</b> so you can feel it, and given a slow <b>beat</b> (~59 BPM, the Earth tempo). How calm or spiky it feels today is set from <b>real NOAA geomagnetic data</b>.</div>'+
+      '<div class="rlab" style="display:block;margin:4px 0 6px">Today&rsquo;s spectrogram (Tomsk station)</div>'+
+      '<img id="efImg" alt="Schumann spectrogram" style="width:100%;border-radius:10px;border:1px solid var(--line)" referrerpolicy="no-referrer">'+
+      '<div class="site-note" id="efImgNote">via schumannresonance.today · bright bursts = spikes. One station, so a spike can be local weather, not a global event.</div>'+
+      '<div class="idea-fb" id="efToday">Checking today&rsquo;s geomagnetic activity…</div>'+
+      '<div class="rrow"><span class="rlab">Intensity</span><input type="range" id="efInt" min="0" max="100" value="'+intensity+'" style="flex:1"><span class="rbpm" id="efIntV">'+intensity+'</span></div>'+
+      '<div class="site-note">Calm ← → Spiky. Auto-set from today&rsquo;s data; nudge it to match what you see on the chart.</div>'+
+      '<div class="rrow2"><span class="rlab">Mode</span><span class="rchips tight"><button class="rchip sm'+(mode==="iso"?" sel":"")+'" id="efIso">🔊 Isochronic</button><button class="rchip sm'+(mode==="binaural"?" sel":"")+'" id="efBin">🎧 Binaural</button></span></div>'+
+      '<div class="rrow"><span class="rlab">Volume</span><input type="range" id="efVol" min="0" max="1" step="0.01" value="'+vol+'" style="flex:1"></div>'+
+      '<div class="actions"><button class="btn" id="efPlay">▶ Play the Earth tone</button></div>'+
+      '<div class="site-note">Headphones recommended — essential for the Binaural mode (the 7.83 Hz lives in the difference between your ears).</div></div>';
+    $("#eBack").onclick=goHome;
+    const img=$("#efImg");img.src="https://schumannresonance.today/live/tomsk1.jpg?t="+Date.now();img.onerror=()=>{img.style.display="none";const n=$("#efImgNote");if(n)n.innerHTML='Couldn&rsquo;t load the live chart here — see it at <a href="https://schumannresonance.today/" target="_blank" rel="noopener" style="color:#9bd0ff">schumannresonance.today ↗</a>';};
+    const ii=$("#efInt");ii.oninput=()=>{intensity=+ii.value;$("#efIntV").textContent=intensity;save(mk("earth","intensity"),intensity);if(EF)efStart(intensity,mode,vol);};
+    $("#efIso").onclick=()=>{mode="iso";save(mk("earth","mode"),mode);draw();if(EF)efStart(intensity,mode,vol);};
+    $("#efBin").onclick=()=>{mode="binaural";save(mk("earth","mode"),mode);draw();if(EF)efStart(intensity,mode,vol);};
+    const vv=$("#efVol");vv.oninput=()=>{vol=+vv.value;if(EF&&EF.master)EF.master.gain.setTargetAtTime(vol,ac().currentTime,0.1);};
+    $("#efPlay").onclick=()=>{if(EF){efStop();$("#efPlay").textContent="▶ Play the Earth tone";}else{efStart(intensity,mode,vol);$("#efPlay").textContent="⏸ Stop";}};
+    fetchKp();
+  }
+  function fetchKp(){const box=$("#efToday");
+    try{fetch("https://services.swpc.noaa.gov/json/planetary_k_index_1m.json",{cache:"no-store"}).then(r=>r.json()).then(d=>{
+      if(Array.isArray(d)&&d.length){const last=d[d.length-1];kp=parseFloat(last.kp_index!=null?last.kp_index:(last.estimated_kp!=null?last.estimated_kp:last.kp));
+        if(!isNaN(kp)){const auto=Math.round(kp/9*100);if(box)box.innerHTML="🌍 Today: <b>Kp "+kp.toFixed(1)+" · "+efKpLabel(kp)+"</b> (NOAA, live). Earth tempo 58.7 BPM · fundamental 7.83 Hz.";
+          intensity=auto;const ii=$("#efInt");if(ii){ii.value=auto;$("#efIntV").textContent=auto;}save(mk("earth","intensity"),auto);return;}}
+      if(box)box.innerHTML="Couldn&rsquo;t read live data here — set the intensity yourself from the chart above.";
+    }).catch(()=>{if(box)box.innerHTML="Couldn&rsquo;t reach NOAA from here — set the intensity yourself from the chart above.";});}catch(e){if(box)box.textContent="Set the intensity yourself from the chart above.";}}
+  draw();
+}
 const MUSE_SVC=0xfe8d, MUSE_CTRL="273e0001-4c4d-454d-96be-f03bac821358",
   MUSE_TELE="273e000b-4c4d-454d-96be-f03bac821358",
   MUSE_EEG=["273e0003-4c4d-454d-96be-f03bac821358","273e0004-4c4d-454d-96be-f03bac821358","273e0005-4c4d-454d-96be-f03bac821358","273e0006-4c4d-454d-96be-f03bac821358"],
