@@ -124,6 +124,20 @@ body.gated .chip.star,body.gated .chip.heart,body.gated .chip.who,body.gated .ra
   border-radius:999px;width:40px;height:40px;font-size:1.1rem;cursor:pointer;line-height:1}
 .back:hover{border-color:var(--gold-deep)}
 .play-title{font-family:"Marcellus",serif;font-size:1.02rem;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase}
+.quest{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:0 0 18px}
+.q-eyebrow{font-family:"Marcellus",serif;font-size:.68rem;letter-spacing:2px;text-transform:uppercase;color:var(--gold-deep);margin-bottom:8px}
+.quest-top{display:flex;align-items:center;gap:10px}
+.q-lvl{font-family:"Marcellus",serif;font-weight:700;color:var(--gold);letter-spacing:.5px}
+.q-streak{margin-left:auto;font-weight:800;color:var(--cream)}
+.q-tro{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:5px 11px;cursor:pointer;color:var(--cream);font:inherit;font-weight:800;font-size:.82rem}
+.q-bar{height:11px;background:var(--card2);border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:9px 0 5px}
+.q-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-deep));transition:width .4s}
+.q-sub{font-size:.78rem;color:var(--muted)}
+.trgrid{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:10px}
+.trophy{width:118px;background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:14px 8px;text-align:center;opacity:.5}
+.trophy.got{opacity:1;border-color:var(--gold)}
+.trophy .tr-ic{font-size:2rem}
+.trophy .tr-nm{font-size:.78rem;color:var(--cream);margin-top:6px;font-weight:700}
 .sess{margin-left:auto;font-size:.78rem;color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums}
 .pbar{height:6px;border-radius:999px;background:#0c1c36;border:1px solid var(--line);overflow:hidden;margin:4px 0 14px}
 .pbar i{display:block;height:100%;background:linear-gradient(90deg,var(--violet),var(--gold));transition:width .3s}
@@ -376,6 +390,8 @@ body.gated .chip.bean{visibility:hidden}
       <p>These are the <b>Heads of Things</b> — Hermes' short, true sayings about what is. They are the keys: hold them, and the rest of the Corpus opens more easily. Choose how you want to carry them today.</p>
     </div>
 
+    <div id="questBox"></div>
+
     <div id="reviewEntry" hidden></div>
 
     <div class="label">Ways to study</div>
@@ -392,6 +408,7 @@ body.gated .chip.bean{visibility:hidden}
 
   <div id="play" hidden></div>
   <div id="shop" hidden></div>
+  <div id="trophies" hidden></div>
 </div>
 
 <div id="parentSheet" class="sheet" hidden>
@@ -504,6 +521,39 @@ const byN=Object.fromEntries(HEADS.map(h=>[h.n,h]));
 /* ===== state (per traveler profile) ===== */
 function load(k,def){try{const r=localStorage.getItem(k);return r?JSON.parse(r):def;}catch(e){return def;}}
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+/* ===== MAJICK Hero's Journey — shared level/streak/trophies (level from lifetime beans) ===== */
+function qLife(id){return load("majick-p-"+id+"-beansLife",0)||0;}
+function qAdd(id,n){save("majick-p-"+id+"-beans",(load("majick-p-"+id+"-beans",0)||0)+n);save("majick-p-"+id+"-beansLife",(load("majick-p-"+id+"-beansLife",0)||0)+n);}
+function qDay(off){const d=new Date();d.setDate(d.getDate()+(off||0));return d.toISOString().slice(0,10);}
+function qRank(L){return L>=20?"Virtuoso":L>=14?"Maestro":L>=9?"Artisan":L>=5?"Apprentice":"Newcomer";}
+function levelInfo(bl){let L=1,need=60,acc=0;while(bl>=acc+need){acc+=need;L++;need=60+(L-1)*25;}return {level:L,into:bl-acc,need,rank:qRank(L)};}
+function questDaily(id){if(!id)return false;let q=load("majick-p-"+id+"-quest",{});const t=qDay(0),bl=qLife(id);
+  if(q.date!==t){q.date=t;q.base=bl;save("majick-p-"+id+"-quest",q);}
+  const earned=bl-(q.base||0);let aw=false;
+  if(earned>=20&&q.goalDate!==t){q.streak=(q.lastGoal===qDay(-1))?((q.streak||0)+1):1;q.lastGoal=t;q.goalDate=t;save("majick-p-"+id+"-quest",q);qAdd(id,10);aw=true;}
+  return aw;}
+const HERMETIC_BADGES=[
+ {name:"First Head",ic:"🗝️",has:()=>done.size>=1},
+ {name:"10 Heads",ic:"📜",has:()=>done.size>=10},
+ {name:"Adept · 30",ic:"⭐",has:()=>done.size>=30},
+ {name:"Keeper · 45",ic:"🔑",has:()=>done.size>=45},
+ {name:"Mistress of the Heads",ic:"👑",has:()=>done.size>=59},
+ {name:"3-Day Streak",ic:"🔥",has:()=>{const q=load("majick-p-"+activeId+"-quest",{});return (q.streak||0)>=3;}}
+];
+function renderQuest(){const box=$("#questBox");if(!box)return;if(!activeId){box.innerHTML="";return;}
+  questDaily(activeId);const bl=qLife(activeId),li=levelInfo(bl),q=load("majick-p-"+activeId+"-quest",{}),pct=Math.round(100*li.into/li.need),today=Math.max(0,bl-(q.base||0));
+  box.innerHTML=`<div class="quest"><div class="q-eyebrow">⚔️ MAJICK · Hero's Journey</div>
+    <div class="quest-top"><span class="q-lvl">Lv ${li.level} · ${li.rank}</span><span class="q-streak">🔥 ${q.streak||0}</span><button class="q-tro" id="qTro">🏆 Trophies</button></div>
+    <div class="q-bar"><div class="q-fill" style="width:${pct}%"></div></div>
+    <div class="q-sub">${li.into}/${li.need} XP to Lv ${li.level+1} · daily goal ${Math.min(today,20)}/20 🫘${q.goalDate===qDay(0)?" ✓ +10":""}</div></div>`;
+  $("#qTro").onclick=renderTrophies;}
+function renderTrophies(){home.hidden=true;play.hidden=true;$("#shop").hidden=true;const tr=$("#trophies");if(!tr)return;tr.hidden=false;window.scrollTo(0,0);
+  const got=HERMETIC_BADGES.filter(b=>{try{return b.has();}catch(e){return false;}}).length;
+  tr.innerHTML=`<div class="play-top"><button class="back" id="trBack" aria-label="Back">←</button><span class="play-title">🏆 Hero's Journey</span></div>
+    <div class="note" style="margin:8px 2px 12px">Your trophies — <b>${got}/${HERMETIC_BADGES.length}</b> earned. Your level rises from Beans earned across Star's studies <b>and</b> MAJICK Music together.</div>
+    <div class="trgrid" id="trg"></div>`;
+  $("#trBack").onclick=()=>{tr.hidden=true;showHome();};
+  const g=$("#trg");HERMETIC_BADGES.forEach(b=>{let has=false;try{has=b.has();}catch(e){}const c=document.createElement("div");c.className="trophy"+(has?" got":"");c.innerHTML=`<div class="tr-ic">${has?b.ic:"🔒"}</div><div class="tr-nm">${b.name}</div>`;g.appendChild(c);});}
 let activeId=null,done=new Set(),hearts=0,missed=new Set(),best=0,streak=0;
 let beans=0,beansLife=0,goals={},claims=[];
 let needHint=new Set(),stuck=new Set();
@@ -648,7 +698,7 @@ const FOCUS=[
  {id:4,key:"build",t:"Build",g:"🪄",cls:"f4"},
 ];
 function renderHome(){
-  updateScore();
+  updateScore();renderQuest();
   const mastered=done.size,total=HEADS.length,pct=Math.round(mastered/total*100);
   // Review banner — the heads she missed or needed hints on
   const rv=$("#reviewEntry");const rc=reviewSet().size;
@@ -1092,7 +1142,7 @@ function showCreate(){
   setTimeout(()=>$("#newName").focus(),60);
 }
 function activate(id){activeId=id;save("majick-active",id);loadProfileState();showHome();}
-function showHome(){document.body.classList.remove("gated");gate.hidden=true;play.hidden=true;$("#shop").hidden=true;home.hidden=false;
+function showHome(){document.body.classList.remove("gated");gate.hidden=true;play.hidden=true;$("#shop").hidden=true;{const tr=$("#trophies");if(tr)tr.hidden=true;}home.hidden=false;
   const p=getProfiles().find(x=>x.id===activeId);$("#profileName").textContent=p?p.name:"—";
   renderHome();window.scrollTo(0,0);
   try{if(localStorage.getItem("majick-open-shop")){localStorage.removeItem("majick-open-shop");openShop();}}catch(e){}}

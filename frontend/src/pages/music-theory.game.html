@@ -213,6 +213,24 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .prg-chordrow .pchip{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:800;font-size:1rem;padding:8px 14px;border-radius:10px;background:var(--card2);border:1px solid var(--line);color:var(--cream)}
 .prg-chordrow .pchip.on{background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#241800;border-color:var(--gold);transform:scale(1.05)}
 .prg-now{text-align:center;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:2.4rem;color:var(--gold);margin:6px 0}
+.quest{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:0 0 18px}
+.q-eyebrow{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:.68rem;letter-spacing:2px;text-transform:uppercase;color:var(--violet);margin-bottom:8px}
+.quest-top{display:flex;align-items:center;gap:10px}
+.q-lvl{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:800;color:var(--gold);letter-spacing:.5px}
+.q-streak{margin-left:auto;font-weight:800;color:var(--cream)}
+.q-tro{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:5px 11px;cursor:pointer;color:var(--cream);font:inherit;font-weight:800;font-size:.82rem}
+.q-bar{height:11px;background:var(--card2);border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:9px 0 5px}
+.q-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-deep));transition:width .4s}
+.q-sub{font-size:.78rem;color:var(--muted)}
+.trgrid{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:10px}
+.trophy{width:118px;background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:14px 8px;text-align:center;opacity:.55}
+.trophy.got{opacity:1;border-color:var(--gold)}
+.trophy .tr-ic{font-size:2rem}
+.trophy .tr-nm{font-size:.78rem;color:var(--cream);margin-top:6px;font-weight:700}
+.song-slot{display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin-bottom:8px}
+.song-slot .ss-part{flex:0 0 78px;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:800;color:var(--gold);font-size:.86rem}
+.song-slot select{flex:1;background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 8px;font:inherit;font-size:.85rem;min-width:0}
+.song-slot .ss-play{flex:none;background:var(--card);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 10px;cursor:pointer}
 .rscore{text-align:center;margin-top:16px}
 .racc{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:2.6rem;line-height:1;color:var(--good)}
 .rfeel{font-size:.95rem;color:var(--muted);font-family:"Nunito Sans",system-ui,sans-serif;margin-top:6px;transition:color .1s;min-height:22px}
@@ -293,6 +311,8 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
       <p>Music lives in the head, the ear, and the hands. So we learn it three ways: study the ideas here, train your ear on musictheory.net, and play it on the real keyboard.</p>
       <div class="pillars"><span class="pillar">🎯 <b>Know it</b></span><span class="pillar">👂 <b>Hear it</b></span><span class="pillar">🥁 <b>Feel it</b></span><span class="pillar">🎹 <b>Play it</b></span></div>
     </div>
+
+    <div id="questBox"></div>
 
     <div class="label">Know it — study & memorize</div>
     <div class="grid" id="topicGrid"></div>
@@ -466,6 +486,41 @@ function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor
 const home=$("#home"),view=$("#view");
 function beanChip(){const c=$("#beanChipM");if(!c)return;
   if(activeId()){c.hidden=false;$("#beanNumM").textContent=getBeans();}else c.hidden=true;}
+/* ===== MAJICK QUEST — shared level/streak/trophies (level derives from lifetime beans) ===== */
+function qLife(id){return load("majick-p-"+id+"-beansLife",0)||0;}
+function qAdd(id,n){save("majick-p-"+id+"-beans",(load("majick-p-"+id+"-beans",0)||0)+n);save("majick-p-"+id+"-beansLife",(load("majick-p-"+id+"-beansLife",0)||0)+n);}
+function qDay(off){const d=new Date();d.setDate(d.getDate()+(off||0));return d.toISOString().slice(0,10);}
+function qRank(L){return L>=20?"Virtuoso":L>=14?"Maestro":L>=9?"Artisan":L>=5?"Apprentice":"Newcomer";}
+function levelInfo(bl){let L=1,need=60,acc=0;while(bl>=acc+need){acc+=need;L++;need=60+(L-1)*25;}return {level:L,into:bl-acc,need,rank:qRank(L)};}
+function questDaily(id){if(!id)return false;let q=load("majick-p-"+id+"-quest",{});const t=qDay(0),bl=qLife(id);
+  if(q.date!==t){q.date=t;q.base=bl;save("majick-p-"+id+"-quest",q);}
+  const earned=bl-(q.base||0);let awarded=false;
+  if(earned>=20&&q.goalDate!==t){q.streak=(q.lastGoal===qDay(-1))?((q.streak||0)+1):1;q.lastGoal=t;q.goalDate=t;save("majick-p-"+id+"-quest",q);qAdd(id,10);awarded=true;}
+  return awarded;}
+const MUSIC_BADGES=[
+ {name:"First Section",ic:"🎵",has:()=>SONGLIB.length>=1},
+ {name:"Composer · 5 sections",ic:"🎶",has:()=>SONGLIB.length>=5},
+ {name:"5 Chords",ic:"🎸",has:()=>(strLearned("guitar").length+strLearned("ukulele").length)>=5},
+ {name:"Chord Keeper · 12",ic:"🏆",has:()=>(strLearned("guitar").length+strLearned("ukulele").length)>=12},
+ {name:"Sharp Ear · L3",ic:"👂",has:()=>load(mk("ear","lvl3"),false)},
+ {name:"In the Pocket",ic:"🥁",has:()=>TAP_PATTERNS.some(p=>load(mk("tap",p.id+"-paid"),false))},
+ {name:"Call & Response",ic:"🔁",has:()=>{for(let i=0;i<DJEMBE_PATTERNS.length;i++)for(const m of[1,2,4])if(load(mk("cr","cr-"+i+"-"+m),false))return true;return false;}},
+ {name:"Songwriter",ic:"🎓",has:()=>load(mk("proj","final-done"),false)}
+];
+function renderQuest(){const box=$("#questBox");if(!box)return;const id=activeId();if(!id){box.innerHTML="";return;}
+  questDaily(id);const bl=qLife(id),li=levelInfo(bl),q=load("majick-p-"+id+"-quest",{}),pct=Math.round(100*li.into/li.need),today=Math.max(0,bl-(q.base||0));
+  box.innerHTML=`<div class="quest"><div class="q-eyebrow">⚔️ MAJICK Music · Hero's Journey</div>
+    <div class="quest-top"><span class="q-lvl">Lv ${li.level} · ${esc(li.rank)}</span><span class="q-streak">🔥 ${q.streak||0}</span><button class="q-tro" id="qTro">🏆 Trophies</button></div>
+    <div class="q-bar"><div class="q-fill" style="width:${pct}%"></div></div>
+    <div class="q-sub">${li.into}/${li.need} XP to Lv ${li.level+1} · daily goal ${Math.min(today,20)}/20 🫘${q.goalDate===qDay(0)?" ✓ +10":""}</div></div>`;
+  $("#qTro").onclick=renderTrophies;beanChip();}
+function renderTrophies(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  const got=MUSIC_BADGES.filter(b=>{try{return b.has();}catch(e){return false;}}).length;
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🏆 Hero's Journey</span></div>
+    <div class="panel"><div class="intro">Your trophies on the Hero's Journey — <b>${got}/${MUSIC_BADGES.length}</b> earned. The big one is <b>Songwriter</b>: finish a full song in the Song Project.</div>
+    <div class="trgrid" id="trg"></div></div>`;
+  $("#eBack").onclick=goHome;const g=$("#trg");
+  MUSIC_BADGES.forEach(b=>{let has=false;try{has=b.has();}catch(e){}const c=document.createElement("div");c.className="trophy"+(has?" got":"");c.innerHTML=`<div class="tr-ic">${has?b.ic:"🔒"}</div><div class="tr-nm">${esc(b.name)}</div>`;g.appendChild(c);});}
 function burst(el,count,kind){const fx=$("#fx");if(!el)return;const r=el.getBoundingClientRect();
   const cx=r.left+r.width/2,cy=r.top+r.height/2;const set=kind==="bean"?["🫘","🪙","✨"]:["✦","✧","⭐","♪","✨"];
   for(let i=0;i<count;i++){const s=document.createElement("span");s.className="fxp";s.textContent=set[Math.floor(Math.random()*set.length)];
@@ -476,7 +531,7 @@ function burst(el,count,kind){const fx=$("#fx");if(!el)return;const r=el.getBoun
 /* ===== home ===== */
 function topicDone(t){return load(mk(t.id,"quiz"),false)&&load(mk(t.id,"match"),false);}
 function renderHome(){
-  beanChip();
+  beanChip();renderQuest();
   const nm=activeName();if(nm){const h=document.querySelector(".hero h2 .nm");if(h)h.textContent=nm;}
   const tg=$("#topicGrid");tg.innerHTML="";
   TOPICS.forEach(t=>{const b=document.createElement("button");b.className="card";
@@ -926,7 +981,7 @@ function renderMySongs(){
   view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">⭐ My Songs</span></div>
     <div class="panel" style="margin-bottom:12px"><div class="intro">Songs you import from MIDI files. Drop in a melody MIDI, trim it to the phrase you want to practice, and it joins your library with full scoring + playback.</div>
       <div class="actions"><button class="btn" id="imp">➕ Import a MIDI</button><button class="btn" id="hum">🎙️ Sing a Song</button></div>
-      <div class="actions"><button class="btn ghost" id="build">🎚️ Build a song from sections</button></div></div>
+      <div class="actions"><button class="btn ghost" id="build">🎼 Song Project (final)</button></div></div>
     <div id="mylist"></div>`;
   $("#eBack").onclick=tonePhraseLevels;$("#imp").onclick=renderSongImport;$("#hum").onclick=renderCompose;$("#build").onclick=renderSongBuilder;
   const el=$("#mylist");
@@ -1614,35 +1669,43 @@ function composeUI(){
 }
 
 /* ===== SONG BUILDER — chain saved sections into a song ===== */
+const SONG_PARTS=["Intro","Verse 1","Chorus","Verse 2","Chorus","Bridge","Chorus","Outro"];
 function renderSongBuilder(){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  let seq=[];
+  let slots=SONG_PARTS.map(()=>"");  // section name per part
   const inp='background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit;flex:1';
-  function allNotes(){let n=[],b=[];seq.forEach(idx=>{const s=SONGLIB[idx];if(s){n=n.concat(s.notes);b=b.concat(s.beats&&s.beats.length===s.notes.length?s.beats:s.notes.map(()=>1));}});return {notes:n,beats:b};}
+  function secByName(nm){return SONGLIB.find(s=>s.name===nm);}
+  function allSeq(){let n=[],b=[];slots.forEach(nm=>{if(nm){const s=secByName(nm);if(s){n=n.concat(s.notes);b=b.concat(s.beats&&s.beats.length===s.notes.length?s.beats:s.notes.map(()=>1));}}});return {notes:n,beats:b};}
+  function filledCount(){return slots.filter(x=>x).length;}
+  function isComplete(){const has=(arr)=>arr.some(i=>slots[i]);return !!slots[0]&&has([1,3])&&has([2,4,6])&&!!slots[7];}
   function draw(){
-    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎚️ Build a Song</span></div>
+    const done=load(mk("proj","final-done"),false);
+    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎼 Song Project</span></div>
       <div class="panel">
-        <div class="intro">Chain your saved pieces (sections) into a full song. Tap a section to add it to the song, in order. Then play it and save it as one new song.</div>
-        <div class="rlab" style="display:block;margin:6px 0 6px">Your sections</div><div id="secList"></div>
-        <div class="rlab" style="display:block;margin:14px 0 6px">Your song (in order)</div><div id="seqList"></div>
-        <div class="actions"><button class="btn" id="play" ${seq.length?"":"disabled"}>▶ Play song</button><button class="btn ghost" id="clear">Clear</button></div>
-        <div class="rrow2"><span class="rlab">Name</span><input id="sgname" value="My song" style="${inp}"></div>
-        <div class="actions"><button class="btn" id="save" ${seq.length?"":"disabled"}>⭐ Save as song</button></div>
+        <div class="intro">Your <b>final project</b> — put together a full song, like in music class. Assign one of your saved <b>sections</b> to each part, then play the whole thing. Fill the <b>Intro, a Verse, a Chorus and the Outro</b> to complete it and earn the <b>Songwriter 🎓</b> trophy.${done?' <b style="color:var(--good)">✓ You\'ve earned Songwriter!</b>':""}</div>
+        ${SONGLIB.length?"":'<div class="site-note">You have no sections yet. Go to “Sing a Song” and save a section or two first.</div>'}
+        <div id="slots"></div>
+        <div class="actions"><button class="btn" id="playall" ${filledCount()?"":"disabled"}>▶ Play the whole song</button></div>
+        <div class="rrow2"><span class="rlab">Name</span><input id="projName" value="My Song" style="${inp}"></div>
+        <div class="actions"><button class="btn" id="saveproj" ${filledCount()?"":"disabled"}>⭐ Save the song</button></div>
+        <div class="bean-note" id="projMsg"></div>
       </div>`;
-    $("#eBack").onclick=renderMySongs;
-    const sl=$("#secList");
-    if(!SONGLIB.length)sl.innerHTML='<div class="site-note">No sections yet — hum or import a melody first.</div>';
-    else{sl.innerHTML="";SONGLIB.forEach((s,i)=>{const row=document.createElement("div");row.className="kb";
-      row.innerHTML=`<span class="kb-ic">🎵</span><div class="kb-main"><div class="kb-t">${esc(s.name)}</div><div class="kb-s">${s.notes.length} notes</div></div>`;
-      const b=document.createElement("button");b.className="kb-btn";b.textContent="+ add";b.onclick=()=>{seq.push(i);draw();};row.appendChild(b);sl.appendChild(row);});}
-    const ql=$("#seqList");
-    if(!seq.length)ql.innerHTML='<div class="site-note">Tap sections above to add them here.</div>';
-    else{ql.innerHTML="";seq.forEach((idx,k)=>{const s=SONGLIB[idx];const row=document.createElement("div");row.className="kb";
-      row.innerHTML=`<span class="kb-ic" style="font-family:'Bricolage Grotesque',sans-serif">${k+1}</span><div class="kb-main"><div class="kb-t">${esc(s?s.name:"(removed)")}</div></div>`;
-      const b=document.createElement("button");b.className="kb-btn";b.textContent="✕";b.onclick=()=>{seq.splice(k,1);draw();};row.appendChild(b);ql.appendChild(row);});}
-    const pb=$("#play");if(pb&&!pb.disabled)pb.onclick=()=>{const a=allNotes();playSeq(a.notes,a.beats,100);};
-    $("#clear").onclick=()=>{seq=[];draw();};
-    const sv=$("#save");if(sv&&!sv.disabled)sv.onclick=()=>{const a=allNotes();if(!a.notes.length)return;SONGLIB.push({name:($("#sgname").value||"My song").trim(),notes:a.notes,beats:a.beats});save("mjk-songs",SONGLIB);renderMySongs();};
+    $("#eBack").onclick=goHome;
+    const sb=$("#slots");sb.innerHTML="";
+    SONG_PARTS.forEach((part,i)=>{const row=document.createElement("div");row.className="song-slot";
+      const names=SONGLIB.map(s=>s.name);
+      row.innerHTML=`<span class="ss-part">${part}</span><select><option value="">— empty —</option>${names.map(n=>`<option ${slots[i]===n?"selected":""}>${esc(n)}</option>`).join("")}</select><button class="ss-play">▶</button>`;
+      const sel=row.querySelector("select"),pl=row.querySelector(".ss-play");
+      sel.onchange=()=>{slots[i]=sel.value;draw();};
+      pl.onclick=()=>{const s=secByName(slots[i]);if(s)playSeq(s.notes,s.beats,s.bpm||100);};
+      sb.appendChild(row);});
+    const pa=$("#playall");if(pa&&!pa.disabled)pa.onclick=()=>{const a=allSeq();playSeq(a.notes,a.beats,100);};
+    const sv=$("#saveproj");if(sv&&!sv.disabled)sv.onclick=()=>{const a=allSeq();if(!a.notes.length)return;
+      SONGLIB.push({name:($("#projName").value||"My Song").trim(),notes:a.notes,beats:a.beats});save("mjk-songs",SONGLIB);
+      const msg=$("#projMsg");
+      if(isComplete()&&!load(mk("proj","final-done"),false)){save(mk("proj","final-done"),true);if(activeId())addBeans(30);beanChip();if(msg)msg.innerHTML="🎓 <b>Songwriter!</b> Full song saved — +30 🫘 and a trophy earned!";burst($(".panel"),16);}
+      else if(msg){msg.textContent="Saved to My Songs ⭐"+(isComplete()?"":" — fill Intro + Verse + Chorus + Outro for the Songwriter trophy.");}
+    };
   }
   draw();
 }
@@ -1851,7 +1914,7 @@ const INSTRUMENT_CARDS=[
 const MAKE_CARDS=[
  {ic:"🎙️",title:"Sing a Song",blurb:"Sing or hum your own tune — it maps the notes and rhythm onto a staff. Fix them, then save it as a section or a whole song.",go:()=>renderCompose()},
  {ic:"⭐",title:"My Songs",blurb:"Your saved melodies and imported songs — sing them back, or import a MIDI.",go:()=>renderMySongs()},
- {ic:"🎚️",title:"Build a Song",blurb:"Chain your saved sections into a full song.",go:()=>renderSongBuilder()}
+ {ic:"🎼",title:"Song Project (final)",blurb:"The big one — assemble your sections into a full song: intro, verses, choruses, bridge, outro. Finish it to earn Songwriter.",go:()=>renderSongBuilder()}
 ];
 /* handpan voice — mellow metallic bell with octave + twelfth overtones, long decay */
 function handpan(time,midi){const a=ac(),out=pianoMaster(a),f=midiToFreq(midi);
