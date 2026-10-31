@@ -3501,23 +3501,23 @@ function efKpLabel(kp){return kp<2?"Quiet":kp<4?"Unsettled":kp<5?"Active":kp<6?"
 function efDayReading(day,arch){const s=arch[day];if(!s)return "No reading for this day yet — tune in daily and the week fills in.";
   const kp=s.kp,days=Object.keys(arch).sort(),idx=days.indexOf(day),prev=idx>0?arch[days[idx-1]]:null,dkp=prev?kp-prev.kp:0;
   const band=kp<2?"quiet":kp<4?"unsettled":kp<5?"active":"storm";
-  const trend=!prev?"":dkp>0.8?("climbing from Kp "+prev.kp.toFixed(1)+" the day before — the field is stirring"):dkp<-0.8?("settling from Kp "+prev.kp.toFixed(1)+" the day before — the field is calming"):"holding near the day before";
-  const harm=band==="quiet"?"only the lowest harmonics (7.83 and 14.3 Hz) are really present — warm and round, little up top":
-    band==="unsettled"?"the first harmonics (7.83 → 20.8 Hz) are active — a bit more texture and motion":
-    band==="active"?"the upper harmonics push through (up to 27.3 Hz) — more edge and brightness in the field":
-    "the whole stack lights up (7.83 → 33.8 Hz and beyond) — bright, busy, electric";
-  const feel=band==="quiet"?"grounded and spacious — an easy day to drop in, breathe long, and let the low hum carry you":
-    band==="unsettled"?"a gentle charge in the air — better for a light, moving focus than deep stillness":
-    band==="active"?"switched-on and alert — energy to ride; the body may want to move more than sit":
-    "electric and a little scattered — shorter, steadier sessions tend to land better than long ones";
-  const songread=band==="quiet"?"So the song stays sparse and warm — fewer layers, softer filters, space between the hits.":
-    band==="unsettled"?"So the song adds gentle movement — the groove steps forward and the filters open a touch.":
-    band==="active"?"So the song drives harder — fuller drums, brighter top end, the drop comes sooner.":
-    "So the song runs its hottest — densest drums, widest and brightest mix, the full build-and-drop.";
-  return '<b>'+efDateLabel(day)+'</b> · Kp '+kp.toFixed(1)+' — '+s.label+'.'+(trend?' The geomagnetic field is '+trend+'.':'')+
-    ' On the live spectrogram, days like this read '+(kp>=4?"brighter and busier across the bands":kp>=2?"with a few soft bursts":"mostly calm, thin lines")+'. In the field itself, '+harm+'.'+
-    ' Either way the <b>7.83 Hz fundamental is the bass</b> of the track (tuned up to ~250 Hz so you can hear it); '+(kp>=4?"the brighter harmonics shimmer on top":"the higher harmonics stay low and warm")+'.'+
-    ' <i>How it tends to land:</i> '+feel+'. '+songread;}
+  const trend=!prev?"":dkp>0.8?(" It&rsquo;s risen from Kp "+prev.kp.toFixed(1)+" the day before — the field is quickening."):dkp<-0.8?(" It&rsquo;s eased from Kp "+prev.kp.toFixed(1)+" the day before — the field is settling."):" Holding near where it was the day before.";
+  const field=band==="quiet"?"The field is calm and coherent — the resonance rests close to its 7.83 Hz ground tone, the chart mostly quiet, thin lines with few spikes. The Sun is quiet; little is reaching us.":
+    band==="unsettled"?"There&rsquo;s movement in the field — a few soft spikes rising on the chart as geomagnetic activity stirs. Not a storm, just a quickening in the Earth&rsquo;s pulse.":
+    band==="active"?"The field is charged — clear spikes and peaks on the chart, geomagnetic activity picking up, often riding solar wind or a flare. The resonance is running higher than its baseline.":
+    "The field is loud — strong spikes and peaks, a geomagnetic storm ("+s.label+"), usually driven by a solar flare or a coronal mass ejection hitting the Earth. The whole resonance stack is lit.";
+  const body=band==="quiet"?"In this frequency work, calm days tend to feel settling for the nervous system — steadier focus, deeper sleep, a grounded and open-hearted clarity. A good day to create, meditate, and receive.":
+    band==="unsettled"?"Sensitive people often notice a subtle restlessness on days like this — thoughts a touch busier, emotions nearer the surface, an energy that wants somewhere to go.":
+    band==="active"?"Active days are the ones many empaths actually feel — wired or scattered energy, lighter sleep, heightened emotion, a nervous system switched on. Some feel anxious or tender; others feel electric and creative. It&rsquo;s the same charge, moving through you.":
+    "Storm days are when the sensitive feel it most — anxiety or overwhelm, a racing mind, broken sleep, headaches, big emotions, a nervous system on high alert. If today feels like a lot, the field is a lot. You&rsquo;re not making it up.";
+  const sound=band==="quiet"?"So today&rsquo;s sound stays spacious and warm — a slow drone and a sparse groove to breathe into. Rest in the ground tone and let it hold you.":
+    band==="unsettled"?"So today&rsquo;s sound steps forward with a gentle groove — enough motion to move the restlessness <i>through</i> you instead of letting it pool.":
+    band==="active"?"So today&rsquo;s track drives — fuller drums, brighter top, a real drop — built to help you move that charge, shake the tension loose, and ride the energy instead of bracing against it.":
+    "So today&rsquo;s sound runs its heaviest and most physical — not to overwhelm you, but to give the intensity somewhere to go. Feel it in the body, let the bass carry it through, and come home to the 7.83 Hz ground tone humming underneath it all.";
+  return '<div style="font-weight:700;margin-bottom:6px">'+efDateLabel(day)+' · Kp '+kp.toFixed(1)+' — '+s.label+'</div>'+
+    '<div style="margin-bottom:7px"><b style="color:#c7b3ff">The field today.</b> '+field+trend+'</div>'+
+    '<div style="margin-bottom:7px"><b style="color:#c7b3ff">How it may land.</b> '+body+'</div>'+
+    '<div><b style="color:#c7b3ff">Why today&rsquo;s sound.</b> '+sound+' The <b>7.83 Hz fundamental is the bass</b> of every mode here (octaved up to ~250 Hz so you can hear it), so whatever the day is doing, you&rsquo;re always tuned back to the Earth&rsquo;s ground note.</div>';}
 function renderEarthFreq(){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   let voice=load(mk("earth","voice"),"pure"),vol=0.6;
@@ -3531,12 +3531,14 @@ function renderEarthFreq(){
     const s=arch[selDate],days=Object.keys(arch).sort().reverse().slice(0,7);
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌍 Schumann Resonance <span style="font-size:11px;font-weight:600;opacity:.55;letter-spacing:.3px">· the Earth resonance</span></span></div><div class="panel">'+
       '<div class="site-note" style="text-align:center;margin:-2px 0 8px;font-size:13px;opacity:.75">Today&rsquo;s meditation &amp; song</div>'+
-      '<div class="intro">The <b>Schumann resonance</b> is the Earth&rsquo;s background hum — a fundamental near <b>7.83 Hz</b>, below hearing, octaved up so you can feel it. Pick a day, read what&rsquo;s happening in the field, then hear it as a <b>Meditation</b>, a between-the-ears <b>Binaural</b>, or a full <b>Song</b> in your genre — all built on that 7.83 Hz as the bass. How calm or spiky each day feels comes from <b>real NOAA geomagnetic data</b>.</div>'+
+      '<div class="intro">The <b>Schumann resonance</b> is the Earth&rsquo;s heartbeat — a background frequency near <b>7.83 Hz</b>, below hearing, that our nervous systems evolved inside of. When the Sun stirs it, many sensitive people feel the shift. Here you can <b>see</b> today&rsquo;s field, <b>read</b> what it may be doing in your body and mind, and then <b>feel</b> it — as a <b>Meditation</b>, a between-the-ears <b>Binaural</b>, or a full <b>Song</b> in your genre, all tuned to that 7.83 Hz. The reading tracks <b>real NOAA geomagnetic data</b> day by day.</div>'+
+      '<div class="site-note" style="margin:-2px 0 10px;border-left:2px solid #b06bff;padding-left:10px">In the spirit of <b>Gayle Fuller · The Boujee Healer</b> (@theboujeehealer) — whose teachings on the Schumann resonance and how it moves through us shaped this. A shout-out, in her essence, not a copy.</div>'+
       '<div class="rlab" style="display:block;margin:4px 0 6px">Live spectrogram (Tomsk station)</div>'+
       '<img id="efImg" alt="Schumann spectrogram" style="width:100%;border-radius:10px;border:1px solid var(--line)" referrerpolicy="no-referrer">'+
-      '<div class="site-note" id="efImgNote">via schumannresonance.today · bright bursts = spikes. One station, so a spike can be local weather.</div>'+
+      '<div class="site-note" id="efImgNote">via schumannresonance.today · the bright bursts are the spikes — the field rising. One station, so a spike can also be local weather.</div>'+
       '<div class="rlab" style="display:block;margin:12px 0 5px">Tune in — pick a day</div><div class="rchips" id="efDays"></div>'+
-      '<div class="idea-fb" id="efNow"></div>'+
+      '<div class="idea-fb" id="efNow" style="line-height:1.55"></div>'+
+      '<div class="site-note" style="margin:6px 0 2px">These field-and-feeling connections come from this frequency wisdom and many people&rsquo;s lived experience — explored in research, not settled science, and not medical advice. If a hard day is more than the field, reach for real support.</div>'+
       '<div class="rrow2"><span class="rlab">Feel</span><span class="rchips tight"><button class="rchip sm'+(arr==="med"?" sel":"")+'" id="efArrMed">🧘 Meditation</button><button class="rchip sm'+(arr==="binaural"?" sel":"")+'" id="efArrBin">🌀 Binaural</button><button class="rchip sm'+(arr==="song"?" sel":"")+'" id="efArrSong">🎶 Song</button></span></div>'+
       (arr==="song"?'<div class="rrow2"><span class="rlab">Genre</span><span class="rchips tight" id="efGenres"></span></div>'+
         (genre==="bass"?'<div class="rrow2"><span class="rlab">Vibe</span><span class="rchips tight"><button class="rchip sm'+(bassvar==="agg"?" sel":"")+'" id="efBvAgg">⚡ Aggressive</button><button class="rchip sm'+(bassvar==="chill"?" sel":"")+'" id="efBvChill">🌙 Chill</button></span></div>':'')+
