@@ -196,6 +196,10 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .tn-ind{position:absolute;top:-4px;left:50%;width:10px;height:18px;border-radius:3px;background:#ff9f5c;transform:translateX(-5px);transition:left .07s,background .07s}
 .tn-sub{font-size:.95rem;color:var(--cream)}
 .tn-freq{font-size:.78rem;color:var(--muted);margin-top:2px}
+.hpstrip{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 8px}
+.hpcell{min-width:30px;padding:6px 9px;text-align:center;border-radius:8px;background:var(--card2);border:1px solid var(--line);color:var(--cream);font-size:.86rem;font-weight:700;transition:background .06s,color .06s,box-shadow .06s}
+.hpcell.ding{border-color:var(--gold)}
+.hpcell.on{background:#ff9f5c;color:#201a10;border-color:#ff9f5c;box-shadow:0 0 12px rgba(255,159,92,.7)}
 .djlegend{font-size:.82rem;color:var(--muted);font-family:"Nunito Sans",system-ui,sans-serif;margin:8px 2px 4px}
 .rcell.B{color:#c9b3ff;border-color:var(--violet);background:rgba(165,121,255,.14)}
 .rcell.T{color:#ffd9a8;border-color:var(--gold);background:rgba(255,159,92,.14)}
@@ -2127,23 +2131,53 @@ const HP_PATTERNS=[
  {name:"Pentatonic hop",seq:[[0,1],[2,1],[4,1],[6,1],[8,1],[6,1],[4,1],[2,1]]},
  {name:"Gentle rain",seq:[[8,1],[6,1],[7,1],[5,1],[6,1],[4,1],[5,1],[3,1],[4,2]]},
  {name:"Question & answer",seq:[[0,1],[2,1],[4,2],[3,1],[1,1],[0,2]]},
- {name:"Meditation",seq:[[0,4],[4,4],[2,4],[6,4],[0,4]]}
+ {name:"Meditation",seq:[[0,4],[4,4],[2,4],[6,4],[0,4]]},
+ {name:"Pop hook",seq:[[4,1],[4,1],[2,1],[0,1],[2,1],[4,1],[5,1],[4,2]]},
+ {name:"EDM pulse",seq:[[0,1],[4,1],[0,1],[7,1],[0,1],[4,1],[7,1],[8,1]]},
+ {name:"Alt / indie",seq:[[2,1],[4,1],[3,1],[5,1],[4,2],[2,1],[1,1],[0,2]]}
 ];
 const HP={scaleIdx:0,patIdx:0,bpm:72,running:false,i:0,nextTime:0,schID:null,raf:null,visQ:[],playNotes:true,taps:[]};
 function hpStop(){HP.running=false;if(HP.schID){clearInterval(HP.schID);HP.schID=null;}if(HP.raf){cancelAnimationFrame(HP.raf);HP.raf=null;}const b=$("#hpStart");if(b)b.textContent="▶ Play along";}
 function hpSchedule(){const a=ac(),ahead=0.2,P=HP_PATTERNS[HP.patIdx],sc=HP_SCALES[HP.scaleIdx].notes,spb=60/HP.bpm;
   while(HP.nextTime<a.currentTime+ahead){const step=P.seq[HP.i],idx=Math.min(step[0],sc.length-1);
     if(HP.playNotes)handpan(HP.nextTime,sc[idx]);
-    HP.visQ.push({t:HP.nextTime,idx});HP.nextTime+=step[1]*spb;HP.i=(HP.i+1)%P.seq.length;}}
+    HP.visQ.push({t:HP.nextTime,idx,step:HP.i});HP.nextTime+=step[1]*spb;HP.i=(HP.i+1)%P.seq.length;}}
 function hpLight(idx){const el=document.getElementById("hpF"+idx);if(el){el.classList.remove("glow");void el.offsetWidth;el.classList.add("glow");setTimeout(()=>{if(el)el.classList.remove("glow");},380);}}
-function hpFrame(){const now=ac().currentTime;while(HP.visQ.length&&HP.visQ[0].t<=now){const e=HP.visQ.shift();hpLight(e.idx);}HP.raf=requestAnimationFrame(hpFrame);}
+function hpLightStrip(step){const all=document.querySelectorAll(".hpcell");if(!all.length)return;all.forEach(e=>e.classList.remove("on"));const el=document.getElementById("hpS"+step);if(el)el.classList.add("on");}
+function hpFrame(){const now=ac().currentTime;while(HP.visQ.length&&HP.visQ[0].t<=now){const e=HP.visQ.shift();hpLight(e.idx);hpLightStrip(e.step);}HP.raf=requestAnimationFrame(hpFrame);}
 function hpStart(){unlockAudio();if(HP.running)return;const a=ac();HP.running=true;HP.i=0;HP.nextTime=a.currentTime+0.2;HP.visQ=[];HP.schID=setInterval(hpSchedule,30);HP.raf=requestAnimationFrame(hpFrame);const b=$("#hpStart");if(b)b.textContent="⏸ Stop";}
 function renderHandpan(){
   if(toneRAF)cancelAnimationFrame(toneRAF);hpStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   HP.mode=HP.mode||"play";
   let tRAF=null,tbuf=null,last=null,captured=load(mk("hp","mymap"),[]);
-  teardown=()=>{hpStop();if(tRAF)cancelAnimationFrame(tRAF);tRAF=null;try{stopMic();}catch(e){}};
+  let crPhrase=[],crLevel=load(mk("hp","cr-level"),3),crBusy=false,crRAF=null,crSamples=[],crExpected=[];
+  teardown=()=>{hpStop();if(tRAF)cancelAnimationFrame(tRAF);tRAF=null;if(crRAF)cancelAnimationFrame(crRAF);crRAF=null;try{stopMic();}catch(e){}};
   function stopTuner(){if(tRAF)cancelAnimationFrame(tRAF);tRAF=null;try{stopMic();}catch(e){}}
+  function crStop(){if(crRAF)cancelAnimationFrame(crRAF);crRAF=null;crBusy=false;}
+  function crGen(){const sc=HP_SCALES[HP.scaleIdx].notes,n=sc.length;crPhrase=[];let cur=Math.floor(Math.random()*Math.min(5,n));
+    for(let i=0;i<crLevel;i++){crPhrase.push(cur);const step=[-2,-1,1,2,0][Math.floor(Math.random()*5)];cur=Math.max(0,Math.min(n-1,cur+step));}crBuildStrip();}
+  function crBuildStrip(){const strip=$("#crStrip");if(!strip)return;const sc=HP_SCALES[HP.scaleIdx].notes;strip.innerHTML="";crPhrase.forEach((idx,i)=>{const c=document.createElement("span");c.className="hpcell";c.id="crS"+i;c.textContent=midiName(sc[Math.min(idx,sc.length-1)]);strip.appendChild(c);});}
+  function crLight(i){const strip=$("#crStrip");if(!strip)return;strip.querySelectorAll(".hpcell.on").forEach(e=>e.classList.remove("on"));const el=$("#crS"+i);if(el)el.classList.add("on");}
+  function crCall(){unlockAudio();if(crBusy)return;if(!crPhrase.length)crGen();crBusy=true;const fb=$("#crFb");if(fb)fb.style.display="none";
+    const sc=HP_SCALES[HP.scaleIdx].notes,spb=60/84,a=ac();let t=a.currentTime+0.3;const base=t;crExpected=[];
+    crPhrase.forEach((idx,i)=>{const midi=sc[Math.min(idx,sc.length-1)];handpan(t,midi);setTimeout(()=>crLight(i),(t-a.currentTime)*1000);crExpected.push({midi,t:t-base});t+=spb;});
+    const dur=t-base,st=$("#crStatus");if(st)st.textContent="🎧 Listen…";
+    setTimeout(()=>{crBusy=false;crAnswer(dur);},(t-a.currentTime)*1000+120);}
+  function crAnswer(dur){const st=$("#crStatus");if(st)st.textContent="turning on mic…";dur=dur||(60/84*crLevel);
+    ensureMic().then(ok=>{if(!ok){if(st)st.textContent="🎤 I need the mic to hear your answer.";return;}
+      if(st)st.textContent="🎤 Your turn — play the notes above!";
+      const buf=new Float32Array(toneAnalyser.fftSize);crSamples=[];const start=ac().currentTime;
+      (function loop(){const now=ac().currentTime-start;toneAnalyser.getFloatTimeDomainData(buf);let sum=0;for(let k=0;k<buf.length;k++)sum+=buf[k]*buf[k];const rms=Math.sqrt(sum/buf.length);let f=autoCorrelate(buf,ac().sampleRate);crSamples.push({t:now,rms,f:(f>=55&&f<=1400)?f:0});if(now>=dur+1.0){crScoreAns();return;}crRAF=requestAnimationFrame(loop);})();});}
+  function crScoreAns(){if(crRAF)cancelAnimationFrame(crRAF);crRAF=null;
+    const on=[];let floor=0.004,below=true;
+    for(let i=0;i<crSamples.length;i++){const r=crSamples[i].rms;floor=floor*0.97+r*0.03;if(below&&r>Math.max(0.012,floor*2.2)){on.push(i);below=false;}else if(!below&&r<floor*1.3)below=true;}
+    const onset=[];let last2=-1;on.forEach(i=>{const tt=crSamples[i].t;if(last2<0||tt-last2>0.12){onset.push(i);last2=tt;}});
+    const detected=onset.map(bi=>{const fs=[];for(let k=bi;k<Math.min(crSamples.length,bi+6);k++)if(crSamples[k].f)fs.push(crSamples[k].f);if(!fs.length)return null;fs.sort((a,b)=>a-b);const f=fs[Math.floor(fs.length/2)];return Math.round(69+12*Math.log2(f/440));}).filter(x=>x!=null);
+    let hit=0;crExpected.forEach((e,i)=>{if(detected[i]!=null){const d=(((detected[i]-e.midi)%12)+12)%12;if(d<=1||d>=11)hit++;}});
+    const N=crExpected.length,pct=Math.round(100*hit/N),fb=$("#crFb");
+    if(fb){fb.style.display="";fb.innerHTML=(pct>=80?"🔥 ":pct>=50?"👍 ":"🎵 ")+"You matched <b>"+hit+"/"+N+"</b> notes"+(detected.length?" · I heard "+detected.length:"")+". "+(pct>=80?"Beautiful — try a longer phrase.":pct>=50?"Close — tap Call to hear it again.":"Give it another go, follow the notes above.");}
+    const st=$("#crStatus");if(st)st.textContent="Call again, or ＋ for a new phrase";
+    if(pct>=70&&activeId()&&!isAdult()){addBeans(4);beanChip();}}
   function noteInfo(f){const m=69+12*Math.log2(f/440),r=Math.round(m),cents=Math.round((m-r)*100);return {midi:r,name:NOTE_NAMES[((r%12)+12)%12]+(Math.floor(r/12)-1),cents,f};}
   function updTuner(d){const n=$("#tnNote");if(!n)return;n.textContent=d.name;n.style.color=Math.abs(d.cents)<=6?"#7cf2a0":"#ff9f5c";
     const ind=$("#tnInd");if(ind)ind.style.left=(50+Math.max(-50,Math.min(50,d.cents)))+"%";
@@ -2168,8 +2202,14 @@ function renderHandpan(){
       b.addEventListener("pointerdown",e=>{e.preventDefault();unlockAudio();handpan(ac().currentTime+0.01,midi);b.classList.remove("glow");void b.offsetWidth;b.classList.add("glow");setTimeout(()=>b.classList.remove("glow"),400);});return b;}
     box.appendChild(mkField(0,sc[0],CX,CY,66,true));
     for(let i=1;i<sc.length;i++){const ang=(-90+(i-1)*(360/nF))*Math.PI/180;box.appendChild(mkField(i,sc[i],CX+R*Math.cos(ang),CY+R*Math.sin(ang),46,false));}}
-  function modeBar(){return '<div class="rchips" style="margin-bottom:10px"><button class="rchip sm'+(HP.mode==="play"?" sel":"")+'" id="hpModePlay">🔔 Play</button><button class="rchip sm'+(HP.mode==="tuner"?" sel":"")+'" id="hpModeTuner">🎤 Tuner</button></div>';}
-  function wireMode(){const p=$("#hpModePlay"),t=$("#hpModeTuner");if(p)p.onclick=()=>{if(HP.mode==="play")return;HP.mode="play";stopTuner();draw();};if(t)t.onclick=()=>{if(HP.mode==="tuner")return;hpStop();HP.mode="tuner";draw();};}
+  function modeBar(){return '<div class="rchips" style="margin-bottom:10px">'+
+    '<button class="rchip sm'+(HP.mode==="play"?" sel":"")+'" id="hpModePlay">🔔 Play</button>'+
+    '<button class="rchip sm'+(HP.mode==="cr"?" sel":"")+'" id="hpModeCR">🔁 Call &amp; response</button>'+
+    '<button class="rchip sm'+(HP.mode==="tuner"?" sel":"")+'" id="hpModeTuner">🎤 Tuner</button></div>';}
+  function wireMode(){const p=$("#hpModePlay"),cr=$("#hpModeCR"),t=$("#hpModeTuner");
+    if(p)p.onclick=()=>{if(HP.mode==="play")return;HP.mode="play";stopTuner();crStop();draw();};
+    if(cr)cr.onclick=()=>{if(HP.mode==="cr")return;hpStop();stopTuner();HP.mode="cr";draw();};
+    if(t)t.onclick=()=>{if(HP.mode==="tuner")return;hpStop();crStop();HP.mode="tuner";draw();};}
   function draw(){
     if(HP.mode==="tuner"){
       view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔔 Handpan</span></div>'+
@@ -2187,13 +2227,39 @@ function renderHandpan(){
       $("#tnClear").onclick=()=>{captured=[];save(mk("hp","mymap"),captured);renderCaptured();};
       renderCaptured();startTuner();return;
     }
+    if(HP.mode==="cr"){
+      view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔔 Handpan</span></div>'+
+       '<div class="panel">'+modeBar()+
+        '<div class="intro">Call &amp; response: I play a short phrase, then you play it back on your handpan. The notes are shown so you know what&rsquo;s coming &mdash; practice them on the pan below, then answer and I&rsquo;ll listen.</div>'+
+        '<div class="rrow2"><span class="rlab">Scale</span><span class="rchips tight" id="hpScales"></span></div>'+
+        '<div class="rrow2"><span class="rlab">Length</span><span class="rchips tight" id="crLevels"></span></div>'+
+        '<div class="rlab" style="display:block;margin:10px 0 5px">Play these notes</div>'+
+        '<div class="hpstrip" id="crStrip"></div>'+
+        '<div class="actions"><button class="btn" id="crCall">▶ Call</button><button class="btn ghost" id="crNew">＋ New phrase</button><button class="btn ghost" id="crAns">🎤 Answer</button></div>'+
+        '<div class="feedback" id="crStatus">Tap “Call” to hear a phrase</div>'+
+        '<div class="idea-fb" id="crFb" style="display:none"></div>'+
+        '<div class="rlab" style="display:block;margin:10px 0 6px">Practice on the pan</div>'+
+        '<div class="handpan" id="handpan"></div>'+
+       '</div>';
+      $("#eBack").onclick=goHome;wireMode();
+      const scc=$("#hpScales");HP_SCALES.forEach((s,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===HP.scaleIdx?" sel":"");b.textContent=s.name;b.onclick=()=>{HP.scaleIdx=i;crPhrase=[];draw();};scc.appendChild(b);});
+      const cl=$("#crLevels");[2,3,4,5].forEach(n=>{const b=document.createElement("button");b.className="rchip sm"+(n===crLevel?" sel":"");b.textContent=n+" notes";b.onclick=()=>{crLevel=n;save(mk("hp","cr-level"),n);crPhrase=[];draw();};cl.appendChild(b);});
+      if(!crPhrase.length)crGen();else crBuildStrip();
+      buildPan();
+      $("#crCall").onclick=crCall;
+      $("#crNew").onclick=()=>{crStop();crGen();const fb=$("#crFb");if(fb)fb.style.display="none";const st=$("#crStatus");if(st)st.textContent="New phrase ready — tap Call";};
+      $("#crAns").onclick=()=>crAnswer();
+      return;
+    }
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔔 Handpan</span></div>'+
       '<div class="panel">'+modeBar()+
         '<div class="intro">Tap the handpan to play. The <b>ding</b> in the middle is the low note; the fields around it climb the scale. Pick a scale, or tap <b>Play along</b> and follow the glowing notes to learn a pattern. Don&rsquo;t know your real pan&rsquo;s notes? Switch to <b>🎤 Tuner</b>.</div>'+
         '<div class="rrow2"><span class="rlab">Scale</span><span class="rchips tight" id="hpScales"></span></div>'+
         '<div class="handpan" id="handpan"></div>'+
-        '<div class="rlab" style="display:block;margin:12px 0 6px">Play along — follow the glow</div>'+
+        '<div class="rlab" style="display:block;margin:12px 0 6px">Play along — pick a pattern</div>'+
         '<div class="rchips" id="hpPats"></div>'+
+        '<div class="rlab" style="display:block;margin:10px 0 5px">The pattern — read left to right, it lights up as it plays</div>'+
+        '<div class="hpstrip" id="hpStrip"></div>'+
         '<div class="rrow"><span class="rlab">Tempo</span><input type="range" id="hpBpm" min="45" max="140" value="'+HP.bpm+'" style="flex:1"><span class="rbpm" id="hpBpmV">'+HP.bpm+'</span><button class="rtap" id="hpTap">Tap</button></div>'+
         '<div class="rrow2"><span class="rlab">Sound</span><button class="rchip sm'+(HP.playNotes?" sel":"")+'" id="hpMute">'+(HP.playNotes?"🔊 Plays the notes":"🔇 Just the glow")+'</button></div>'+
         '<div class="actions"><button class="btn" id="hpStart">'+(HP.running?"⏸ Stop":"▶ Play along")+'</button></div>'+
@@ -2201,6 +2267,7 @@ function renderHandpan(){
     $("#eBack").onclick=goHome;wireMode();
     const scc=$("#hpScales");HP_SCALES.forEach((s,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===HP.scaleIdx?" sel":"");b.textContent=s.name;b.onclick=()=>{HP.scaleIdx=i;if(HP.running){HP.i=0;HP.nextTime=ac().currentTime+0.1;HP.visQ=[];}draw();};scc.appendChild(b);});
     const pc=$("#hpPats");HP_PATTERNS.forEach((p,i)=>{const b=document.createElement("button");b.className="rchip"+(i===HP.patIdx?" sel":"");b.textContent=p.name;b.onclick=()=>{HP.patIdx=i;if(HP.running){HP.i=0;HP.nextTime=ac().currentTime+0.1;HP.visQ=[];}draw();};pc.appendChild(b);});
+    const strip=$("#hpStrip");if(strip){const P=HP_PATTERNS[HP.patIdx],sc=HP_SCALES[HP.scaleIdx].notes;strip.innerHTML="";P.seq.forEach((st,i)=>{const idx=Math.min(st[0],sc.length-1);const c=document.createElement("span");c.className="hpcell"+(st[0]===0?" ding":"");c.id="hpS"+i;c.textContent=midiName(sc[idx]);strip.appendChild(c);});}
     buildPan();
     const bp=$("#hpBpm");bp.oninput=()=>{HP.bpm=+bp.value;$("#hpBpmV").textContent=HP.bpm;};
     $("#hpTap").onclick=()=>{const now=performance.now();if(HP.taps.length&&now-HP.taps[HP.taps.length-1]>2000)HP.taps=[];HP.taps.push(now);if(HP.taps.length>5)HP.taps.shift();if(HP.taps.length>=2){let s=0;for(let i=1;i<HP.taps.length;i++)s+=HP.taps[i]-HP.taps[i-1];let b=Math.round(60000/(s/(HP.taps.length-1)));b=Math.max(45,Math.min(140,b));HP.bpm=b;bp.value=b;$("#hpBpmV").textContent=b;}};
