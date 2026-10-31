@@ -861,7 +861,7 @@ function toneMenu(){
    {id:"match",ic:"🎯",title:"Match the Pitch",blurb:"Hear a note, then sing it back in tune."},
    {id:"interval",ic:"🎸",title:"Sing the Interval",blurb:"Hear the bottom note, then sing the one above it."},
    {id:"phrase",ic:"🎵",title:"Sing a Phrase",blurb:"Sing a real song — whole phrase, scored, with playback."},
-   {id:"compose",ic:"🎙️",title:"Hum a Melody",blurb:"Make your own tune — hum it, I map the notes, you fix them, save it."}
+   {id:"compose",ic:"🎙️",title:"Sing a Song",blurb:"Make your own tune — sing or hum it, I map the notes, you fix them, save it."}
   ];
   const g=$("#tGrid");
   cards.forEach(c=>{const b=document.createElement("button");b.className="card";
@@ -925,7 +925,7 @@ function renderMySongs(){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">⭐ My Songs</span></div>
     <div class="panel" style="margin-bottom:12px"><div class="intro">Songs you import from MIDI files. Drop in a melody MIDI, trim it to the phrase you want to practice, and it joins your library with full scoring + playback.</div>
-      <div class="actions"><button class="btn" id="imp">➕ Import a MIDI</button><button class="btn" id="hum">🎙️ Hum a melody</button></div>
+      <div class="actions"><button class="btn" id="imp">➕ Import a MIDI</button><button class="btn" id="hum">🎙️ Sing a Song</button></div>
       <div class="actions"><button class="btn ghost" id="build">🎚️ Build a song from sections</button></div></div>
     <div id="mylist"></div>`;
   $("#eBack").onclick=tonePhraseLevels;$("#imp").onclick=renderSongImport;$("#hum").onclick=renderCompose;$("#build").onclick=renderSongBuilder;
@@ -1489,11 +1489,11 @@ function rhythmNameQuiz(){
 /* ===== HUM A MELODY — compose, map notes, correct, save ===== */
 function renderCompose(){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎙️ Hum a Melody</span></div>
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎵 Sing a Song</span></div>
     <div class="panel" style="text-align:center"><div class="q">Turning on your microphone…</div></div>`;
   $("#eBack").onclick=goHome;
   ensureMic().then(ok=>{
-    if(!ok){view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎙️ Hum a Melody</span></div>
+    if(!ok){view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎵 Sing a Song</span></div>
       <div class="panel" style="text-align:center"><div style="font-size:2rem">🎤</div><div class="q" style="margin-top:6px">I need your microphone to hear you</div>
       <div class="intro" style="border:none;text-align:left;margin:10px auto;max-width:420px">Tap <b>Allow</b> when asked. Works best on the live MAJICK&nbsp;Music site.</div>
       <div class="actions"><button class="btn" id="retry">Try again</button><button class="btn ghost" id="back2">Back</button></div></div>`;
@@ -1521,7 +1521,7 @@ function noteStyle(b){
   return{open:false,stem:true,flags:2,dot:false};
 }
 /* play a note sequence honoring per-note beat durations, in the selected voice */
-function playSeq(notes,beats,bpm){const spb=60/(bpm||96);let t=0;for(let i=0;i<notes.length;i++){const b=(beats&&beats[i])?beats[i]:1;playSustain(midiToFreq(notes[i]),t,Math.max(0.12,b*spb*0.9),0.7);t+=b*spb;}}
+function playSeq(notes,beats,bpm){const spb=60/(bpm||96);let t=0;for(let i=0;i<notes.length;i++){const b=(beats&&beats[i])?beats[i]:1;playSustain(midiToFreq(notes[i]),t,Math.max(0.12,b*spb*0.9),0.9);t+=b*spb;}}
 function composeUI(){
   let notes=[],sel=-1,bpm=96,capRAF=null,capturing=false,capSamples=[],capStart=0,rec=null,recChunks=[],humUrl=null;
   const maxDur=22;
@@ -1532,7 +1532,7 @@ function composeUI(){
     const segs=phraseSegment(capSamples);
     let ref=0.4;if(segs.length){const d=segs.map(s=>s.dur).slice().sort((a,b)=>a-b);ref=d[Math.floor(d.length/2)]||0.4;}
     notes=segs.map(s=>({midi:Math.round(s.midi),beats:quantizeBeat(s.dur/ref)}));sel=notes.length?0:-1;draw();}
-  function setDur(d){if(sel<0)return;let i=NOTE_VALS.indexOf(notes[sel].beats||1);if(i<0)i=3;i=Math.max(0,Math.min(NOTE_VALS.length-1,i+d));notes[sel].beats=NOTE_VALS[i];playSustain(midiToFreq(notes[sel].midi),0,Math.max(0.2,notes[sel].beats*(60/bpm)*0.9),0.7);draw();}
+  function setDur(d){if(sel<0)return;let i=NOTE_VALS.indexOf(notes[sel].beats||1);if(i<0)i=3;i=Math.max(0,Math.min(NOTE_VALS.length-1,i+d));notes[sel].beats=NOTE_VALS[i];playSustain(midiToFreq(notes[sel].midi),0,Math.max(0.2,notes[sel].beats*(60/bpm)*0.9),0.9);draw();}
   function startCap(){
     if(capturing)return;capturing=true;capSamples=[];capStart=ac().currentTime;recChunks=[];rec=null;
     try{rec=new MediaRecorder(micStream);rec.ondataavailable=e=>{if(e.data&&e.data.size)recChunks.push(e.data);};
@@ -1544,51 +1544,53 @@ function composeUI(){
       const l=$("#cStatus");if(l&&midi!=null)l.textContent="🎤 hearing "+midiName(midi)+" …";
       if(now-capStart>=maxDur){stopCap();return;}capRAF=requestAnimationFrame(loop);})();
   }
-  function nudge(d){if(sel<0)return;notes[sel].midi=Math.max(36,Math.min(96,notes[sel].midi+d));playSustain(midiToFreq(notes[sel].midi),0,0.5,0.7);draw();}
+  function nudge(d){if(sel<0)return;notes[sel].midi=Math.max(36,Math.min(96,notes[sel].midi+d));playSustain(midiToFreq(notes[sel].midi),0,0.5,0.9);draw();}
   function snapKey(o){notes.forEach(n=>{let best=n.midi,bd=99;for(let k=-6;k<=6;k++){const cand=n.midi+k,pc=((cand-o.root)%12+12)%12;if(o.sc.indexOf(pc)>=0&&Math.abs(k)<bd){bd=Math.abs(k);best=cand;}}n.midi=best;});draw();}
   function buildStaff(){
     const box=$("#staffBox");if(!box)return;
-    const NS="http://www.w3.org/2000/svg",DX=36,W=Math.max(300,52+notes.length*DX+24),H=160,yE4=112,per=6;
+    const NS="http://www.w3.org/2000/svg",DX=58,W=Math.max(340,84+notes.length*DX+30),H=238,yE4=168,per=9;
     const yStep=s=>yE4-(s-30)*per;
-    const svg=document.createElementNS(NS,"svg");svg.setAttribute("viewBox","0 0 "+W+" "+H);svg.setAttribute("width","100%");svg.setAttribute("height",H);svg.style.touchAction="none";svg.style.maxWidth="100%";
-    for(let k=0;k<5;k++){const y=yStep(30+k*2),ln=document.createElementNS(NS,"line");ln.setAttribute("x1",10);ln.setAttribute("x2",W-10);ln.setAttribute("y1",y);ln.setAttribute("y2",y);ln.setAttribute("stroke","rgba(255,255,255,.32)");ln.setAttribute("stroke-width","1.2");svg.appendChild(ln);}
-    const cl=document.createElementNS(NS,"text");cl.setAttribute("x",12);cl.setAttribute("y",yStep(33));cl.setAttribute("font-size","54");cl.setAttribute("fill","#ff9f5c");cl.textContent="𝄞";svg.appendChild(cl);
+    const svg=document.createElementNS(NS,"svg");svg.setAttribute("viewBox","0 0 "+W+" "+H);svg.setAttribute("width",W);svg.setAttribute("height",H);svg.style.touchAction="none";
+    for(let k=0;k<5;k++){const y=yStep(30+k*2),ln=document.createElementNS(NS,"line");ln.setAttribute("x1",12);ln.setAttribute("x2",W-12);ln.setAttribute("y1",y);ln.setAttribute("y2",y);ln.setAttribute("stroke","rgba(255,255,255,.34)");ln.setAttribute("stroke-width","1.3");svg.appendChild(ln);}
+    const cl=document.createElementNS(NS,"text");cl.setAttribute("x",14);cl.setAttribute("y",yStep(32));cl.setAttribute("font-size","82");cl.setAttribute("fill","#ff9f5c");cl.textContent="𝄞";svg.appendChild(cl);
     const g=document.createElementNS(NS,"g");svg.appendChild(g);
     box.innerHTML="";box.appendChild(svg);
-    function L(x1,y1,x2,y2,w,col){const l=document.createElementNS(NS,"line");l.setAttribute("x1",x1);l.setAttribute("y1",y1);l.setAttribute("x2",x2);l.setAttribute("y2",y2);l.setAttribute("stroke",col||"rgba(255,255,255,.32)");l.setAttribute("stroke-width",w||1.2);g.appendChild(l);}
-    function paint(){g.innerHTML="";notes.forEach((nt,i)=>{const st=midiStaff(nt.midi),x=56+i*DX,y=yStep(st.step),on=i===sel,col=on?"#ff9f5c":"#e8e4d9",sty=noteStyle(nt.beats||1);
-      if(st.step>38)for(let s=40;s<=st.step;s+=2)L(x-11,yStep(s),x+11,yStep(s));
-      if(st.step<30)for(let s=28;s>=st.step;s-=2)L(x-11,yStep(s),x+11,yStep(s));
-      if(st.sharp){const sh=document.createElementNS(NS,"text");sh.setAttribute("x",x-18);sh.setAttribute("y",y+5);sh.setAttribute("font-size","17");sh.setAttribute("fill",col);sh.textContent="♯";g.appendChild(sh);}
+    function L(x1,y1,x2,y2,w,col){const l=document.createElementNS(NS,"line");l.setAttribute("x1",x1);l.setAttribute("y1",y1);l.setAttribute("x2",x2);l.setAttribute("y2",y2);l.setAttribute("stroke",col||"rgba(255,255,255,.34)");l.setAttribute("stroke-width",w||1.3);g.appendChild(l);}
+    function paint(){g.innerHTML="";notes.forEach((nt,i)=>{const st=midiStaff(nt.midi),x=92+i*DX,y=yStep(st.step),on=i===sel,col=on?"#ff9f5c":"#e8e4d9",sty=noteStyle(nt.beats||1);
+      if(st.step>38)for(let s=40;s<=st.step;s+=2)L(x-15,yStep(s),x+15,yStep(s));
+      if(st.step<30)for(let s=28;s>=st.step;s-=2)L(x-15,yStep(s),x+15,yStep(s));
+      if(st.sharp){const sh=document.createElementNS(NS,"text");sh.setAttribute("x",x-24);sh.setAttribute("y",y+6);sh.setAttribute("font-size","22");sh.setAttribute("fill",col);sh.textContent="♯";g.appendChild(sh);}
       const stemUp=st.step<34;
-      if(sty.stem){const sx=stemUp?x+6.6:x-6.6,sy2=stemUp?y-30:y+30;L(sx,y,sx,sy2,1.6,col);
-        for(let fl=0;fl<sty.flags;fl++){const fy=sy2+(stemUp?fl*6:-fl*6);L(sx,fy,sx+(stemUp?9:-9),fy+(stemUp?9:-9),1.6,col);}}
-      const e=document.createElementNS(NS,"ellipse");e.setAttribute("cx",x);e.setAttribute("cy",y);e.setAttribute("rx","6.8");e.setAttribute("ry","5.2");e.setAttribute("transform","rotate(-20 "+x+" "+y+")");
-      if(sty.open){e.setAttribute("fill","none");e.setAttribute("stroke",col);e.setAttribute("stroke-width","1.8");}else{e.setAttribute("fill",col);}
+      if(sty.stem){const sx=stemUp?x+9:x-9,sy2=stemUp?y-44:y+44;L(sx,y,sx,sy2,2.1,col);
+        for(let fl=0;fl<sty.flags;fl++){const fy=sy2+(stemUp?fl*9:-fl*9);L(sx,fy,sx+(stemUp?13:-13),fy+(stemUp?13:-13),2.1,col);}}
+      const e=document.createElementNS(NS,"ellipse");e.setAttribute("cx",x);e.setAttribute("cy",y);e.setAttribute("rx","9.5");e.setAttribute("ry","7.2");e.setAttribute("transform","rotate(-20 "+x+" "+y+")");
+      if(sty.open){e.setAttribute("fill","none");e.setAttribute("stroke",col);e.setAttribute("stroke-width","2.2");}else{e.setAttribute("fill",col);}
       e.setAttribute("data-i",i);e.style.cursor="grab";g.appendChild(e);
-      if(sty.dot){const dc=document.createElementNS(NS,"circle");dc.setAttribute("cx",x+12);dc.setAttribute("cy",y-3);dc.setAttribute("r","1.8");dc.setAttribute("fill",col);g.appendChild(dc);}
+      if(sty.dot){const dc=document.createElementNS(NS,"circle");dc.setAttribute("cx",x+16);dc.setAttribute("cy",y-4);dc.setAttribute("r","2.4");dc.setAttribute("fill",col);g.appendChild(dc);}
+      const lt=document.createElementNS(NS,"text");lt.setAttribute("x",x);lt.setAttribute("y",H-8);lt.setAttribute("text-anchor","middle");lt.setAttribute("font-size","17");lt.setAttribute("font-weight","800");lt.setAttribute("fill",on?"#ff9f5c":"#b9d0d6");lt.setAttribute("font-family","Bricolage Grotesque,system-ui,sans-serif");lt.textContent=midiName(nt.midi);g.appendChild(lt);
     });}
     paint();
     let dragging=false,dragI=-1;
-    svg.addEventListener("pointerdown",e=>{const t=e.target;if(t.tagName==="ellipse"){dragI=+t.getAttribute("data-i");dragging=true;sel=dragI;try{svg.setPointerCapture(e.pointerId);}catch(_){}paint();playSustain(midiToFreq(notes[dragI].midi),0,0.4,0.7);const l=$("#cStatus");if(l)l.textContent="Selected: "+midiName(notes[dragI].midi);}});
+    svg.addEventListener("pointerdown",e=>{const t=e.target;if(t.tagName==="ellipse"){dragI=+t.getAttribute("data-i");dragging=true;sel=dragI;try{svg.setPointerCapture(e.pointerId);}catch(_){}paint();playSustain(midiToFreq(notes[dragI].midi),0,0.4,0.9);const l=$("#cStatus");if(l)l.textContent="Selected: "+midiName(notes[dragI].midi);}});
     svg.addEventListener("pointermove",e=>{if(!dragging||dragI<0)return;const r=svg.getBoundingClientRect();const y=(e.clientY-r.top)*(H/r.height);let step=Math.max(16,Math.min(52,Math.round((yE4-y)/per)+30));const nm=staffMidi(step);if(nm!==notes[dragI].midi){notes[dragI].midi=nm;paint();const l=$("#cStatus");if(l)l.textContent="Selected: "+midiName(nm);}});
-    function end(e){if(dragging){dragging=false;try{svg.releasePointerCapture(e.pointerId);}catch(_){}if(dragI>=0)playSustain(midiToFreq(notes[dragI].midi),0,0.45,0.7);}}
+    function end(e){if(dragging){dragging=false;try{svg.releasePointerCapture(e.pointerId);}catch(_){}if(dragI>=0)playSustain(midiToFreq(notes[dragI].midi),0,0.45,0.9);}}
     svg.addEventListener("pointerup",end);svg.addEventListener("pointercancel",end);
   }
   function draw(){
-    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎙️ Hum a Melody</span></div>
+    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎵 Sing a Song</span></div>
       <div class="panel">
-        <div class="intro">Hum or sing a tune — I'll map the notes. Then fix any that are off, snap it to a key, play it back, and save it as your own song.</div>
+        <div class="intro">Sing or hum a tune — I'll map it onto the staff (the note's letter shows under it). Fix any notes, play it back, and save it as a <b>section</b>. Build sections into a whole song in <b>My Songs → Build a Song</b>.</div>
         <div class="rrow2"><span class="rlab">Voice</span><span class="rchips tight" id="cVoice"></span></div>
-        <div class="actions"><button class="btn" id="hum">${capturing?"■ Stop":"🎤 Hum it"}</button><button class="btn ghost" id="playmel" ${notes.length&&!capturing?"":"disabled"}>▶ Play</button>${humUrl&&!capturing?'<button class="btn ghost" id="playhum">▶ My hum</button>':""}</div>
-        <div class="feedback" id="cStatus">${capturing?"🎤 Humming… tap Stop when done":(notes.length?notes.length+" notes mapped — tap a note, then drag/▲▼ for pitch, ◀▶ for length":"Tap “Hum it” and sing your melody")}</div>
+        <div class="actions"><button class="btn" id="hum">${capturing?"■ Stop":"🎤 Sing it"}</button><button class="btn ghost" id="playmel" ${notes.length&&!capturing?"":"disabled"}>▶ Play</button>${humUrl&&!capturing?'<button class="btn ghost" id="playhum">▶ My take</button>':""}</div>
+        <div class="feedback" id="cStatus">${capturing?"🎤 Singing… tap Stop when done":(notes.length?notes.length+" notes — the letter is under each note. Tap one, drag/▲▼ for pitch, ◀▶ for length":"Tap “Sing it” and sing your song")}</div>
         ${notes.length&&!capturing?`<div class="staffbox" id="staffBox"></div>`:'<div class="notestrip" id="strip"></div>'}
         ${notes.length&&!capturing?`<div class="actions"><button class="btn ghost" id="dn">▼ pitch</button><button class="btn ghost" id="up">▲ pitch</button><button class="btn ghost" id="del">✕</button></div>
         <div class="actions"><button class="btn ghost" id="shorter">◀ shorter</button><button class="btn ghost" id="longer">longer ▶</button></div>
         <div class="rrow2"><span class="rlab">Tempo</span><input type="range" id="ctempo" min="50" max="170" value="${bpm}" style="flex:1"><span class="rbpm" id="ctempov">${bpm}</span></div>
         <div class="rrow2"><span class="rlab">Snap to key</span><select id="keysel" style="background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit;flex:1">${KEY_OPTS.map((o,i)=>`<option value="${i}">${o.l}</option>`).join("")}</select><button class="rchip sm" id="snap">Snap</button></div>
-        <div class="rrow2"><span class="rlab">Name</span><input id="cname" value="My melody" style="background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit;flex:1"></div>
-        <div class="actions"><button class="btn" id="save">⭐ Save to My Songs</button><button class="btn ghost" id="clear">Clear</button></div>`:""}
+        <div class="rrow2"><span class="rlab">Name</span><input id="cname" value="My section" style="background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit;flex:1"></div>
+        <div class="actions"><button class="btn" id="save">⭐ Save this section</button><button class="btn ghost" id="clear">Clear</button></div>
+        <div class="bean-note" id="cSaved"></div>`:""}
       </div>`;
     $("#eBack").onclick=goHome;
     const vc=$("#cVoice");VOICES.forEach(v=>{const b=document.createElement("button");b.className="rchip sm"+(v.id===toneVoice?" sel":"");b.textContent=v.name;b.onclick=()=>{toneVoice=v.id;save("mjk-tonevoice",v.id);draw();};vc.appendChild(b);});
@@ -1602,7 +1604,9 @@ function composeUI(){
       const tp=$("#ctempo");if(tp)tp.oninput=()=>{bpm=+tp.value;const tv=$("#ctempov");if(tv)tv.textContent=bpm;};
       $("#del").onclick=()=>{if(sel<0)return;notes.splice(sel,1);if(sel>=notes.length)sel=notes.length-1;draw();};
       $("#snap").onclick=()=>snapKey(KEY_OPTS[+$("#keysel").value]);
-      $("#save").onclick=()=>{if(!notes.length)return;const nm=($("#cname").value||"My melody").trim();SONGLIB.push({name:nm,notes:notes.map(n=>n.midi),beats:notes.map(n=>n.beats||1),bpm:bpm});save("mjk-songs",SONGLIB);$("#cStatus").textContent="Saved “"+nm+"” to My Songs ⭐";burst($("#staffBox"),8);};
+      $("#save").onclick=()=>{if(!notes.length)return;const nm=($("#cname").value||"My section").trim();SONGLIB.push({name:nm,notes:notes.map(n=>n.midi),beats:notes.map(n=>n.beats||1),bpm:bpm});save("mjk-songs",SONGLIB);burst($("#staffBox"),8);
+        const cs=$("#cSaved");if(cs)cs.innerHTML="Saved “"+esc(nm)+"” ✓ — it's now a section in My Songs. "+'<a href="#" id="toBuild" style="color:var(--sky)">Build it into a song →</a>';
+        const tb=$("#toBuild");if(tb)tb.onclick=(e)=>{e.preventDefault();renderSongBuilder();};};
       $("#clear").onclick=()=>{notes=[];sel=-1;draw();};
     }
   }
@@ -1845,7 +1849,7 @@ const INSTRUMENT_CARDS=[
  {ic:"🪕",title:"Ukulele",blurb:"Learn ukulele chords, major-scale chord families, and play along to progressions.",go:()=>renderStrings("ukulele")}
 ];
 const MAKE_CARDS=[
- {ic:"🎙️",title:"Sing / Hum a Melody",blurb:"Sing or hum your own tune — it maps the notes and rhythm onto a staff. Fix them, then save it as your song.",go:()=>renderCompose()},
+ {ic:"🎙️",title:"Sing a Song",blurb:"Sing or hum your own tune — it maps the notes and rhythm onto a staff. Fix them, then save it as a section or a whole song.",go:()=>renderCompose()},
  {ic:"⭐",title:"My Songs",blurb:"Your saved melodies and imported songs — sing them back, or import a MIDI.",go:()=>renderMySongs()},
  {ic:"🎚️",title:"Build a Song",blurb:"Chain your saved sections into a full song.",go:()=>renderSongBuilder()}
 ];
