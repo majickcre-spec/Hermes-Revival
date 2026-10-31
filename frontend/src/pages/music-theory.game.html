@@ -245,6 +245,17 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .bmpad{cursor:pointer;background:#2a2250;border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:9px 12px;font:700 .85rem system-ui,sans-serif;min-width:48px}
 .bmpad.hp{background:rgba(255,159,92,.14);border-color:var(--gold)}
 .bmpad:active{transform:scale(.94)}
+.choices{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:12px 0}
+.choice{cursor:pointer;background:var(--card2);border:1px solid var(--line);color:var(--cream);border-radius:10px;padding:11px 16px;font:700 .95rem system-ui,sans-serif;flex:1 1 40%;max-width:220px}
+.choice.sel{background:#7cf2a0;color:#0e2417;border-color:#7cf2a0}
+.choice:disabled{cursor:default}
+.pk{position:relative;display:flex;height:160px;margin:12px 0;user-select:none;touch-action:none;overflow:hidden;border-radius:8px}
+.pk-w{flex:1;background:linear-gradient(#f6f1e6,#e4ddcc);border:1px solid #24203a;border-right:none;color:#6b6280;display:flex;align-items:flex-end;justify-content:center;padding-bottom:7px;font:700 .62rem system-ui,sans-serif;cursor:pointer}
+.pk-w:last-of-type{border-right:1px solid #24203a}
+.pk-w.on{background:#ff9f5c;color:#201a10}
+.pk-blacks{position:absolute;top:0;left:0;width:100%;height:62%;pointer-events:none}
+.pk-b{position:absolute;transform:translateX(-50%);width:6.2%;max-width:28px;height:100%;background:linear-gradient(#352c54,#120f20);border:1px solid #000;border-radius:0 0 5px 5px;pointer-events:auto;cursor:pointer}
+.pk-b.on{background:#ff9f5c}
 .finger-legend{background:var(--card2);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:9px 12px;margin:0 0 12px;color:var(--muted);font-size:.85rem;line-height:1.55}
 .finger-legend b{color:var(--cream)}
 .finger-legend .fg{display:inline-block;min-width:17px;height:17px;line-height:17px;text-align:center;background:#ff9f5c;color:#201a10;border-radius:50%;font-weight:800;font-size:.72rem;margin:0 1px}
@@ -389,7 +400,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
     <div class="hero">
       <div class="eyebrow">MAJICK Music · Learning Platform</div>
       <h2>Three ways to learn, <span class="nm">Star</span>.</h2>
-      <p>Music lives in the head, the ear, and the hands. So we learn it three ways: study the ideas here, train your ear on musictheory.net, and play it on the real keyboard.</p>
+      <p>Music lives in the head, the ear, and the hands. So we learn it three ways: study the ideas, train your ear with our own games, and play it on the keyboard and instruments — all right here.</p>
       <div class="pillars"><span class="pillar">🎯 <b>Know it</b></span><span class="pillar">👂 <b>Hear it</b></span><span class="pillar">🥁 <b>Feel it</b></span><span class="pillar">🎹 <b>Play it</b></span></div>
     </div>
 
@@ -414,15 +425,9 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
     <div class="site-note">Needs a <b>Muse</b> headset and <b>Chrome/Edge on a computer or Android</b> (Web Bluetooth). Streams live brainwaves + heart rhythm straight to the page.</div>
     <div class="grid" id="bioGrid"></div>
 
-    <div class="label">More ear &amp; rhythm training (musictheory.net)</div>
-    <div class="site-note">Opens <b>musictheory.net</b> in a new tab — free interactive exercises. <b>Pay attention to your score</b>, then come back and write it in. First time you log a drill earns Beans 🫘.</div>
-    <div id="earList"></div>
-
     <div class="label">Play it — at the keyboard</div>
-    <div class="site-note">Go to your real piano/keyboard. Do each one, then tap “Did it.”</div>
+    <div class="site-note">Open the <b>🎹 Piano</b> above, or sit at your real keyboard. Do each one, then tap “Did it.”</div>
     <div id="kbList"></div>
-
-    <div class="concept-note"><b>This is a concept (v1).</b> It shows the shape: our own memory games for the facts, musictheory.net links for the ear, and hands‑on prompts for the keyboard. We can add topics, more drills, and tie it into Beans and profiles just like the Hermetic modules.</div>
   </div>
 
   <div id="view" hidden></div>
@@ -670,24 +675,6 @@ function renderHome(){
     BIO_CARDS.forEach(c=>{const b=document.createElement("button");b.className="card";
       b.innerHTML=`<span class="ic">${c.ic}</span><h3>${esc(c.title)}</h3><span class="blurb">${esc(c.blurb)}</span>`;
       b.onclick=c.go;bg.appendChild(b);});}
-  const el=$("#earList");el.innerHTML="";
-  EAR.forEach((e,i)=>{
-    const wrap=document.createElement("div");wrap.className="lc-wrap";
-    const a=document.createElement("a");a.className="link-card";a.href=e.url;a.target="_blank";a.rel="noopener";
-    a.innerHTML=`<span class="lc-ic">${e.ic}</span><div class="lc-main"><div class="lc-t">${esc(e.t)}</div><div class="lc-s">${esc(e.s)}</div></div><span class="lc-go">Open ↗</span>`;
-    wrap.appendChild(a);
-    const best=load(mk("mtn"+i,"best"),null);
-    const paid=load(mk("mtn"+i,"paid"),false);
-    const row=document.createElement("div");row.className="score-row";
-    row.innerHTML=`<span class="sr-label">My score:</span><input class="sr-in" type="text" inputmode="numeric" placeholder="e.g. 18/20" value="${best!=null?esc(String(best)):""}" aria-label="Your score"><button class="sr-btn">Log it</button><span class="sr-msg"></span>`;
-    const inp=row.querySelector(".sr-in"),btn=row.querySelector(".sr-btn"),msg=row.querySelector(".sr-msg");
-    if(best!=null&&paid)msg.textContent="★ best: "+best;
-    btn.onclick=()=>{const v=inp.value.trim();if(!v){inp.focus();return;}
-      save(mk("mtn"+i,"best"),v);
-      if(activeId()&&!paid){addBeans(5);save(mk("mtn"+i,"paid"),true);burst(btn,5,"bean");msg.textContent="+5 🫘 logged!";beanChip();}
-      else{msg.textContent="saved ✓";}
-    };
-    wrap.appendChild(row);el.appendChild(wrap);});
   const kb=$("#kbList");kb.innerHTML="";
   KB.forEach(k=>{const done=load(mk(k.id,"kb"),false);const d=document.createElement("div");d.className="kb"+(done?" done":"");
     d.innerHTML=`<span class="kb-ic">${k.ic}</span><div class="kb-main"><div class="kb-t">${esc(k.t)}</div><div class="kb-s">${esc(k.s)}</div></div>`;
@@ -861,6 +848,9 @@ function renderMatch(){
 const EAR_CARDS=[
  {mode:"intervals",ic:"🎧",title:"Interval Trainer",blurb:"Hear an interval and name it. Starts easy at Level 1, builds up to all twelve."},
  {mode:"songs",ic:"🎶",title:"Song-Phrase Match",blurb:"Learn each interval by a famous song — Twinkle Twinkle, Jaws, Star Wars…"},
+ {mode:"chords",ic:"🎵",title:"Chord Ear Trainer",blurb:"Hear a chord and name it — major, minor, up to 7ths. Scored, right here — no third-party app."},
+ {mode:"scales",ic:"🎶",title:"Scale Ear Trainer",blurb:"Hear a scale and name it — major, minor, modes, pentatonic, blues."},
+ {mode:"noteid",ic:"🎹",title:"Note ID",blurb:"Hear a note, then find it on the piano keyboard — trains pitch and your key sense."},
  {mode:"tone",ic:"🎤",title:"Tone Match",blurb:"Sing into the mic and match the pitch — single notes, intervals, and little song phrases, scored live."}
 ];
 const INAMES={0:"Unison",1:"Minor 2nd",2:"Major 2nd",3:"Minor 3rd",4:"Major 3rd",5:"Perfect 4th",6:"Tritone",7:"Perfect 5th",8:"Minor 6th",9:"Major 6th",10:"Minor 7th",11:"Major 7th",12:"Octave"};
@@ -969,7 +959,7 @@ function playSing(midi,dur){playSustain(midiToFreq(midi),0,dur||2.2,0.9);}
 
 function openEar(mode){if(mode==="tone"){renderTone();return;}
   home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  if(mode==="intervals")renderLevels();else if(mode==="songs")renderSongs();beanChip();}
+  if(mode==="intervals")renderLevels();else if(mode==="songs")renderSongs();else if(mode==="chords")renderChordEar();else if(mode==="scales")renderScaleEar();else if(mode==="noteid")renderNoteEar();beanChip();}
 
 /* ===== TONE MATCH (sing into the mic) ===== */
 const NOTE_NAMES=["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"];
@@ -2427,7 +2417,95 @@ function renderCR(){
 }
 
 /* ===== INSTRUMENTS ===== */
+/* ===== PIANO — playable keyboard (reusable) ===== */
+function buildKeyboard(low,oct,onKey,labels){
+  const WK=[0,2,4,5,7,9,11],wrap=document.createElement("div");wrap.className="pk";
+  const totalW=oct*7+1;
+  for(let o=0;o<oct;o++)for(let w=0;w<7;w++){const m=low+o*12+WK[w];const k=document.createElement("button");k.className="pk-w";k.setAttribute("data-m",m);if(labels)k.innerHTML="<span>"+NOTE_NAMES[((m%12)+12)%12]+"</span>";k.onpointerdown=e=>{e.preventDefault();onKey(m,k);};wrap.appendChild(k);}
+  const lastC=low+oct*12;{const k=document.createElement("button");k.className="pk-w";k.setAttribute("data-m",lastC);if(labels)k.innerHTML="<span>C</span>";k.onpointerdown=e=>{e.preventDefault();onKey(lastC,k);};wrap.appendChild(k);}
+  const blk=document.createElement("div");blk.className="pk-blacks";wrap.appendChild(blk);
+  for(let o=0;o<oct;o++){const base=low+o*12;[[0,1],[1,3],[3,6],[4,8],[5,10]].forEach(ab=>{const after=ab[0],semi=ab[1],m=base+semi,idx=o*7+after;const b=document.createElement("button");b.className="pk-b";b.style.left=((idx+1)/totalW*100)+"%";b.setAttribute("data-m",m);b.onpointerdown=e=>{e.preventDefault();onKey(m,b);};blk.appendChild(b);});}
+  return wrap;}
+function noteNameOct(m){return NOTE_NAMES[((m%12)+12)%12]+(Math.floor(m/12)-1);}
+function renderPiano(){
+  if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  let low=48,oct=2,labels=true;const KEYMAP="awsedftgyhujk";
+  function press(m,el){unlockAudio();playTone(midiToFreq(m),0,1.6);if(el){el.classList.add("on");setTimeout(()=>el.classList.remove("on"),160);}}
+  function kd(e){if(e.repeat)return;const idx=KEYMAP.indexOf((e.key||"").toLowerCase());if(idx<0)return;const m=low+idx,el=view.querySelector('[data-m="'+m+'"]');press(m,el);}
+  teardown=()=>{document.removeEventListener("keydown",kd);};
+  function draw(){
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎹 Piano</span></div><div class="panel">'+
+      '<div class="intro">Play the keyboard — tap the keys, or on a computer use <b>a s d f g h j k</b> for the white notes and <b>w e t y u</b> for the blacks. Use ◀ ▶ to shift octaves.</div>'+
+      '<div class="actions"><button class="btn ghost" id="pkDown">◀ Octave</button><button class="btn ghost" id="pkUp">Octave ▶</button><button class="rchip sm'+(labels?" sel":"")+'" id="pkLab">Labels</button></div>'+
+      '<div id="pkBox"></div></div>';
+    $("#eBack").onclick=goHome;
+    $("#pkDown").onclick=()=>{low=Math.max(24,low-12);draw();};
+    $("#pkUp").onclick=()=>{low=Math.min(84,low+12);draw();};
+    $("#pkLab").onclick=()=>{labels=!labels;draw();};
+    $("#pkBox").appendChild(buildKeyboard(low,oct,press,labels));}
+  document.addEventListener("keydown",kd);draw();
+}
+/* ===== IN-HOUSE EAR TRAINING — chords, scales, note ID ===== */
+const CHORD_DEFS={maj:{iv:[0,4,7],name:"Major"},min:{iv:[0,3,7],name:"Minor"},dim:{iv:[0,3,6],name:"Diminished"},aug:{iv:[0,4,8],name:"Augmented"},dom7:{iv:[0,4,7,10],name:"Dominant 7"},maj7:{iv:[0,4,7,11],name:"Major 7"},min7:{iv:[0,3,7,10],name:"Minor 7"}};
+const CHORD_LEVELS=[["maj","min"],["maj","min","dim","aug"],["maj","min","dom7","maj7","min7"]];
+const SCALE_DEFS={major:{iv:[0,2,4,5,7,9,11,12],name:"Major"},minor:{iv:[0,2,3,5,7,8,10,12],name:"Natural minor"},dorian:{iv:[0,2,3,5,7,9,10,12],name:"Dorian"},majpent:{iv:[0,2,4,7,9,12],name:"Major pentatonic"},blues:{iv:[0,3,5,6,7,10,12],name:"Blues"},harm:{iv:[0,2,3,5,7,8,11,12],name:"Harmonic minor"}};
+const SCALE_LEVELS=[["major","minor"],["major","minor","dorian","majpent"],["major","minor","dorian","majpent","blues","harm"]];
+function playChordEar(root,iv){iv.forEach(s=>playTone(midiToFreq(root+s),0,1.7));}
+function playScaleEar(root,iv){iv.forEach((s,i)=>playTone(midiToFreq(root+s),i*0.32,0.5));}
+function earGame(cfg){
+  home.hidden=true;view.hidden=false;window.scrollTo(0,0);let level=load(mk("ear",cfg.key+"-lvl"),0);
+  function back(){goHome();}
+  function levels(){
+    let h='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+cfg.title+'</span></div><div class="panel"><div class="intro">'+cfg.intro+' Pick a level, then name what you hear. Right answers earn Beans.</div><div class="rchips" id="egLv"></div><div class="actions"><button class="btn" id="egStart">▶ Start level '+(level+1)+'</button></div><div id="egBest"></div></div>';
+    view.innerHTML=h;$("#eBack").onclick=back;
+    const lv=$("#egLv");cfg.levels.forEach((o,k)=>{const b=document.createElement("button");b.className="rchip sm"+(k===level?" sel":"");b.textContent="Lvl "+(k+1)+" · "+o.map(x=>cfg.defs[x].name).join("/");b.onclick=()=>{level=k;save(mk("ear",cfg.key+"-lvl"),k);levels();};lv.appendChild(b);});
+    const bs=$("#egBest");const best=load(mk("ear",cfg.key+"-l"+level+"-best"),0);bs.innerHTML='<div class="bean-note">Best on level '+(level+1)+': '+best+'/8</div>';
+    $("#egStart").onclick=run;
+  }
+  function run(){let i=0,correct=0,cur=null,answered=false;const rounds=8,opts=cfg.levels[level];
+    function nq(){answered=false;const root=48+Math.floor(Math.random()*12);const key=opts[Math.floor(Math.random()*opts.length)];cur={root,key};draw();setTimeout(()=>cfg.play(cur.root,cfg.defs[cur.key].iv),250);}
+    function pick(k){if(answered)return;answered=true;const ok=k===cur.key;if(ok&&activeId()&&!isAdult()){addBeans(1);beanChip();}if(ok)correct++;
+      const fb=$("#egFb");if(fb){fb.className="feedback "+(ok?"good":"try");fb.innerHTML=ok?"✓ "+cfg.defs[cur.key].name:"✗ That was "+cfg.defs[cur.key].name;}
+      document.querySelectorAll(".egopt").forEach(b=>{const bk=b.getAttribute("data-k");if(bk===cur.key)b.classList.add("sel");else if(bk===k&&!ok)b.style.opacity=".5";b.disabled=true;});
+      i++;setTimeout(()=>{if(i>=rounds)done();else nq();},1050);}
+    function draw(){
+      let h='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+cfg.title+' · L'+(level+1)+'</span></div><div class="panel">'+
+        '<div class="q" style="text-align:center">What did you hear? <span style="color:var(--muted)">('+(i+1)+'/'+rounds+')</span></div>'+
+        '<div class="actions" style="justify-content:center"><button class="btn ghost" id="egHear">🔊 Hear it again</button></div>'+
+        '<div class="choices" id="egChoices"></div><div class="feedback" id="egFb"></div></div>';
+      view.innerHTML=h;$("#eBack").onclick=()=>{levels();};
+      $("#egHear").onclick=()=>cfg.play(cur.root,cfg.defs[cur.key].iv);
+      const ch=$("#egChoices");opts.forEach(k=>{const b=document.createElement("button");b.className="choice egopt";b.setAttribute("data-k",k);b.textContent=cfg.defs[k].name;b.onclick=()=>pick(k);ch.appendChild(b);});}
+    function done(){const prev=load(mk("ear",cfg.key+"-l"+level+"-best"),0);if(correct>prev)save(mk("ear",cfg.key+"-l"+level+"-best"),correct);
+      let bonus=0;if(correct>=6&&!load(mk("ear",cfg.key+"-l"+level+"-paid"),false)){if(activeId()&&!isAdult()){addBeans(10);bonus=10;}save(mk("ear",cfg.key+"-l"+level+"-paid"),true);}
+      view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+cfg.title+'</span></div><div class="panel" style="text-align:center"><div class="q">You got <b>'+correct+'/'+rounds+'</b>!</div>'+(bonus?'<div class="bean-note">+'+bonus+' 🫘 level bonus</div>':"")+(correct>=6&&level<cfg.levels.length-1?'<div class="intro" style="margin-top:10px">Great ear — try the next level!</div>':"")+'<div class="actions" style="justify-content:center"><button class="btn" id="egAgain">Again</button><button class="btn ghost" id="egLvls">Levels</button></div></div>';
+      $("#eBack").onclick=back;$("#egAgain").onclick=run;$("#egLvls").onclick=levels;if(correct>=6)burst($(".panel"),12);beanChip();}
+    nq();
+  }
+  levels();
+}
+function renderChordEar(){earGame({key:"chord",title:"🎵 Chord Ear Trainer",intro:"Hear a chord and name its quality.",defs:CHORD_DEFS,levels:CHORD_LEVELS,play:playChordEar});}
+function renderScaleEar(){earGame({key:"scale",title:"🎶 Scale Ear Trainer",intro:"Hear a scale played upward and name it.",defs:SCALE_DEFS,levels:SCALE_LEVELS,play:playScaleEar});}
+function renderNoteEar(){
+  home.hidden=true;view.hidden=false;window.scrollTo(0,0);let low=48,oct=2,i=0,correct=0,target=null,answered=false;const rounds=10;
+  teardown=()=>{};
+  function newQ(){answered=false;target=low+Math.floor(Math.random()*(oct*12+1));draw();setTimeout(()=>playTone(midiToFreq(target),0,1.4),200);}
+  function guess(m,el){if(answered)return;answered=true;const ok=(m===target);if(ok){correct++;if(activeId()&&!isAdult()){addBeans(1);beanChip();}}
+    const ce=view.querySelector('[data-m="'+target+'"]');if(ce)ce.classList.add("on");if(!ok&&el)el.style.opacity=".5";
+    const fb=$("#neFb");if(fb){fb.className="feedback "+(ok?"good":"try");fb.innerHTML=ok?"✓ Yes — "+noteNameOct(target):"✗ That was "+noteNameOct(target)+" (you tapped "+noteNameOct(m)+")";}
+    i++;setTimeout(()=>{if(i>=rounds)done();else newQ();},1150);}
+  function draw(){
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎹 Note ID</span></div><div class="panel">'+
+      '<div class="q" style="text-align:center">Hear the note, then tap it <span style="color:var(--muted)">('+(i+1)+'/'+rounds+')</span></div>'+
+      '<div class="actions" style="justify-content:center"><button class="btn ghost" id="neHear">🔊 Hear it again</button></div>'+
+      '<div id="neBox"></div><div class="feedback" id="neFb"></div></div>';
+    $("#eBack").onclick=goHome;$("#neHear").onclick=()=>playTone(midiToFreq(target),0,1.4);
+    $("#neBox").appendChild(buildKeyboard(low,oct,guess,true));}
+  function done(){view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎹 Note ID</span></div><div class="panel" style="text-align:center"><div class="q">You got <b>'+correct+'/'+rounds+'</b>!</div><div class="actions" style="justify-content:center"><button class="btn" id="neAgain">Again</button><button class="btn ghost" id="neHome">Done</button></div></div>';$("#eBack").onclick=goHome;$("#neAgain").onclick=renderNoteEar;$("#neHome").onclick=goHome;if(correct>=7)burst($(".panel"),12);beanChip();}
+  newQ();
+}
 const INSTRUMENT_CARDS=[
+ {ic:"🎹",title:"Piano",blurb:"Play a real keyboard — tap or use your computer keys, shift octaves, and see the note names. The heart of music theory.",go:()=>renderPiano()},
  {ic:"🔔",title:"Handpan",blurb:"Play a handpan — tap the notes, pick a scale, and follow the glow to learn gentle patterns.",go:()=>renderHandpan()},
  {ic:"🎸",title:"Guitar",blurb:"Learn chords with diagrams, the chord family of a key, and strum along to progressions — leveling up as you go.",go:()=>renderStrings("guitar")},
  {ic:"🪕",title:"Ukulele",blurb:"Learn ukulele chords, major-scale chord families, and play along to progressions.",go:()=>renderStrings("ukulele")},
