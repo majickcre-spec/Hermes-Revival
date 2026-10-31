@@ -79,6 +79,11 @@ footer .rule{height:1px;background:linear-gradient(90deg,transparent,var(--line)
 footer a{color:var(--gold-br);text-decoration:none}
 footer .hz{font-family:"Cormorant Garamond",serif;font-style:italic;font-size:17px;color:var(--gold-br)}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.gtitle{font-family:'Cormorant Garamond',serif;color:var(--gold-br);font-size:1.55rem;line-height:1.15;font-weight:600;margin:0 0 .5rem}
+#gayleBody p{margin:.45rem 0;color:var(--cream)}
+#gayleBody .gmedia{width:100%;aspect-ratio:16/9;border:0;border-radius:12px;margin-top:12px;background:#000}
+.glink{display:inline-block;margin-top:12px;color:var(--gold-br);text-decoration:none;border:1px solid var(--gold);padding:.45rem .9rem;border-radius:999px;font-size:.92rem}
+#gayleCard{border-color:rgba(217,171,84,.34)}
 </style>
 </head>
 <body>
@@ -111,6 +116,12 @@ footer .hz{font-family:"Cormorant Garamond",serif;font-style:italic;font-size:17
 </header>
 
 <main class="wrap">
+  <section class="card" id="gayleCard">
+    <div class="lab">A message from Gayle</div>
+    <div id="gayleBody" class="reading"></div>
+    <div class="note" id="gayleNote"></div>
+  </section>
+
   <section class="card">
     <div class="lab">The field, right now</div>
     <img id="efImg" alt="Live Schumann spectrogram, Tomsk station" referrerpolicy="no-referrer">
@@ -350,7 +361,20 @@ $('#vol').value=vol;$('#volV').textContent=vol.toFixed(2);
 $('#vol').oninput=function(){vol=+this.value;$('#volV').textContent=vol.toFixed(2);if(EF&&EF.master){try{EF.master.gain.setTargetAtTime(vol,ac().currentTime,0.1);}catch(e){}}};
 $('#play').onclick=function(){if(EF){efStop();this.innerHTML='▶  Play this day';}else{go();this.innerHTML='■  Stop';}};
 
-drawFeel();drawGenre();drawModeNote();drawDays();syncInt();drawReading();
+/* ===== A message from Gayle — fed from a Google Sheet she controls ===== */
+/* GO LIVE: Gayle makes a Google Sheet with columns:  date | title | message | media
+   (date like 2026-10-31 or 10/31/2026 ; media = optional Google Drive / audio / video / YouTube link).
+   File > Share > Publish to web > CSV > copy the link, paste it between the quotes below. */
+var GAYLE_SHEET_CSV = "";
+var GAYLE_SAMPLE = {title:"Feel it, don’t fight it",
+  message:"Hi loves. The field is moving today — if you woke up wired, tearful, or wide awake at 3am, that isn’t you failing. That’s your body listening to the Earth.\nDon’t numb it. Breathe with it. Put your bare feet on the ground, drink your water, and let the frequency below do the tuning.\nYou are not too sensitive. You are an instrument. Let’s get you back in tune.",
+  media:""};
+function csvParse(text){var rows=[],field='',row=[],inQ=false,c;text=(''+text).replace(/\r\n/g,'\n').replace(/\r/g,'\n');for(var i=0;i<text.length;i++){c=text[i];if(inQ){if(c==='"'){if(text[i+1]==='"'){field+='"';i++;}else inQ=false;}else field+=c;}else{if(c==='"')inQ=true;else if(c===','){row.push(field);field='';}else if(c==='\n'){row.push(field);rows.push(row);row=[];field='';}else field+=c;}}if(field.length||row.length){row.push(field);rows.push(row);}if(!rows.length)return[];var hdr=rows[0].map(function(h){return h.trim().toLowerCase();});return rows.slice(1).filter(function(r){return r.some(function(x){return(x||'').trim()!=='';});}).map(function(r){var o={};hdr.forEach(function(h,idx){o[h]=(r[idx]||'').trim();});return o;});}
+function gayleToday(){var d=new Date();var y=d.getFullYear(),m=d.getMonth()+1,da=d.getDate();function p(n){return(n<10?'0':'')+n;}return [d.toISOString().slice(0,10),y+'-'+p(m)+'-'+p(da),m+'/'+da+'/'+y,p(m)+'/'+p(da)+'/'+y,m+'/'+da+'/'+String(y).slice(2)];}
+function gayleMedia(url){if(!url)return '';url=url.trim();var dr=url.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);if(dr)return '<iframe class="gmedia" src="https://drive.google.com/file/d/'+dr[1]+'/preview" allow="autoplay" loading="lazy"></iframe>';var yt=url.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=|youtube\.com\/embed\/)([A-Za-z0-9_-]{6,})/);if(yt)return '<iframe class="gmedia" src="https://www.youtube.com/embed/'+yt[1]+'" allow="autoplay" loading="lazy" frameborder="0"></iframe>';if(/\.(mp3|m4a|wav|aac|ogg)(\?|$)/i.test(url))return '<audio controls preload="none" src="'+esc(url)+'" style="width:100%;margin-top:12px"></audio>';if(/\.(mp4|webm|mov)(\?|$)/i.test(url))return '<video controls preload="none" src="'+esc(url)+'" style="width:100%;margin-top:12px;border-radius:12px"></video>';return '<a class="glink" href="'+esc(url)+'" target="_blank" rel="noopener">▶ Listen / watch</a>';}
+function renderGayle(e,isSample){var body=$('#gayleBody'),note=$('#gayleNote');if(!body)return;var paras=(e.message||'').split(/\n+/).filter(function(s){return s.trim();}).map(function(p){return '<p>'+esc(p)+'</p>';}).join('');body.innerHTML=(e.title?'<h3 class="gtitle">'+esc(e.title)+'</h3>':'')+paras+gayleMedia(e.media);note.innerHTML=isSample?'✨ <i>Sample — this is where your words live, Gayle. Type a short message into a simple Google Sheet whenever you like (add a voice note or video if you want) and it appears right here, beside the day’s live reading. No code, ever.</i>':'';}
+function loadGayle(){if(!GAYLE_SHEET_CSV){renderGayle(GAYLE_SAMPLE,true);return;}try{fetch(GAYLE_SHEET_CSV,{cache:'no-store'}).then(function(r){return r.text();}).then(function(txt){var rows=csvParse(txt),keys=gayleToday(),row=null;for(var i=0;i<rows.length;i++){if(keys.indexOf((rows[i].date||'').trim())>=0){row=rows[i];break;}}if(row&&(row.message||row.title))renderGayle({title:row.title,message:row.message,media:row.media||row.link||row.audio||row.video||''},false);else renderGayle(GAYLE_SAMPLE,true);}).catch(function(){renderGayle(GAYLE_SAMPLE,true);});}catch(e){renderGayle(GAYLE_SAMPLE,true);}}
+drawFeel();drawGenre();drawModeNote();drawDays();syncInt();drawReading();loadGayle();
 try{efFetchHistory(function(a,ok){if(ok&&a&&Object.keys(a).length){arch=a;liveData=true;if(arch[efDayUTC(0)])selDate=efDayUTC(0);}override=null;syncInt();drawDays();drawReading();});}catch(e){}
 </script>
 </body>
