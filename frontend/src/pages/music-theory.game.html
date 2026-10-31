@@ -179,6 +179,23 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .staffbox{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:6px;margin:12px 0;overflow-x:auto}
 .clefnote{background:var(--card2);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:10px 13px;margin:10px 0;color:var(--muted);font-size:.92rem;line-height:1.55}
 .clefnote b{color:var(--cream)}
+.modepick{display:flex;gap:10px;margin:4px 0 8px;flex-wrap:wrap}
+.modeopt{flex:1 1 150px;cursor:pointer;color:inherit;font:inherit;text-align:left;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:11px 13px;display:flex;flex-direction:column;gap:2px}
+.modeopt .mo-ic{font-size:1.3rem}
+.modeopt .mo-t{font-weight:700}
+.modeopt .mo-s{font-size:.78rem;color:var(--muted)}
+.modeopt.sel{border-color:var(--gold);background:rgba(255,159,92,.12);box-shadow:0 0 0 1px var(--gold) inset}
+.modeline{margin-top:9px;font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:6px}
+.modemini{cursor:pointer;font:inherit;font-size:.76rem;color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:999px;padding:2px 10px}
+.modemini.sel{color:var(--cream);border-color:var(--gold);background:rgba(255,159,92,.14)}
+.tuner{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:16px;text-align:center;margin:8px 0}
+.tn-note{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:3rem;font-weight:800;color:#ff9f5c;line-height:1}
+.tn-scale{display:flex;align-items:center;gap:8px;justify-content:center;margin:12px 0 4px;color:var(--muted)}
+.tn-bar{position:relative;width:min(70vw,200px);height:10px;background:rgba(255,255,255,.08);border-radius:999px}
+.tn-center{position:absolute;left:50%;top:-3px;width:2px;height:16px;background:rgba(255,255,255,.5);transform:translateX(-1px)}
+.tn-ind{position:absolute;top:-4px;left:50%;width:10px;height:18px;border-radius:3px;background:#ff9f5c;transform:translateX(-5px);transition:left .07s,background .07s}
+.tn-sub{font-size:.95rem;color:var(--cream)}
+.tn-freq{font-size:.78rem;color:var(--muted);margin-top:2px}
 .djlegend{font-size:.82rem;color:var(--muted);font-family:"Nunito Sans",system-ui,sans-serif;margin:8px 2px 4px}
 .rcell.B{color:#c9b3ff;border-color:var(--violet);background:rgba(165,121,255,.14)}
 .rcell.T{color:#ffd9a8;border-color:var(--gold);background:rgba(255,159,92,.14)}
@@ -491,6 +508,11 @@ function mk(id,s){return "music-"+(activeId()||"guest")+"-"+id+"-"+s;}
 function getProfiles(){return load("majick-profiles",[]);}
 function setProfiles(p){save("majick-profiles",p);}
 function newId(){return "u"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function activeProfile(){return getProfiles().find(x=>x.id===activeId())||null;}
+function activeMode(){const p=activeProfile();return (p&&p.mode)||"kid";}
+function isAdult(){return activeMode()==="adult";}
+function setProfileMode(m){const ps=getProfiles(),p=ps.find(x=>x.id===activeId());if(p){p.mode=m;setProfiles(ps);}}
+function modeToggleHTML(cur){return `<div class="modeline">Rewards: <button class="modemini${cur==="kid"?" sel":""}" data-m="kid">Kid 🫘</button><button class="modemini${cur==="adult"?" sel":""}" data-m="adult">Adult 📈</button></div>`;}
 /* custom share links: ?for=Name&focus=guitar,voice (injected by the wrapper, or on the URL) */
 function linkParams(){let name=null,focus=null;
   try{if(window.__MJK_FOR__)name=window.__MJK_FOR__;if(window.__MJK_FOCUS__)focus=window.__MJK_FOCUS__;}catch(e){}
@@ -509,7 +531,7 @@ function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 const home=$("#home"),view=$("#view");
 function beanChip(){const c=$("#beanChipM");if(!c)return;
-  if(activeId()){c.hidden=false;$("#beanNumM").textContent=getBeans();}else c.hidden=true;}
+  if(activeId()&&!isAdult()){c.hidden=false;$("#beanNumM").textContent=getBeans();}else c.hidden=true;}
 /* ===== MAJICK QUEST — shared level/streak/trophies (level derives from lifetime beans) ===== */
 function qLife(id){return load("majick-p-"+id+"-beansLife",0)||0;}
 function qAdd(id,n){save("majick-p-"+id+"-beans",(load("majick-p-"+id+"-beans",0)||0)+n);save("majick-p-"+id+"-beansLife",(load("majick-p-"+id+"-beansLife",0)||0)+n);}
@@ -532,16 +554,30 @@ const MUSIC_BADGES=[
  {name:"Songwriter",ic:"🎓",has:()=>load(mk("proj","final-done"),false)}
 ];
 function renderQuest(){const box=$("#questBox");if(!box)return;const id=activeId();if(!id){box.innerHTML="";return;}
-  questDaily(id);const bl=qLife(id),li=levelInfo(bl),q=load("majick-p-"+id+"-quest",{}),pct=Math.round(100*li.into/li.need),today=Math.max(0,bl-(q.base||0));
-  box.innerHTML=`<div class="quest"><div class="q-eyebrow">⚔️ MAJICK Music · Hero's Journey</div>
-    <div class="quest-top"><span class="q-lvl">Lv ${li.level} · ${esc(li.rank)}</span><span class="q-streak">🔥 ${q.streak||0}</span><button class="q-tro" id="qTro">🏆 Trophies</button></div>
-    <div class="q-bar"><div class="q-fill" style="width:${pct}%"></div></div>
-    <div class="q-sub">${li.into}/${li.need} XP to Lv ${li.level+1} · daily goal ${Math.min(today,20)}/20 🫘${q.goalDate===qDay(0)?" ✓ +10":""}</div></div>`;
-  $("#qTro").onclick=renderTrophies;beanChip();}
+  questDaily(id);const q=load("majick-p-"+id+"-quest",{});
+  if(isAdult()){
+    const got=MUSIC_BADGES.filter(b=>{try{return b.has();}catch(e){return false;}}).length;
+    const sections=(typeof SONGLIB!=="undefined"?SONGLIB.length:0),chords=strLearned("guitar").length+strLearned("ukulele").length;
+    box.innerHTML=`<div class="quest"><div class="q-eyebrow">📈 Progress report</div>
+      <div class="quest-top"><span class="q-lvl">🎖️ ${got}/${MUSIC_BADGES.length} milestones</span><span class="q-streak">🔥 ${q.streak||0}-day</span><button class="q-tro" id="qTro">🎖️ Milestones</button></div>
+      <div class="q-bar"><div class="q-fill" style="width:${Math.round(100*got/MUSIC_BADGES.length)}%"></div></div>
+      <div class="q-sub">${sections} section${sections===1?"":"s"} saved · ${chords} chord${chords===1?"":"s"} learned${q.goalDate===qDay(0)?" · practiced today ✓":""}</div>
+      ${modeToggleHTML("adult")}</div>`;
+  } else {
+    const bl=qLife(id),li=levelInfo(bl),pct=Math.round(100*li.into/li.need),today=Math.max(0,bl-(q.base||0));
+    box.innerHTML=`<div class="quest"><div class="q-eyebrow">⚔️ MAJICK Music · Hero's Journey</div>
+      <div class="quest-top"><span class="q-lvl">Lv ${li.level} · ${esc(li.rank)}</span><span class="q-streak">🔥 ${q.streak||0}</span><button class="q-tro" id="qTro">🏆 Trophies</button></div>
+      <div class="q-bar"><div class="q-fill" style="width:${pct}%"></div></div>
+      <div class="q-sub">${li.into}/${li.need} XP to Lv ${li.level+1} · daily goal ${Math.min(today,20)}/20 🫘${q.goalDate===qDay(0)?" ✓ +10":""}</div>
+      ${modeToggleHTML("kid")}</div>`;
+  }
+  $("#qTro").onclick=renderTrophies;
+  box.querySelectorAll(".modemini").forEach(b=>{b.onclick=()=>{setProfileMode(b.getAttribute("data-m"));beanChip();renderQuest();};});
+  beanChip();}
 function renderTrophies(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  const got=MUSIC_BADGES.filter(b=>{try{return b.has();}catch(e){return false;}}).length;
-  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🏆 Hero's Journey</span></div>
-    <div class="panel"><div class="intro">Your trophies on the Hero's Journey — <b>${got}/${MUSIC_BADGES.length}</b> earned. The big one is <b>Songwriter</b>: finish a full song in the Song Project.</div>
+  const got=MUSIC_BADGES.filter(b=>{try{return b.has();}catch(e){return false;}}).length,ad=isAdult();
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">${ad?"🎖️ Milestones":"🏆 Hero's Journey"}</span></div>
+    <div class="panel"><div class="intro">${ad?`Your milestones — <b>${got}/${MUSIC_BADGES.length}</b> reached. The big one is <b>Songwriter</b>: finish a full song in the Song Project.`:`Your trophies on the Hero's Journey — <b>${got}/${MUSIC_BADGES.length}</b> earned. The big one is <b>Songwriter</b>: finish a full song in the Song Project.`}</div>
     <div class="trgrid" id="trg"></div></div>`;
   $("#eBack").onclick=goHome;const g=$("#trg");
   MUSIC_BADGES.forEach(b=>{let has=false;try{has=b.has();}catch(e){}const c=document.createElement("div");c.className="trophy"+(has?" got":"");c.innerHTML=`<div class="tr-ic">${has?b.ic:"🔒"}</div><div class="tr-nm">${esc(b.name)}</div>`;g.appendChild(c);});}
@@ -2104,25 +2140,65 @@ function hpFrame(){const now=ac().currentTime;while(HP.visQ.length&&HP.visQ[0].t
 function hpStart(){unlockAudio();if(HP.running)return;const a=ac();HP.running=true;HP.i=0;HP.nextTime=a.currentTime+0.2;HP.visQ=[];HP.schID=setInterval(hpSchedule,30);HP.raf=requestAnimationFrame(hpFrame);const b=$("#hpStart");if(b)b.textContent="⏸ Stop";}
 function renderHandpan(){
   if(toneRAF)cancelAnimationFrame(toneRAF);hpStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  teardown=()=>{hpStop();};
+  HP.mode=HP.mode||"play";
+  let tRAF=null,tbuf=null,last=null,captured=load(mk("hp","mymap"),[]);
+  teardown=()=>{hpStop();if(tRAF)cancelAnimationFrame(tRAF);tRAF=null;try{stopMic();}catch(e){}};
+  function stopTuner(){if(tRAF)cancelAnimationFrame(tRAF);tRAF=null;try{stopMic();}catch(e){}}
+  function noteInfo(f){const m=69+12*Math.log2(f/440),r=Math.round(m),cents=Math.round((m-r)*100);return {midi:r,name:NOTE_NAMES[((r%12)+12)%12]+(Math.floor(r/12)-1),cents,f};}
+  function updTuner(d){const n=$("#tnNote");if(!n)return;n.textContent=d.name;n.style.color=Math.abs(d.cents)<=6?"#7cf2a0":"#ff9f5c";
+    const ind=$("#tnInd");if(ind)ind.style.left=(50+Math.max(-50,Math.min(50,d.cents)))+"%";
+    const c=$("#tnCents");if(c)c.textContent=(Math.abs(d.cents)<=6?"in tune ✓":(d.cents>0?"+"+d.cents+" cents (sharp)":d.cents+" cents (flat)"));
+    const fr=$("#tnFreq");if(fr)fr.textContent=d.f.toFixed(1)+" Hz";}
+  function renderCaptured(){const l=$("#tnList");if(!l)return;const g=$("#tnGuess");
+    if(!captured.length){l.innerHTML='<div class="site-note">No notes captured yet. Tap a field on your pan, let it ring, then hit “Capture.”</div>';if(g)g.textContent="";return;}
+    l.innerHTML="";captured.forEach((c,i)=>{const row=document.createElement("div");row.className="kb";
+      row.innerHTML='<span class="kb-ic">'+(i===0?"🔘":"◯")+'</span><div class="kb-main"><div class="kb-t">'+(i===0?"Ding (center)":("Field "+i))+' — '+esc(c.name)+'</div></div>';
+      const pb=document.createElement("button");pb.className="kb-btn";pb.textContent="▶";pb.onclick=()=>handpan(ac().currentTime+0.01,c.midi);
+      const dl=document.createElement("button");dl.className="kb-btn";dl.style.marginLeft="6px";dl.textContent="✕";dl.onclick=()=>{captured.splice(i,1);save(mk("hp","mymap"),captured);renderCaptured();};
+      row.appendChild(pb);row.appendChild(dl);l.appendChild(row);});
+    if(g){const pcs=[...new Set(captured.map(c=>((c.midi%12)+12)%12))];let best=null;
+      HP_SCALES.forEach(s=>{const sp=[...new Set(s.notes.map(m=>((m%12)+12)%12))];let hit=0;pcs.forEach(p=>{if(sp.indexOf(p)>=0)hit++;});const score=hit/Math.max(pcs.length,1);if(!best||score>best.score)best={score,name:s.name};});
+      g.innerHTML=(best&&best.score>=0.7&&captured.length>=4)?("Looks like <b>"+best.name+"</b> ("+Math.round(best.score*100)+"% match) · root "+esc(captured[0].name)):("Notes so far: "+captured.map(c=>esc(c.name)).join(" · "));}}
+  function startTuner(){const s=$("#tnCents");if(s)s.textContent="turning on mic…";
+    ensureMic().then(ok=>{if(!ok){const n=$("#tnNote");if(n)n.textContent="🎤";const c=$("#tnCents");if(c)c.textContent="I need the mic to hear your pan.";return;}
+      tbuf=new Float32Array(toneAnalyser.fftSize);
+      (function loop(){if(HP.mode!=="tuner"){return;}toneAnalyser.getFloatTimeDomainData(tbuf);const f=autoCorrelate(tbuf,ac().sampleRate);if(f>=55&&f<=1400){last=noteInfo(f);updTuner(last);}tRAF=requestAnimationFrame(loop);})();});}
   function buildPan(){const box=$("#handpan");if(!box)return;box.innerHTML="";const sc=HP_SCALES[HP.scaleIdx].notes,nF=sc.length-1,CX=130,CY=130,R=92;
     function mkField(idx,midi,x,y,size,ding){const b=document.createElement("button");b.className="hp-field"+(ding?" ding":"");b.id="hpF"+idx;b.style.width=b.style.height=size+"px";b.style.left=(x-size/2)+"px";b.style.top=(y-size/2)+"px";b.innerHTML="<span>"+midiName(midi)+"</span>";
       b.addEventListener("pointerdown",e=>{e.preventDefault();unlockAudio();handpan(ac().currentTime+0.01,midi);b.classList.remove("glow");void b.offsetWidth;b.classList.add("glow");setTimeout(()=>b.classList.remove("glow"),400);});return b;}
     box.appendChild(mkField(0,sc[0],CX,CY,66,true));
     for(let i=1;i<sc.length;i++){const ang=(-90+(i-1)*(360/nF))*Math.PI/180;box.appendChild(mkField(i,sc[i],CX+R*Math.cos(ang),CY+R*Math.sin(ang),46,false));}}
+  function modeBar(){return '<div class="rchips" style="margin-bottom:10px"><button class="rchip sm'+(HP.mode==="play"?" sel":"")+'" id="hpModePlay">🔔 Play</button><button class="rchip sm'+(HP.mode==="tuner"?" sel":"")+'" id="hpModeTuner">🎤 Tuner</button></div>';}
+  function wireMode(){const p=$("#hpModePlay"),t=$("#hpModeTuner");if(p)p.onclick=()=>{if(HP.mode==="play")return;HP.mode="play";stopTuner();draw();};if(t)t.onclick=()=>{if(HP.mode==="tuner")return;hpStop();HP.mode="tuner";draw();};}
   function draw(){
-    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔔 Handpan</span></div>
-      <div class="panel">
-        <div class="intro">Tap the handpan to play. The <b>ding</b> in the middle is the low note; the fields around it climb the scale. Pick a scale, or tap <b>Play along</b> and follow the glowing notes to learn a pattern.</div>
-        <div class="rrow2"><span class="rlab">Scale</span><span class="rchips tight" id="hpScales"></span></div>
-        <div class="handpan" id="handpan"></div>
-        <div class="rlab" style="display:block;margin:12px 0 6px">Play along — follow the glow</div>
-        <div class="rchips" id="hpPats"></div>
-        <div class="rrow"><span class="rlab">Tempo</span><input type="range" id="hpBpm" min="45" max="140" value="${HP.bpm}" style="flex:1"><span class="rbpm" id="hpBpmV">${HP.bpm}</span><button class="rtap" id="hpTap">Tap</button></div>
-        <div class="rrow2"><span class="rlab">Sound</span><button class="rchip sm${HP.playNotes?" sel":""}" id="hpMute">${HP.playNotes?"🔊 Plays the notes":"🔇 Just the glow"}</button></div>
-        <div class="actions"><button class="btn" id="hpStart">${HP.running?"⏸ Stop":"▶ Play along"}</button></div>
-      </div>`;
-    $("#eBack").onclick=goHome;
+    if(HP.mode==="tuner"){
+      view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔔 Handpan</span></div>'+
+       '<div class="panel">'+modeBar()+
+        '<div class="intro">Notes on your handpan not labeled? Hold a note near the mic and I&rsquo;ll name it. Tap each field in turn and <b>Capture</b> it to map your pan&rsquo;s layout — the first one you capture is the <b>ding</b> (center), so you know which way to orient it.</div>'+
+        '<div class="tuner"><div class="tn-note" id="tnNote">—</div>'+
+          '<div class="tn-scale"><span>♭</span><div class="tn-bar"><div class="tn-center"></div><div class="tn-ind" id="tnInd"></div></div><span>♯</span></div>'+
+          '<div class="tn-sub" id="tnCents">play a note…</div><div class="tn-freq" id="tnFreq"></div></div>'+
+        '<div class="actions"><button class="btn" id="tnCap">＋ Capture note</button><button class="btn ghost" id="tnClear">Clear list</button></div>'+
+        '<div class="rlab" style="display:block;margin:12px 0 6px">Your pan — in the order you capture</div>'+
+        '<div id="tnList"></div><div class="bean-note" id="tnGuess" style="text-align:left"></div>'+
+       '</div>';
+      $("#eBack").onclick=goHome;wireMode();
+      $("#tnCap").onclick=()=>{if(!last)return;captured.push({name:last.name,midi:last.midi});save(mk("hp","mymap"),captured);renderCaptured();};
+      $("#tnClear").onclick=()=>{captured=[];save(mk("hp","mymap"),captured);renderCaptured();};
+      renderCaptured();startTuner();return;
+    }
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔔 Handpan</span></div>'+
+      '<div class="panel">'+modeBar()+
+        '<div class="intro">Tap the handpan to play. The <b>ding</b> in the middle is the low note; the fields around it climb the scale. Pick a scale, or tap <b>Play along</b> and follow the glowing notes to learn a pattern. Don&rsquo;t know your real pan&rsquo;s notes? Switch to <b>🎤 Tuner</b>.</div>'+
+        '<div class="rrow2"><span class="rlab">Scale</span><span class="rchips tight" id="hpScales"></span></div>'+
+        '<div class="handpan" id="handpan"></div>'+
+        '<div class="rlab" style="display:block;margin:12px 0 6px">Play along — follow the glow</div>'+
+        '<div class="rchips" id="hpPats"></div>'+
+        '<div class="rrow"><span class="rlab">Tempo</span><input type="range" id="hpBpm" min="45" max="140" value="'+HP.bpm+'" style="flex:1"><span class="rbpm" id="hpBpmV">'+HP.bpm+'</span><button class="rtap" id="hpTap">Tap</button></div>'+
+        '<div class="rrow2"><span class="rlab">Sound</span><button class="rchip sm'+(HP.playNotes?" sel":"")+'" id="hpMute">'+(HP.playNotes?"🔊 Plays the notes":"🔇 Just the glow")+'</button></div>'+
+        '<div class="actions"><button class="btn" id="hpStart">'+(HP.running?"⏸ Stop":"▶ Play along")+'</button></div>'+
+      '</div>';
+    $("#eBack").onclick=goHome;wireMode();
     const scc=$("#hpScales");HP_SCALES.forEach((s,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===HP.scaleIdx?" sel":"");b.textContent=s.name;b.onclick=()=>{HP.scaleIdx=i;if(HP.running){HP.i=0;HP.nextTime=ac().currentTime+0.1;HP.visQ=[];}draw();};scc.appendChild(b);});
     const pc=$("#hpPats");HP_PATTERNS.forEach((p,i)=>{const b=document.createElement("button");b.className="rchip"+(i===HP.patIdx?" sel":"");b.textContent=p.name;b.onclick=()=>{HP.patIdx=i;if(HP.running){HP.i=0;HP.nextTime=ac().currentTime+0.1;HP.visQ=[];}draw();};pc.appendChild(b);});
     buildPan();
@@ -2819,17 +2895,24 @@ function selectProfile(p){
   } else activate(p.id);
 }
 function showCreate(){
+  let mode="kid";const lp=linkParams();if(/adult/.test(lp.focus||""))mode="adult";
   $("#gateForm").innerHTML=`<div class="create"><div class="ulabel">Name</div>
-    <input class="pin-input name" id="newName" maxlength="18" placeholder="your name" aria-label="name">
+    <input class="pin-input name" id="newName" maxlength="18" placeholder="your name" aria-label="name"${lp.name?' value="'+esc(lp.name)+'"':""}>
+    <div class="ulabel">Rewards style</div>
+    <div class="modepick" id="modePick">
+      <button type="button" class="modeopt${mode==="kid"?" sel":""}" data-m="kid"><span class="mo-ic">🫘</span><span class="mo-t">Kid</span><span class="mo-s">Beans &amp; the Hero's Journey</span></button>
+      <button type="button" class="modeopt${mode==="adult"?" sel":""}" data-m="adult"><span class="mo-ic">📈</span><span class="mo-t">Adult</span><span class="mo-s">A progress report — no beans</span></button>
+    </div>
     <div class="ulabel">Secret code — optional, 4 digits</div>
     <input class="pin-input" id="newPin" inputmode="numeric" maxlength="4" placeholder="leave blank for none" aria-label="code">
     <div class="feedback try" id="newfb"></div>
     <div class="actions"><button class="btn ghost" id="newCancel">Cancel</button><button class="btn" id="newGo">Begin</button></div></div>`;
+  $("#modePick").querySelectorAll(".modeopt").forEach(b=>{b.onclick=()=>{mode=b.getAttribute("data-m");$("#modePick").querySelectorAll(".modeopt").forEach(x=>x.classList.toggle("sel",x===b));};});
   $("#newCancel").onclick=()=>{$("#gateForm").innerHTML="";};
   $("#newGo").onclick=()=>{const name=$("#newName").value.trim(),pin=$("#newPin").value.trim();
     if(!name){$("#newfb").textContent="Please enter a name.";return;}
     if(pin&&!/^\d{4}$/.test(pin)){$("#newfb").textContent="The code must be 4 digits, or left blank.";return;}
-    const ps=getProfiles();const id=newId();ps.push({id,name,pin:pin||null});setProfiles(ps);activate(id);};
+    const ps=getProfiles();const id=newId();ps.push({id,name,pin:pin||null,mode});setProfiles(ps);activate(id);};
   setTimeout(()=>$("#newName").focus(),60);
 }
 function activate(id){save("majick-active",id);showHome();}
