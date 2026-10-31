@@ -2715,7 +2715,7 @@ const MAKE_CARDS=[
  {ic:"🧩",title:"Beat Maker",blurb:"Build layered beats & motifs on a grid — djembe and handpan together. Play the instrument live into the sequencer, loop, save, and get feedback.",go:()=>renderBeat()},
  {ic:"🎼",title:"Learn a Song",blurb:"Bring in a song you're practicing — paste a chord sheet or build it — and get a play-along chord chart with loop, tempo, and transpose.",go:()=>renderLearnSong()},
  {ic:"🎼",title:"Song Project (final)",blurb:"The big one — assemble your sections into a full song: intro, verses, choruses, bridge, outro. Finish it to earn Songwriter.",go:()=>renderSongBuilder()},
- {ic:"🎓",title:"The Instructor",blurb:"Drop in a track (or a section you bounced) and get a real mix report — gain staging, tonal balance, low end, dynamics, stereo — graded for YOUR genre. Add a reference track to hear why yours sounds older. Take a midterm anytime.",go:()=>renderInstructor()}
+ {ic:"🎓",title:"Majick Music University",blurb:"Your mix teacher. Drop in a track (or a section you bounced) and get a real mix report — gain staging, tonal balance, low end, dynamics, stereo — graded for YOUR genre. Save it as a track project and track your progress version to version. Add a reference to hear why yours sounds older.",go:()=>renderInstructor()}
 ];
 /* handpan voice — mellow metallic bell with octave + twelfth overtones, long decay */
 function handpan(time,midi){const a=ac(),out=pianoMaster(a),f=midiToFreq(midi);
@@ -3352,7 +3352,7 @@ function renderBass(){
 /* ===== BIOFEEDBACK — Muse 2 live monitor (Web Bluetooth) ===== */
 const BIO_CARDS=[
  {ic:"🧠",title:"Live Monitor",blurb:"Connect your Muse and watch your brainwaves (alpha/theta/beta) and heart rhythm in real time.",go:()=>openBio()},
- {ic:"🌍",title:"Earth Frequency",blurb:"The Schumann resonance (7.83 Hz) made audible — a drone, a felt pulse, and a slow beat shaped by today's real geomagnetic activity.",go:()=>renderEarthFreq()}
+ {ic:"🌍",title:"Schumann Resonance",blurb:"The Earth resonance — today's meditation & song. The 7.83 Hz Schumann resonance made audible and shaped by today's real geomagnetic activity.",go:()=>renderEarthFreq()}
 ];
 /* ===== EARTH FREQUENCY — Schumann 7.83 Hz made audible, shaped by today's geomagnetic data ===== */
 let EF=null;
@@ -3395,13 +3395,19 @@ function efClap(a,out,t,lvl){[0,0.008,0.017,0.028].forEach((d,i)=>djNoise(a,t+d,
 function efSubNote(a,out,t,freq,dur){const o=a.createOscillator();o.type="sine";o.frequency.value=freq;const o2=a.createOscillator();o2.type="triangle";o2.frequency.value=freq;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.6,t+0.012);g.gain.setValueAtTime(0.55,t+Math.max(0.05,dur*0.75));g.gain.exponentialRampToValueAtTime(0.0001,t+dur);const g2=a.createGain();g2.gain.value=0.18;o2.connect(g2);g2.connect(g);o.connect(g);g.connect(out);o.start(t);o2.start(t);o.stop(t+dur+0.04);o2.stop(t+dur+0.04);}
 function efBassNote(a,out,t,freq,dur,type){const o=a.createOscillator();o.type=type||"triangle";o.frequency.value=freq;const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=700;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.42,t+0.008);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(lp);lp.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.04);efSubNote(a,out,t,freq/2,Math.min(dur,0.5));}
 function efReese(a,out,t,freq,dur,I){const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.setValueAtTime(350,t);lp.frequency.linearRampToValueAtTime(1100+I*1600,t+dur*0.5);lp.frequency.linearRampToValueAtTime(350,t+dur);lp.Q.value=7;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.4,t+0.02);g.gain.setValueAtTime(0.38,t+dur*0.8);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);[-14,-7,0,0.3,7].forEach(det=>{const o=a.createOscillator();o.type="sawtooth";o.frequency.value=freq;o.detune.value=det;o.connect(lp);o.start(t);o.stop(t+dur+0.04);});lp.connect(g);g.connect(out);efSubNote(a,out,t,freq/2,dur);}
-function efGrowl(a,out,t,freq,dur,I,wob){const sum=a.createGain();sum.gain.value=0.4;
+function efGrowl(a,out,t,freq,dur,I,wob,chill){const sum=a.createGain();sum.gain.value=0.4;
   [-11,-5,0,5,0.3].forEach(d=>{const o=a.createOscillator();o.type="sawtooth";o.frequency.value=freq;o.detune.value=d;o.connect(sum);o.start(t);o.stop(t+dur+0.05);});
-  const sq=a.createOscillator();sq.type="square";sq.frequency.value=freq;const sqg=a.createGain();sqg.gain.value=0.3;sq.connect(sqg);sqg.connect(sum);sq.start(t);sq.stop(t+dur+0.05);
-  const ws=_dist(a,55);sum.connect(ws);
-  const lp=a.createBiquadFilter();lp.type="lowpass";lp.Q.value=11;const base=150,peak=1300+I*1500;lp.frequency.value=(peak+base)/2;
-  const lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=wob||4;const lg=a.createGain();lg.gain.value=(peak-base)/2;lfo.connect(lg);lg.connect(lp.frequency);lfo.start(t);lfo.stop(t+dur+0.05);
-  ws.connect(lp);const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.5,t+0.012);g.gain.setValueAtTime(0.47,t+Math.max(0.05,dur*0.85));g.gain.exponentialRampToValueAtTime(0.0001,t+dur);lp.connect(g);g.connect(out);}
+  const sq=a.createOscillator();sq.type="square";sq.frequency.value=freq;const sqg=a.createGain();sqg.gain.value=chill?0.18:0.3;sq.connect(sqg);sqg.connect(sum);sq.start(t);sq.stop(t+dur+0.05);
+  const ws=_dist(a,chill?24:70);sum.connect(ws);
+  const lp=a.createBiquadFilter();lp.type="lowpass";lp.Q.value=chill?6:13;const base=chill?120:150,peak=chill?(650+I*650):(1500+I*1700);lp.frequency.value=(peak+base)/2;
+  const lfo=a.createOscillator();lfo.type=chill?"sine":"triangle";lfo.frequency.value=wob||4;const lg=a.createGain();lg.gain.value=(peak-base)/2;lfo.connect(lg);lg.connect(lp.frequency);lfo.start(t);lfo.stop(t+dur+0.05);
+  ws.connect(lp);const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(chill?0.4:0.52,t+0.012);g.gain.setValueAtTime(chill?0.37:0.48,t+Math.max(0.05,dur*0.85));g.gain.exponentialRampToValueAtTime(0.0001,t+dur);lp.connect(g);g.connect(out);}
+function efScreech(a,out,t,freq,dur,I){const sum=a.createGain();sum.gain.value=0.3;
+  [-14,-7,0,7,0.5].forEach(d=>{const o=a.createOscillator();o.type="sawtooth";o.frequency.value=freq;o.detune.value=d;o.connect(sum);o.start(t);o.stop(t+dur+0.04);});
+  const ws=_dist(a,85);sum.connect(ws);
+  const bp=a.createBiquadFilter();bp.type="bandpass";bp.Q.value=5;bp.frequency.setValueAtTime(900,t);bp.frequency.linearRampToValueAtTime(2600+I*2200,t+dur*0.5);bp.frequency.linearRampToValueAtTime(1300,t+dur);
+  const pk=a.createBiquadFilter();pk.type="peaking";pk.frequency.value=3200;pk.gain.value=9;pk.Q.value=3;
+  ws.connect(bp);bp.connect(pk);const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.11,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);pk.connect(g);g.connect(out);}
 function efBell(a,out,t,freq,dur){[[1,0.1],[2.76,0.05],[5.4,0.02]].forEach(([m,l])=>{const o=a.createOscillator();o.type="sine";o.frequency.value=freq*m;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(l,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.05);});}
 function efStabNote(a,out,t,freq,dur,type,cut){const o=a.createOscillator();o.type=type||"sawtooth";o.frequency.value=freq;const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.setValueAtTime(cut||3200,t);lp.frequency.exponentialRampToValueAtTime(600,t+dur);lp.Q.value=2;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.13,t+0.005);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(lp);lp.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.03);}
 function efPadVoice(a,out,t,freq,dur,cut){const o=a.createOscillator();o.type="sawtooth";o.frequency.value=freq;o.detune.value=Math.random()*10-5;const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=cut||1200;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(0.04,t+0.5);g.gain.setValueAtTime(0.04,t+Math.max(0.6,dur-0.7));g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(lp);lp.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.05);}
@@ -3424,19 +3430,21 @@ const EF_GENRES={
    if((bar===4||bar===6)&&s===0)efCrash(c.a,c.master,t,0.16);}},
  bass:{name:"Space Bass",bpm:140,duck:0.5,
   GP:[{d:3,m:2},null,null,{d:1,m:1},{d:2,m:2},null,null,{d:1,m:4},{d:3,m:2},null,{d:1,m:3},null,{d:2,m:2},null,{d:1,m:4},null],
-  step(s,bar,t,I,c){const ch=c.CH[bar%4],rt=c.BR[bar%4],drop=(bar===4||bar===5||bar===7),bpl=c.g.bpm/60;
+  step(s,bar,t,I,c){const ch=c.CH[bar%4],rt=c.BR[bar%4],drop=(bar===4||bar===5||bar===7),bpl=c.g.bpm/60,chill=c.var==="chill";
    if(bar<2||bar===6){ if(s===0)ch.forEach(n=>efPadVoice(c.a,c.pump,t,c.f(n+12),c.spb*4,900+I*1300)); if([0,4,8,12].includes(s))efBell(c.a,c.pump,t,c.f(ch[(s/4)%ch.length]+24),c.spb*1.3); if(s===0)efSubNote(c.a,c.master,t,c.f(rt)/2,c.spb*4); }
    if(bar===2||bar===3){ if(s===0||s===8)efKick(c.a,c.master,t,true); if(s===8)efSnare(c.a,c.master,t,0.7); if(s%4===2)efHat(c.a,c.master,t,0.04,false); if(s===0)efSubNote(c.a,c.master,t,c.f(rt)/2,c.spb*4); if(bar===3&&s===10)efRiser(c.a,c.master,t,c.spb*1.5); }
    if(drop){
      if(s===0)efKick(c.a,c.master,t,true);
-     if(I>0.55&&s===11)efKick(c.a,c.master,t,true);
-     if(s===8){efSnare(c.a,c.master,t,1.05);djNoise(c.a,t,0.3,2200,0.16,c.rev,false);c.duck(t);}
-     if([2,6,10,14].includes(s))efHat(c.a,c.master,t,0.05+0.04*I,s===14);
-     if(I>0.6&&s===15)efHat(c.a,c.master,t,0.06,false);
+     if(!chill&&I>0.5&&s===11)efKick(c.a,c.master,t,true);
+     if(s===8){efSnare(c.a,c.master,t,chill?0.85:1.1);djNoise(c.a,t,chill?0.4:0.3,2200,chill?0.2:0.15,c.rev,false);c.duck(t);}
+     if([2,6,10,14].includes(s))efHat(c.a,c.master,t,(chill?0.035:0.05)+0.04*I,s===14);
+     if(!chill&&I>0.6&&s===15)efHat(c.a,c.master,t,0.06,false);
      if(s===0||s===8)efSubNote(c.a,c.master,t,c.f(rt)/2,c.spb*2);
-     const gp=c.g.GP[s];if(gp)efGrowl(c.a,c.master,t,c.f(rt),gp.d*c.stepDur,I,bpl*gp.m);
+     const gp=c.g.GP[s];if(gp)efGrowl(c.a,c.master,t,c.f(rt),gp.d*c.stepDur,I,bpl*gp.m*(chill?0.5:1),chill);
+     if(chill){ if([0,8].includes(s))ch.forEach(n=>efBell(c.a,c.pump,t,c.f(n+24),c.spb*1.6)); }
+     else { if([4,7,12,15].includes(s))efScreech(c.a,c.pump,t,c.f([7,10,12,7][[4,7,12,15].indexOf(s)]+24),c.stepDur*(s===15?1:1.6),I); }
    }
-   if((bar===4||bar===7)&&s===0)efCrash(c.a,c.master,t,0.22);
+   if((bar===4||bar===7)&&s===0)efCrash(c.a,c.master,t,chill?0.14:0.24);
    if(bar===6&&s===10)efRiser(c.a,c.master,t,c.spb*1.5);},},
  rock:{name:"Alt Rock",bpm:124,duck:0,
   step(s,bar,t,I,c){const ch=c.CH[bar%4],rt=c.BR[bar%4],drop=bar>=4&&bar!==6;
@@ -3456,7 +3464,7 @@ const EF_GENRES={
    else if(s===0)ch.forEach(n=>efRhodes(c.a,c.pump,t,c.f(n+12),c.spb*3));
    if(bar>=4&&[4,12].includes(s))efLeadNote(c.a,c.pump,t,c.f([3,7,10][bar%3]+24),c.stepDur*2,"sine",2000);}}
 };
-function efSong(intensity,vol,genreKey){efStop();unlockAudio();const a=ac(),I=Math.max(0,Math.min(1,(intensity||0)/100));
+function efSong(intensity,vol,genreKey,variant){efStop();unlockAudio();const a=ac(),I=Math.max(0,Math.min(1,(intensity||0)/100));
   const G=EF_GENRES[genreKey]||EF_GENRES.house,root=7.83*16,f=s=>root*Math.pow(2,s/12),oscs=[];
   const master=a.createGain();master.gain.value=0.0001;const comp=a.createDynamicsCompressor();comp.threshold.value=-15;comp.knee.value=22;comp.ratio.value=2.6;comp.attack.value=0.004;comp.release.value=0.2;master.connect(comp);comp.connect(a.destination);master.gain.setTargetAtTime(vol==null?0.6:vol,a.currentTime,0.5);
   const rev=a.createConvolver();rev.buffer=makeIR(a,2.4,2.6);const rg=a.createGain();rg.gain.value=0.85;rev.connect(rg);rg.connect(master);
@@ -3465,7 +3473,7 @@ function efSong(intensity,vol,genreKey){efStop();unlockAudio();const a=ac(),I=Ma
   const rs=a.createGain();rs.gain.value=0.16;music.connect(rs);rs.connect(rev);const ds=a.createGain();ds.gain.value=0.12;music.connect(ds);ds.connect(del);
   const spb=60/G.bpm,stepDur=spb/4;const dd=G.duck||0;
   function duck(t){if(dd<=0)return;try{pump.gain.cancelScheduledValues(t);pump.gain.setValueAtTime(1-dd,t);pump.gain.linearRampToValueAtTime(1,t+Math.min(0.24,spb*0.85));}catch(e){}}
-  const c={a,master,pump,music,rev,del,root,f,CH:EF_CH,CH7:EF_CH7,BR:EF_BR,I,spb,stepDur,duck,oscs,g:G};
+  const c={a,master,pump,music,rev,del,root,f,CH:EF_CH,CH7:EF_CH7,BR:EF_BR,I,spb,stepDur,duck,oscs,g:G,var:variant};
   if(G.setup)G.setup(c);
   let step=0,nextTime=a.currentTime+0.14;
   const timer=setInterval(()=>{if(!EF){clearInterval(timer);return;}const now=a.currentTime;while(nextTime<now+0.14){const s=step%16,bar=Math.floor(step/16)%8;try{G.step(s,bar,nextTime,I,c);}catch(e){}nextTime+=stepDur;step++;}},25);
@@ -3513,15 +3521,16 @@ function efDayReading(day,arch){const s=arch[day];if(!s)return "No reading for t
 function renderEarthFreq(){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   let voice=load(mk("earth","voice"),"pure"),vol=0.6;
-  let arr=load(mk("earth","arr"),"med"),genre=load(mk("earth","genre"),"house");
+  let arr=load(mk("earth","arr"),"med"),genre=load(mk("earth","genre"),"house"),bassvar=load(mk("earth","bassvar"),"agg");
   let arch=efArch(),selDate=efDayUTC(0),override=null;
   const EF_GLIST=[["house","🏠 Melodic House"],["bass","🛸 Space Bass"],["rock","🎸 Alt Rock"],["lofi","☕ Lo-fi"]];
   teardown=()=>{efStop();};
   function cur(){if(override!=null)return override;const s=arch[selDate];return s?s.intensity:24;}
-  function go(){if(arr==="song")efSong(cur(),vol,genre);else if(arr==="binaural")efBinaural(cur(),vol);else efStart(cur(),"iso",vol,voice);}
+  function go(){if(arr==="song")efSong(cur(),vol,genre,genre==="bass"?bassvar:null);else if(arr==="binaural")efBinaural(cur(),vol);else efStart(cur(),"iso",vol,voice);}
   function draw(){
     const s=arch[selDate],days=Object.keys(arch).sort().reverse().slice(0,7);
-    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌍 Earth Frequency</span></div><div class="panel">'+
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌍 Schumann Resonance <span style="font-size:11px;font-weight:600;opacity:.55;letter-spacing:.3px">· the Earth resonance</span></span></div><div class="panel">'+
+      '<div class="site-note" style="text-align:center;margin:-2px 0 8px;font-size:13px;opacity:.75">Today&rsquo;s meditation &amp; song</div>'+
       '<div class="intro">The <b>Schumann resonance</b> is the Earth&rsquo;s background hum — a fundamental near <b>7.83 Hz</b>, below hearing, octaved up so you can feel it. Pick a day, read what&rsquo;s happening in the field, then hear it as a <b>Meditation</b>, a between-the-ears <b>Binaural</b>, or a full <b>Song</b> in your genre — all built on that 7.83 Hz as the bass. How calm or spiky each day feels comes from <b>real NOAA geomagnetic data</b>.</div>'+
       '<div class="rlab" style="display:block;margin:4px 0 6px">Live spectrogram (Tomsk station)</div>'+
       '<img id="efImg" alt="Schumann spectrogram" style="width:100%;border-radius:10px;border:1px solid var(--line)" referrerpolicy="no-referrer">'+
@@ -3529,7 +3538,9 @@ function renderEarthFreq(){
       '<div class="rlab" style="display:block;margin:12px 0 5px">Tune in — pick a day</div><div class="rchips" id="efDays"></div>'+
       '<div class="idea-fb" id="efNow"></div>'+
       '<div class="rrow2"><span class="rlab">Feel</span><span class="rchips tight"><button class="rchip sm'+(arr==="med"?" sel":"")+'" id="efArrMed">🧘 Meditation</button><button class="rchip sm'+(arr==="binaural"?" sel":"")+'" id="efArrBin">🌀 Binaural</button><button class="rchip sm'+(arr==="song"?" sel":"")+'" id="efArrSong">🎶 Song</button></span></div>'+
-      (arr==="song"?'<div class="rrow2"><span class="rlab">Genre</span><span class="rchips tight" id="efGenres"></span></div><div class="site-note" style="margin:2px 0 6px">Each genre is built on the day&rsquo;s 7.83 Hz fundamental as the bass (house ~117, Space Bass halftime ~140, rock ~124, lo-fi ~84). <b>Space Bass</b> is heavy psychedelic halftime — growling, wobbling designed bass through distortion, big clean sub pressure and cosmic melodics (LSDREAM-style). It layers over 8 bars with a build and a drop; the day&rsquo;s intensity sets how hard it hits.</div>':
+      (arr==="song"?'<div class="rrow2"><span class="rlab">Genre</span><span class="rchips tight" id="efGenres"></span></div>'+
+        (genre==="bass"?'<div class="rrow2"><span class="rlab">Vibe</span><span class="rchips tight"><button class="rchip sm'+(bassvar==="agg"?" sel":"")+'" id="efBvAgg">⚡ Aggressive</button><button class="rchip sm'+(bassvar==="chill"?" sel":"")+'" id="efBvChill">🌙 Chill</button></span></div>':'')+
+        '<div class="site-note" style="margin:2px 0 6px">Each genre is built on the day&rsquo;s 7.83 Hz fundamental as the bass (house ~117, Space Bass halftime ~140, rock ~124, lo-fi ~84). <b>Space Bass</b> is heavy psychedelic halftime — growling, wobbling designed bass through distortion, big clean sub pressure and cosmic melodics. <b>Aggressive</b> brings the screech leads and double-time filth; <b>Chill</b> leans into the downtempo, cosmic side. Built fresh in tribute to <b>LSDREAM&rsquo;s</b> style — inspired by it, not sampled from it.</div>':
         arr==="binaural"?'<div class="rrow2"><span class="rlab">Instrument</span><span class="rchips tight" id="efVoices"></span></div><div class="site-note" style="margin:2px 0 6px">🎧 <b>Headphones essential.</b> Three carriers on the day&rsquo;s fundamental, each with a Schumann-harmonic beat between your ears (7.83 / 14.3 / 20.8 Hz), breathing slowly. Calmer days stay soft and low; charged days add brightness and shimmer.</div>':
         '<div class="rrow2"><span class="rlab">Instrument</span><span class="rchips tight" id="efVoices"></span></div><div class="site-note" style="margin:2px 0 6px">A drone octaved up from 7.83 Hz, pulsed isochronically at the real 7.83 Hz over a slow ~59 BPM Earth beat — made for long, easy breathing.</div>')+
       '<div class="rrow"><span class="rlab">Intensity</span><input type="range" id="efInt" min="0" max="100" value="'+cur()+'" style="flex:1"><span class="rbpm" id="efIntV">'+cur()+'</span></div>'+
@@ -3543,6 +3554,7 @@ function renderEarthFreq(){
     const nw=$("#efNow");if(nw)nw.innerHTML=efDayReading(selDate,arch);
     const vc=$("#efVoices");if(vc)EF_VOICES.forEach(v=>{const b=document.createElement("button");b.className="rchip sm"+(v.id===voice?" sel":"");b.textContent=v.name;b.onclick=()=>{voice=v.id;save(mk("earth","voice"),voice);draw();if(EF)go();};vc.appendChild(b);});
     const gc=$("#efGenres");if(gc)EF_GLIST.forEach(([k,nm])=>{const b=document.createElement("button");b.className="rchip sm"+(k===genre?" sel":"");b.textContent=nm;b.onclick=()=>{genre=k;save(mk("earth","genre"),genre);draw();if(EF)go();};gc.appendChild(b);});
+    const bva=$("#efBvAgg"),bvc=$("#efBvChill");if(bva)bva.onclick=()=>{bassvar="agg";save(mk("earth","bassvar"),bassvar);draw();if(EF)go();};if(bvc)bvc.onclick=()=>{bassvar="chill";save(mk("earth","bassvar"),bassvar);draw();if(EF)go();};
     $("#efArrMed").onclick=()=>{arr="med";save(mk("earth","arr"),arr);draw();if(EF)go();};
     $("#efArrBin").onclick=()=>{arr="binaural";save(mk("earth","arr"),arr);draw();if(EF)go();};
     $("#efArrSong").onclick=()=>{arr="song";save(mk("earth","arr"),arr);draw();if(EF)go();};
@@ -3661,12 +3673,51 @@ function gradeTrack(m,gk,ref){const g=GENRES[gk],cats=[];
  if(!modern.length)modern.push("Nothing here screams 'dated' — your balance is in a modern ballpark. The rest is sound selection and arrangement: A/B against a reference and chase the top-end sheen and sub weight.");
  const overall=Math.round(cats.reduce((s,c)=>s+c.score,0)/cats.length);
  return{overall,grade:overall>=90?"A":overall>=80?"B":overall>=70?"C":overall>=60?"D":"F",cats,modern,ref:refOut,g};}
+function mmuList(){return load(mk("mmu","projects"),[]);}
+function mmuSaveList(l){save(mk("mmu","projects"),l);}
+function mmuDate(t){const d=new Date(t);return (d.getMonth()+1)+"/"+d.getDate()+" "+d.getHours()+":"+String(d.getMinutes()).padStart(2,"0");}
+let _mmuPreset=null;
+function mmuReportHtml(rep){const col=s=>s>=80?"#5fd38d":s>=60?"#e9c46a":"#e76f51";const bar=s=>'<div style="height:7px;background:var(--line);border-radius:5px;overflow:hidden;margin:5px 0 2px"><div style="height:100%;width:'+s+'%;background:'+col(s)+'"></div></div>';
+  const gn=(rep.g&&rep.g.name)||rep.gname||"";let h='<div class="idea-fb" style="text-align:center;margin-top:12px"><div style="font-size:13px;opacity:.7">Midterm · '+esc(gn)+'</div><div style="font-size:44px;font-weight:800;line-height:1.1;color:'+col(rep.overall)+'">'+rep.grade+'</div><div style="font-size:13px;opacity:.7">'+rep.overall+'/100</div></div>';
+  rep.cats.forEach(c=>{h+='<div style="margin:12px 0"><div style="display:flex;justify-content:space-between;font-weight:700"><span>'+esc(c.label)+'</span><span style="color:'+col(c.score)+'">'+c.score+'</span></div>'+bar(c.score)+'<div style="font-size:14px;margin:3px 0 2px">'+esc(c.verdict)+'</div><div style="font-size:13px;opacity:.82"><b>Fix:</b> '+esc(c.fix)+'</div></div>';});
+  if(rep.ref)h+='<div class="rlab" style="display:block;margin:14px 0 5px">🎯 vs your reference</div><div class="idea-fb"><ul style="margin:0;padding-left:18px;line-height:1.5">'+rep.ref.map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></div>';
+  h+='<div class="rlab" style="display:block;margin:14px 0 5px">✨ Does it sound dated?</div><div class="idea-fb"><ul style="margin:0;padding-left:18px;line-height:1.5">'+rep.modern.map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></div>';return h;}
+function renderMMUProject(id){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{};
+ const col=s=>s>=80?"#5fd38d":s>=60?"#e9c46a":"#e76f51";
+ function draw(){const list=mmuList(),pr=list.find(p=>p.id===id);if(!pr){renderInstructor();return;}
+  const vs=pr.versions,latest=vs[vs.length-1],prev=vs.length>1?vs[vs.length-2]:null,g=GENRES[pr.genre]||GENRES.house;
+  let h='<div class="play-top"><button class="back" id="pBack">←</button><span class="ttitle">🎓 '+esc(pr.name)+'</span></div><div class="panel">';
+  h+='<div class="site-note">'+esc(g.name)+' · '+vs.length+' version'+(vs.length!==1?"s":"")+'</div>';
+  h+='<div class="rlab" style="display:block;margin:12px 0 6px">Grade trend</div><div class="rchips">'+vs.map(v=>'<span class="rchip sm" style="border-color:'+col(v.rep.overall)+'">'+esc(v.label)+': <b style="color:'+col(v.rep.overall)+'">'+v.rep.grade+'</b> '+v.rep.overall+'</span>').join("")+'</div>';
+  if(prev){const dO=latest.rep.overall-prev.rep.overall,prog=[],reg=[];latest.rep.cats.forEach(c=>{const pc=prev.rep.cats.find(x=>x.k===c.k);if(!pc)return;const d=c.score-pc.score;if(d>=3)prog.push(c.label+" +"+d);else if(d<=-3)reg.push(c.label+" "+d);});
+   h+='<div class="rlab" style="display:block;margin:14px 0 6px">Since '+esc(prev.label)+'</div><div class="idea-fb"><div style="font-weight:800;color:'+col(latest.rep.overall)+'">Overall '+(dO>=0?"+"+dO:dO)+' &nbsp;('+prev.rep.overall+' → '+latest.rep.overall+')</div>'+
+    (prog.length?'<div style="margin-top:6px;color:#5fd38d">▲ Progressed: '+esc(prog.join(", "))+'</div>':'')+
+    (reg.length?'<div style="margin-top:4px;color:#e76f51">▼ Regressed: '+esc(reg.join(", "))+'</div>':'')+
+    (!prog.length&&!reg.length?'<div style="margin-top:6px;opacity:.7">About the same across the board — nothing moved more than a couple points.</div>':'')+'</div>';
+  }else{h+='<div class="idea-fb" style="margin-top:12px">First version — baseline set. Make your changes, bounce again, and save a new version to see what progressed and what regressed.</div>';}
+  h+='<div class="rlab" style="display:block;margin:14px 0 6px">Versions</div><div id="pVers"></div>';
+  h+='<div class="actions" style="margin:14px 0 4px"><button class="btn" id="pNew">➕ Analyze a new version</button></div></div>';
+  view.innerHTML=h;
+  $("#pBack").onclick=()=>renderInstructor();
+  $("#pNew").onclick=()=>{_mmuPreset={id:pr.id,genre:pr.genre};renderInstructor();};
+  const pv=$("#pVers");vs.slice().reverse().forEach(v=>{const d=document.createElement("div");d.style.cssText="margin:8px 0;padding:9px 11px;border:1px solid var(--line);border-radius:10px";
+    d.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center"><div><b>'+esc(v.label)+'</b> <span style="opacity:.55;font-size:12px">'+mmuDate(v.t)+'</span></div><div style="font-weight:800;color:'+col(v.rep.overall)+'">'+v.rep.grade+' · '+v.rep.overall+'</div></div>'+
+      '<div class="rchips tight" style="margin-top:7px">'+(v.hasAudio?'<button class="rchip sm" data-a="play">▶ Play</button><button class="rchip sm" data-a="wav">⬇ WAV</button>':'')+'<button class="rchip sm" data-a="rep">📄 Report</button><button class="rchip sm" data-a="del">🗑</button></div><div class="rep-slot" style="display:none;margin-top:6px"></div>';
+    d.querySelector('[data-a="rep"]').onclick=()=>{const sl=d.querySelector('.rep-slot');if(sl.style.display==="none"){sl.innerHTML=mmuReportHtml(v.rep);sl.style.display="block";}else sl.style.display="none";};
+    d.querySelector('[data-a="del"]').onclick=()=>{if(!confirm("Delete "+v.label+"?"))return;const l=mmuList(),p=l.find(x=>x.id===id);if(!p)return;if(v.hasAudio)idbDel("mmu-"+v.vid);p.versions=p.versions.filter(x=>x.vid!==v.vid);if(!p.versions.length){mmuSaveList(l.filter(x=>x.id!==id));renderInstructor();return;}mmuSaveList(l);draw();};
+    const pb=d.querySelector('[data-a="play"]');if(pb)pb.onclick=()=>{idbGet("mmu-"+v.vid).then(b=>{if(b){const el=new Audio(URL.createObjectURL(b));el.play().catch(()=>{});}});};
+    const wv=d.querySelector('[data-a="wav"]');if(wv)wv.onclick=()=>{idbGet("mmu-"+v.vid).then(b=>{if(!b)return;b.arrayBuffer().then(ab=>{const ext=(b.type&&b.type.indexOf("wav")>=0)?"wav":(b.type&&b.type.indexOf("mpeg")>=0?"mp3":"audio");downloadBytes(new Uint8Array(ab),(pr.name+"_"+v.label).replace(/[^a-z0-9]+/gi,"_").replace(/^_|_$/g,"")+"."+ext,b.type||"audio/wav");});});};
+    pv.appendChild(d);});
+ }
+ draw();
+}
 function renderInstructor(){
  if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{};
- let gk=load(mk("inst","genre"),"house"),yourBuf=null,yourName="",refBuf=null,refName="",busy=false,studioBuf=null;
+ let gk=load(mk("inst","genre"),"house"),yourBuf=null,yourName="",refBuf=null,refName="",busy=false,studioBuf=null,yourBlob=null,lastMetrics=null,curProjId=null;
+ if(_mmuPreset){gk=_mmuPreset.genre||gk;curProjId=_mmuPreset.id||null;_mmuPreset=null;}
  function draw(){
   const g=GENRES[gk];
-  view.innerHTML='<div class="play-top"><button class="back" id="iBack">←</button><span class="ttitle">🎓 The Instructor</span></div><div class="panel">'+
+  view.innerHTML='<div class="play-top"><button class="back" id="iBack">←</button><span class="ttitle">🎓 Majick Music University</span></div><div class="panel">'+
    '<div class="intro">Drop in a track — a full bounce, or a section you exported from Ableton — and I&rsquo;ll give you a real mix report: gain staging, tonal balance, low end, dynamics and stereo, <b>graded for your genre</b>. Add a <b>reference track</b> (a current song whose sound you want) and I&rsquo;ll tell you exactly why yours sounds different.</div>'+
    '<div class="site-note">I measure the mix for real (levels, loudness, frequency balance, dynamics, width) and compare it to genre norms and your reference. Sound-<i>selection</i> notes are coaching — I can hear the fingerprints (dull highs, thin sub, harsh mids), but the reference A/B is where the &ldquo;old sounds&rdquo; answer really lives.</div>'+
    '<div class="rlab" style="display:block;margin:12px 0 5px">Genre</div><div class="rchips" id="iGenre"></div>'+
@@ -3678,27 +3729,43 @@ function renderInstructor(){
    '<div id="iReport"></div>'+
    '<div class="rlab" style="display:block;margin:16px 0 6px">🎚️ '+g.name+' — what makes it sound current</div>'+
    '<div class="idea-fb"><ul style="margin:0;padding-left:18px;line-height:1.5">'+g.brief.map(b=>'<li>'+b+'</li>').join("")+'</ul><div class="site-note" style="margin-top:8px">Reference target: '+g.ref+'.</div></div>'+
+   '<div id="iTracks"></div>'+
    '</div>';
   $("#iBack").onclick=goHome;
+  const tl=mmuList();const tw=$("#iTracks");if(tw&&tl.length){let th='<div class="rlab" style="display:block;margin:18px 0 6px">📈 Your tracks</div>';tl.slice().reverse().forEach(pr=>{const lv=pr.versions[pr.versions.length-1],col=lv.rep.overall>=80?"#5fd38d":lv.rep.overall>=60?"#e9c46a":"#e76f51";th+='<button class="card" data-pid="'+pr.id+'" style="width:100%;text-align:left;margin:6px 0;display:flex;justify-content:space-between;align-items:center"><span><b>'+esc(pr.name)+'</b><br><span style="font-size:12px;opacity:.6">'+esc((GENRES[pr.genre]||GENRES.house).name)+' · '+pr.versions.length+' version'+(pr.versions.length!==1?"s":"")+'</span></span><span style="font-weight:800;color:'+col+'">'+lv.rep.grade+' · '+lv.rep.overall+'</span></button>';});tw.innerHTML=th;tw.querySelectorAll('[data-pid]').forEach(b=>b.onclick=()=>renderMMUProject(b.getAttribute('data-pid')));}
   const gc=$("#iGenre");Object.keys(GENRES).forEach(k=>{const b=document.createElement("button");b.className="rchip sm"+(k===gk?" sel":"");b.textContent=GENRES[k].name;b.onclick=()=>{gk=k;save(mk("inst","genre"),gk);if(yourBuf&&lastReport)renderReport();draw();};gc.appendChild(b);});
   $("#iYourF").onchange=e=>loadFile(e.target.files[0],"your");
   $("#iRefF").onchange=e=>loadFile(e.target.files[0],"ref");
-  $("#iStudio").onclick=async()=>{const st=$("#iYour");if(st)st.textContent="bouncing your Studio mix…";try{unlockAudio();const song=studioLoad();const rb=await studioRenderOffline(song);if(!rb){if(st)st.textContent="Studio is empty — record some tracks there first.";return;}yourBuf=rb;studioBuf=rb;yourName="Studio mix · "+(song.name||"My Song");lastReport=null;draw();runGrade();}catch(e){if(st)st.textContent="couldn't bounce the Studio mix";}};
+  $("#iStudio").onclick=async()=>{const st=$("#iYour");if(st)st.textContent="bouncing your Studio mix…";try{unlockAudio();const song=studioLoad();const rb=await studioRenderOffline(song);if(!rb){if(st)st.textContent="Studio is empty — record some tracks there first.";return;}yourBuf=rb;studioBuf=rb;yourBlob=null;yourName="Studio mix · "+(song.name||"My Song");lastReport=null;draw();runGrade();}catch(e){if(st)st.textContent="couldn't bounce the Studio mix";}};
   $("#iGo").onclick=runGrade;
   if(lastReport)renderReport();
  }
  let lastReport=null;
- function loadFile(file,which){if(!file)return;const nm=file.name;const status=$(which==="your"?"#iYour":"#iRef");if(status)status.textContent="decoding "+nm+"…";file.arrayBuffer().then(ab=>ac().decodeAudioData(ab.slice(0))).then(buf=>{if(which==="your"){yourBuf=buf;yourName=nm;studioBuf=null;lastReport=null;}else{refBuf=buf;refName=nm;}draw();}).catch(()=>{if(status)status.textContent="couldn't read that file — try a WAV or MP3";});}
- function runGrade(){if(!yourBuf||busy)return;busy=true;draw();setTimeout(()=>{try{const m=analyzeBuffer(yourBuf);const rm=refBuf?analyzeBuffer(refBuf):null;lastReport=gradeTrack(m,gk,rm);}catch(e){lastReport={error:(e&&e.message)||"analysis failed"};}busy=false;draw();if(!lastReport.error){addBeans(10,"Mix critique");burst(12);}},60);}
+ function loadFile(file,which){if(!file)return;const nm=file.name;const status=$(which==="your"?"#iYour":"#iRef");if(status)status.textContent="decoding "+nm+"…";file.arrayBuffer().then(ab=>ac().decodeAudioData(ab.slice(0))).then(buf=>{if(which==="your"){yourBuf=buf;yourName=nm;studioBuf=null;yourBlob=file;lastReport=null;}else{refBuf=buf;refName=nm;}draw();}).catch(()=>{if(status)status.textContent="couldn't read that file — try a WAV or MP3";});}
+ function runGrade(){if(!yourBuf||busy)return;busy=true;draw();setTimeout(()=>{try{const m=analyzeBuffer(yourBuf);lastMetrics=m;const rm=refBuf?analyzeBuffer(refBuf):null;lastReport=gradeTrack(m,gk,rm);}catch(e){lastReport={error:(e&&e.message)||"analysis failed"};}busy=false;draw();if(!lastReport.error){addBeans(10,"Mix critique");burst(12);}},60);}
  function renderReport(){const rep=lastReport,el=$("#iReport");if(!el||!rep)return;if(rep.error){el.innerHTML='<div class="idea-fb" style="color:#e76f51">Couldn&rsquo;t analyze that file ('+esc(rep.error)+'). Try exporting a standard WAV or MP3.</div>';return;}
-  const col=s=>s>=80?"#5fd38d":s>=60?"#e9c46a":"#e76f51";const bar=s=>'<div style="height:7px;background:var(--line);border-radius:5px;overflow:hidden;margin:5px 0 2px"><div style="height:100%;width:'+s+'%;background:'+col(s)+'"></div></div>';
-  let h='<div class="idea-fb" style="text-align:center;margin-top:12px"><div style="font-size:13px;opacity:.7">Midterm · '+rep.g.name+'</div><div style="font-size:44px;font-weight:800;line-height:1.1;color:'+col(rep.overall)+'">'+rep.grade+'</div><div style="font-size:13px;opacity:.7">'+rep.overall+'/100</div></div>';
-  rep.cats.forEach(c=>{h+='<div style="margin:12px 0"><div style="display:flex;justify-content:space-between;font-weight:700"><span>'+c.label+'</span><span style="color:'+col(c.score)+'">'+c.score+'</span></div>'+bar(c.score)+'<div style="font-size:14px;margin:3px 0 2px">'+esc(c.verdict)+'</div><div style="font-size:13px;opacity:.82"><b>Fix:</b> '+esc(c.fix)+'</div></div>';});
-  if(rep.ref){h+='<div class="rlab" style="display:block;margin:14px 0 5px">🎯 vs your reference</div><div class="idea-fb"><ul style="margin:0;padding-left:18px;line-height:1.5">'+rep.ref.map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></div>';}
-  h+='<div class="rlab" style="display:block;margin:14px 0 5px">✨ Does it sound dated?</div><div class="idea-fb"><ul style="margin:0;padding-left:18px;line-height:1.5">'+rep.modern.map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></div>';
+  const ist='background:rgba(255,255,255,.06);color:inherit;border:1px solid var(--line);border-radius:8px;padding:7px;flex:1';
+  const projs=mmuList();
+  let h=mmuReportHtml(rep);
   if(studioBuf)h+='<div class="actions" style="margin:12px 0 2px"><button class="btn ghost" id="iWav">⬇ Download this mix (WAV)</button></div>';
+  h+='<div class="rlab" style="display:block;margin:16px 0 6px">💾 Save to a track — track your progress</div><div class="idea-fb">'+
+     '<div class="rrow2"><span class="rlab">Track</span><select id="iProj" style="'+ist+'"><option value="__new">➕ New track</option>'+projs.map(p=>'<option value="'+p.id+'"'+(p.id===curProjId?" selected":"")+'>'+esc(p.name)+' ('+p.versions.length+')</option>').join("")+'</select></div>'+
+     '<div class="rrow2" id="iNewRow"><span class="rlab">Name</span><input id="iNewName" placeholder="'+esc(yourName||"My Track")+'" style="'+ist+'"></div>'+
+     '<div class="rrow2"><span class="rlab">Version</span><input id="iVerLabel" placeholder="e.g. v2, after EQ, new sub" style="'+ist+'"></div>'+
+     '<div class="actions" style="margin-top:8px"><button class="btn" id="iSaveVer">Save this version</button></div>'+
+     '<div class="site-note" style="margin-top:6px">Saves this full review'+((yourBlob||studioBuf)?" and the audio":"")+' so each time you bring the track back, you&rsquo;ll see what progressed and what regressed.</div></div>';
   el.innerHTML=h;
-  const wb=$("#iWav");if(wb)wb.onclick=()=>downloadBytes(bufferToWav(studioBuf),(yourName||"studio-mix").replace(/[^a-z0-9]+/gi,"_").replace(/^_|_$/g,"")+".wav","audio/wav");}
+  const wb=$("#iWav");if(wb)wb.onclick=()=>downloadBytes(bufferToWav(studioBuf),(yourName||"studio-mix").replace(/[^a-z0-9]+/gi,"_").replace(/^_|_$/g,"")+".wav","audio/wav");
+  const sel=$("#iProj"),newRow=$("#iNewRow");const syncNew=()=>{if(newRow)newRow.style.display=(sel.value==="__new")?"":"none";};if(sel){sel.onchange=syncNew;syncNew();}
+  const sv=$("#iSaveVer");if(sv)sv.onclick=()=>{if(!lastReport||lastReport.error)return;let list=mmuList(),pr;const choice=sel?sel.value:"__new";
+    if(choice==="__new"){const nm=(($("#iNewName").value||yourName||"My Track")+"").trim()||"My Track";pr={id:sid(),name:nm,genre:gk,versions:[]};list.push(pr);}else{pr=list.find(p=>p.id===choice);if(!pr){pr={id:sid(),name:yourName||"My Track",genre:gk,versions:[]};list.push(pr);}}
+    const vid=sid(),label=(($("#iVerLabel").value||("v"+(pr.versions.length+1)))+"").trim()||("v"+(pr.versions.length+1));
+    const repSave={overall:lastReport.overall,grade:lastReport.grade,cats:lastReport.cats.map(c=>({k:c.k,label:c.label,score:c.score,verdict:c.verdict,fix:c.fix})),modern:lastReport.modern,ref:lastReport.ref,gname:(lastReport.g&&lastReport.g.name)||(GENRES[gk].name)};
+    const m=lastMetrics?{lufs:lastMetrics.lufs,peakDb:lastMetrics.peakDb,crestDb:lastMetrics.crestDb,subBal:lastMetrics.subBal,airBal:lastMetrics.airBal,mudExcess:lastMetrics.mudExcess,harsh:lastMetrics.harsh,width:lastMetrics.width,corr:lastMetrics.corr,dynLU:lastMetrics.dynLU}:null;
+    const ver={vid,t:Date.now(),label,genre:gk,rep:repSave,m,hasAudio:false,dur:yourBuf?yourBuf.duration:0};pr.versions.push(ver);
+    let blob=yourBlob;if(!blob&&studioBuf){try{blob=new Blob([bufferToWav(studioBuf)],{type:"audio/wav"});}catch(e){}}
+    const finish=()=>{mmuSaveList(list);addBeans(5,"Saved a version");renderMMUProject(pr.id);};
+    if(blob&&blob.size<22*1024*1024){ver.hasAudio=true;idbPut("mmu-"+vid,blob).then(finish).catch(finish);}else finish();};}
  draw();
 }
 const MUSE_SVC=0xfe8d, MUSE_CTRL="273e0001-4c4d-454d-96be-f03bac821358",
