@@ -285,6 +285,16 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .btn:hover{filter:brightness(1.06)}.btn:active{transform:scale(.98)}.btn:disabled{opacity:.4;cursor:default;filter:none}
 .btn.ghost{background:none;border:2px solid var(--line);color:var(--cream);flex:0 0 auto;padding:14px 16px}
 .bean-note{margin-top:8px;color:var(--gold);font-family:"Bricolage Grotesque",system-ui,sans-serif;letter-spacing:.5px;font-size:.92rem;text-align:center}
+.idea-fb{background:var(--bg);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:11px 13px;margin:8px 0 12px;color:var(--cream);font-size:.95rem;line-height:1.55}
+.idea-fb b{color:var(--gold)}
+.bgfb{display:flex;flex-direction:column;gap:5px;margin:4px 0 14px;overflow-x:auto;padding-bottom:4px}
+.bgrow{display:flex;gap:5px;align-items:stretch}
+.bgcelllbl{flex:0 0 22px;display:flex;align-items:center;justify-content:center;font-family:"Bricolage Grotesque",system-ui,sans-serif;color:var(--gold);font-size:.82rem}
+.bgfret{flex:1 1 0;min-width:34px;text-align:center;color:var(--muted);font-size:.72rem}
+.bgcell{flex:1 1 0;min-width:34px;height:40px;display:flex;align-items:center;justify-content:center;background:var(--panel2,#241f3a);border:1px solid var(--line);border-radius:8px;color:var(--cream);font-size:.86rem;cursor:pointer;user-select:none;transition:background .12s,transform .08s}
+.bgcell.open{background:rgba(255,159,92,.1)}
+.bgcell:active{transform:scale(.94)}
+.bgcell.glow{background:#ff9f5c;color:#201a10;box-shadow:0 0 14px rgba(255,159,92,.8);border-color:#ff9f5c}
 
 .fxp{position:absolute;font-size:1.1rem;animation:rise var(--t,900ms) ease-out forwards}
 @keyframes rise{0%{transform:translate(-50%,-50%) scale(.6);opacity:0}15%{opacity:1}100%{transform:translate(calc(-50% + var(--dx,0px)),calc(-50% + var(--dy,-110px))) rotate(var(--dr,0deg));opacity:0}}
@@ -1669,6 +1679,85 @@ function composeUI(){
 }
 
 /* ===== SONG BUILDER — chain saved sections into a song ===== */
+/* ===== IDEA LAB — sing song ideas, get feedback (kid / songwriter), save them ===== */
+let IDEAS=load("mjk-ideas",[]);
+function analyzeMelody(notes){
+  const ms=notes.map(n=>n.midi),lo=Math.min.apply(null,ms),hi=Math.max.apply(null,ms),range=hi-lo;
+  const pcs=[...new Set(ms.map(m=>((m%12)+12)%12))];
+  const MAJ=[0,2,4,5,7,9,11],MIN=[0,2,3,5,7,8,10],NM=["C","C♯","D","E♭","E","F","F♯","G","A♭","A","B♭","B"];
+  let best={score:-1,root:0,type:"major"};
+  for(let r=0;r<12;r++)[["major",MAJ],["minor",MIN]].forEach(([ty,sc])=>{let c=0;pcs.forEach(pc=>{if(sc.indexOf(((pc-r)%12+12)%12)>=0)c++;});if(c>best.score)best={score:c,root:r,type:ty};});
+  const out=pcs.length-best.score;
+  const third=Math.max(1,Math.floor(ms.length/3)),avg=(a,b)=>{let s=0,c=0;for(let i=a;i<b&&i<ms.length;i++){if(i>=0){s+=ms[i];c++;}}return c?s/c:0;};
+  const st=avg(0,third),en=avg(ms.length-third,ms.length),md=avg(third,ms.length-third);
+  const contour=(en>st+2)?"rising":(en<st-2)?"falling":(md>st+2&&md>en+2)?"an arch":"fairly flat";
+  let rep=0,steps=0;for(let i=1;i<ms.length;i++){if(ms[i]===ms[i-1])rep++;if(Math.abs(ms[i]-ms[i-1])<=2)steps++;}
+  const repPct=Math.round(100*rep/Math.max(1,ms.length-1)),stepPct=Math.round(100*steps/Math.max(1,ms.length-1));
+  return {n:ms.length,range,distinct:pcs.length,keyRoot:NM[best.root],keyType:best.type,out,contour,repPct,stepPct};
+}
+function feedbackText(a,level){
+  if(level==="kid"){const tips=[];
+    if(a.distinct<=2)tips.push("add a brand-new note to surprise us! 🎵");
+    if(a.range<4)tips.push("sing one really high or low note to make a jump.");
+    if(a.repPct>50)tips.push("change the ending so it's not the same note.");
+    if(!tips.length)tips.push("try a little jump up high for a fun hook!");
+    return `Great idea! 🎶 You used <b>${a.distinct}</b> different notes and it sounds like <b>${a.keyRoot} ${a.keyType}</b>. It goes ${a.contour}.<br><b>Try this:</b> ${tips[0]}`;}
+  const tips=[];
+  if(a.range<5)tips.push("widen the range — a 4th/5th leap would lift the hook");
+  if(a.stepPct>80)tips.push("it's mostly stepwise; a leap would add contrast");
+  if(a.repPct>45)tips.push("high repetition — vary the cadence or final note");
+  if(a.out)tips.push("snap the out-of-key note(s) in, or lean into it as a color tone");
+  if(!tips.length)tips.push("solid shape — try a contrasting variation for the next phrase");
+  return `<b>${a.n} notes</b> · range ${a.range} st · ${a.distinct} pitch classes · ~${a.stepPct}% stepwise · ${a.repPct}% repeats.<br>Best fit: <b>${a.keyRoot} ${a.keyType}</b>${a.out?" ("+a.out+" out of key)":" (all in key)"} · contour: ${a.contour}.<br><b>Suggestions:</b> ${tips.slice(0,2).join("; ")}.`;
+}
+function renderIdeaLab(){
+  if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎤 Idea Lab</span></div><div class="panel" style="text-align:center"><div class="q">Turning on your microphone…</div></div>`;
+  $("#eBack").onclick=goHome;
+  ensureMic().then(ok=>{
+    if(!ok){view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎤 Idea Lab</span></div><div class="panel" style="text-align:center"><div style="font-size:2rem">🎤</div><div class="q" style="margin-top:6px">I need the mic to hear your ideas</div><div class="actions"><button class="btn" id="retry">Try again</button><button class="btn ghost" id="back2">Back</button></div></div>`;$("#eBack").onclick=goHome;$("#back2").onclick=goHome;$("#retry").onclick=renderIdeaLab;return;}
+    ideaUI();
+  });
+}
+function ideaUI(){
+  let notes=[],capRAF=null,capturing=false,capSamples=[],capStart=0,rec=null,recChunks=[],url=null,lyrics="",level=load("mjk-fblevel","kid");
+  teardown=()=>{if(capRAF)cancelAnimationFrame(capRAF);if(url)try{URL.revokeObjectURL(url);}catch(e){}stopMic();};
+  function stopCap(){if(!capturing)return;capturing=false;if(capRAF)cancelAnimationFrame(capRAF);capRAF=null;try{if(rec&&rec.state!=="inactive")rec.stop();}catch(e){}
+    const segs=phraseSegment(capSamples);let ref=0.4;if(segs.length){const d=segs.map(s=>s.dur).slice().sort((a,b)=>a-b);ref=d[Math.floor(d.length/2)]||0.4;}
+    notes=segs.map(s=>({midi:Math.round(s.midi),beats:quantizeBeat(s.dur/ref)}));draw();}
+  function startCap(){if(capturing)return;capturing=true;capSamples=[];capStart=ac().currentTime;recChunks=[];rec=null;
+    try{rec=new MediaRecorder(micStream);rec.ondataavailable=e=>{if(e.data&&e.data.size)recChunks.push(e.data);};rec.onstop=()=>{if(!recChunks.length)return;if(url)try{URL.revokeObjectURL(url);}catch(e){}url=URL.createObjectURL(new Blob(recChunks,{type:(rec&&rec.mimeType)||"audio/webm"}));draw();};rec.start();}catch(e){rec=null;}
+    draw();const buf=new Float32Array(toneAnalyser.fftSize);
+    (function loop(){const now=ac().currentTime;toneAnalyser.getFloatTimeDomainData(buf);const f=autoCorrelate(buf,ac().sampleRate);let midi=null;if(f>=70&&f<=1100)midi=69+12*Math.log2(f/440);capSamples.push({t:now-capStart,midi});const l=$("#ilStatus");if(l&&midi!=null)l.textContent="🎤 "+midiName(midi)+" …";if(now-capStart>=25){stopCap();return;}capRAF=requestAnimationFrame(loop);})();}
+  function draw(){
+    const fb=notes.length?feedbackText(analyzeMelody(notes),level):"";
+    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎤 Idea Lab</span></div>
+      <div class="panel">
+        <div class="intro">Sing a melody or verse idea — I'll map it, play it back, and give you feedback. Test hooks and verses, save the keepers, or turn one into a section for your Song Project.</div>
+        <div class="actions"><button class="btn" id="sing">${capturing?"■ Stop":"🎤 Sing an idea"}</button>${notes.length&&!capturing?'<button class="btn ghost" id="pmel">▶ Melody</button>':""}${url&&!capturing?'<button class="btn ghost" id="ptake">▶ My take</button>':""}</div>
+        <div class="feedback" id="ilStatus">${capturing?"🎤 Singing… tap Stop when done":(notes.length?notes.length+" notes mapped":"Tap and sing your idea")}</div>
+        ${notes.length&&!capturing?`<div class="rsay" style="font-size:1rem">${notes.map(n=>midiName(n.midi)).join(" · ")}</div>
+        <div class="rrow2"><span class="rlab">Feedback</span><span class="rchips tight"><button class="rchip sm${level==="kid"?" sel":""}" id="lvKid">Kid</button><button class="rchip sm${level==="pro"?" sel":""}" id="lvPro">Songwriter</button></span></div>
+        <div class="idea-fb">${fb}</div>
+        <div class="rlab" style="display:block;margin:10px 0 4px">Lyrics / words</div>
+        <textarea id="ilLyrics" placeholder="type your words or idea here…" style="width:100%;min-height:68px;background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:9px;font:inherit"></textarea>
+        <div class="rrow2"><span class="rlab">Name</span><input id="ilName" value="Idea" style="background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit;flex:1"></div>
+        <div class="actions"><button class="btn" id="ilSave">⭐ Save idea</button><button class="btn ghost" id="ilToSec">→ Make a section</button></div>
+        <div class="bean-note" id="ilMsg"></div>`:""}
+        <div class="label" style="margin:16px 0 6px">Saved ideas</div><div id="ilList"></div>
+      </div>`;
+    $("#eBack").onclick=goHome;
+    $("#sing").onclick=()=>{if(capturing)stopCap();else startCap();};
+    const pm=$("#pmel");if(pm)pm.onclick=()=>playSeq(notes.map(n=>n.midi),notes.map(n=>n.beats||1),96);
+    const pt=$("#ptake");if(pt)pt.onclick=()=>{if(url)playClip(url);};
+    const lk=$("#lvKid"),lp=$("#lvPro");if(lk)lk.onclick=()=>{level="kid";save("mjk-fblevel",level);draw();};if(lp)lp.onclick=()=>{level="pro";save("mjk-fblevel",level);draw();};
+    const ta=$("#ilLyrics");if(ta){ta.value=lyrics;ta.oninput=()=>{lyrics=ta.value;};}
+    const sv=$("#ilSave");if(sv)sv.onclick=()=>{if(!notes.length)return;IDEAS.unshift({name:($("#ilName").value||"Idea").trim(),notes:notes.map(n=>n.midi),beats:notes.map(n=>n.beats||1),lyrics:lyrics||""});if(IDEAS.length>40)IDEAS.pop();save("mjk-ideas",IDEAS);const m=$("#ilMsg");if(m)m.textContent="Saved ✓";draw();};
+    const ts=$("#ilToSec");if(ts)ts.onclick=()=>{if(!notes.length)return;SONGLIB.push({name:($("#ilName").value||"Idea").trim(),notes:notes.map(n=>n.midi),beats:notes.map(n=>n.beats||1)});save("mjk-songs",SONGLIB);const m=$("#ilMsg");if(m)m.innerHTML="Added to My Songs as a section ⭐";};
+    const list=$("#ilList");if(list){if(!IDEAS.length)list.innerHTML='<div class="site-note">No saved ideas yet.</div>';else{list.innerHTML="";IDEAS.forEach((it,i)=>{const row=document.createElement("div");row.className="kb";row.innerHTML=`<span class="kb-ic">🎤</span><div class="kb-main"><div class="kb-t">${esc(it.name)}</div><div class="kb-s">${it.notes.length} notes${it.lyrics?" · has lyrics":""}</div></div>`;const pb=document.createElement("button");pb.className="kb-btn";pb.textContent="▶";pb.onclick=()=>playSeq(it.notes,it.beats,96);const dl=document.createElement("button");dl.className="kb-btn";dl.style.marginLeft="6px";dl.textContent="✕";dl.onclick=()=>{IDEAS.splice(i,1);save("mjk-ideas",IDEAS);draw();};row.appendChild(pb);row.appendChild(dl);list.appendChild(row);});}}
+  }
+  draw();
+}
 const SONG_PARTS=["Intro","Verse 1","Chorus","Verse 2","Chorus","Bridge","Chorus","Outro"];
 function renderSongBuilder(){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
@@ -1909,11 +1998,13 @@ function renderCR(){
 const INSTRUMENT_CARDS=[
  {ic:"🔔",title:"Handpan",blurb:"Play a handpan — tap the notes, pick a scale, and follow the glow to learn gentle patterns.",go:()=>renderHandpan()},
  {ic:"🎸",title:"Guitar",blurb:"Learn chords with diagrams, the chord family of a key, and strum along to progressions — leveling up as you go.",go:()=>renderStrings("guitar")},
- {ic:"🪕",title:"Ukulele",blurb:"Learn ukulele chords, major-scale chord families, and play along to progressions.",go:()=>renderStrings("ukulele")}
+ {ic:"🪕",title:"Ukulele",blurb:"Learn ukulele chords, major-scale chord families, and play along to progressions.",go:()=>renderStrings("ukulele")},
+ {ic:"🎸",title:"Bass Guitar",blurb:"Hold down the low end — tap the fretboard, follow basslines with the glow, then play it back and get your timing scored.",go:()=>renderBass()}
 ];
 const MAKE_CARDS=[
  {ic:"🎙️",title:"Sing a Song",blurb:"Sing or hum your own tune — it maps the notes and rhythm onto a staff. Fix them, then save it as a section or a whole song.",go:()=>renderCompose()},
  {ic:"⭐",title:"My Songs",blurb:"Your saved melodies and imported songs — sing them back, or import a MIDI.",go:()=>renderMySongs()},
+ {ic:"🎤",title:"Idea Lab",blurb:"Sing a song idea — melody, rhythm, words — and get feedback (kid or songwriter level). Listen back, save keepers, or turn one into a section.",go:()=>renderIdeaLab()},
  {ic:"🎼",title:"Song Project (final)",blurb:"The big one — assemble your sections into a full song: intro, verses, choruses, bridge, outro. Finish it to earn Songwriter.",go:()=>renderSongBuilder()}
 ];
 /* handpan voice — mellow metallic bell with octave + twelfth overtones, long decay */
@@ -2113,6 +2204,131 @@ function strProg(inst){
     const dia=$("#prgDia");const f0=CHORDS[inst][P.chords[0]];if(f0)dia.appendChild(chordDiagram(inst,f0));
     const bp=$("#prgBpm");bp.oninput=()=>{PRG.bpm=+bp.value;$("#prgBpmV").textContent=PRG.bpm;};
     $("#prgStart").onclick=()=>{if(PRG.running)prgStop();else prgStart();};
+  }
+  draw();
+}
+
+/* ===== BASS GUITAR — fretboard, basslines, follow-the-glow, play-it-back critique ===== */
+const BG={tuning:[28,33,38,43],frets:7,lineIdx:0,bpm:90,running:false,i:0,nextTime:0,schID:null,raf:null,visQ:[]};
+function bassVoice(midi,time,dur,peak){const a=ac(),out=pianoMaster(a),f=midiToFreq(midi);
+  const o=a.createOscillator();o.type="triangle";o.frequency.value=f;
+  const o2=a.createOscillator();o2.type="sawtooth";o2.frequency.value=f;
+  const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.setValueAtTime(Math.min(2400,f*9),time);lp.frequency.exponentialRampToValueAtTime(Math.max(170,f*2.2),time+Math.min(0.5,dur*0.7));
+  const g=a.createGain(),pk=peak||0.55;g.gain.setValueAtTime(0.0001,time);g.gain.exponentialRampToValueAtTime(pk,time+0.012);g.gain.exponentialRampToValueAtTime(0.0001,time+dur);
+  const g2=a.createGain();g2.gain.value=0.34;
+  o.connect(lp);o2.connect(g2);g2.connect(lp);lp.connect(g);g.connect(out);
+  o.start(time);o2.start(time);o.stop(time+dur+0.05);o2.stop(time+dur+0.05);}
+function bgPos(midi){let best=null;for(let s=0;s<BG.tuning.length;s++){const fr=midi-BG.tuning[s];if(fr>=0&&fr<=BG.frets){if(!best||s>best.s)best={s,fr};}}return best;}
+const BASS_LINES=[
+ {name:"Root pulse — A",notes:[33,33,33,33],beats:[1,1,1,1]},
+ {name:"Octave bounce — A",notes:[33,45,33,45],beats:[1,1,1,1]},
+ {name:"Walking up — C",notes:[36,38,40,43],beats:[1,1,1,1]},
+ {name:"Boogie riff — E",notes:[28,32,35,32],beats:[1,1,1,1]},
+ {name:"Pop roots — G→D→Em→C",notes:[31,38,40,36],beats:[1,1,1,1]},
+ {name:"Two-feel — A",notes:[33,40,33,40],beats:[1,1,1,1]},
+ {name:"Walk & land — C",notes:[36,38,40,41,43,41,40,38],beats:[1,1,1,1,1,1,1,1]}
+];
+function bgGlowClear(){document.querySelectorAll(".bgcell.glow").forEach(e=>e.classList.remove("glow"));}
+function bgGlow(midi){const p=bgPos(midi);if(!p)return;const el=document.getElementById("bgC-"+p.s+"-"+p.fr);if(el){el.classList.remove("glow");void el.offsetWidth;el.classList.add("glow");setTimeout(()=>{if(el)el.classList.remove("glow");},360);}}
+function bgStop(){BG.running=false;if(BG.schID){clearInterval(BG.schID);BG.schID=null;}if(BG.raf){cancelAnimationFrame(BG.raf);BG.raf=null;}const b=$("#bgStart");if(b)b.textContent="▶ Play along";}
+function bgSchedule(){const L=BASS_LINES[BG.lineIdx],spb=60/BG.bpm,ahead=0.25;
+  while(BG.nextTime<ac().currentTime+ahead){const i=BG.i,b=L.beats[i]||1;
+    bassVoice(L.notes[i],BG.nextTime,Math.max(0.18,b*spb*0.85),0.6);BG.visQ.push({t:BG.nextTime,m:L.notes[i]});BG.nextTime+=b*spb;BG.i=(BG.i+1)%L.notes.length;}}
+function bgFrame(){const now=ac().currentTime;while(BG.visQ.length&&BG.visQ[0].t<=now){bgGlow(BG.visQ.shift().m);}if(BG.running)BG.raf=requestAnimationFrame(bgFrame);}
+function bgStart(){unlockAudio();if(BG.running)return;BG.running=true;BG.i=0;BG.visQ=[];BG.nextTime=ac().currentTime+0.25;BG.schID=setInterval(bgSchedule,25);BG.raf=requestAnimationFrame(bgFrame);const b=$("#bgStart");if(b)b.textContent="⏸ Stop";}
+function bgCrit(timingPct,notePct,hit,N,errMs,level){
+  if(level==="pro"){const tips=[];
+    if(timingPct<70)tips.push("lock to the click — you're drifting off the beat");
+    else if(errMs>70)tips.push("tighten up — notes land a hair late/early (~"+errMs+" ms)");
+    if(notePct<70&&notePct>=0)tips.push("watch the pitches — some roots are off");
+    if(!tips.length)tips.push("solid pocket — try the next line or bump the tempo");
+    return "<b>"+hit+"/"+N+"</b> notes in time ("+timingPct+"%)"+(notePct>=0?" · "+notePct+"% right pitch":"")+" · avg "+errMs+" ms off.<br><b>Coach:</b> "+tips.slice(0,2).join("; ")+".";}
+  const enc= timingPct>=80?"🔥 Great pocket!":timingPct>=55?"👍 Nice — getting there!":"🎸 Keep at it!";
+  const tip= timingPct<55?"Try playing right with the click — count 1-2-3-4.":errMs>90?"A little steadier on the beat next time.":"Try a faster tempo or a new line!";
+  return enc+" You caught <b>"+hit+" of "+N+"</b> notes in time.<br>"+tip;}
+function renderBass(){
+  if(toneRAF)cancelAnimationFrame(toneRAF);bgStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  let recRAF=null,recording=false,samples=[],recStart=0,expected=[],crit="";
+  teardown=()=>{bgStop();if(recRAF)cancelAnimationFrame(recRAF);try{stopMic();}catch(e){}};
+  function fb(){const labels=["E","A","D","G"];let h='<div class="bgfb">';
+    h+='<div class="bgrow"><div class="bgcelllbl"></div>';for(let fr=0;fr<=BG.frets;fr++)h+='<div class="bgfret">'+(fr===0?"○":fr)+'</div>';h+='</div>';
+    for(let s=BG.tuning.length-1;s>=0;s--){h+='<div class="bgrow"><div class="bgcelllbl">'+labels[s]+'</div>';
+      for(let fr=0;fr<=BG.frets;fr++){const m=BG.tuning[s]+fr;h+='<div class="bgcell'+(fr===0?" open":"")+'" id="bgC-'+s+'-'+fr+'" data-m="'+m+'">'+midiName(m)+'</div>';}h+='</div>';}
+    return h+'</div>';}
+  function draw(){
+    const L=BASS_LINES[BG.lineIdx],level=load("mjk-fblevel","kid");
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎸 Bass Guitar</span></div>'+
+     '<div class="panel">'+
+      '<div class="intro">Tap the fretboard to hear the low end. Pick a bassline, hit ▶ and follow the glow. Then tap “Play it back,” play the line on your bass (or hum it), and I’ll score your timing.</div>'+
+      fb()+
+      '<div class="rrow2"><span class="rlab">Bassline</span><span class="rchips tight" id="bgList"></span></div>'+
+      '<div class="rrow"><span class="rlab">Tempo</span><input type="range" id="bgBpm" min="50" max="150" value="'+BG.bpm+'" style="flex:1"><span class="rbpm" id="bgBpmV">'+BG.bpm+'</span></div>'+
+      '<div class="actions"><button class="btn" id="bgStart">▶ Play along</button><button class="btn ghost" id="bgPlayback">🎤 Play it back</button></div>'+
+      '<div class="feedback" id="bgStatus"></div>'+
+      (crit?'<div class="idea-fb" id="bgCritBox">'+crit+'</div>':'')+
+      '<div class="rrow2"><span class="rlab">Feedback</span><span class="rchips tight"><button class="rchip sm'+(level==="kid"?" sel":"")+'" id="bgKid">Kid</button><button class="rchip sm'+(level==="pro"?" sel":"")+'" id="bgPro">Songwriter</button></span></div>'+
+      '<div class="bean-note" id="bgMsg"></div>'+
+     '</div>';
+    $("#eBack").onclick=goHome;
+    view.querySelectorAll(".bgcell").forEach(c=>{c.onclick=()=>{unlockAudio();const m=+c.getAttribute("data-m");bassVoice(m,ac().currentTime,0.6,0.6);c.classList.remove("glow");void c.offsetWidth;c.classList.add("glow");setTimeout(()=>c.classList.remove("glow"),360);};});
+    const list=$("#bgList");BASS_LINES.forEach((l,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===BG.lineIdx?" sel":"");b.textContent=l.name;b.onclick=()=>{bgStop();BG.lineIdx=i;crit="";draw();};list.appendChild(b);});
+    const bp=$("#bgBpm");bp.oninput=()=>{BG.bpm=+bp.value;$("#bgBpmV").textContent=BG.bpm;};
+    $("#bgStart").onclick=()=>{if(BG.running)bgStop();else bgStart();};
+    $("#bgKid").onclick=()=>{save("mjk-fblevel","kid");draw();};
+    $("#bgPro").onclick=()=>{save("mjk-fblevel","pro");draw();};
+    $("#bgPlayback").onclick=playback;
+  }
+  function playback(){
+    bgStop();const btn=$("#bgPlayback");if(recording)return;
+    $("#bgStatus").textContent="Turning on mic…";
+    ensureMic().then(ok=>{
+      if(!ok){$("#bgStatus").textContent="🎤 I need the mic to score your playback.";return;}
+      const L=BASS_LINES[BG.lineIdx],spb=60/BG.bpm,a=ac();let t=a.currentTime+0.3;
+      // count-in
+      for(let c=0;c<4;c++){click(t,c===0?"accent":"beat");t+=spb;}
+      // play the line (demo), record expected times relative to response start
+      expected=[];const lineStart=t;L.notes.forEach((m,i)=>{const b=L.beats[i]||1;bassVoice(m,t,Math.max(0.18,b*spb*0.85),0.55);t+=b*spb;});
+      const lineDur=t-lineStart;
+      $("#bgStatus").textContent="🎧 Listen…";
+      const respStart=t+0.15;
+      // expected onset times relative to respStart
+      {let tt=0;L.notes.forEach((m,i)=>{expected.push({m,t:tt});tt+=(L.beats[i]||1)*spb;});}
+      const respDur=lineDur+0.5;
+      // count-in before your turn
+      let ct=respStart-spb*4;for(let c=0;c<4;c++){click(ct,c===0?"accent":"beat");ct+=spb;}
+      setTimeout(()=>{$("#bgStatus").textContent="🎸 Your turn — play it back!";},(respStart-spb*4-a.currentTime)*1000);
+      // start recording at respStart
+      recording=true;$("#bgPlayback").textContent="● recording…";samples=[];
+      const buf=new Float32Array(toneAnalyser.fftSize);
+      const begin=()=>{recStart=ac().currentTime;
+        (function loop(){const now=ac().currentTime-recStart;toneAnalyser.getFloatTimeDomainData(buf);
+          let peak=0,sum=0;for(let i=0;i<buf.length;i++){const v=Math.abs(buf[i]);if(v>peak)peak=v;sum+=v*v;}
+          const rms=Math.sqrt(sum/buf.length);let f=autoCorrelate(buf,ac().sampleRate);
+          samples.push({t:now,rms,f:(f>=55&&f<=400)?f:0});
+          if(now>=respDur+0.3){finish();return;}recRAF=requestAnimationFrame(loop);})();};
+      setTimeout(begin,(respStart-a.currentTime)*1000);
+      const finish=()=>{recording=false;if(recRAF)cancelAnimationFrame(recRAF);recRAF=null;$("#bgPlayback").textContent="🎤 Play it back";score();};
+    });
+  }
+  function score(){
+    // onset detection (adaptive floor)
+    const on=[];let floor=0.004,below=true;
+    for(let i=0;i<samples.length;i++){const r=samples[i].rms;floor=floor*0.97+r*0.03;
+      if(below&&r>Math.max(0.012,floor*2.2)){on.push(i);below=false;}
+      else if(!below&&r<floor*1.3){below=true;}}
+    // refractory 90ms
+    const onset=[];let last=-1;on.forEach(i=>{const tt=samples[i].t;if(last<0||tt-last>0.09){onset.push(i);last=tt;}});
+    const L=BASS_LINES[BG.lineIdx],spb=60/BG.bpm,win=Math.min(0.26,spb*0.6),level=load("mjk-fblevel","kid");
+    let hit=0,errSum=0,noteHit=0,noteTot=0;
+    expected.forEach(e=>{let bestD=1e9,bestIdx=-1;onset.forEach(i=>{const d=Math.abs(samples[i].t-e.t);if(d<bestD){bestD=d;bestIdx=i;}});
+      if(bestIdx>=0&&bestD<=win){hit++;errSum+=bestD;
+        // pitch at onset: median f of next ~5 non-zero samples
+        const fs=[];for(let k=bestIdx;k<Math.min(samples.length,bestIdx+6);k++)if(samples[k].f)fs.push(samples[k].f);
+        if(fs.length){fs.sort((a,b)=>a-b);const f=fs[Math.floor(fs.length/2)];const dm=69+12*Math.log2(f/440);const diff=((Math.round(dm)-e.m)%12+12)%12;noteTot++;if(diff<=1||diff>=11)noteHit++;}}});
+    const N=expected.length,timingPct=Math.round(100*hit/N),errMs=hit?Math.round(1000*errSum/hit):0,notePct=noteTot?Math.round(100*noteHit/noteTot):-1;
+    crit=bgCrit(timingPct,notePct,hit,N,errMs,level);
+    let beans=3;if(timingPct>=70)beans+=2;addBeans(beans);
+    draw();const m=$("#bgMsg");if(m)m.textContent="+"+beans+" practice beans 🫘";
   }
   draw();
 }
