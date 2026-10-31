@@ -2126,8 +2126,13 @@ const HP_SCALES=[
  {name:"D Celtic Minor",notes:[50,57,60,62,64,65,67,69,72]},
  {name:"C Major (easy)",notes:[60,62,64,65,67,69,71,72,74]}
 ];
-/* the live scale list — prepends the player's own locked handpan map */
-function hpScaleList(){const b=HP_SCALES.slice();try{const cap=load(mk("hp","mymap"),[]);if(cap&&cap.length>=3&&load(mk("hp","map-locked"),false))b.unshift({name:"My Pan 🔒",notes:cap.map(c=>c.midi),mine:true});}catch(e){}return b;}
+/* saved handpans — the player's own mapped instruments (persist per player, this device) */
+function hpPans(){let p=load(mk("hp","pans"),null);
+  if(!p){p=[];try{const cap=load(mk("hp","mymap"),[]);if(cap&&cap.length>=3&&load(mk("hp","map-locked"),false))p.push({id:"p"+Date.now(),name:"My Pan",notes:cap.map(c=>c.midi)});}catch(e){}save(mk("hp","pans"),p);}
+  return p;}
+function hpSavePans(p){save(mk("hp","pans"),p);}
+/* the live scale list — the player's saved pans first, then the built-in scales */
+function hpScaleList(){const mine=hpPans().map(p=>({name:"🔔 "+p.name,notes:p.notes,mine:true}));return mine.concat(HP_SCALES);}
 const HP_PATTERNS=[
  {name:"Ascend",seq:[[0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[7,1],[8,2]]},
  {name:"Descend",seq:[[8,1],[7,1],[6,1],[5,1],[4,1],[3,1],[2,1],[1,1],[0,2]]},
@@ -2207,13 +2212,29 @@ function renderHandpan(){
     if(g){const pcs=[...new Set(captured.map(c=>((c.midi%12)+12)%12))];let best=null;
       HP_SCALES.forEach(s=>{const sp=[...new Set(s.notes.map(m=>((m%12)+12)%12))];let hit=0;pcs.forEach(p=>{if(sp.indexOf(p)>=0)hit++;});const score=hit/Math.max(pcs.length,1);if(!best||score>best.score)best={score,name:s.name};});
       g.innerHTML=(best&&best.score>=0.7&&captured.length>=4)?("Looks like <b>"+best.name+"</b> ("+Math.round(best.score*100)+"% match) · root "+esc(captured[0].name)):("Notes so far: "+captured.map(c=>esc(c.name)).join(" · "));}
-    renderPanMap();lockLabel();}
+    renderPanMap();}
   function renderPanMap(){const box=$("#tnPan");if(!box)return;box.innerHTML="";if(!captured.length){box.style.display="none";return;}box.style.display="";
     const CX=130,CY=130,R=92,nF=Math.max(1,captured.length-1);
     captured.forEach((c,i)=>{const ding=i===0;let x=CX,y=CY,size=66;if(!ding){const ang=(-90+(i-1)*(360/nF))*Math.PI/180;x=CX+R*Math.cos(ang);y=CY+R*Math.sin(ang);size=46;}
       const b=document.createElement("button");b.className="hp-field"+(ding?" ding":"");b.style.width=b.style.height=size+"px";b.style.left=(x-size/2)+"px";b.style.top=(y-size/2)+"px";b.innerHTML="<span>"+esc(c.name)+"</span>";
       b.onclick=()=>{handpan(ac().currentTime+0.01,c.midi);b.classList.remove("glow");void b.offsetWidth;b.classList.add("glow");setTimeout(()=>b.classList.remove("glow"),400);};box.appendChild(b);});}
-  function lockLabel(){const b=$("#tnLock");if(!b)return;const locked=load(mk("hp","map-locked"),false);b.textContent=locked?"🔓 Unlock my pan":"🔒 Lock in my pan";const ok=captured.length>=3;b.disabled=!ok;b.style.opacity=ok?1:.5;}
+  function showSaveForm(){if(captured.length<3){const g=$("#tnGuess");if(g)g.textContent="Capture at least 3 notes first (center + a couple around).";return;}
+    const f=$("#tnSaveForm");if(!f)return;
+    f.innerHTML='<div class="create" style="margin:6px 0"><input class="pin-input name" id="tnName" maxlength="22" placeholder="name this instrument (e.g. D Kurd pan)"><div class="actions"><button class="btn ghost" id="tnCancel">Cancel</button><button class="btn" id="tnDoSave">Save</button></div></div>';
+    const inp=$("#tnName");setTimeout(()=>{if(inp)inp.focus();},40);
+    $("#tnCancel").onclick=()=>{f.innerHTML="";};
+    $("#tnDoSave").onclick=()=>{const nm=((inp&&inp.value)||"").trim()||("Pan "+(hpPans().length+1));const pans=hpPans();pans.push({id:"p"+Date.now().toString(36),name:nm,notes:captured.map(c=>c.midi)});hpSavePans(pans);f.innerHTML="";HP.scaleIdx=0;renderPansList();const g=$("#tnGuess");if(g)g.innerHTML="Saved <b>"+esc(nm)+"</b> — now pick it in Play and Call &amp; response.";};}
+  function renderPansList(){const box=$("#tnPans");if(!box)return;const pans=hpPans();
+    if(!pans.length){box.innerHTML='<div class="site-note">No saved instruments yet. Map your pan above, then “Save as instrument.”</div>';return;}
+    box.innerHTML="";pans.forEach((p,idx)=>{const row=document.createElement("div");row.className="kb";
+      row.innerHTML='<span class="kb-ic">🔔</span><div class="kb-main"><div class="kb-t">'+esc(p.name)+'</div><div class="kb-s">'+p.notes.length+' notes · '+p.notes.map(m=>midiName(m)).join(" ")+'</div></div>';
+      const ld=document.createElement("button");ld.className="kb-btn";ld.textContent="✏️";ld.title="Load into the tuner to edit";ld.onclick=()=>{captured=p.notes.map(m=>({name:NOTE_NAMES[((m%12)+12)%12]+(Math.floor(m/12)-1),midi:m}));save(mk("hp","mymap"),captured);renderCaptured();};
+      const rn=document.createElement("button");rn.className="kb-btn";rn.style.marginLeft="6px";rn.textContent="rename";rn.onclick=()=>renamePan(idx);
+      const dl=document.createElement("button");dl.className="kb-btn";dl.style.marginLeft="6px";dl.textContent="✕";dl.onclick=()=>{const ps=hpPans();ps.splice(idx,1);hpSavePans(ps);renderPansList();};
+      row.appendChild(ld);row.appendChild(rn);row.appendChild(dl);box.appendChild(row);});}
+  function renamePan(idx){const box=$("#tnPans"),pans=hpPans(),p=pans[idx];if(!p||!box)return;const row=box.children[idx];if(!row)return;
+    row.innerHTML='<input class="pin-input name" id="rnIn" maxlength="22" value="'+esc(p.name)+'" style="flex:1"><button class="kb-btn" id="rnOk" style="margin-left:6px">save</button>';
+    const inp=$("#rnIn");setTimeout(()=>{if(inp)inp.focus();},30);$("#rnOk").onclick=()=>{p.name=((inp&&inp.value)||p.name).trim();hpSavePans(pans);renderPansList();};}
   function startTuner(){const s=$("#tnCents");if(s)s.textContent="turning on mic…";
     ensureMic().then(ok=>{if(!ok){const n=$("#tnNote");if(n)n.textContent="🎤";const c=$("#tnCents");if(c)c.textContent="I need the mic to hear your pan.";return;}
       tbuf=new Float32Array(toneAnalyser.fftSize);
@@ -2243,15 +2264,18 @@ function renderHandpan(){
         '<div class="actions"><button class="btn" id="tnCap">＋ Capture note</button><button class="btn ghost" id="tnClear">Clear list</button></div>'+
         '<div class="rlab" style="display:block;margin:12px 0 6px">Overhead view — the center is your ding; tap any field to hear it</div>'+
         '<div class="handpan" id="tnPan" style="display:none"></div>'+
-        '<div class="actions"><button class="btn" id="tnLock">🔒 Lock in my pan</button></div>'+
+        '<div class="actions"><button class="btn" id="tnSave">💾 Save as instrument</button></div>'+
+        '<div id="tnSaveForm"></div>'+
         '<div class="rlab" style="display:block;margin:12px 0 6px">Capture order — center (ding) first, then the top note, then around</div>'+
         '<div id="tnList"></div><div class="bean-note" id="tnGuess" style="text-align:left"></div>'+
+        '<div class="rlab" style="display:block;margin:16px 0 6px">My saved instruments</div>'+
+        '<div id="tnPans"></div>'+
        '</div>';
       $("#eBack").onclick=goHome;wireMode();
       $("#tnCap").onclick=()=>{if(!last)return;captured.push({name:last.name,midi:last.midi});save(mk("hp","mymap"),captured);renderCaptured();};
-      $("#tnClear").onclick=()=>{captured=[];save(mk("hp","mymap"),captured);save(mk("hp","map-locked"),false);renderCaptured();};
-      $("#tnLock").onclick=()=>{if(captured.length<3)return;const locked=!load(mk("hp","map-locked"),false);save(mk("hp","map-locked"),locked);if(locked)HP.scaleIdx=0;lockLabel();const g=$("#tnGuess");if(g)g.innerHTML=locked?"Locked in as <b>My Pan 🔒</b> — now choose it in Play and Call &amp; response.":("Notes so far: "+captured.map(c=>esc(c.name)).join(" · "));};
-      renderCaptured();startTuner();return;
+      $("#tnClear").onclick=()=>{captured=[];save(mk("hp","mymap"),captured);renderCaptured();};
+      $("#tnSave").onclick=showSaveForm;
+      renderCaptured();renderPansList();startTuner();return;
     }
     if(HP.mode==="cr"){
       view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔔 Handpan</span></div>'+
