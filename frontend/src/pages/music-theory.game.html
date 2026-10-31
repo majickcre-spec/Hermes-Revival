@@ -201,6 +201,8 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .hpcell.ding{border-color:var(--gold)}
 .hpcell.on{background:#ff9f5c;color:#201a10;border-color:#ff9f5c;box-shadow:0 0 12px rgba(255,159,92,.7)}
 .hpbar{width:2px;align-self:stretch;background:rgba(255,159,92,.5);border-radius:2px;margin:0 2px}
+.hp-field.sel{outline:3px solid #ff9f5c;outline-offset:2px;z-index:3}
+.hp-field.empty{opacity:.7;border-style:dashed}
 .finger-legend{background:var(--card2);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:9px 12px;margin:0 0 12px;color:var(--muted);font-size:.85rem;line-height:1.55}
 .finger-legend b{color:var(--cream)}
 .finger-legend .fg{display:inline-block;min-width:17px;height:17px;line-height:17px;text-align:center;background:#ff9f5c;color:#201a10;border-radius:50%;font-weight:800;font-size:.72rem;margin:0 1px}
@@ -2160,7 +2162,15 @@ function hpStart(){unlockAudio();if(HP.running)return;const a=ac();HP.running=tr
 function renderHandpan(){
   if(toneRAF)cancelAnimationFrame(toneRAF);hpStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   HP.mode=HP.mode||"play";
-  let tRAF=null,tbuf=null,last=null,captured=load(mk("hp","mymap"),[]);
+  let tRAF=null,tbuf=null,last=null;
+  let outerCount=load(mk("hp","mapfields"),7),selSlot=0;
+  let mapSlots=load(mk("hp","mapslots"),null);
+  if(!mapSlots){const cap=load(mk("hp","mymap"),[]);
+    if(cap&&cap.length>=2){outerCount=Math.max(3,cap.length-1);mapSlots=new Array(1+outerCount).fill(null);cap.forEach((c,i)=>{if(i<mapSlots.length)mapSlots[i]={name:c.name,midi:c.midi};});}
+    else mapSlots=new Array(1+outerCount).fill(null);}
+  function saveMap(){save(mk("hp","mapslots"),mapSlots);save(mk("hp","mapfields"),outerCount);}
+  function resizeMap(n){const old=mapSlots;outerCount=n;mapSlots=new Array(1+n).fill(null);for(let i=0;i<mapSlots.length&&i<old.length;i++)mapSlots[i]=old[i];if(selSlot>=mapSlots.length)selSlot=0;saveMap();}
+  function slotPos(i){const CX=130,CY=130,R=92,nF=Math.max(1,outerCount);if(i===0)return{x:CX,y:CY,size:66};const ang=(-90+(i-1)*(360/nF))*Math.PI/180;return{x:CX+R*Math.cos(ang),y:CY+R*Math.sin(ang),size:46};}
   let crPhrase=[],crMeasures=load(mk("hp","cr-meas"),1),crBusy=false,crRAF=null,crSamples=[],crExpected=[];
   const CR_NPM=4;
   teardown=()=>{hpStop();if(tRAF)cancelAnimationFrame(tRAF);tRAF=null;if(crRAF)cancelAnimationFrame(crRAF);crRAF=null;try{stopMic();}catch(e){}};
@@ -2202,33 +2212,36 @@ function renderHandpan(){
     const ind=$("#tnInd");if(ind)ind.style.left=(50+Math.max(-50,Math.min(50,d.cents)))+"%";
     const c=$("#tnCents");if(c)c.textContent=(Math.abs(d.cents)<=6?"in tune ✓":(d.cents>0?"+"+d.cents+" cents (sharp)":d.cents+" cents (flat)"));
     const fr=$("#tnFreq");if(fr)fr.textContent=d.f.toFixed(1)+" Hz";}
-  function renderCaptured(){const l=$("#tnList");if(!l)return;const g=$("#tnGuess");
-    if(!captured.length){l.innerHTML='<div class="site-note">No notes captured yet. Tap a field on your pan, let it ring, then hit “Capture.”</div>';if(g)g.textContent="";return;}
-    l.innerHTML="";captured.forEach((c,i)=>{const row=document.createElement("div");row.className="kb";
-      row.innerHTML='<span class="kb-ic">'+(i===0?"🔘":"◯")+'</span><div class="kb-main"><div class="kb-t">'+(i===0?"Ding (center)":("Field "+i))+' — '+esc(c.name)+'</div></div>';
-      const pb=document.createElement("button");pb.className="kb-btn";pb.textContent="▶";pb.onclick=()=>handpan(ac().currentTime+0.01,c.midi);
-      const dl=document.createElement("button");dl.className="kb-btn";dl.style.marginLeft="6px";dl.textContent="✕";dl.onclick=()=>{captured.splice(i,1);save(mk("hp","mymap"),captured);renderCaptured();};
-      row.appendChild(pb);row.appendChild(dl);l.appendChild(row);});
-    if(g){const pcs=[...new Set(captured.map(c=>((c.midi%12)+12)%12))];let best=null;
-      HP_SCALES.forEach(s=>{const sp=[...new Set(s.notes.map(m=>((m%12)+12)%12))];let hit=0;pcs.forEach(p=>{if(sp.indexOf(p)>=0)hit++;});const score=hit/Math.max(pcs.length,1);if(!best||score>best.score)best={score,name:s.name};});
-      g.innerHTML=(best&&best.score>=0.7&&captured.length>=4)?("Looks like <b>"+best.name+"</b> ("+Math.round(best.score*100)+"% match) · root "+esc(captured[0].name)):("Notes so far: "+captured.map(c=>esc(c.name)).join(" · "));}
-    renderPanMap();}
-  function renderPanMap(){const box=$("#tnPan");if(!box)return;box.innerHTML="";if(!captured.length){box.style.display="none";return;}box.style.display="";
-    const CX=130,CY=130,R=92,nF=Math.max(1,captured.length-1);
-    captured.forEach((c,i)=>{const ding=i===0;let x=CX,y=CY,size=66;if(!ding){const ang=(-90+(i-1)*(360/nF))*Math.PI/180;x=CX+R*Math.cos(ang);y=CY+R*Math.sin(ang);size=46;}
-      const b=document.createElement("button");b.className="hp-field"+(ding?" ding":"");b.style.width=b.style.height=size+"px";b.style.left=(x-size/2)+"px";b.style.top=(y-size/2)+"px";b.innerHTML="<span>"+esc(c.name)+"</span>";
-      b.onclick=()=>{handpan(ac().currentTime+0.01,c.midi);b.classList.remove("glow");void b.offsetWidth;b.classList.add("glow");setTimeout(()=>b.classList.remove("glow"),400);};box.appendChild(b);});}
-  function showSaveForm(){if(captured.length<3){const g=$("#tnGuess");if(g)g.textContent="Capture at least 3 notes first (center + a couple around).";return;}
+  function updSlotHint(){const h=$("#tnSlotHint");if(h)h.innerHTML=(selSlot===0?"Selected: <b>center (ding)</b>":"Selected: <b>spot "+selSlot+"</b> — "+selSlot+(selSlot===1?"st":selSlot===2?"nd":selSlot===3?"rd":"th")+" from the top, going clockwise")+" · play it, then tap <b>Set</b>.";}
+  function updGuess(){const g=$("#tnGuess");if(!g)return;const filled=mapSlots.filter(Boolean);if(filled.length<3){g.textContent="";return;}
+    const pcs=[...new Set(filled.map(c=>((c.midi%12)+12)%12))];let best=null;
+    HP_SCALES.forEach(s=>{const sp=[...new Set(s.notes.map(m=>((m%12)+12)%12))];let hit=0;pcs.forEach(p=>{if(sp.indexOf(p)>=0)hit++;});const sc=hit/Math.max(pcs.length,1);if(!best||sc>best.sc)best={sc,name:s.name};});
+    g.innerHTML=(best&&best.sc>=0.7&&filled.length>=4)?("Looks like <b>"+best.name+"</b> · center "+(mapSlots[0]?esc(mapSlots[0].name):"?")):("Mapped "+filled.length+" of "+mapSlots.length+" spots.");}
+  function renderPanMap(){const box=$("#tnPan");if(!box)return;box.style.display="";box.innerHTML="";
+    mapSlots.forEach((slot,i)=>{const p=slotPos(i);const b=document.createElement("button");
+      b.className="hp-field"+(i===0?" ding":"")+(i===selSlot?" sel":"")+(slot?"":" empty");
+      b.style.width=b.style.height=p.size+"px";b.style.left=(p.x-p.size/2)+"px";b.style.top=(p.y-p.size/2)+"px";
+      b.innerHTML="<span>"+(slot?esc(slot.name):(i===0?"ding":"?"))+"</span>";
+      b.onclick=()=>{selSlot=i;if(slot){handpan(ac().currentTime+0.01,slot.midi);b.classList.remove("glow");void b.offsetWidth;b.classList.add("glow");setTimeout(()=>b.classList.remove("glow"),400);}renderPanMap();updSlotHint();};
+      box.appendChild(b);});
+    updGuess();}
+  function setNote(){if(!last){const g=$("#tnGuess");if(g)g.textContent="Play a note first — I need to hear it.";return;}
+    mapSlots[selSlot]={name:last.name,midi:last.midi};saveMap();
+    let nx=-1;for(let k=1;k<mapSlots.length;k++){const idx=(selSlot+k)%mapSlots.length;if(!mapSlots[idx]){nx=idx;break;}}if(nx>=0)selSlot=nx;
+    renderPanMap();updSlotHint();}
+  function clearSlot(){mapSlots[selSlot]=null;saveMap();renderPanMap();updSlotHint();}
+  function resetMap(){mapSlots=new Array(1+outerCount).fill(null);selSlot=0;saveMap();renderPanMap();updSlotHint();const g=$("#tnGuess");if(g)g.textContent="";}
+  function showSaveForm(){const filled=mapSlots.filter(Boolean);if(filled.length<3){const g=$("#tnGuess");if(g)g.textContent="Map at least 3 spots first (center + a couple around).";return;}
     const f=$("#tnSaveForm");if(!f)return;
     f.innerHTML='<div class="create" style="margin:6px 0"><input class="pin-input name" id="tnName" maxlength="22" placeholder="name this instrument (e.g. D Kurd pan)"><div class="actions"><button class="btn ghost" id="tnCancel">Cancel</button><button class="btn" id="tnDoSave">Save</button></div></div>';
     const inp=$("#tnName");setTimeout(()=>{if(inp)inp.focus();},40);
     $("#tnCancel").onclick=()=>{f.innerHTML="";};
-    $("#tnDoSave").onclick=()=>{const nm=((inp&&inp.value)||"").trim()||("Pan "+(hpPans().length+1));const pans=hpPans();pans.push({id:"p"+Date.now().toString(36),name:nm,notes:captured.map(c=>c.midi)});hpSavePans(pans);f.innerHTML="";HP.scaleIdx=0;renderPansList();const g=$("#tnGuess");if(g)g.innerHTML="Saved <b>"+esc(nm)+"</b> — now pick it in Play and Call &amp; response.";};}
+    $("#tnDoSave").onclick=()=>{const nm=((inp&&inp.value)||"").trim()||("Pan "+(hpPans().length+1));const pans=hpPans();pans.push({id:"p"+Date.now().toString(36),name:nm,notes:filled.map(c=>c.midi)});hpSavePans(pans);f.innerHTML="";HP.scaleIdx=0;renderPansList();const g=$("#tnGuess");if(g)g.innerHTML="Saved <b>"+esc(nm)+"</b> — now pick it in Play and Call &amp; response.";};}
   function renderPansList(){const box=$("#tnPans");if(!box)return;const pans=hpPans();
     if(!pans.length){box.innerHTML='<div class="site-note">No saved instruments yet. Map your pan above, then “Save as instrument.”</div>';return;}
     box.innerHTML="";pans.forEach((p,idx)=>{const row=document.createElement("div");row.className="kb";
       row.innerHTML='<span class="kb-ic">🔔</span><div class="kb-main"><div class="kb-t">'+esc(p.name)+'</div><div class="kb-s">'+p.notes.length+' notes · '+p.notes.map(m=>midiName(m)).join(" ")+'</div></div>';
-      const ld=document.createElement("button");ld.className="kb-btn";ld.textContent="✏️";ld.title="Load into the tuner to edit";ld.onclick=()=>{captured=p.notes.map(m=>({name:NOTE_NAMES[((m%12)+12)%12]+(Math.floor(m/12)-1),midi:m}));save(mk("hp","mymap"),captured);renderCaptured();};
+      const ld=document.createElement("button");ld.className="kb-btn";ld.textContent="✏️";ld.title="Load into the tuner to edit";ld.onclick=()=>{outerCount=Math.max(3,p.notes.length-1);mapSlots=new Array(1+outerCount).fill(null);p.notes.forEach((m,i)=>{if(i<mapSlots.length)mapSlots[i]={name:NOTE_NAMES[((m%12)+12)%12]+(Math.floor(m/12)-1),midi:m};});selSlot=0;saveMap();draw();};
       const rn=document.createElement("button");rn.className="kb-btn";rn.style.marginLeft="6px";rn.textContent="rename";rn.onclick=()=>renamePan(idx);
       const dl=document.createElement("button");dl.className="kb-btn";dl.style.marginLeft="6px";dl.textContent="✕";dl.onclick=()=>{const ps=hpPans();ps.splice(idx,1);hpSavePans(ps);renderPansList();};
       row.appendChild(ld);row.appendChild(rn);row.appendChild(dl);box.appendChild(row);});}
@@ -2257,25 +2270,27 @@ function renderHandpan(){
     if(HP.mode==="tuner"){
       view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔔 Handpan</span></div>'+
        '<div class="panel">'+modeBar()+
-        '<div class="intro">Notes on your handpan not labeled? Hold a note near the mic and I&rsquo;ll name it. Tap each field in turn and <b>Capture</b> it to map your pan&rsquo;s layout — the first one you capture is the <b>ding</b> (center), so you know which way to orient it.</div>'+
+        '<div class="intro">Map your pan by <b>spot</b>: tap a spot on the circle, play that note on your pan, then tap <b>Set</b>. The <b>top of the circle is your fixed reference</b> — turn your pan so its top note sits at the top and keep that orientation to your body. The center is the ding. Fill the spots, then Save.</div>'+
         '<div class="tuner"><div class="tn-note" id="tnNote">—</div>'+
           '<div class="tn-scale"><span>♭</span><div class="tn-bar"><div class="tn-center"></div><div class="tn-ind" id="tnInd"></div></div><span>♯</span></div>'+
           '<div class="tn-sub" id="tnCents">play a note…</div><div class="tn-freq" id="tnFreq"></div></div>'+
-        '<div class="actions"><button class="btn" id="tnCap">＋ Capture note</button><button class="btn ghost" id="tnClear">Clear list</button></div>'+
-        '<div class="rlab" style="display:block;margin:12px 0 6px">Overhead view — the center is your ding; tap any field to hear it</div>'+
-        '<div class="handpan" id="tnPan" style="display:none"></div>'+
-        '<div class="actions"><button class="btn" id="tnSave">💾 Save as instrument</button></div>'+
+        '<div class="rrow2"><span class="rlab">Notes around</span><span class="rchips tight" id="hpFieldCount"></span></div>'+
+        '<div class="feedback" id="tnSlotHint"></div>'+
+        '<div class="handpan" id="tnPan"></div>'+
+        '<div class="actions"><button class="btn" id="tnSet">✓ Set note on this spot</button><button class="btn ghost" id="tnClearSpot">Clear spot</button></div>'+
+        '<div class="actions"><button class="btn" id="tnSave">💾 Save as instrument</button><button class="btn ghost" id="tnReset">Reset all</button></div>'+
         '<div id="tnSaveForm"></div>'+
-        '<div class="rlab" style="display:block;margin:12px 0 6px">Capture order — center (ding) first, then the top note, then around</div>'+
-        '<div id="tnList"></div><div class="bean-note" id="tnGuess" style="text-align:left"></div>'+
+        '<div class="bean-note" id="tnGuess" style="text-align:left"></div>'+
         '<div class="rlab" style="display:block;margin:16px 0 6px">My saved instruments</div>'+
         '<div id="tnPans"></div>'+
        '</div>';
       $("#eBack").onclick=goHome;wireMode();
-      $("#tnCap").onclick=()=>{if(!last)return;captured.push({name:last.name,midi:last.midi});save(mk("hp","mymap"),captured);renderCaptured();};
-      $("#tnClear").onclick=()=>{captured=[];save(mk("hp","mymap"),captured);renderCaptured();};
+      const fc=$("#hpFieldCount");[5,6,7,8,9].forEach(nn=>{const b=document.createElement("button");b.className="rchip sm"+(nn===outerCount?" sel":"");b.textContent=nn;b.onclick=()=>{resizeMap(nn);renderPanMap();updSlotHint();fc.querySelectorAll(".rchip").forEach(x=>x.classList.toggle("sel",x===b));};fc.appendChild(b);});
+      $("#tnSet").onclick=setNote;
+      $("#tnClearSpot").onclick=clearSlot;
       $("#tnSave").onclick=showSaveForm;
-      renderCaptured();renderPansList();startTuner();return;
+      $("#tnReset").onclick=resetMap;
+      renderPanMap();updSlotHint();renderPansList();startTuner();return;
     }
     if(HP.mode==="cr"){
       view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔔 Handpan</span></div>'+
