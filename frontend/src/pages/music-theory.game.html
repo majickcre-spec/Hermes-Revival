@@ -3395,6 +3395,14 @@ function efClap(a,out,t,lvl){[0,0.008,0.017,0.028].forEach((d,i)=>djNoise(a,t+d,
 function efSubNote(a,out,t,freq,dur){const o=a.createOscillator();o.type="sine";o.frequency.value=freq;const o2=a.createOscillator();o2.type="triangle";o2.frequency.value=freq;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.6,t+0.012);g.gain.setValueAtTime(0.55,t+Math.max(0.05,dur*0.75));g.gain.exponentialRampToValueAtTime(0.0001,t+dur);const g2=a.createGain();g2.gain.value=0.18;o2.connect(g2);g2.connect(g);o.connect(g);g.connect(out);o.start(t);o2.start(t);o.stop(t+dur+0.04);o2.stop(t+dur+0.04);}
 function efBassNote(a,out,t,freq,dur,type){const o=a.createOscillator();o.type=type||"triangle";o.frequency.value=freq;const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=700;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.42,t+0.008);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(lp);lp.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.04);efSubNote(a,out,t,freq/2,Math.min(dur,0.5));}
 function efReese(a,out,t,freq,dur,I){const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.setValueAtTime(350,t);lp.frequency.linearRampToValueAtTime(1100+I*1600,t+dur*0.5);lp.frequency.linearRampToValueAtTime(350,t+dur);lp.Q.value=7;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.4,t+0.02);g.gain.setValueAtTime(0.38,t+dur*0.8);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);[-14,-7,0,0.3,7].forEach(det=>{const o=a.createOscillator();o.type="sawtooth";o.frequency.value=freq;o.detune.value=det;o.connect(lp);o.start(t);o.stop(t+dur+0.04);});lp.connect(g);g.connect(out);efSubNote(a,out,t,freq/2,dur);}
+function efGrowl(a,out,t,freq,dur,I,wob){const sum=a.createGain();sum.gain.value=0.4;
+  [-11,-5,0,5,0.3].forEach(d=>{const o=a.createOscillator();o.type="sawtooth";o.frequency.value=freq;o.detune.value=d;o.connect(sum);o.start(t);o.stop(t+dur+0.05);});
+  const sq=a.createOscillator();sq.type="square";sq.frequency.value=freq;const sqg=a.createGain();sqg.gain.value=0.3;sq.connect(sqg);sqg.connect(sum);sq.start(t);sq.stop(t+dur+0.05);
+  const ws=_dist(a,55);sum.connect(ws);
+  const lp=a.createBiquadFilter();lp.type="lowpass";lp.Q.value=11;const base=150,peak=1300+I*1500;lp.frequency.value=(peak+base)/2;
+  const lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=wob||4;const lg=a.createGain();lg.gain.value=(peak-base)/2;lfo.connect(lg);lg.connect(lp.frequency);lfo.start(t);lfo.stop(t+dur+0.05);
+  ws.connect(lp);const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.5,t+0.012);g.gain.setValueAtTime(0.47,t+Math.max(0.05,dur*0.85));g.gain.exponentialRampToValueAtTime(0.0001,t+dur);lp.connect(g);g.connect(out);}
+function efBell(a,out,t,freq,dur){[[1,0.1],[2.76,0.05],[5.4,0.02]].forEach(([m,l])=>{const o=a.createOscillator();o.type="sine";o.frequency.value=freq*m;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(l,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.05);});}
 function efStabNote(a,out,t,freq,dur,type,cut){const o=a.createOscillator();o.type=type||"sawtooth";o.frequency.value=freq;const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.setValueAtTime(cut||3200,t);lp.frequency.exponentialRampToValueAtTime(600,t+dur);lp.Q.value=2;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.13,t+0.005);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(lp);lp.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.03);}
 function efPadVoice(a,out,t,freq,dur,cut){const o=a.createOscillator();o.type="sawtooth";o.frequency.value=freq;o.detune.value=Math.random()*10-5;const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=cut||1200;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(0.04,t+0.5);g.gain.setValueAtTime(0.04,t+Math.max(0.6,dur-0.7));g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(lp);lp.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.05);}
 function efRhodes(a,out,t,freq,dur){[[1,0.12],[2,0.05],[3,0.02]].forEach(([m,l])=>{const o=a.createOscillator();o.type="sine";o.frequency.value=freq*m;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(l,t+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);const trem=a.createOscillator();trem.type="sine";trem.frequency.value=4.5;const tg=a.createGain();tg.gain.value=l*0.3;trem.connect(tg);tg.connect(g.gain);trem.start(t);trem.stop(t+dur);o.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.04);});}
@@ -3414,15 +3422,22 @@ const EF_GENRES={
    if(drop&&[0,3,6,8,11,14].includes(s))efStabNote(c.a,c.pump,t,c.f(ch[s%ch.length]+24),c.stepDur*1.4,"sawtooth",2600+I*1500);
    if(bar===7&&s===0)efRiser(c.a,c.master,t,c.spb*4);
    if((bar===4||bar===6)&&s===0)efCrash(c.a,c.master,t,0.16);}},
- bass:{name:"Bass · DnB",bpm:176,duck:0.5,
-  step(s,bar,t,I,c){const ch=c.CH[bar%4],rt=c.BR[bar%4],drop=bar>=4&&bar!==6;
-   if(bar>=2&&bar!==6){if(s===0||s===10)efKick(c.a,c.master,t,true);if(s===4||s===12){efSnare(c.a,c.master,t,0.9);c.duck(t);}if(I>0.5&&(s===7||s===15))efSnare(c.a,c.master,t,0.3);}
-   if(bar>=2&&bar!==6&&s%2===1)efHat(c.a,c.master,t,0.04+0.04*I,s%4===3);
-   if(bar>=1&&(s===0||s===6||s===11))efReese(c.a,c.pump,t,c.f(rt),s===0?c.stepDur*6:c.stepDur*4,I);
-   if(s===0)ch.forEach(n=>efPadVoice(c.a,c.pump,t,c.f(n+12),c.spb*4,700+I*1500));
-   if(drop&&[0,4,8,12].includes(s))efStabNote(c.a,c.pump,t,c.f(ch[(s/4)%ch.length]+24),c.stepDur*2,"square",2400+I*1600);
-   if(bar===7&&s===0)efRiser(c.a,c.master,t,c.spb*4);
-   if((bar===4||bar===6)&&s===0)efCrash(c.a,c.master,t,0.15);}},
+ bass:{name:"Space Bass",bpm:140,duck:0.5,
+  GP:[{d:3,m:2},null,null,{d:1,m:1},{d:2,m:2},null,null,{d:1,m:4},{d:3,m:2},null,{d:1,m:3},null,{d:2,m:2},null,{d:1,m:4},null],
+  step(s,bar,t,I,c){const ch=c.CH[bar%4],rt=c.BR[bar%4],drop=(bar===4||bar===5||bar===7),bpl=c.g.bpm/60;
+   if(bar<2||bar===6){ if(s===0)ch.forEach(n=>efPadVoice(c.a,c.pump,t,c.f(n+12),c.spb*4,900+I*1300)); if([0,4,8,12].includes(s))efBell(c.a,c.pump,t,c.f(ch[(s/4)%ch.length]+24),c.spb*1.3); if(s===0)efSubNote(c.a,c.master,t,c.f(rt)/2,c.spb*4); }
+   if(bar===2||bar===3){ if(s===0||s===8)efKick(c.a,c.master,t,true); if(s===8)efSnare(c.a,c.master,t,0.7); if(s%4===2)efHat(c.a,c.master,t,0.04,false); if(s===0)efSubNote(c.a,c.master,t,c.f(rt)/2,c.spb*4); if(bar===3&&s===10)efRiser(c.a,c.master,t,c.spb*1.5); }
+   if(drop){
+     if(s===0)efKick(c.a,c.master,t,true);
+     if(I>0.55&&s===11)efKick(c.a,c.master,t,true);
+     if(s===8){efSnare(c.a,c.master,t,1.05);djNoise(c.a,t,0.3,2200,0.16,c.rev,false);c.duck(t);}
+     if([2,6,10,14].includes(s))efHat(c.a,c.master,t,0.05+0.04*I,s===14);
+     if(I>0.6&&s===15)efHat(c.a,c.master,t,0.06,false);
+     if(s===0||s===8)efSubNote(c.a,c.master,t,c.f(rt)/2,c.spb*2);
+     const gp=c.g.GP[s];if(gp)efGrowl(c.a,c.master,t,c.f(rt),gp.d*c.stepDur,I,bpl*gp.m);
+   }
+   if((bar===4||bar===7)&&s===0)efCrash(c.a,c.master,t,0.22);
+   if(bar===6&&s===10)efRiser(c.a,c.master,t,c.spb*1.5);},},
  rock:{name:"Alt Rock",bpm:124,duck:0,
   step(s,bar,t,I,c){const ch=c.CH[bar%4],rt=c.BR[bar%4],drop=bar>=4&&bar!==6;
    if(bar>=2&&bar!==6){if(s===0||s===8||(s===6&&I>0.4))efKick(c.a,c.master,t,true);if(s===4||s===12)efSnare(c.a,c.master,t,1.0);if(s%2===0)efHat(c.a,c.master,t,0.05,s===8);}
@@ -3500,7 +3515,7 @@ function renderEarthFreq(){
   let voice=load(mk("earth","voice"),"pure"),vol=0.6;
   let arr=load(mk("earth","arr"),"med"),genre=load(mk("earth","genre"),"house");
   let arch=efArch(),selDate=efDayUTC(0),override=null;
-  const EF_GLIST=[["house","🏠 Melodic House"],["bass","🔊 Bass · DnB"],["rock","🎸 Alt Rock"],["lofi","☕ Lo-fi"]];
+  const EF_GLIST=[["house","🏠 Melodic House"],["bass","🛸 Space Bass"],["rock","🎸 Alt Rock"],["lofi","☕ Lo-fi"]];
   teardown=()=>{efStop();};
   function cur(){if(override!=null)return override;const s=arch[selDate];return s?s.intensity:24;}
   function go(){if(arr==="song")efSong(cur(),vol,genre);else if(arr==="binaural")efBinaural(cur(),vol);else efStart(cur(),"iso",vol,voice);}
@@ -3514,7 +3529,7 @@ function renderEarthFreq(){
       '<div class="rlab" style="display:block;margin:12px 0 5px">Tune in — pick a day</div><div class="rchips" id="efDays"></div>'+
       '<div class="idea-fb" id="efNow"></div>'+
       '<div class="rrow2"><span class="rlab">Feel</span><span class="rchips tight"><button class="rchip sm'+(arr==="med"?" sel":"")+'" id="efArrMed">🧘 Meditation</button><button class="rchip sm'+(arr==="binaural"?" sel":"")+'" id="efArrBin">🌀 Binaural</button><button class="rchip sm'+(arr==="song"?" sel":"")+'" id="efArrSong">🎶 Song</button></span></div>'+
-      (arr==="song"?'<div class="rrow2"><span class="rlab">Genre</span><span class="rchips tight" id="efGenres"></span></div><div class="site-note" style="margin:2px 0 6px">Each genre is built on the day&rsquo;s 7.83 Hz fundamental as the bass, at a tempo tied to the Earth beat (house ~117, DnB ~176, rock ~124, lo-fi ~84). It layers in over 8 bars with a build and a drop. The day&rsquo;s intensity sets how hard it hits.</div>':
+      (arr==="song"?'<div class="rrow2"><span class="rlab">Genre</span><span class="rchips tight" id="efGenres"></span></div><div class="site-note" style="margin:2px 0 6px">Each genre is built on the day&rsquo;s 7.83 Hz fundamental as the bass (house ~117, Space Bass halftime ~140, rock ~124, lo-fi ~84). <b>Space Bass</b> is heavy psychedelic halftime — growling, wobbling designed bass through distortion, big clean sub pressure and cosmic melodics (LSDREAM-style). It layers over 8 bars with a build and a drop; the day&rsquo;s intensity sets how hard it hits.</div>':
         arr==="binaural"?'<div class="rrow2"><span class="rlab">Instrument</span><span class="rchips tight" id="efVoices"></span></div><div class="site-note" style="margin:2px 0 6px">🎧 <b>Headphones essential.</b> Three carriers on the day&rsquo;s fundamental, each with a Schumann-harmonic beat between your ears (7.83 / 14.3 / 20.8 Hz), breathing slowly. Calmer days stay soft and low; charged days add brightness and shimmer.</div>':
         '<div class="rrow2"><span class="rlab">Instrument</span><span class="rchips tight" id="efVoices"></span></div><div class="site-note" style="margin:2px 0 6px">A drone octaved up from 7.83 Hz, pulsed isochronically at the real 7.83 Hz over a slow ~59 BPM Earth beat — made for long, easy breathing.</div>')+
       '<div class="rrow"><span class="rlab">Intensity</span><input type="range" id="efInt" min="0" max="100" value="'+cur()+'" style="flex:1"><span class="rbpm" id="efIntV">'+cur()+'</span></div>'+
