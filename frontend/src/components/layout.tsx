@@ -10,11 +10,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems = [
-    { label: "Home", path: "/" },
+    { label: "Home", path: "/hermes" },
     { label: "Teachings", path: "/modules" },
     { label: "Star", path: "/reader/star-heads" },
     { label: "Prayers", path: "/reader/prayers" },
-    { label: "Music", path: "/music-theory" },
     { label: "Learning", path: "/learning" },
     { label: "Atlas", path: "/atlas" },
     { label: "Dashboard", path: "/dashboard" },
@@ -27,7 +26,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Navigation */}
       <nav className="sticky top-0 z-50 w-full border-b border-white/10 bg-background/80 backdrop-blur-md">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
+          <Link href="/hermes" className="flex items-center gap-3 group">
             <img 
               src={logo} 
               alt="Hermetic Seal" 
@@ -59,14 +58,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
 
-          {/* Mobile: always-visible Music toggle + menu */}
+          {/* Mobile: menu */}
           <div className="flex items-center gap-2 md:hidden">
-            <Link
-              href="/music-theory"
-              className="rounded-full border border-primary/50 px-3 py-1.5 text-sm font-semibold text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
-            >
-              ♪ Music
-            </Link>
             <button
               className="text-muted-foreground hover:text-primary"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

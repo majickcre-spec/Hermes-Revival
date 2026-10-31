@@ -31,7 +31,8 @@ import FlashcardLearning from "@/pages/flashcard-learning";
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Home} />
+      <Route path="/" component={University} />
+      <Route path="/hermes" component={Home} />
       <Route path="/modules" component={Modules} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/journey" component={Journey} />
