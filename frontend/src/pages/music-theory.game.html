@@ -3444,9 +3444,197 @@ function renderBass(){
 
 /* ===== BIOFEEDBACK — Muse 2 live monitor (Web Bluetooth) ===== */
 const BIO_CARDS=[
+ {ic:"🧘",title:"Meditation",blurb:"Brainwave binaural beats by intention, guided breathwork with live HRV, mental rhythm training, and timed sessions. Train your mind and nervous system.",go:()=>renderMeditation()},
  {ic:"🧠",title:"Live Monitor",blurb:"Connect your Muse and watch your brainwaves (alpha/theta/beta) and heart rhythm in real time.",go:()=>openBio()},
  {ic:"🌍",title:"Schumann Resonance",blurb:"The Earth resonance — today's meditation & song. The 7.83 Hz Schumann resonance made audible and shaped by today's real geomagnetic activity.",go:()=>renderEarthFreq()}
 ];
+/* ===== MEDITATION — binaural brainwaves, breathwork + HRV, rhythm mind, sessions ===== */
+let MED={master:null,oscs:[],timer:null};
+function medStop(){if(MED.timer){clearInterval(MED.timer);MED.timer=null;}if(!MED.master)return;const a=ac(),m=MED.master,os=MED.oscs;MED.master=null;MED.oscs=[];try{m.gain.cancelScheduledValues(a.currentTime);m.gain.setTargetAtTime(0.0001,a.currentTime,0.3);}catch(e){}setTimeout(()=>{os.forEach(o=>{try{o.stop();}catch(e){}});},800);}
+function medBinaural(beatHz,carrier,vol,shimmer){medStop();unlockAudio();const a=ac(),oscs=[];
+  const master=a.createGain();master.gain.value=0.0001;master.connect(a.destination);master.gain.setTargetAtTime(vol==null?0.5:vol,a.currentTime,0.9);
+  const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=2200;lp.connect(master);
+  [[-1,0],[1,beatHz]].forEach(([pan,off])=>{const o=a.createOscillator();o.type="sine";o.frequency.value=carrier+off;const pn=a.createStereoPanner?a.createStereoPanner():null;if(pn)pn.pan.value=pan;const g=a.createGain();g.gain.value=0.17;o.connect(pn||g);if(pn)pn.connect(g);g.connect(lp);o.start();oscs.push(o);});
+  [0,7].forEach(n=>{const o=a.createOscillator();o.type="sine";o.frequency.value=carrier*Math.pow(2,n/12)/2;const g=a.createGain();g.gain.value=0.035;const tr=a.createOscillator();tr.type="sine";tr.frequency.value=0.07;const tg=a.createGain();tg.gain.value=0.018;tr.connect(tg);tg.connect(g.gain);tr.start();oscs.push(tr);o.connect(g);g.connect(lp);o.start();oscs.push(o);});
+  if(shimmer){const o=a.createOscillator();o.type="sine";o.frequency.value=carrier;const g=a.createGain();g.gain.value=0;const lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=beatHz;const lg=a.createGain();lg.gain.value=0.03;lfo.connect(lg);lg.connect(g.gain);lfo.start();oscs.push(lfo);o.connect(g);g.connect(lp);o.start();oscs.push(o);}
+  MED.master=master;MED.oscs=oscs;}
+const BRAINWAVES=[
+ {id:"delta",name:"Delta",hz:2.5,range:"0.5–4 Hz",intent:"Sleep & deep healing",desc:"The slowest waves — dreamless sleep and physical repair. Lie down, dim the lights."},
+ {id:"theta",name:"Theta",hz:6,range:"4–8 Hz",intent:"Deep meditation & intuition",desc:"The dreamlike, hypnagogic state — deep meditation, creativity, and letting go."},
+ {id:"earth",name:"Earth 7.83",hz:7.83,range:"7.83 Hz",intent:"Ground & attune",desc:"The Schumann resonance — the planet's own pulse. Grounding, coherent, centering."},
+ {id:"alpha",name:"Alpha",hz:10,range:"8–12 Hz",intent:"Calm, flow & presence",desc:"Relaxed wakefulness — the doorway between rest and focus. Open, present, easy."},
+ {id:"beta",name:"Beta",hz:18,range:"12–30 Hz",intent:"Alert focus",desc:"Active, engaged attention — concentration and getting things done."},
+ {id:"gamma",name:"Gamma",hz:40,range:"30–50 Hz",intent:"Insight & awareness",desc:"The fastest waves — peak focus and moments of insight and clarity."}
+];
+const BREATH=[
+ {id:"coherent",name:"Coherent 5.5",desc:"Even ~5.5 breaths/min — the HRV-coherence sweet spot. Balance and calm.",phases:[["In",5.5],["Out",5.5]]},
+ {id:"box",name:"Box 4·4·4·4",desc:"Steady nerves and focus — the box.",phases:[["In",4],["Hold",4],["Out",4],["Hold",4]]},
+ {id:"478",name:"4·7·8 Relax",desc:"A long exhale drops you into rest — great before sleep.",phases:[["In",4],["Hold",7],["Out",8]]},
+ {id:"calm",name:"Deep Calm 4·4·6",desc:"Longer exhale than inhale — downshifts the nervous system.",phases:[["In",4],["Hold",4],["Out",6]]}
+];
+let HR={dev:null,ch:null,bpm:0,rr:[],updated:0,connected:false};
+function hrSupported(){return !!(navigator.bluetooth&&navigator.bluetooth.requestDevice);}
+function hrParse(e){const dv=e.target.value,flags=dv.getUint8(0);let idx=1,bpm;if(flags&1){bpm=dv.getUint16(1,true);idx=3;}else{bpm=dv.getUint8(1);idx=2;}if(flags&8)idx+=2;if(flags&16){for(;idx+1<dv.byteLength;idx+=2){const v=dv.getUint16(idx,true)/1024*1000;if(v>250&&v<2000)HR.rr.push(v);}}HR.bpm=bpm;while(HR.rr.length>60)HR.rr.shift();HR.updated=performance.now();}
+function hrv(){const rr=HR.rr;if(rr.length<6)return null;let s=0,n=0;for(let i=1;i<rr.length;i++){const d=rr[i]-rr[i-1];s+=d*d;n++;}return Math.round(Math.sqrt(s/n));}
+async function hrConnect(onState){try{const dev=await navigator.bluetooth.requestDevice({filters:[{services:["heart_rate"]}]});HR.dev=dev;dev.addEventListener("gattserverdisconnected",()=>{HR.connected=false;if(onState)onState();});const srv=await dev.gatt.connect();const svc=await srv.getPrimaryService("heart_rate");const ch=await svc.getCharacteristic("heart_rate_measurement");HR.ch=ch;await ch.startNotifications();ch.addEventListener("characteristicvaluechanged",hrParse);HR.connected=true;HR.rr=[];if(onState)onState();return true;}catch(e){HR.connected=false;if(onState)onState(e);return false;}}
+function hrDisconnect(){try{if(HR.ch)HR.ch.stopNotifications();if(HR.dev&&HR.dev.gatt.connected)HR.dev.gatt.disconnect();}catch(e){}HR.connected=false;}
+
+function renderMeditation(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{medStop();};
+  const MODS=[
+   {ic:"🌀",title:"Brainwave Binaural",blurb:"Pick an intention — sleep, meditate, flow, focus, insight — and ride the matching brainwave as a binaural beat. Headphones on.",go:renderBrainwave},
+   {ic:"🌬️",title:"Breathwork",blurb:"Guided breathing — coherent, box, 4·7·8 — with a breathing circle to follow. Connect a heart monitor to watch your HRV settle.",go:renderBreathwork},
+   {ic:"🥁",title:"Rhythm Mind",blurb:"Train your internal clock — the beat plays, then goes silent, and you keep it alive in your head. See how steady your inner pulse is.",go:renderRhythmMind},
+   {ic:"🕯️",title:"Meditation Session",blurb:"Set an intention and a length, and sit with a soft ground tone and gentle bells. A clean, quiet timer.",go:renderMedSession}
+  ];
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🧘 Meditation</span></div><div class="panel">'+
+    '<div class="intro">Train the mind and the nervous system. Ride a <b>brainwave</b> with binaural beats, follow guided <b>breathwork</b> (with live heart-rate variability if you have a monitor), sharpen your inner <b>rhythm</b>, or just sit in a timed <b>session</b>. Headphones recommended throughout.</div>'+
+    '<div class="grid" id="medCards"></div></div>';
+  $("#eBack").onclick=goHome;
+  const cc=$("#medCards");MODS.forEach(c=>{const b=document.createElement("button");b.className="card";b.innerHTML=`<span class="ic">${c.ic}</span><h3>${esc(c.title)}</h3><span class="blurb">${esc(c.blurb)}</span>`;b.onclick=c.go;cc.appendChild(b);});
+}
+function renderBrainwave(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{medStop();};
+  let wi=2,carrier=200,vol=0.5,shimmer=true,playing=false;
+  function draw(){const w=BRAINWAVES[wi];
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌀 Brainwave Binaural</span></div><div class="panel">'+
+      '<div class="intro">A <b>binaural beat</b> plays a slightly different tone in each ear; your brain hears the <b>difference</b> as a pulse and tends to settle toward it. Pick what you want, put on <b>headphones</b>, and relax — nothing to do but listen.</div>'+
+      '<div class="rlab" style="display:block;margin:4px 0 6px">Intention</div><div class="rchips" id="bwWaves"></div>'+
+      '<div class="idea-fb" id="bwInfo" style="margin-top:10px"></div>'+
+      '<div class="rrow"><span class="rlab">Beat</span><input type="range" id="bwBeat" min="1" max="40" step="0.17" value="'+w.hz+'" style="flex:1"><span class="rbpm" id="bwBeatV">'+w.hz.toFixed(2)+' Hz</span></div>'+
+      '<div class="rrow"><span class="rlab">Tone</span><input type="range" id="bwCar" min="90" max="360" value="'+carrier+'" style="flex:1"><span class="rbpm" id="bwCarV">'+carrier+' Hz</span></div>'+
+      '<div class="rrow2"><span class="rlab">Felt pulse</span><span class="rchips tight"><button class="rchip sm'+(shimmer?" sel":"")+'" id="bwShim">'+(shimmer?"On":"Off")+'</button><span class="site-note" style="margin:0 0 0 8px">adds a soft audible pulse so it works even without perfect headphones</span></span></div>'+
+      '<div class="rrow"><span class="rlab">Volume</span><input type="range" id="bwVol" min="0" max="1" step="0.01" value="'+vol+'" style="flex:1"></div>'+
+      '<div class="actions"><button class="btn" id="bwPlay">'+(playing?"⏸ Stop":"▶ Play")+'</button></div>'+
+      '<div class="site-note">🎧 Headphones are what make binaural beats work — the pulse lives in the difference between your ears. Not a medical device; just a tool for settling in.</div></div>';
+    $("#eBack").onclick=()=>{medStop();renderMeditation();};
+    const wc=$("#bwWaves");BRAINWAVES.forEach((v,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===wi?" sel":"");b.textContent=v.name;b.onclick=()=>{wi=i;const nw=BRAINWAVES[i];$("#bwBeat").value=nw.hz;$("#bwBeatV").textContent=nw.hz.toFixed(2)+" Hz";draw();if(playing)medBinaural(nw.hz,carrier,vol,shimmer);};wc.appendChild(b);});
+    $("#bwInfo").innerHTML='<b style="color:#c9b3ff">'+w.name+' · '+w.range+'</b> — '+w.intent+'. '+w.desc;
+    const bb=$("#bwBeat");bb.oninput=()=>{$("#bwBeatV").textContent=(+bb.value).toFixed(2)+" Hz";if(playing)medBinaural(+bb.value,carrier,vol,shimmer);};
+    const bc=$("#bwCar");bc.oninput=()=>{carrier=+bc.value;$("#bwCarV").textContent=carrier+" Hz";if(playing)medBinaural(+bb.value,carrier,vol,shimmer);};
+    $("#bwShim").onclick=()=>{shimmer=!shimmer;draw();if(playing)medBinaural(+$("#bwBeat").value,carrier,vol,shimmer);};
+    const bv=$("#bwVol");bv.oninput=()=>{vol=+bv.value;if(MED.master)MED.master.gain.setTargetAtTime(vol,ac().currentTime,0.1);};
+    $("#bwPlay").onclick=()=>{if(playing){medStop();playing=false;$("#bwPlay").textContent="▶ Play";}else{medBinaural(+$("#bwBeat").value,carrier,vol,shimmer);playing=true;$("#bwPlay").textContent="⏸ Stop";}};
+  }
+  draw();
+}
+function renderBreathwork(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  let pi=0,mins=5,running=false,raf=null,startT=0,phaseIdx=-1,toneOn=true,breathGain=null,hrRAF=null;
+  teardown=()=>{running=false;if(raf)cancelAnimationFrame(raf);if(hrRAF)cancelAnimationFrame(hrRAF);medStop();};
+  function cycleLen(P){return P.phases.reduce((a,b)=>a+b[1],0);}
+  function draw(){const P=BREATH[pi];
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌬️ Breathwork</span></div><div class="panel">'+
+      '<div class="intro">Follow the circle — grow with the <b>in</b>-breath, settle with the <b>out</b>. Slow breathing (especially a long exhale) tells your nervous system it&rsquo;s safe to rest.</div>'+
+      '<div class="rlab" style="display:block;margin:4px 0 6px">Pattern</div><div class="rchips" id="brPats"></div>'+
+      '<div class="site-note" id="brDesc" style="margin:6px 0 2px"></div>'+
+      '<div style="display:flex;justify-content:center;margin:18px 0 6px"><div id="brCircle" style="width:150px;height:150px;border-radius:50%;background:radial-gradient(circle at 50% 40%,rgba(165,121,255,.5),rgba(236,72,153,.25));border:2px solid rgba(236,201,119,.6);display:flex;align-items:center;justify-content:center;transform:scale(.6);transition:transform .1s linear">'+
+        '<div style="text-align:center"><div id="brCue" style="font-weight:800;font-size:1.1rem">Ready</div><div id="brPhT" style="font-size:.85rem;opacity:.8"></div></div></div></div>'+
+      '<div style="text-align:center;margin-bottom:8px"><span class="rbpm" id="brTime">'+mins+':00</span></div>'+
+      '<div class="rrow2"><span class="rlab">Length</span><span class="rchips tight" id="brMins"></span></div>'+
+      '<div class="rrow2"><span class="rlab">Breath tone</span><span class="rchips tight"><button class="rchip sm'+(toneOn?" sel":"")+'" id="brTone">'+(toneOn?"On":"Off")+'</button></span></div>'+
+      '<div class="actions"><button class="btn" id="brStart">'+(running?"■ Stop":"▶ Begin")+'</button></div>'+
+      '<div class="rlab" style="display:block;margin:14px 0 6px">💗 Heart-rate variability (optional)</div>'+
+      '<div class="idea-fb" id="brHR"></div>'+
+      '</div>';
+    $("#eBack").onclick=()=>{running=false;if(raf)cancelAnimationFrame(raf);medStop();renderMeditation();};
+    const pc=$("#brPats");BREATH.forEach((p,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===pi?" sel":"");b.textContent=p.name;b.onclick=()=>{if(running)return;pi=i;draw();};pc.appendChild(b);});
+    $("#brDesc").textContent=P.desc;
+    const mc=$("#brMins");[2,5,10,15].forEach(m=>{const b=document.createElement("button");b.className="rchip sm"+(m===mins?" sel":"");b.textContent=m+" min";b.onclick=()=>{if(running)return;mins=m;$("#brTime").textContent=m+":00";draw();};mc.appendChild(b);});
+    $("#brTone").onclick=()=>{toneOn=!toneOn;draw();};
+    $("#brStart").onclick=()=>{if(running)stop();else start();};
+    renderHR();
+  }
+  function renderHR(){const el=$("#brHR");if(!el)return;
+    if(!hrSupported()){el.innerHTML='Live HRV needs <b>Web Bluetooth</b> — open on <b>Chrome or Edge</b> (computer or Android). It won&rsquo;t work on iPhone/Safari or the in-app preview.';return;}
+    if(!HR.connected){el.innerHTML='<div style="margin-bottom:8px">Connect a Bluetooth <b>heart-rate monitor</b> (a chest strap like Polar H10, or a band that sends R-R intervals) to watch your <b>HRV</b> rise as you breathe. <b>Apple Watch can&rsquo;t connect to a web page directly</b> — Apple keeps its heart data inside the Health app — so use a BLE strap here, or the Muse in Live Monitor.</div><div class="actions" style="margin:0"><button class="btn ghost" id="brHRc">💗 Connect heart monitor</button></div>';
+      const c=$("#brHRc");if(c)c.onclick=async()=>{c.textContent="Connecting…";const ok=await hrConnect(()=>{renderHR();});if(!ok){c.textContent="💗 Connect heart monitor";}else startHRLoop();};return;}
+    el.innerHTML='<div style="display:flex;gap:20px;align-items:baseline;justify-content:center"><div style="text-align:center"><div style="font-size:1.9rem;font-weight:800" id="brBpm">'+(HR.bpm||"—")+'</div><div class="site-note" style="margin:0">BPM</div></div><div style="text-align:center"><div style="font-size:1.9rem;font-weight:800;color:#5fd38d" id="brHrv">—</div><div class="site-note" style="margin:0">HRV (RMSSD ms)</div></div></div><div class="site-note" id="brCoh" style="text-align:center;margin-top:8px">Breathe slow and even — watch the HRV climb.</div><div class="actions" style="margin:8px 0 0"><button class="btn ghost" id="brHRx">Disconnect</button></div>';
+    const x=$("#brHRx");if(x)x.onclick=()=>{hrDisconnect();if(hrRAF)cancelAnimationFrame(hrRAF);renderHR();};startHRLoop();}
+  function startHRLoop(){if(hrRAF)cancelAnimationFrame(hrRAF);(function loop(){if(!HR.connected)return;const bp=$("#brBpm");if(bp)bp.textContent=HR.bpm||"—";const hv=$("#brHrv"),v=hrv();if(hv)hv.textContent=v==null?"—":v;const co=$("#brCoh");if(co&&v!=null)co.textContent=v>=60?"Beautiful coherence — your nervous system is settling. 🌿":v>=30?"Settling — keep the breath slow and even.":"Warming up — give it a minute of slow breathing.";hrRAF=requestAnimationFrame(loop);})();}
+  function onPhase(ph){const cue=$("#brCue"),pt=$("#brPhT");if(cue)cue.textContent=ph[0];const a=ac();
+    if(toneOn&&breathGain){const t=a.currentTime,d=ph[1];breathGain.gain.cancelScheduledValues(t);if(ph[0]==="In"){breathGain.gain.linearRampToValueAtTime(0.09,t+d);}else if(ph[0]==="Out"){breathGain.gain.linearRampToValueAtTime(0.012,t+d);}else{breathGain.gain.setValueAtTime(breathGain.gain.value,t);}}}
+  function start(){unlockAudio();medStop();const a=ac();running=true;startT=a.currentTime;phaseIdx=-1;
+    if(toneOn){const master=a.createGain();master.gain.value=0.6;master.connect(a.destination);const o=a.createOscillator();o.type="sine";o.frequency.value=174;breathGain=a.createGain();breathGain.gain.value=0.012;o.connect(breathGain);breathGain.connect(master);const o2=a.createOscillator();o2.type="sine";o2.frequency.value=261;const g2=a.createGain();g2.gain.value=0.5;o2.connect(g2);g2.connect(breathGain);o.start();o2.start();MED.master=master;MED.oscs=[o,o2];}
+    efBell(a,MED.master||pianoMaster(a),a.currentTime,528,1.6);
+    $("#brStart").textContent="■ Stop";loop();}
+  function stop(){running=false;if(raf)cancelAnimationFrame(raf);medStop();breathGain=null;const b=$("#brStart");if(b)b.textContent="▶ Begin";const c=$("#brCircle");if(c)c.style.transform="scale(.6)";const cue=$("#brCue");if(cue)cue.textContent="Done";}
+  function loop(){if(!running)return;const P=BREATH[pi],a=ac(),el=a.currentTime-startT,cyc=cycleLen(P),tInCyc=el%cyc;
+    let acc=0,idx=0,prog=0,ph=P.phases[0];for(let i=0;i<P.phases.length;i++){const d=P.phases[i][1];if(tInCyc<acc+d){idx=i;ph=P.phases[i];prog=(tInCyc-acc)/d;break;}acc+=d;}
+    if(idx!==phaseIdx){phaseIdx=idx;onPhase(ph);}
+    let scale=.6;if(ph[0]==="In")scale=.6+.4*prog;else if(ph[0]==="Out")scale=1-.4*prog;else if(ph[0]==="Hold")scale=(P.phases[idx-1]&&P.phases[idx-1][0]==="In")||idx===0?1:.6;
+    const c=$("#brCircle");if(c)c.style.transform="scale("+scale.toFixed(3)+")";
+    const pt=$("#brPhT");if(pt)pt.textContent=Math.ceil(ph[1]-(prog*ph[1]))+"";
+    const rem=Math.max(0,mins*60-el),tm=$("#brTime");if(tm)tm.textContent=Math.floor(rem/60)+":"+String(Math.floor(rem%60)).padStart(2,"0");
+    if(el>=mins*60){efBell(a,pianoMaster(a),a.currentTime,396,2.2);stop();const cue=$("#brCue");if(cue)cue.textContent="Complete";if(activeId())addBeans(5);return;}
+    raf=requestAnimationFrame(loop);}
+  draw();
+}
+function renderRhythmMind(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  let bpm=80,running=false,schID=null,raf=null,beat=0,nextT=0,taps=[],expect=[],phase="audible",round=0,results=[];
+  teardown=()=>{running=false;if(schID)clearInterval(schID);if(raf)cancelAnimationFrame(raf);};
+  function draw(){
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🥁 Rhythm Mind</span></div><div class="panel">'+
+      '<div class="intro">Your inner clock is a trainable muscle. The beat plays for <b>4 counts</b>, then goes <b>silent for 4</b> — keep it alive in your head and <b>tap</b> on the silent beats. I&rsquo;ll show how steady your internal pulse is.</div>'+
+      '<div class="rrow"><span class="rlab">Tempo</span><input type="range" id="rmBpm" min="50" max="140" value="'+bpm+'" style="flex:1"><span class="rbpm" id="rmBpmV">'+bpm+'</span></div>'+
+      '<div class="rbanner" id="rmPhase" style="margin:10px 0">Press Start, then listen</div>'+
+      '<div class="actions"><button class="btn" id="rmTap" style="font-size:1.3rem;padding:22px">TAP</button></div>'+
+      '<div class="actions"><button class="btn ghost" id="rmStart">▶ Start</button></div>'+
+      '<div class="idea-fb" id="rmScore" style="margin-top:12px">Tap on every silent beat — aim for dead-on.</div></div>';
+    $("#eBack").onclick=()=>{running=false;if(schID)clearInterval(schID);renderMeditation();};
+    const bp=$("#rmBpm");bp.oninput=()=>{if(running)return;bpm=+bp.value;$("#rmBpmV").textContent=bpm;};
+    $("#rmStart").onclick=()=>{if(running)stopR();else startR();};
+    const tp=$("#rmTap");tp.onclick=()=>tap();
+  }
+  function tap(){if(!running||phase!=="silent")return;const now=ac().currentTime;taps.push(now);const fl=$("#rmTap");if(fl){fl.classList.add("hit");setTimeout(()=>fl.classList.remove("hit"),80);}}
+  function startR(){unlockAudio();running=true;beat=0;round=0;taps=[];expect=[];results=[];phase="audible";nextT=ac().currentTime+0.3;$("#rmStart").textContent="■ Stop";
+    schID=setInterval(sched,25);raf=requestAnimationFrame(frameR);}
+  function stopR(){running=false;if(schID){clearInterval(schID);schID=null;}if(raf)cancelAnimationFrame(raf);const b=$("#rmStart");if(b)b.textContent="▶ Start";}
+  function sched(){const a=ac(),spb=60/bpm;while(nextT<a.currentTime+0.12){const inBar=beat%8;phase=inBar<4?"audible":"silent";
+    if(phase==="audible")click(nextT,inBar===0?"accent":"beat");else expect.push(nextT);
+    const ph=$("#rmPhase");if(ph)ph.textContent=phase==="audible"?"🔊 Listen… ("+(inBar+1)+")":"🤫 Keep it going — TAP ("+(inBar-3)+")";
+    nextT+=spb;beat++;
+    if(beat%8===0&&beat>0){scoreRound();round++;if(round>=4){setTimeout(()=>{if(running)stopR();showFinal();},50);}}
+  }}
+  function scoreRound(){if(!expect.length)return;const spb=60/bpm,win=spb*0.5;expect.forEach(et=>{let bd=1e9;taps.forEach(tp=>{const d=Math.abs(tp-et);if(d<bd)bd=d;});if(bd<=win)results.push(bd*1000);});expect=[];taps=[];}
+  function showFinal(){const el=$("#rmScore");if(!el)return;if(!results.length){el.innerHTML="No taps landed — tap on each silent beat next time.";return;}
+    const avg=Math.round(results.reduce((a,b)=>a+b,0)/results.length),acc=Math.max(0,Math.round(100-avg/3));
+    const key=mk("rhythmmind","best"),arr=load(key,[]);arr.push({t:Date.now(),bpm,ms:avg});while(arr.length>40)arr.shift();save(key,arr);if(activeId())addBeans(acc>=75?3:1);
+    const best=Math.min.apply(null,arr.map(x=>x.ms));
+    el.innerHTML='<div style="text-align:center"><div style="font-size:2rem;font-weight:800;color:'+(acc>=75?"#5fd38d":acc>=50?"#e9c46a":"#e76f51")+'">±'+avg+' ms</div><div class="site-note">your inner pulse vs the real beat · best ±'+best+' ms</div><div style="margin-top:8px">'+(acc>=80?"Rock-solid internal clock. 🔥":acc>=55?"Good — your sense of time is sharpening.":"Keep training — feel the beat in your body, not your head.")+'</div></div>';}
+  function frameR(){const now=ac().currentTime;raf=requestAnimationFrame(frameR);}
+  draw();
+}
+function renderMedSession(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  let mins=10,running=false,raf=null,startT=0,intention=load(mk("med","intention"),""),bellEvery=0;
+  teardown=()=>{running=false;if(raf)cancelAnimationFrame(raf);medStop();};
+  function draw(){
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🕯️ Meditation Session</span></div><div class="panel">'+
+      '<div class="intro">Set an intention, choose a length, and sit. A soft <b>7.83 Hz ground tone</b> holds the space; a bell opens and closes, with optional interval bells to bring you back.</div>'+
+      '<div class="rrow2"><span class="rlab">Intention</span><input id="msInt" placeholder="e.g. let go, be present, heal" value="'+esc(intention)+'" style="flex:1;background:rgba(255,255,255,.06);color:inherit;border:1px solid var(--line);border-radius:8px;padding:8px"></div>'+
+      '<div class="rrow2"><span class="rlab">Length</span><span class="rchips tight" id="msMins"></span></div>'+
+      '<div class="rrow2"><span class="rlab">Interval bell</span><span class="rchips tight" id="msBell"></span></div>'+
+      '<div style="text-align:center;margin:20px 0"><div class="rbpm" id="msTime" style="font-size:2.4rem">'+mins+':00</div><div class="site-note" id="msIntShow"></div></div>'+
+      '<div class="actions"><button class="btn" id="msStart">'+(running?"■ End":"▶ Begin")+'</button></div>'+
+      '<div class="site-note">Headphones or a quiet room. The ground tone is tuned to the Earth&rsquo;s 7.83 Hz, octaved up so you can feel it.</div></div>';
+    $("#eBack").onclick=()=>{running=false;medStop();renderMeditation();};
+    const mc=$("#msMins");[3,5,10,15,20].forEach(m=>{const b=document.createElement("button");b.className="rchip sm"+(m===mins?" sel":"");b.textContent=m+" min";b.onclick=()=>{if(running)return;mins=m;$("#msTime").textContent=m+":00";draw();};mc.appendChild(b);});
+    const bc=$("#msBell");[["Off",0],["Every 2m",2],["Every 5m",5]].forEach(([lbl,v])=>{const b=document.createElement("button");b.className="rchip sm"+(v===bellEvery?" sel":"");b.textContent=lbl;b.onclick=()=>{if(running)return;bellEvery=v;draw();};bc.appendChild(b);});
+    const ii=$("#msInt");if(ii)ii.onchange=()=>{intention=ii.value;save(mk("med","intention"),intention);};
+    $("#msIntShow").textContent=intention?("“"+intention+"”"):"";
+    $("#msStart").onclick=()=>{if(running)endS();else startS();};
+  }
+  function startS(){unlockAudio();medStop();const a=ac();running=true;startT=a.currentTime;const ii=$("#msInt");if(ii){intention=ii.value;save(mk("med","intention"),intention);}
+    const master=a.createGain();master.gain.value=0.0001;master.connect(a.destination);master.gain.setTargetAtTime(0.42,a.currentTime,1.2);const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=1200;lp.connect(master);const oscs=[];
+    [7.83*32,7.83*48].forEach((f,i)=>{const o=a.createOscillator();o.type="sine";o.frequency.value=f;const g=a.createGain();g.gain.value=i?0.03:0.06;o.connect(g);g.connect(lp);o.start();oscs.push(o);});
+    const po=a.createOscillator();po.type="sine";po.frequency.value=7.83*32;const pg=a.createGain();pg.gain.value=0.04;const lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=7.83;const lg=a.createGain();lg.gain.value=0.04;lfo.connect(lg);lg.connect(pg.gain);lfo.start();oscs.push(lfo);po.connect(pg);pg.connect(lp);po.start();oscs.push(po);
+    MED.master=master;MED.oscs=oscs;efBell(a,master,a.currentTime+0.2,528,2.2);
+    $("#msStart").textContent="■ End";loopS();}
+  function endS(){running=false;if(raf)cancelAnimationFrame(raf);const a=ac();efBell(a,pianoMaster(a),a.currentTime,396,2.6);medStop();const b=$("#msStart");if(b)b.textContent="▶ Begin";}
+  let lastBell=0;
+  function loopS(){if(!running)return;const a=ac(),el=a.currentTime-startT,rem=Math.max(0,mins*60-el);const tm=$("#msTime");if(tm)tm.textContent=Math.floor(rem/60)+":"+String(Math.floor(rem%60)).padStart(2,"0");
+    if(bellEvery>0){const mark=Math.floor(el/(bellEvery*60));if(mark>lastBell&&rem>5){lastBell=mark;efBell(a,MED.master||pianoMaster(a),a.currentTime,639,1.8);}}
+    if(el>=mins*60){efBell(a,pianoMaster(a),a.currentTime,396,2.8);running=false;medStop();const b=$("#msStart");if(b)b.textContent="▶ Begin";if(tm)tm.textContent="0:00";if(activeId())addBeans(8);const s=$("#msIntShow");if(s)s.textContent="Complete 🕯️";return;}
+    raf=requestAnimationFrame(loopS);}
+  lastBell=0;draw();
+}
 /* ===== EARTH FREQUENCY — Schumann 7.83 Hz made audible, shaped by today's geomagnetic data ===== */
 let EF=null;
 function efStop(){if(!EF)return;const ef=EF;EF=null;try{const a=ac();ef.master.gain.cancelScheduledValues(a.currentTime);ef.master.gain.setTargetAtTime(0.0001,a.currentTime,0.25);}catch(e){}if(ef.beatTimer)clearInterval(ef.beatTimer);setTimeout(()=>{ef.oscs.forEach(o=>{try{o.stop();}catch(e){}});},700);}
