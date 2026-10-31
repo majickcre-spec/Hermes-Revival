@@ -1259,7 +1259,6 @@ const RHYTHM_CARDS=[
  {ic:"🥁",title:"Metronome Flow",blurb:"A magical metronome — pick a rhythm shape and count along, slow and steady.",go:()=>renderRhythm(false)},
  {ic:"👆",title:"Tap It Back",blurb:"Hear a rhythm, then tap it back on the pad — scored, no mic needed.",go:()=>tapBackMenu()},
  {ic:"🧠",title:"Name That Rhythm",blurb:"Hear a rhythm and pick which one it was — train your ear to read the beat.",go:()=>rhythmNameQuiz()},
- {ic:"🪘",title:"Djembe Groove",blurb:"Play djembe patterns (bass/tone/slap), loop on tempo, tap or drum along — with timing feedback.",go:()=>renderDjembe()},
  {ic:"🧘",title:"Speak the Rhythm",blurb:"Count the rhythm out loud into the mic — a breath-and-beat meditation that scores how in-time you are.",go:()=>renderRhythm(true)}
 ];
 /* click voices */
@@ -1999,7 +1998,8 @@ const INSTRUMENT_CARDS=[
  {ic:"🔔",title:"Handpan",blurb:"Play a handpan — tap the notes, pick a scale, and follow the glow to learn gentle patterns.",go:()=>renderHandpan()},
  {ic:"🎸",title:"Guitar",blurb:"Learn chords with diagrams, the chord family of a key, and strum along to progressions — leveling up as you go.",go:()=>renderStrings("guitar")},
  {ic:"🪕",title:"Ukulele",blurb:"Learn ukulele chords, major-scale chord families, and play along to progressions.",go:()=>renderStrings("ukulele")},
- {ic:"🎸",title:"Bass Guitar",blurb:"Hold down the low end — tap the fretboard, follow basslines with the glow, then play it back and get your timing scored.",go:()=>renderBass()}
+ {ic:"🎸",title:"Bass Guitar",blurb:"Hold down the low end — tap the fretboard, learn bass chord shapes and basslines, follow the glow, record your real bass, and play it back for scoring.",go:()=>renderBass()},
+ {ic:"🪘",title:"Djembe Groove",blurb:"Play djembe patterns (bass/tone/slap), loop on tempo, tap or drum along — with timing feedback and Call & Response.",go:()=>renderDjembe()}
 ];
 const MAKE_CARDS=[
  {ic:"🎙️",title:"Sing a Song",blurb:"Sing or hum your own tune — it maps the notes and rhythm onto a staff. Fix them, then save it as a section or a whole song.",go:()=>renderCompose()},
@@ -2228,6 +2228,15 @@ const BASS_LINES=[
  {name:"Two-feel — A",notes:[33,40,33,40],beats:[1,1,1,1]},
  {name:"Walk & land — C",notes:[36,38,40,41,43,41,40,38],beats:[1,1,1,1,1,1,1,1]}
 ];
+/* bass "chords" = chord tones (root–3rd–5th–octave), the bassist's way to outline a chord */
+const BASS_CHORDS={C:[0,"maj"],G:[7,"maj"],D:[2,"maj"],A:[9,"maj"],E:[4,"maj"],F:[5,"maj"],
+ Am:[9,"min"],Em:[4,"min"],Dm:[2,"min"],G7:[7,"dom"]};
+function bgRoot(pc){let m=28;while(m%12!==pc||m<28)m++;return m;} // lowest playable root >=28
+function bgChordTones(name){const[pc,q]=BASS_CHORDS[name],r=bgRoot(pc),third=r+(q==="min"?3:4),fifth=r+7,oct=r+12,seventh=r+10;
+  const t=[{m:r,lbl:"R"},{m:third,lbl:"3"},{m:fifth,lbl:"5"},{m:oct,lbl:"8"}];if(q==="dom")t.splice(3,0,{m:seventh,lbl:"♭7"});
+  return t.filter(x=>bgPos(x.m));}
+function bgLearned(){return load(mk("bass","chords-learned"),[]);}
+function bgRank(n){return n>=10?"Groove Master":n>=6?"Pocket Player":n>=3?"Root Runner":"Rookie";}
 function bgGlowClear(){document.querySelectorAll(".bgcell.glow").forEach(e=>e.classList.remove("glow"));}
 function bgGlow(midi){const p=bgPos(midi);if(!p)return;const el=document.getElementById("bgC-"+p.s+"-"+p.fr);if(el){el.classList.remove("glow");void el.offsetWidth;el.classList.add("glow");setTimeout(()=>{if(el)el.classList.remove("glow");},360);}}
 function bgStop(){BG.running=false;if(BG.schID){clearInterval(BG.schID);BG.schID=null;}if(BG.raf){cancelAnimationFrame(BG.raf);BG.raf=null;}const b=$("#bgStart");if(b)b.textContent="▶ Play along";}
@@ -2248,35 +2257,72 @@ function bgCrit(timingPct,notePct,hit,N,errMs,level){
   return enc+" You caught <b>"+hit+" of "+N+"</b> notes in time.<br>"+tip;}
 function renderBass(){
   if(toneRAF)cancelAnimationFrame(toneRAF);bgStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  BG.mode=BG.mode||"lines";BG.chord=BG.chord||"C";
   let recRAF=null,recording=false,samples=[],recStart=0,expected=[],crit="";
-  teardown=()=>{bgStop();if(recRAF)cancelAnimationFrame(recRAF);try{stopMic();}catch(e){}};
+  let mrec=null,mchunks=[],takes=[],recOn=false;
+  teardown=()=>{bgStop();if(recRAF)cancelAnimationFrame(recRAF);try{if(mrec&&mrec.state!=="inactive")mrec.stop();}catch(e){}takes.forEach(t=>{try{URL.revokeObjectURL(t.url);}catch(e){}});try{stopMic();}catch(e){}};
   function fb(){const labels=["E","A","D","G"];let h='<div class="bgfb">';
     h+='<div class="bgrow"><div class="bgcelllbl"></div>';for(let fr=0;fr<=BG.frets;fr++)h+='<div class="bgfret">'+(fr===0?"○":fr)+'</div>';h+='</div>';
     for(let s=BG.tuning.length-1;s>=0;s--){h+='<div class="bgrow"><div class="bgcelllbl">'+labels[s]+'</div>';
       for(let fr=0;fr<=BG.frets;fr++){const m=BG.tuning[s]+fr;h+='<div class="bgcell'+(fr===0?" open":"")+'" id="bgC-'+s+'-'+fr+'" data-m="'+m+'">'+midiName(m)+'</div>';}h+='</div>';}
     return h+'</div>';}
+  function hearChord(name){unlockAudio();const tones=bgChordTones(name),a=ac();let t=a.currentTime+0.05;bgGlowClear();tones.forEach(tn=>{bassVoice(tn.m,t,0.5,0.6);setTimeout(()=>bgGlow(tn.m),(t-a.currentTime)*1000);t+=0.42;});}
+  function showChordShape(name){bgGlowClear();bgChordTones(name).forEach(tn=>{const p=bgPos(tn.m);if(p){const el=document.getElementById("bgC-"+p.s+"-"+p.fr);if(el)el.classList.add("glow");}});}
+  function startRec(){unlockAudio();ensureMic().then(ok=>{if(!ok){const s=$("#bgStatus");if(s)s.textContent="🎤 I need the mic to record.";return;}mchunks=[];try{mrec=new MediaRecorder(micStream);}catch(e){mrec=null;}if(!mrec){const s=$("#bgStatus");if(s)s.textContent="Recording isn't supported on this browser.";return;}mrec.ondataavailable=e=>{if(e.data&&e.data.size)mchunks.push(e.data);};mrec.onstop=()=>{if(mchunks.length){const url=URL.createObjectURL(new Blob(mchunks,{type:mrec.mimeType||"audio/webm"}));takes.unshift({name:"Take "+(takes.length+1),url});}recOn=false;draw();};mrec.start();recOn=true;draw();});}
+  function stopRec(){try{if(mrec&&mrec.state!=="inactive")mrec.stop();}catch(e){}}
   function draw(){
-    const L=BASS_LINES[BG.lineIdx],level=load("mjk-fblevel","kid");
+    const level=load("mjk-fblevel","kid");
+    const intro = BG.mode==="chords" ? "Outline a chord the bass way — root, 3rd, 5th, octave. Pick a chord, hear the shape light up across the neck, then mark it learned." :
+      BG.mode==="record" ? "Mic up and play your real bass. Record what you play, listen back, and keep your takes for this session." :
+      "Tap the fretboard to hear the low end. Pick a bassline, hit ▶ and follow the glow. Then “Play it back,” play the line on your bass (or hum it), and I’ll score your timing.";
+    let panel="";
+    if(BG.mode==="lines"){
+      panel='<div class="rrow2"><span class="rlab">Bassline</span><span class="rchips tight" id="bgList"></span></div>'+
+        '<div class="rrow"><span class="rlab">Tempo</span><input type="range" id="bgBpm" min="50" max="150" value="'+BG.bpm+'" style="flex:1"><span class="rbpm" id="bgBpmV">'+BG.bpm+'</span></div>'+
+        '<div class="actions"><button class="btn" id="bgStart">▶ Play along</button><button class="btn ghost" id="bgPlayback">🎤 Play it back</button></div>'+
+        '<div class="feedback" id="bgStatus"></div>'+
+        (crit?'<div class="idea-fb" id="bgCritBox">'+crit+'</div>':'')+
+        '<div class="rrow2"><span class="rlab">Feedback</span><span class="rchips tight"><button class="rchip sm'+(level==="kid"?" sel":"")+'" id="bgKid">Kid</button><button class="rchip sm'+(level==="pro"?" sel":"")+'" id="bgPro">Songwriter</button></span></div>';
+    } else if(BG.mode==="chords"){
+      const learned=bgLearned(),tones=bgChordTones(BG.chord);
+      panel='<div class="rrow2"><span class="rlab">Chord</span><span class="rchips tight" id="bgChList"></span></div>'+
+        '<div class="rsay" style="font-size:.98rem">'+tones.map(t=>t.lbl+" "+midiName(t.m)).join("  ·  ")+'</div>'+
+        '<div class="actions"><button class="btn" id="bgHear">🔊 Hear shape</button><button class="btn ghost" id="bgLearn">✓ Mark learned</button></div>'+
+        '<div class="feedback" id="bgStatus">'+learned.length+' chords learned · '+bgRank(learned.length)+'</div>';
+    } else {
+      panel='<div class="actions"><button class="btn" id="bgRec">'+(recOn?"■ Stop recording":"● Record my bass")+'</button></div>'+
+        '<div class="feedback" id="bgStatus">'+(recOn?"● Recording… play your bass":"Tap record, then play")+'</div>'+
+        '<div class="label" style="margin:10px 0 6px">My takes <span style="color:var(--muted);font-weight:400">· this session</span></div><div id="bgTakes"></div>';
+    }
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎸 Bass Guitar</span></div>'+
      '<div class="panel">'+
-      '<div class="intro">Tap the fretboard to hear the low end. Pick a bassline, hit ▶ and follow the glow. Then tap “Play it back,” play the line on your bass (or hum it), and I’ll score your timing.</div>'+
-      fb()+
-      '<div class="rrow2"><span class="rlab">Bassline</span><span class="rchips tight" id="bgList"></span></div>'+
-      '<div class="rrow"><span class="rlab">Tempo</span><input type="range" id="bgBpm" min="50" max="150" value="'+BG.bpm+'" style="flex:1"><span class="rbpm" id="bgBpmV">'+BG.bpm+'</span></div>'+
-      '<div class="actions"><button class="btn" id="bgStart">▶ Play along</button><button class="btn ghost" id="bgPlayback">🎤 Play it back</button></div>'+
-      '<div class="feedback" id="bgStatus"></div>'+
-      (crit?'<div class="idea-fb" id="bgCritBox">'+crit+'</div>':'')+
-      '<div class="rrow2"><span class="rlab">Feedback</span><span class="rchips tight"><button class="rchip sm'+(level==="kid"?" sel":"")+'" id="bgKid">Kid</button><button class="rchip sm'+(level==="pro"?" sel":"")+'" id="bgPro">Songwriter</button></span></div>'+
+      '<div class="intro">'+intro+'</div>'+ fb()+
+      '<div class="rchips" id="bgModes" style="margin:4px 0 12px">'+
+        '<button class="rchip sm'+(BG.mode==="lines"?" sel":"")+'" data-mode="lines">Basslines</button>'+
+        '<button class="rchip sm'+(BG.mode==="chords"?" sel":"")+'" data-mode="chords">Chords</button>'+
+        '<button class="rchip sm'+(BG.mode==="record"?" sel":"")+'" data-mode="record">Record</button></div>'+
+      panel+
       '<div class="bean-note" id="bgMsg"></div>'+
      '</div>';
     $("#eBack").onclick=goHome;
     view.querySelectorAll(".bgcell").forEach(c=>{c.onclick=()=>{unlockAudio();const m=+c.getAttribute("data-m");bassVoice(m,ac().currentTime,0.6,0.6);c.classList.remove("glow");void c.offsetWidth;c.classList.add("glow");setTimeout(()=>c.classList.remove("glow"),360);};});
-    const list=$("#bgList");BASS_LINES.forEach((l,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===BG.lineIdx?" sel":"");b.textContent=l.name;b.onclick=()=>{bgStop();BG.lineIdx=i;crit="";draw();};list.appendChild(b);});
-    const bp=$("#bgBpm");bp.oninput=()=>{BG.bpm=+bp.value;$("#bgBpmV").textContent=BG.bpm;};
-    $("#bgStart").onclick=()=>{if(BG.running)bgStop();else bgStart();};
-    $("#bgKid").onclick=()=>{save("mjk-fblevel","kid");draw();};
-    $("#bgPro").onclick=()=>{save("mjk-fblevel","pro");draw();};
-    $("#bgPlayback").onclick=playback;
+    view.querySelectorAll("#bgModes .rchip").forEach(b=>{b.onclick=()=>{bgStop();if(recOn)stopRec();BG.mode=b.getAttribute("data-mode");draw();};});
+    if(BG.mode==="lines"){
+      const list=$("#bgList");BASS_LINES.forEach((l,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===BG.lineIdx?" sel":"");b.textContent=l.name;b.onclick=()=>{bgStop();BG.lineIdx=i;crit="";draw();};list.appendChild(b);});
+      const bp=$("#bgBpm");bp.oninput=()=>{BG.bpm=+bp.value;$("#bgBpmV").textContent=BG.bpm;};
+      $("#bgStart").onclick=()=>{if(BG.running)bgStop();else bgStart();};
+      $("#bgKid").onclick=()=>{save("mjk-fblevel","kid");draw();};
+      $("#bgPro").onclick=()=>{save("mjk-fblevel","pro");draw();};
+      $("#bgPlayback").onclick=playback;
+    } else if(BG.mode==="chords"){
+      const cl=$("#bgChList");Object.keys(BASS_CHORDS).forEach(nm=>{const b=document.createElement("button");b.className="rchip sm"+(nm===BG.chord?" sel":"");b.textContent=nm;b.onclick=()=>{BG.chord=nm;draw();setTimeout(()=>showChordShape(nm),30);};cl.appendChild(b);});
+      $("#bgHear").onclick=()=>hearChord(BG.chord);
+      $("#bgLearn").onclick=()=>{const l=bgLearned();if(l.indexOf(BG.chord)<0){l.push(BG.chord);save(mk("bass","chords-learned"),l);addBeans(1);const m=$("#bgMsg");if(m)m.textContent="Learned "+BG.chord+" +1 🫘";}draw();setTimeout(()=>showChordShape(BG.chord),30);};
+      setTimeout(()=>showChordShape(BG.chord),30);
+    } else {
+      $("#bgRec").onclick=()=>{if(recOn)stopRec();else startRec();};
+      const tk=$("#bgTakes");if(tk){if(!takes.length)tk.innerHTML='<div class="site-note">No takes yet — hit record and play.</div>';else{tk.innerHTML="";takes.forEach((t,i)=>{const row=document.createElement("div");row.className="kb";row.innerHTML='<span class="kb-ic">🎸</span><div class="kb-main"><div class="kb-t">'+esc(t.name)+'</div></div>';const pb=document.createElement("button");pb.className="kb-btn";pb.textContent="▶";pb.onclick=()=>playClip(t.url);const dl=document.createElement("button");dl.className="kb-btn";dl.style.marginLeft="6px";dl.textContent="✕";dl.onclick=()=>{try{URL.revokeObjectURL(t.url);}catch(e){}takes.splice(i,1);draw();};row.appendChild(pb);row.appendChild(dl);tk.appendChild(row);});}}
+    }
   }
   function playback(){
     bgStop();const btn=$("#bgPlayback");if(recording)return;
