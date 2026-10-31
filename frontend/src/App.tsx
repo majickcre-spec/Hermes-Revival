@@ -20,6 +20,7 @@ import ReadingPath from "@/pages/reading-path";
 import Atlas from "@/pages/atlas";
 import Prayers from "@/pages/prayers";
 import MusicTheory from "@/pages/music-theory";
+import Resonance from "@/pages/resonance";
 import Regeneration from "@/pages/regeneration";
 import Dashboard from "@/pages/dashboard";
 import Journey from "@/pages/journey";
@@ -43,6 +44,7 @@ function Router() {
       <Route path="/atlas" component={Atlas} />
       <Route path="/reader/prayers" component={Prayers} />
       <Route path="/music-theory" component={MusicTheory} />
+      <Route path="/resonance" component={Resonance} />
       <Route path="/reader/regeneration" component={Regeneration} />
       <Route path="/reader/:id" component={Reader} />
       <Route path="/editor/:id" component={Editor} />

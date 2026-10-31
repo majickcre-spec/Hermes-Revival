@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schumann Resonance</title>
+<meta name="description" content="Tune in to today's Schumann resonance — see the field, read how it may be moving through you, and feel it as meditation, binaural, or song.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Cosmic-luxe resonance portal — deep aubergine void, cream light, alchemical gold. Cormorant Garamond display over Jost. In the essence of The Boujee Healer. Single committed dark theme. */
+:root{
+  --void:#190617; --void-2:#230a20;
+  --panel:#271029; --panel-2:#2f1430;
+  --line:rgba(243,233,220,.14);
+  --cream:#f3e9dc; --mauve:#c7a9bd;
+  --gold:#d9ab54; --gold-br:#ecc877;
+  --rose:#bd6f93;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:
+    radial-gradient(760px 520px at 50% -8%, rgba(189,111,147,.22), transparent 60%),
+    radial-gradient(620px 460px at 12% 14%, rgba(124,74,140,.20), transparent 60%),
+    radial-gradient(680px 520px at 90% 20%, rgba(217,171,84,.10), transparent 62%),
+    var(--void);
+  color:var(--cream);
+  font-family:"Jost",system-ui,-apple-system,sans-serif;
+  font-weight:300; line-height:1.6;
+  -webkit-font-smoothing:antialiased; overflow-x:hidden;
+}
+.stars{position:fixed;inset:0;pointer-events:none;z-index:0}
+.stars i{position:absolute;width:2px;height:2px;border-radius:50%;background:var(--cream);opacity:.5}
+.wrap{max-width:640px;margin:0 auto;padding:0 18px;position:relative;z-index:1}
+
+.hero{text-align:center;padding:52px 18px 26px}
+.sigil{width:134px;height:134px;filter:drop-shadow(0 6px 26px rgba(217,171,84,.3))}
+h1{font-family:"Cormorant Garamond",serif;font-weight:600;letter-spacing:.02em;font-size:clamp(34px,8vw,52px);margin:20px 0 0;line-height:1}
+.sub{font-family:"Cormorant Garamond",serif;font-style:italic;font-size:clamp(16px,3.6vw,21px);color:var(--gold-br);letter-spacing:.04em;margin-top:4px}
+.tag{font-family:"Jost",sans-serif;text-transform:uppercase;letter-spacing:.42em;font-size:11px;color:var(--mauve);margin-top:14px;padding-left:.42em}
+.ded{max-width:48ch;margin:20px auto 0;font-size:14px;color:var(--mauve);line-height:1.6}
+.ded b{color:var(--cream);font-weight:500}
+.ded a{color:var(--gold-br);text-decoration:none;border-bottom:1px solid rgba(236,200,119,.4)}
+
+.card{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:20px;padding:20px;margin:16px 0;position:relative}
+.lab{font-family:"Cormorant Garamond",serif;font-size:19px;font-weight:600;color:var(--gold-br);margin:0 0 12px;letter-spacing:.01em}
+.note{font-size:12.5px;color:var(--mauve);line-height:1.55;margin-top:10px}
+.note a{color:var(--gold-br)}
+
+#efImg{width:100%;border-radius:12px;border:1px solid var(--line);display:block}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{appearance:none;cursor:pointer;font-family:"Jost",sans-serif;font-weight:400;font-size:13.5px;color:var(--cream);
+  background:rgba(243,233,220,.05);border:1px solid var(--line);border-radius:999px;padding:8px 15px;letter-spacing:.02em;transition:.15s}
+.chip:hover{border-color:var(--gold)}
+.chip.sel{background:linear-gradient(100deg,var(--rose),var(--gold));color:#24101f;border-color:transparent;font-weight:500}
+.chip:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+.reading{background:rgba(25,6,23,.5);border:1px solid var(--line);border-radius:14px;padding:16px 16px;font-size:14.5px;line-height:1.62;margin-top:12px}
+.reading b{font-weight:500}
+
+.srow{display:flex;align-items:center;gap:14px;margin:14px 0}
+.srow .k{font-family:"Jost",sans-serif;text-transform:uppercase;letter-spacing:.16em;font-size:11px;color:var(--mauve);width:74px;flex:none}
+input[type=range]{-webkit-appearance:none;appearance:none;height:4px;border-radius:4px;background:rgba(243,233,220,.18);flex:1;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--gold-br);cursor:pointer;box-shadow:0 0 10px rgba(236,200,119,.5)}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border:0;border-radius:50%;background:var(--gold-br);cursor:pointer}
+.sval{font-variant-numeric:tabular-nums;color:var(--gold-br);font-size:14px;width:34px;text-align:right}
+
+.play{width:100%;margin-top:16px;appearance:none;cursor:pointer;font-family:"Cormorant Garamond",serif;font-weight:600;font-size:22px;letter-spacing:.03em;
+  color:#24101f;background:linear-gradient(100deg,var(--rose),var(--gold-br));border:0;border-radius:999px;padding:15px}
+.play:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.modenote{font-size:12.5px;color:var(--mauve);line-height:1.55;margin-top:8px}
+
+footer{text-align:center;padding:30px 18px 64px;color:var(--mauve);font-size:13px;line-height:1.6}
+footer .rule{height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent);margin-bottom:22px;max-width:380px;margin-left:auto;margin-right:auto}
+footer a{color:var(--gold-br);text-decoration:none}
+footer .hz{font-family:"Cormorant Garamond",serif;font-style:italic;font-size:17px;color:var(--gold-br)}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="stars" id="stars"></div>
+
+<header class="hero">
+  <svg class="sigil" viewBox="0 0 120 120" role="img" aria-label="Schumann resonance sigil">
+    <g fill="none" stroke="#d9ab54" stroke-linecap="round">
+      <circle cx="60" cy="60" r="53" stroke-width="1.2"/>
+      <circle cx="60" cy="60" r="46" stroke-width="3" stroke-dasharray="0.5 6.1" opacity="0.5"/>
+      <path d="M12 62 C26 49 34 49 46 62 C54 71 66 71 74 62 C86 49 94 49 106 62" stroke-width="1.6" opacity="0.85"/>
+      <circle cx="60" cy="62" r="8.5" stroke-width="2.1"/>
+      <g stroke-width="2" stroke-linecap="round">
+        <line x1="73.5" y1="62" x2="79" y2="62"/><line x1="71.7" y1="68.8" x2="76.5" y2="71.5"/>
+        <line x1="66.8" y1="73.7" x2="69.5" y2="78.5"/><line x1="60" y1="75.5" x2="60" y2="81"/>
+        <line x1="53.2" y1="73.7" x2="50.5" y2="78.5"/><line x1="48.3" y1="68.8" x2="43.5" y2="71.5"/>
+        <line x1="46.5" y1="62" x2="41" y2="62"/><line x1="48.3" y1="55.2" x2="43.5" y2="52.5"/>
+        <line x1="53.2" y1="50.3" x2="50.5" y2="45.5"/><line x1="60" y1="48.5" x2="60" y2="43"/>
+        <line x1="66.8" y1="50.3" x2="69.5" y2="45.5"/><line x1="71.7" y1="55.2" x2="76.5" y2="52.5"/>
+      </g>
+    </g>
+    <path d="M60 14 C61 20 62 21 68 22 C62 23 61 24 60 30 C59 24 58 23 52 22 C58 21 59 20 60 14 Z" fill="#ecc877"/>
+    <circle cx="26" cy="30" r="1.4" fill="#ecc877" opacity="0.8"/>
+    <circle cx="95" cy="90" r="1.3" fill="#ecc877" opacity="0.7"/>
+  </svg>
+  <h1>Schumann Resonance</h1>
+  <div class="sub">the Earth resonance</div>
+  <div class="tag">Today&rsquo;s meditation &amp; song</div>
+  <p class="ded">In the spirit of <b>Gayle Fuller &middot; The Boujee Healer</b> (<a href="https://instagram.com/theboujeehealer" target="_blank" rel="noopener">@theboujeehealer</a>) &mdash; whose teachings on the Schumann resonance and how it moves through us shaped this. A shout-out, in her essence, not a copy.</p>
+</header>
+
+<main class="wrap">
+  <section class="card">
+    <div class="lab">The field, right now</div>
+    <img id="efImg" alt="Live Schumann spectrogram, Tomsk station" referrerpolicy="no-referrer">
+    <div class="note" id="efImgNote">Live spectrogram via schumannresonance.today &middot; the bright bursts are the spikes &mdash; the field rising. One station, so a spike can also be local weather.</div>
+  </section>
+
+  <section class="card">
+    <div class="lab">Tune in &mdash; choose a day</div>
+    <div id="days" class="chips"></div>
+    <div id="reading" class="reading"></div>
+    <div class="note">These field-and-feeling connections come from this frequency wisdom and many people&rsquo;s lived experience &mdash; explored in research, not settled science, and not medical advice. If a hard day is more than the field, reach for real support.</div>
+  </section>
+
+  <section class="card">
+    <div class="lab">How do you want to feel it?</div>
+    <div id="feel" class="chips"></div>
+    <div id="genreWrap"></div>
+    <div class="modenote" id="modeNote"></div>
+    <div class="srow"><span class="k">Intensity</span><input type="range" id="int" min="0" max="100"><span class="sval" id="intV">0</span></div>
+    <div class="srow"><span class="k">Volume</span><input type="range" id="vol" min="0" max="1" step="0.01"><span class="sval" id="volV"></span></div>
+    <button class="play" id="play">&#9654;&nbsp; Play this day</button>
+    <div class="note">Headphones recommended &mdash; essential for Binaural (the 7.83 Hz lives between your ears).</div>
+  </section>
+</main>
+
+<footer>
+  <div class="rule"></div>
+  <p class="hz">Per sonum, ad astra.</p>
+  <p>Tuned to 7.83 Hz &mdash; the Earth&rsquo;s ground note. A frequency portal from <b style="color:var(--cream);font-weight:500">Majick Music</b>, in gratitude to <a href="https://instagram.com/theboujeehealer" target="_blank" rel="noopener">Gayle Fuller</a>.</p>
+</footer>
+
+<script>
+function mk(a,b){return "schumann-"+b;}
+function load(k,d){try{var v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+var $=function(s){return document.querySelector(s);};
+function esc(s){return (s==null?'':''+s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+/* ==== Schumann audio engine (extracted verbatim from MAJICK Music) ==== */
+let AC=null,_audioUnlocked=false,NOISE_BUF=null;
+function ac(){if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();return AC;}
+function unlockAudio(){const a=ac();try{a.resume();}catch(e){}if(_audioUnlocked)return;_audioUnlocked=true;
+  try{const b=a.createBuffer(1,1,22050),s=a.createBufferSource();s.buffer=b;s.connect(a.destination);s.start(0);}catch(e){}}
+document.addEventListener("pointerdown",unlockAudio,true);
+function makeIR(a,dur,decay){const rate=a.sampleRate,len=Math.floor(rate*dur),b=a.createBuffer(2,len,rate);for(let ch=0;ch<2;ch++){const d=b.getChannelData(ch);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,decay);}return b;}
+function noiseBuf(a){if(NOISE_BUF)return NOISE_BUF;const n=Math.floor(a.sampleRate*0.3),b=a.createBuffer(1,n,a.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;return NOISE_BUF=b;}
+function djNoise(a,time,dur,freq,lvl,out,hp){const s=a.createBufferSource();s.buffer=noiseBuf(a);const f=a.createBiquadFilter();f.type=hp?"highpass":"bandpass";f.frequency.value=freq;f.Q.value=0.8;const g=a.createGain();g.gain.setValueAtTime(lvl,time);g.gain.exponentialRampToValueAtTime(0.0001,time+dur);s.connect(f);f.connect(g);g.connect(out);s.start(time);s.stop(time+dur+0.02);}
+let EF=null;
+function efStop(){if(!EF)return;const ef=EF;EF=null;try{const a=ac();ef.master.gain.cancelScheduledValues(a.currentTime);ef.master.gain.setTargetAtTime(0.0001,a.currentTime,0.25);}catch(e){}if(ef.beatTimer)clearInterval(ef.beatTimer);setTimeout(()=>{ef.oscs.forEach(o=>{try{o.stop();}catch(e){}});},700);}
+const EF_VOICES=[{id:"pure",name:"Pure",t:"sine",det:0},{id:"pad",name:"Warm pad",t:"sawtooth",det:7},{id:"organ",name:"Organ",t:"square",det:0},{id:"crystal",name:"Crystal",t:"triangle",det:3,shimmer:1}];
+function efDayUTC(off){const d=new Date();if(off)d.setUTCDate(d.getUTCDate()+off);return d.toISOString().slice(0,10);}
+function efDateLabel(day){if(day===efDayUTC(0))return "Today";if(day===efDayUTC(-1))return "Yesterday";try{return new Date(day+"T00:00:00Z").toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric",timeZone:"UTC"});}catch(e){return day;}}
+function efArch(){return load(mk("earth","archive"),{});}
+function efSaveArch(a){const days=Object.keys(a).sort().slice(-7),out={};days.forEach(d=>out[d]=a[d]);save(mk("earth","archive"),out);}
+function efFetchHistory(cb){const arch=efArch();
+  try{fetch("https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json",{cache:"no-store"}).then(r=>r.json()).then(rows=>{
+    if(!Array.isArray(rows)||rows.length<2){cb(arch,false);return;}
+    const hdr=rows[0].map(x=>String(x).toLowerCase());let ti=hdr.findIndex(x=>x.indexOf("time")>=0);let ki=hdr.findIndex(x=>x==="kp");if(ki<0)ki=hdr.findIndex(x=>x.indexOf("kp")>=0);if(ti<0)ti=0;if(ki<0)ki=1;
+    const byDay={};for(let i=1;i<rows.length;i++){const r=rows[i],day=String(r[ti]).slice(0,10),kp=parseFloat(r[ki]);if(isNaN(kp))continue;if(byDay[day]==null||kp>byDay[day])byDay[day]=kp;}
+    Object.keys(byDay).forEach(day=>{const kp=byDay[day];arch[day]={kp,intensity:Math.round(kp/9*100),label:efKpLabel(kp)};});
+    efSaveArch(arch);cb(efArch(),true);
+  }).catch(()=>cb(arch,false));}catch(e){cb(arch,false);}}
+function efStart(intensity,mode,vol,voiceId){efStop();unlockAudio();const a=ac(),I=Math.max(0,Math.min(1,(intensity||0)/100)),root=7.83*32,oscs=[];
+  const V=EF_VOICES.find(v=>v.id===voiceId)||EF_VOICES[0],lvlf=(V.t==="sine")?1:0.5;
+  const master=a.createGain();master.gain.value=0.0001;master.connect(a.destination);master.gain.setTargetAtTime((vol==null?0.6:vol),a.currentTime,0.6);
+  const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=380+I*2000;lp.connect(master);
+  function voice1(freq,level,pan){const o=a.createOscillator();o.type=V.t;o.frequency.value=freq;const g=a.createGain();g.gain.value=level*lvlf;if(pan!=null&&a.createStereoPanner){const p=a.createStereoPanner();p.pan.value=pan;g.connect(p);p.connect(lp);}else g.connect(lp);o.connect(g);o.start();oscs.push(o);
+    if(V.det){const o2=a.createOscillator();o2.type=V.t;o2.frequency.value=freq;o2.detune.value=V.det;const g2=a.createGain();g2.gain.value=level*lvlf*0.8;o2.connect(g2);g2.connect(lp);o2.start();oscs.push(o2);}}
+  if(mode==="binaural"){voice1(root,0.2,-1);voice1(root+7.83,0.2,1);}
+  else{voice1(root,0.14);voice1(root*2,0.07);voice1(root*1.5,0.06);
+    const po=a.createOscillator();po.type="sine";po.frequency.value=root;const pg=a.createGain();pg.gain.value=0.11;po.connect(pg);pg.connect(lp);po.start();oscs.push(po);
+    const lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=7.83;const lg=a.createGain();lg.gain.value=0.11;lfo.connect(lg);lg.connect(pg.gain);lfo.start();oscs.push(lfo);}
+  if(I>0.5||V.shimmer){[14.3,20.8].forEach(f=>{const o=a.createOscillator();o.type="sine";o.frequency.value=f*16;const g=a.createGain();g.gain.value=0.02*(V.shimmer?0.8:I);o.connect(g);g.connect(lp);o.start();oscs.push(o);});}
+  const bpm=7.83*60/8,spb=60/bpm;let beatI=0;
+  function kick(t,lvl){const o=a.createOscillator();o.type="sine";o.frequency.setValueAtTime(92,t);o.frequency.exponentialRampToValueAtTime(40,t+0.12);const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(lvl,t+0.005);g.gain.exponentialRampToValueAtTime(0.0001,t+0.26);o.connect(g);g.connect(master);o.start(t);o.stop(t+0.3);}
+  const beatTimer=setInterval(()=>{const t=a.currentTime+0.05,step=beatI%4;if(step===0)kick(t,0.5);else if(I>0.6&&step===2)kick(t,0.3);else if(I>0.82)kick(t,0.16);beatI++;},spb*1000);
+  EF={master,oscs,beatTimer};}
+/* ---- Earth song: shared synth voices ---- */
+function _dist(a,k){const ws=a.createWaveShaper(),n=1024,c=new Float32Array(n),kk=k||30;for(let i=0;i<n;i++){const x=i*2/n-1;c[i]=(1+kk)*x/(1+kk*Math.abs(x));}ws.curve=c;ws.oversample="2x";return ws;}
+function efKick(a,out,t,hard){const o=a.createOscillator();o.type="sine";o.frequency.setValueAtTime(hard?175:120,t);o.frequency.exponentialRampToValueAtTime(hard?42:46,t+(hard?0.09:0.11));const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(hard?1.1:0.85,t+0.004);g.gain.exponentialRampToValueAtTime(0.0001,t+(hard?0.3:0.26));o.connect(g);g.connect(out);o.start(t);o.stop(t+0.34);const c=a.createOscillator();c.type="triangle";c.frequency.value=1500;const cg=a.createGain();cg.gain.setValueAtTime(0.4,t);cg.gain.exponentialRampToValueAtTime(0.001,t+0.015);c.connect(cg);cg.connect(out);c.start(t);c.stop(t+0.02);}
+function efSnare(a,out,t,lvl){djNoise(a,t,0.13,1800,0.5*lvl,out,false);djNoise(a,t,0.07,4500,0.3*lvl,out,true);const o=a.createOscillator();o.type="triangle";o.frequency.setValueAtTime(190,t);o.frequency.exponentialRampToValueAtTime(140,t+0.08);const g=a.createGain();g.gain.setValueAtTime(0.4*lvl,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.1);o.connect(g);g.connect(out);o.start(t);o.stop(t+0.12);}
+function efRim(a,out,t,lvl){const o=a.createOscillator();o.type="triangle";o.frequency.value=330;const g=a.createGain();g.gain.setValueAtTime(0.5*lvl,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.03);o.connect(g);g.connect(out);o.start(t);o.stop(t+0.04);djNoise(a,t,0.02,3000,0.3*lvl,out,true);}
+function efHat(a,out,t,lvl,open){djNoise(a,t,open?0.11:0.028,9500,lvl,out,true);}
+function efClap(a,out,t,lvl){[0,0.008,0.017,0.028].forEach((d,i)=>djNoise(a,t+d,0.05,2100,lvl*(i===3?0.6:0.35),out,false));}
+function efSubNote(a,out,t,freq,dur){const o=a.createOscillator();o.type="sine";o.frequency.value=freq;const o2=a.createOscillator();o2.type="triangle";o2.frequency.value=freq;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.6,t+0.012);g.gain.setValueAtTime(0.55,t+Math.max(0.05,dur*0.75));g.gain.exponentialRampToValueAtTime(0.0001,t+dur);const g2=a.createGain();g2.gain.value=0.18;o2.connect(g2);g2.connect(g);o.connect(g);g.connect(out);o.start(t);o2.start(t);o.stop(t+dur+0.04);o2.stop(t+dur+0.04);}
+function efBassNote(a,out,t,freq,dur,type){const o=a.createOscillator();o.type=type||"triangle";o.frequency.value=freq;const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=700;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.42,t+0.008);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(lp);lp.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.04);efSubNote(a,out,t,freq/2,Math.min(dur,0.5));}
+function efReese(a,out,t,freq,dur,I){const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.setValueAtTime(350,t);lp.frequency.linearRampToValueAtTime(1100+I*1600,t+dur*0.5);lp.frequency.linearRampToValueAtTime(350,t+dur);lp.Q.value=7;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.4,t+0.02);g.gain.setValueAtTime(0.38,t+dur*0.8);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);[-14,-7,0,0.3,7].forEach(det=>{const o=a.createOscillator();o.type="sawtooth";o.frequency.value=freq;o.detune.value=det;o.connect(lp);o.start(t);o.stop(t+dur+0.04);});lp.connect(g);g.connect(out);efSubNote(a,out,t,freq/2,dur);}
+function efGrowl(a,out,t,freq,dur,I,wob,chill){const sum=a.createGain();sum.gain.value=0.4;
+  [-11,-5,0,5,0.3].forEach(d=>{const o=a.createOscillator();o.type="sawtooth";o.frequency.value=freq;o.detune.value=d;o.connect(sum);o.start(t);o.stop(t+dur+0.05);});
+  const sq=a.createOscillator();sq.type="square";sq.frequency.value=freq;const sqg=a.createGain();sqg.gain.value=chill?0.18:0.3;sq.connect(sqg);sqg.connect(sum);sq.start(t);sq.stop(t+dur+0.05);
+  const ws=_dist(a,chill?24:70);sum.connect(ws);
+  const lp=a.createBiquadFilter();lp.type="lowpass";lp.Q.value=chill?6:13;const base=chill?120:150,peak=chill?(650+I*650):(1500+I*1700);lp.frequency.value=(peak+base)/2;
+  const lfo=a.createOscillator();lfo.type=chill?"sine":"triangle";lfo.frequency.value=wob||4;const lg=a.createGain();lg.gain.value=(peak-base)/2;lfo.connect(lg);lg.connect(lp.frequency);lfo.start(t);lfo.stop(t+dur+0.05);
+  ws.connect(lp);const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(chill?0.4:0.52,t+0.012);g.gain.setValueAtTime(chill?0.37:0.48,t+Math.max(0.05,dur*0.85));g.gain.exponentialRampToValueAtTime(0.0001,t+dur);lp.connect(g);g.connect(out);}
+function efScreech(a,out,t,freq,dur,I){const sum=a.createGain();sum.gain.value=0.3;
+  [-14,-7,0,7,0.5].forEach(d=>{const o=a.createOscillator();o.type="sawtooth";o.frequency.value=freq;o.detune.value=d;o.connect(sum);o.start(t);o.stop(t+dur+0.04);});
+  const ws=_dist(a,85);sum.connect(ws);
+  const bp=a.createBiquadFilter();bp.type="bandpass";bp.Q.value=5;bp.frequency.setValueAtTime(900,t);bp.frequency.linearRampToValueAtTime(2600+I*2200,t+dur*0.5);bp.frequency.linearRampToValueAtTime(1300,t+dur);
+  const pk=a.createBiquadFilter();pk.type="peaking";pk.frequency.value=3200;pk.gain.value=9;pk.Q.value=3;
+  ws.connect(bp);bp.connect(pk);const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.11,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);pk.connect(g);g.connect(out);}
+function efBell(a,out,t,freq,dur){[[1,0.1],[2.76,0.05],[5.4,0.02]].forEach(([m,l])=>{const o=a.createOscillator();o.type="sine";o.frequency.value=freq*m;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(l,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.05);});}
+function efStabNote(a,out,t,freq,dur,type,cut){const o=a.createOscillator();o.type=type||"sawtooth";o.frequency.value=freq;const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.setValueAtTime(cut||3200,t);lp.frequency.exponentialRampToValueAtTime(600,t+dur);lp.Q.value=2;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.13,t+0.005);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(lp);lp.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.03);}
+function efPadVoice(a,out,t,freq,dur,cut){const o=a.createOscillator();o.type="sawtooth";o.frequency.value=freq;o.detune.value=Math.random()*10-5;const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=cut||1200;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(0.04,t+0.5);g.gain.setValueAtTime(0.04,t+Math.max(0.6,dur-0.7));g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(lp);lp.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.05);}
+function efRhodes(a,out,t,freq,dur){[[1,0.12],[2,0.05],[3,0.02]].forEach(([m,l])=>{const o=a.createOscillator();o.type="sine";o.frequency.value=freq*m;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(l,t+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);const trem=a.createOscillator();trem.type="sine";trem.frequency.value=4.5;const tg=a.createGain();tg.gain.value=l*0.3;trem.connect(tg);tg.connect(g.gain);trem.start(t);trem.stop(t+dur);o.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.04);});}
+function efLeadNote(a,out,t,freq,dur,type,cut){const o=a.createOscillator();o.type=type||"square";o.frequency.value=freq;const o2=a.createOscillator();o2.type=type||"square";o2.frequency.value=freq;o2.detune.value=6;const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=cut||2800;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.08,t+0.012);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(lp);o2.connect(lp);lp.connect(g);g.connect(out);o.start(t);o2.start(t);o.stop(t+dur+0.04);o2.stop(t+dur+0.04);}
+function efPower(a,out,t,freqs,dur){const ws=_dist(a,24),lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=3200;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.16,t+0.008);g.gain.setValueAtTime(0.15,t+Math.max(0.05,dur*0.7));g.gain.exponentialRampToValueAtTime(0.0001,t+dur);ws.connect(lp);lp.connect(g);g.connect(out);freqs.forEach(fr=>{const o=a.createOscillator();o.type="sawtooth";o.frequency.value=fr;o.connect(ws);o.start(t);o.stop(t+dur+0.03);});}
+function efCrash(a,out,t,lvl){djNoise(a,t,1.1,6500,lvl||0.18,out,true);}
+function efRiser(a,out,t,dur){const s=a.createBufferSource();s.buffer=noiseBuf(a);s.loop=true;const bp=a.createBiquadFilter();bp.type="bandpass";bp.frequency.setValueAtTime(400,t);bp.frequency.exponentialRampToValueAtTime(8000,t+dur);bp.Q.value=1.6;const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.1,t+dur);g.gain.exponentialRampToValueAtTime(0.0001,t+dur+0.12);s.connect(bp);bp.connect(g);g.connect(out);s.start(t);s.stop(t+dur+0.18);}
+const EF_CH=[[0,3,7],[8,12,15],[3,7,10],[10,14,17]],EF_BR=[0,8,3,10],EF_CH7=[[0,3,7,10],[8,12,15,19],[3,7,10,14],[10,14,17,21]];
+const EF_GENRES={
+ house:{name:"Melodic House",bpm:117.4,duck:0.6,
+  step(s,bar,t,I,c){const ch=c.CH[bar%4],rt=c.BR[bar%4],drop=bar>=4&&bar!==6;
+   if(bar>=2&&bar!==6&&s%4===0){efKick(c.a,c.master,t,false);c.duck(t);}
+   if(bar>=3&&(s===4||s===12))efClap(c.a,c.master,t,0.5*(0.7+I*0.4));
+   if(bar>=2&&bar!==6){if(s%4===2)efHat(c.a,c.master,t,0.06+0.05*I,true);else if(s%2===1)efHat(c.a,c.master,t,0.03+0.03*I,false);}
+   if(bar>=1&&[2,6,10,14].includes(s))efBassNote(c.a,c.pump,t,c.f(rt),c.stepDur*1.5,"sawtooth");
+   if(s===0)ch.forEach(n=>efPadVoice(c.a,c.pump,t,c.f(n+12),c.spb*4,900+I*1800));
+   if(drop&&[0,3,6,8,11,14].includes(s))efStabNote(c.a,c.pump,t,c.f(ch[s%ch.length]+24),c.stepDur*1.4,"sawtooth",2600+I*1500);
+   if(bar===7&&s===0)efRiser(c.a,c.master,t,c.spb*4);
+   if((bar===4||bar===6)&&s===0)efCrash(c.a,c.master,t,0.16);}},
+ bass:{name:"Space Bass",bpm:140,duck:0.5,
+  GP:[{d:3,m:2},null,null,{d:1,m:1},{d:2,m:2},null,null,{d:1,m:4},{d:3,m:2},null,{d:1,m:3},null,{d:2,m:2},null,{d:1,m:4},null],
+  step(s,bar,t,I,c){const ch=c.CH[bar%4],rt=c.BR[bar%4],drop=(bar===4||bar===5||bar===7),bpl=c.g.bpm/60,chill=c.var==="chill";
+   if(bar<2||bar===6){ if(s===0)ch.forEach(n=>efPadVoice(c.a,c.pump,t,c.f(n+12),c.spb*4,900+I*1300)); if([0,4,8,12].includes(s))efBell(c.a,c.pump,t,c.f(ch[(s/4)%ch.length]+24),c.spb*1.3); if(s===0)efSubNote(c.a,c.master,t,c.f(rt)/2,c.spb*4); }
+   if(bar===2||bar===3){ if(s===0||s===8)efKick(c.a,c.master,t,true); if(s===8)efSnare(c.a,c.master,t,0.7); if(s%4===2)efHat(c.a,c.master,t,0.04,false); if(s===0)efSubNote(c.a,c.master,t,c.f(rt)/2,c.spb*4); if(bar===3&&s===10)efRiser(c.a,c.master,t,c.spb*1.5); }
+   if(drop){
+     if(s===0)efKick(c.a,c.master,t,true);
+     if(!chill&&I>0.5&&s===11)efKick(c.a,c.master,t,true);
+     if(s===8){efSnare(c.a,c.master,t,chill?0.85:1.1);djNoise(c.a,t,chill?0.4:0.3,2200,chill?0.2:0.15,c.rev,false);c.duck(t);}
+     if([2,6,10,14].includes(s))efHat(c.a,c.master,t,(chill?0.035:0.05)+0.04*I,s===14);
+     if(!chill&&I>0.6&&s===15)efHat(c.a,c.master,t,0.06,false);
+     if(s===0||s===8)efSubNote(c.a,c.master,t,c.f(rt)/2,c.spb*2);
+     const gp=c.g.GP[s];if(gp)efGrowl(c.a,c.master,t,c.f(rt),gp.d*c.stepDur,I,bpl*gp.m*(chill?0.5:1),chill);
+     if(chill){ if([0,8].includes(s))ch.forEach(n=>efBell(c.a,c.pump,t,c.f(n+24),c.spb*1.6)); }
+     else { if([4,7,12,15].includes(s))efScreech(c.a,c.pump,t,c.f([7,10,12,7][[4,7,12,15].indexOf(s)]+24),c.stepDur*(s===15?1:1.6),I); }
+   }
+   if((bar===4||bar===7)&&s===0)efCrash(c.a,c.master,t,chill?0.14:0.24);
+   if(bar===6&&s===10)efRiser(c.a,c.master,t,c.spb*1.5);},},
+ rock:{name:"Alt Rock",bpm:124,duck:0,
+  step(s,bar,t,I,c){const ch=c.CH[bar%4],rt=c.BR[bar%4],drop=bar>=4&&bar!==6;
+   if(bar>=2&&bar!==6){if(s===0||s===8||(s===6&&I>0.4))efKick(c.a,c.master,t,true);if(s===4||s===12)efSnare(c.a,c.master,t,1.0);if(s%2===0)efHat(c.a,c.master,t,0.05,s===8);}
+   if(bar>=1&&s%2===0)efBassNote(c.a,c.master,t,c.f(rt-12<0?rt:rt),c.stepDur*1.8,"sawtooth");
+   if(drop){if([0,3,6,8,11,14].includes(s))efPower(c.a,c.pump,t,[c.f(ch[0]+12),c.f(ch[0]+19),c.f(ch[0]+24)],c.stepDur*2.2);}
+   else if(bar<4&&s===0)ch.forEach(n=>efPadVoice(c.a,c.pump,t,c.f(n+12),c.spb*4,1200+I*1400));
+   if(bar===6&&[0,4,8,12].includes(s))efStabNote(c.a,c.pump,t,c.f(ch[(s/4)%ch.length]+24),c.stepDur*2,"square",2600);
+   if(bar>=5&&drop&&[2,6,10,14].includes(s))efLeadNote(c.a,c.pump,t,c.f([7,10,12,10][(s-2)/4%4]+24),c.stepDur*1.6,"sawtooth",3200);
+   if((bar===4)&&s===0)efCrash(c.a,c.master,t,0.2);}},
+ lofi:{name:"Lo-fi",bpm:84,duck:0.25,swing:0.34,
+  setup(c){const s=c.a.createBufferSource();s.buffer=noiseBuf(c.a);s.loop=true;const lp=c.a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=5000;const hp=c.a.createBiquadFilter();hp.type="highpass";hp.frequency.value=1500;const g=c.a.createGain();g.gain.value=0.012;s.connect(hp);hp.connect(lp);lp.connect(g);g.connect(c.master);s.start();c.oscs.push(s);},
+  step(s,bar,t0,I,c){const sw=(s%2===1)?c.stepDur*c.g.swing:0,t=t0+sw,ch=c.CH7[bar%4],rt=c.BR[bar%4],drop=bar>=3&&bar!==6;
+   if(bar>=2&&bar!==6){if(s===0||s===10)efKick(c.a,c.master,t,false);if(s===4||s===12){efRim(c.a,c.master,t,0.8);c.duck(t);}if(s%2===1)efHat(c.a,c.master,t,0.03,false);}
+   if(bar>=1&&(s===0||s===6||s===8||s===14))efBassNote(c.a,c.master,t,c.f(rt),c.stepDur*2.2,"triangle");
+   if(drop&&(s===2||s===10))ch.forEach(n=>efRhodes(c.a,c.pump,t,c.f(n+12),c.spb*1.6));
+   else if(s===0)ch.forEach(n=>efRhodes(c.a,c.pump,t,c.f(n+12),c.spb*3));
+   if(bar>=4&&[4,12].includes(s))efLeadNote(c.a,c.pump,t,c.f([3,7,10][bar%3]+24),c.stepDur*2,"sine",2000);}}
+};
+function efSong(intensity,vol,genreKey,variant){efStop();unlockAudio();const a=ac(),I=Math.max(0,Math.min(1,(intensity||0)/100));
+  const G=EF_GENRES[genreKey]||EF_GENRES.house,root=7.83*16,f=s=>root*Math.pow(2,s/12),oscs=[];
+  const master=a.createGain();master.gain.value=0.0001;const comp=a.createDynamicsCompressor();comp.threshold.value=-15;comp.knee.value=22;comp.ratio.value=2.6;comp.attack.value=0.004;comp.release.value=0.2;master.connect(comp);comp.connect(a.destination);master.gain.setTargetAtTime(vol==null?0.6:vol,a.currentTime,0.5);
+  const rev=a.createConvolver();rev.buffer=makeIR(a,2.4,2.6);const rg=a.createGain();rg.gain.value=0.85;rev.connect(rg);rg.connect(master);
+  const del=a.createDelay(1.0);del.delayTime.value=(60/G.bpm)*0.75;const dfb=a.createGain();dfb.gain.value=0.33;del.connect(dfb);dfb.connect(del);const dg=a.createGain();dg.gain.value=0.55;del.connect(dg);dg.connect(master);
+  const pump=a.createGain();pump.gain.value=1;const music=a.createGain();pump.connect(music);music.connect(master);
+  const rs=a.createGain();rs.gain.value=0.16;music.connect(rs);rs.connect(rev);const ds=a.createGain();ds.gain.value=0.12;music.connect(ds);ds.connect(del);
+  const spb=60/G.bpm,stepDur=spb/4;const dd=G.duck||0;
+  function duck(t){if(dd<=0)return;try{pump.gain.cancelScheduledValues(t);pump.gain.setValueAtTime(1-dd,t);pump.gain.linearRampToValueAtTime(1,t+Math.min(0.24,spb*0.85));}catch(e){}}
+  const c={a,master,pump,music,rev,del,root,f,CH:EF_CH,CH7:EF_CH7,BR:EF_BR,I,spb,stepDur,duck,oscs,g:G,var:variant};
+  if(G.setup)G.setup(c);
+  let step=0,nextTime=a.currentTime+0.14;
+  const timer=setInterval(()=>{if(!EF){clearInterval(timer);return;}const now=a.currentTime;while(nextTime<now+0.14){const s=step%16,bar=Math.floor(step/16)%8;try{G.step(s,bar,nextTime,I,c);}catch(e){}nextTime+=stepDur;step++;}},25);
+  EF={master,oscs,beatTimer:timer};}
+function efBinaural(intensity,vol){efStop();unlockAudio();const a=ac(),I=Math.max(0,Math.min(1,(intensity||0)/100));
+  const root=7.83*16,oscs=[],base=root,SCH=[7.83,14.3,20.8];
+  const master=a.createGain();master.gain.value=0.0001;master.connect(a.destination);master.gain.setTargetAtTime(vol==null?0.55:vol,a.currentTime,0.8);
+  const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=1800;lp.connect(master);
+  // three binaural layers: each a carrier panned L/R with a Schumann-harmonic interaural beat
+  const carriers=[base,base*1.5,base*2];
+  carriers.forEach((car,i)=>{const beat=SCH[i];const detune=beat/2;
+    [["L",-1,-detune],["R",1,detune]].forEach(([_,panv,off])=>{
+      const o=a.createOscillator();o.type="sine";o.frequency.value=car+off;
+      const pan=a.createStereoPanner?a.createStereoPanner():null;if(pan)pan.pan.value=panv;
+      const g=a.createGain();g.gain.value=(i===0?0.16:i===1?0.1:0.06)*(0.7+I*0.5);
+      // slow swell so it breathes
+      const sw=a.createOscillator();sw.type="sine";sw.frequency.value=0.05+0.03*i;const sg=a.createGain();sg.gain.value=g.gain.value*0.5;sw.connect(sg);sg.connect(g.gain);sw.start();oscs.push(sw);
+      o.connect(pan||g);if(pan)pan.connect(g);g.connect(lp);o.start();oscs.push(o);});});
+  // soft pad underneath for warmth (centered), brighter on more active days
+  [0,3,7].forEach(n=>{const o=a.createOscillator();o.type="sine";o.frequency.value=base*Math.pow(2,n/12)*2;const g=a.createGain();g.gain.value=0.03+0.02*I;const trem=a.createOscillator();trem.type="sine";trem.frequency.value=0.08;const tg=a.createGain();tg.gain.value=0.015;trem.connect(tg);tg.connect(g.gain);trem.start();oscs.push(trem);o.connect(g);g.connect(lp);o.start();oscs.push(o);});
+  // gentle 7.83 Hz isochronic shimmer on the top carrier so the pulse is felt even without perfect headphones
+  const sho=a.createOscillator();sho.type="sine";sho.frequency.value=base*2;const shg=a.createGain();shg.gain.value=0.0;const shlfo=a.createOscillator();shlfo.type="sine";shlfo.frequency.value=7.83;const shlg=a.createGain();shlg.gain.value=0.03*(0.5+I*0.6);shlfo.connect(shlg);shlg.connect(shg.gain);shlfo.start();oscs.push(shlfo);sho.connect(shg);shg.connect(lp);sho.start();oscs.push(sho);
+  EF={master,oscs,beatTimer:null};}
+function efKpLabel(kp){return kp<2?"Quiet":kp<4?"Unsettled":kp<5?"Active":kp<6?"Minor storm (G1)":kp<7?"Storm (G2)":"Strong storm";}
+function efDayReading(day,arch){const s=arch[day];if(!s)return "No reading for this day yet — tune in daily and the week fills in.";
+  const kp=s.kp,days=Object.keys(arch).sort(),idx=days.indexOf(day),prev=idx>0?arch[days[idx-1]]:null,dkp=prev?kp-prev.kp:0;
+  const band=kp<2?"quiet":kp<4?"unsettled":kp<5?"active":"storm";
+  const trend=!prev?"":dkp>0.8?(" It&rsquo;s risen from Kp "+prev.kp.toFixed(1)+" the day before — the field is quickening."):dkp<-0.8?(" It&rsquo;s eased from Kp "+prev.kp.toFixed(1)+" the day before — the field is settling."):" Holding near where it was the day before.";
+  const field=band==="quiet"?"The field is calm and coherent — the resonance rests close to its 7.83 Hz ground tone, the chart mostly quiet, thin lines with few spikes. The Sun is quiet; little is reaching us.":
+    band==="unsettled"?"There&rsquo;s movement in the field — a few soft spikes rising on the chart as geomagnetic activity stirs. Not a storm, just a quickening in the Earth&rsquo;s pulse.":
+    band==="active"?"The field is charged — clear spikes and peaks on the chart, geomagnetic activity picking up, often riding solar wind or a flare. The resonance is running higher than its baseline.":
+    "The field is loud — strong spikes and peaks, a geomagnetic storm ("+s.label+"), usually driven by a solar flare or a coronal mass ejection hitting the Earth. The whole resonance stack is lit.";
+  const body=band==="quiet"?"In this frequency work, calm days tend to feel settling for the nervous system — steadier focus, deeper sleep, a grounded and open-hearted clarity. A good day to create, meditate, and receive.":
+    band==="unsettled"?"Sensitive people often notice a subtle restlessness on days like this — thoughts a touch busier, emotions nearer the surface, an energy that wants somewhere to go.":
+    band==="active"?"Active days are the ones many empaths actually feel — wired or scattered energy, lighter sleep, heightened emotion, a nervous system switched on. Some feel anxious or tender; others feel electric and creative. It&rsquo;s the same charge, moving through you.":
+    "Storm days are when the sensitive feel it most — anxiety or overwhelm, a racing mind, broken sleep, headaches, big emotions, a nervous system on high alert. If today feels like a lot, the field is a lot. You&rsquo;re not making it up.";
+  const sound=band==="quiet"?"So today&rsquo;s sound stays spacious and warm — a slow drone and a sparse groove to breathe into. Rest in the ground tone and let it hold you.":
+    band==="unsettled"?"So today&rsquo;s sound steps forward with a gentle groove — enough motion to move the restlessness <i>through</i> you instead of letting it pool.":
+    band==="active"?"So today&rsquo;s track drives — fuller drums, brighter top, a real drop — built to help you move that charge, shake the tension loose, and ride the energy instead of bracing against it.":
+    "So today&rsquo;s sound runs its heaviest and most physical — not to overwhelm you, but to give the intensity somewhere to go. Feel it in the body, let the bass carry it through, and come home to the 7.83 Hz ground tone humming underneath it all.";
+  return '<div style="font-weight:700;margin-bottom:6px">'+efDateLabel(day)+' · Kp '+kp.toFixed(1)+' — '+s.label+'</div>'+
+    '<div style="margin-bottom:7px"><b style="color:#d4a548">The field today.</b> '+field+trend+'</div>'+
+    '<div style="margin-bottom:7px"><b style="color:#d4a548">How it may land.</b> '+body+'</div>'+
+    '<div><b style="color:#d4a548">Why today&rsquo;s sound.</b> '+sound+' The <b>7.83 Hz fundamental is the bass</b> of every mode here (octaved up to ~250 Hz so you can hear it), so whatever the day is doing, you&rsquo;re always tuned back to the Earth&rsquo;s ground note.</div>';}
+/* ==== Schumann portal UI ==== */
+(function(){var w=document.getElementById('stars');for(var i=0;i<30;i++){var s=document.createElement('i');s.style.left=(Math.random()*100)+'vw';s.style.top=(Math.random()*100)+'vh';s.style.opacity=(0.2+Math.random()*0.5).toFixed(2);w.appendChild(s);}})();
+
+(function(){var img=$('#efImg');img.src="https://schumannresonance.today/live/tomsk1.jpg?t="+Date.now();img.onerror=function(){img.style.display='none';var n=$('#efImgNote');if(n)n.innerHTML='Couldn&rsquo;t load the live chart here &mdash; see it at <a href="https://schumannresonance.today/" target="_blank" rel="noopener">schumannresonance.today &#8599;</a>, then set the day below by feel.';};})();
+
+var arr=load('schumann-arr','med'), genre=load('schumann-genre','house'), bassvar=load('schumann-bassvar','agg'), voice='pure';
+var arch=efArch(), selDate=efDayUTC(0), override=null, vol=0.6, liveData=false;
+var GLIST=[['house','Melodic House'],['bass','Space Bass'],['rock','Alt Rock'],['lofi','Lo-fi']];
+
+function ensureToday(){if(!arch[selDate]){var kp=override!=null?override/100*9:4;arch[selDate]={kp:kp,intensity:override!=null?override:44,label:efKpLabel(kp)};}}
+function cur(){if(override!=null)return override;var s=arch[selDate];return s?s.intensity:44;}
+function go(){if(arr==='song')efSong(cur(),vol,genre,genre==='bass'?bassvar:null);else if(arr==='binaural')efBinaural(cur(),vol);else efStart(cur(),'iso',vol,voice);}
+
+function drawDays(){var days=Object.keys(arch).sort().reverse().slice(0,7),w=$('#days');w.innerHTML='';
+  if(!days.length){w.innerHTML='<span class="note">Reading today&rsquo;s field&hellip;</span>';return;}
+  days.forEach(function(d){var b=document.createElement('button');b.className='chip'+(d===selDate?' sel':'');b.textContent=efDateLabel(d);b.onclick=function(){selDate=d;override=null;syncInt();drawDays();drawReading();if(EF)go();};w.appendChild(b);});}
+function drawReading(){ensureToday();$('#reading').innerHTML=efDayReading(selDate,arch);}
+function drawFeel(){var w=$('#feel');w.innerHTML='';[['med','🧘 Meditation'],['binaural','🌀 Binaural'],['song','🎶 Song']].forEach(function(o){var b=document.createElement('button');b.className='chip'+(arr===o[0]?' sel':'');b.textContent=o[1];b.onclick=function(){arr=o[0];save('schumann-arr',arr);drawFeel();drawGenre();drawModeNote();if(EF)go();};w.appendChild(b);});}
+function drawGenre(){var w=$('#genreWrap');w.innerHTML='';if(arr!=='song')return;
+  var g=document.createElement('div');g.className='chips';g.style.marginTop='10px';
+  GLIST.forEach(function(o){var b=document.createElement('button');b.className='chip'+(genre===o[0]?' sel':'');b.textContent=o[1];b.onclick=function(){genre=o[0];save('schumann-genre',genre);drawGenre();drawModeNote();if(EF)go();};g.appendChild(b);});w.appendChild(g);
+  if(genre==='bass'){var v=document.createElement('div');v.className='chips';v.style.marginTop='8px';[['agg','⚡ Aggressive'],['chill','🌙 Chill']].forEach(function(o){var b=document.createElement('button');b.className='chip'+(bassvar===o[0]?' sel':'');b.textContent=o[1];b.onclick=function(){bassvar=o[0];save('schumann-bassvar',bassvar);drawGenre();if(EF)go();};v.appendChild(b);});w.appendChild(v);}}
+function drawModeNote(){var t;if(arr==='song'){t='Built on the day&rsquo;s 7.83 Hz as the bass. <b>Space Bass</b> is heavy psychedelic halftime (LSDREAM-style) &mdash; <b>Aggressive</b> for the screech &amp; filth, <b>Chill</b> for the cosmic downtempo side.';}else if(arr==='binaural'){t='🎧 Headphones essential. Three carriers on the day&rsquo;s fundamental with a Schumann-harmonic beat between your ears (7.83 / 14.3 / 20.8 Hz), breathing slowly.';}else{t='A drone octaved up from 7.83 Hz, pulsed at the real 7.83 Hz over a slow ~59 BPM Earth beat &mdash; made for long, easy breathing.';}$('#modeNote').innerHTML=t;}
+function syncInt(){$('#int').value=cur();$('#intV').textContent=cur();}
+
+$('#int').oninput=function(){override=+this.value;$('#intV').textContent=override;if(!liveData){var kp=override/100*9;arch[selDate]={kp:kp,intensity:override,label:efKpLabel(kp)};drawReading();}if(EF)go();};
+$('#vol').value=vol;$('#volV').textContent=vol.toFixed(2);
+$('#vol').oninput=function(){vol=+this.value;$('#volV').textContent=vol.toFixed(2);if(EF&&EF.master){try{EF.master.gain.setTargetAtTime(vol,ac().currentTime,0.1);}catch(e){}}};
+$('#play').onclick=function(){if(EF){efStop();this.innerHTML='▶  Play this day';}else{go();this.innerHTML='■  Stop';}};
+
+drawFeel();drawGenre();drawModeNote();drawDays();syncInt();drawReading();
+try{efFetchHistory(function(a,ok){if(ok&&a&&Object.keys(a).length){arch=a;liveData=true;if(arch[efDayUTC(0)])selDate=efDayUTC(0);}override=null;syncInt();drawDays();drawReading();});}catch(e){}
+</script>
+</body>
+</html>
