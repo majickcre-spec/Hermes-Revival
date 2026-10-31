@@ -298,6 +298,9 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
     <div class="label">Play an instrument</div>
     <div class="grid" id="instrumentGrid"></div>
 
+    <div class="label">Make your own music</div>
+    <div class="grid" id="makeGrid"></div>
+
     <div class="label">Measure it — brain &amp; heart <span class="beta">beta</span></div>
     <div class="site-note">Needs a <b>Muse</b> headset and <b>Chrome/Edge on a computer or Android</b> (Web Bluetooth). Streams live brainwaves + heart rhythm straight to the page.</div>
     <div class="grid" id="bioGrid"></div>
@@ -484,6 +487,10 @@ function renderHome(){
     INSTRUMENT_CARDS.forEach(c=>{const b=document.createElement("button");b.className="card";
       b.innerHTML=`<span class="ic">${c.ic}</span><h3>${esc(c.title)}</h3><span class="blurb">${esc(c.blurb)}</span>`;
       b.onclick=c.go;ig.appendChild(b);});}
+  const mg2=$("#makeGrid");if(mg2){mg2.innerHTML="";
+    MAKE_CARDS.forEach(c=>{const b=document.createElement("button");b.className="card";
+      b.innerHTML=`<span class="ic">${c.ic}</span><h3>${esc(c.title)}</h3><span class="blurb">${esc(c.blurb)}</span>`;
+      b.onclick=c.go;mg2.appendChild(b);});}
   const bg=$("#bioGrid");if(bg){bg.innerHTML="";
     BIO_CARDS.forEach(c=>{const b=document.createElement("button");b.className="card";
       b.innerHTML=`<span class="ic">${c.ic}</span><h3>${esc(c.title)}</h3><span class="blurb">${esc(c.blurb)}</span>`;
@@ -1826,6 +1833,11 @@ function renderCR(){
 /* ===== INSTRUMENTS ===== */
 const INSTRUMENT_CARDS=[
  {ic:"🔔",title:"Handpan",blurb:"Play a handpan — tap the notes, pick a scale, and follow the glow to learn gentle patterns.",go:()=>renderHandpan()}
+];
+const MAKE_CARDS=[
+ {ic:"🎙️",title:"Sing / Hum a Melody",blurb:"Sing or hum your own tune — it maps the notes and rhythm onto a staff. Fix them, then save it as your song.",go:()=>renderCompose()},
+ {ic:"⭐",title:"My Songs",blurb:"Your saved melodies and imported songs — sing them back, or import a MIDI.",go:()=>renderMySongs()},
+ {ic:"🎚️",title:"Build a Song",blurb:"Chain your saved sections into a full song.",go:()=>renderSongBuilder()}
 ];
 /* handpan voice — mellow metallic bell with octave + twelfth overtones, long decay */
 function handpan(time,midi){const a=ac(),out=pianoMaster(a),f=midiToFreq(midi);
