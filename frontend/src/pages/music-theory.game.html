@@ -2079,15 +2079,28 @@ function renderLearnSong(){
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎼 New Song</span></div><div class="panel">'+
       '<div class="intro">Two ways in:</div>'+
       '<div class="actions"><button class="btn" id="lsPaste">📋 Paste a chord sheet</button><button class="btn ghost" id="lsBuild">🎸 Build it by picking chords</button></div>'+
-      '<div class="site-note" style="margin-top:8px">Paste works with [C]-bracket sheets or plain chord lines. Picking lets you tap chords in from the library.</div></div>';
-    $("#eBack").onclick=showList;$("#lsPaste").onclick=showPaste;$("#lsBuild").onclick=()=>{song={name:"My Song",inst:"guitar",sections:[{name:"Verse",chords:[]}]};showBuild();};}
-  function showPaste(){
-    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">📋 Paste chords</span></div><div class="panel">'+
+      '<div class="actions"><button class="btn ghost" id="lsScan">📷 Scan a photo / screenshot</button></div>'+
+      '<div class="site-note" style="margin-top:8px">Paste works with [C]-bracket sheets or plain chord lines. Scan is a <b>rough best-effort</b> — works on clean printed chord letters, then you fix it. (It reads chord letters, not staff notation.)</div></div>';
+    $("#eBack").onclick=showList;$("#lsPaste").onclick=()=>showPaste();$("#lsBuild").onclick=()=>{song={name:"My Song",inst:"guitar",sections:[{name:"Verse",chords:[]}]};showBuild();};$("#lsScan").onclick=showScan;}
+  function loadTess(){return new Promise((res,rej)=>{if(window.Tesseract)return res(window.Tesseract);const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";s.onload=()=>res(window.Tesseract);s.onerror=()=>rej(new Error("load failed"));document.head.appendChild(s);});}
+  function showScan(){
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">📷 Scan chords</span></div><div class="panel">'+
+      '<div class="intro">Snap or pick a photo of a <b>printed chord sheet</b> (just the chord letters). I&rsquo;ll read what I can — then you confirm and fix it on the next screen. Clean, flat, well-lit images work best; handwriting and staff notation won&rsquo;t.</div>'+
+      '<div class="actions"><label class="btn" style="cursor:pointer">📷 Choose image<input type="file" accept="image/*" id="scFile" style="display:none"></label></div>'+
+      '<div class="feedback" id="scStatus"></div></div>';
+    $("#eBack").onclick=showNew;
+    $("#scFile").onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const st=$("#scStatus");if(st)st.textContent="Loading the scanner…";
+      loadTess().then(T=>{if(st)st.textContent="Reading the image… this can take a moment.";return T.recognize(f,"eng",{logger:m=>{if(m.status==="recognizing text"&&st)st.textContent="Reading… "+Math.round((m.progress||0)*100)+"%";}});})
+        .then(r=>{const text=(r&&r.data&&r.data.text)||"";showPaste(text,true);})
+        .catch(()=>{if(st)st.textContent="Couldn’t run the scanner here — paste or type the chords instead.";});};}
+  function showPaste(prefill,fromScan){
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">📋 '+(fromScan?"Confirm chords":"Paste chords")+'</span></div><div class="panel">'+
+      (fromScan?'<div class="intro">Here&rsquo;s what the scan read — <b>check it and fix any wrong chords</b>, then make the chart. Delete any lyric junk that snuck in.</div>':"")+
       '<div class="rrow2"><span class="rlab">Name</span><input id="lsName" value="My Song" style="background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit;flex:1"></div>'+
       '<div class="rrow2"><span class="rlab">Instrument</span><span class="rchips tight"><button class="rchip sm sel" data-i="guitar">Guitar</button><button class="rchip sm" data-i="ukulele">Ukulele</button></span></div>'+
       '<textarea id="lsSheet" placeholder="Paste here. Examples:&#10;[Verse]&#10;[G]  [C]  [G]  [D]&#10;[Chorus]&#10;[C] [G] [D] [G]&#10;&#10;…or plain chord lines:&#10;G  C  G  D" style="width:100%;min-height:150px;background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:10px;font:14px monospace"></textarea>'+
       '<div class="actions"><button class="btn" id="lsParse">Make the chart →</button></div><div class="feedback" id="lsParseMsg"></div></div>';
-    $("#eBack").onclick=showNew;let inst="guitar";
+    $("#eBack").onclick=showNew;let inst="guitar";if(prefill)$("#lsSheet").value=prefill;
     view.querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>{inst=b.getAttribute("data-i");view.querySelectorAll("[data-i]").forEach(x=>x.classList.toggle("sel",x===b));});
     $("#lsParse").onclick=()=>{const secs=parseSheet($("#lsSheet").value);if(!secs.length){$("#lsParseMsg").textContent="I couldn't find chords — try [C]-brackets or a line of chord names.";return;}song={name:($("#lsName").value||"My Song").trim(),inst,sections:secs};showBuild();};}
   function showBuild(){stop();
@@ -2267,6 +2280,19 @@ function beatRowsAll(){
 }
 function beatLib(){return load(mk("beat","lib"),[]);}
 function saveBeatLib(l){save(mk("beat","lib"),l);}
+/* export a beat as a Standard MIDI File */
+function vlqPush(arr,v){let buf=v&0x7F;while((v>>=7)){buf<<=8;buf|=((v&0x7F)|0x80);}while(true){arr.push(buf&0xFF);if(buf&0x80)buf>>=8;else break;}}
+function beatToMidi(bt){const PPQ=480,stepTicks=Math.round(PPQ*4/bt.steps),DRUM={bass:64,tone:63,slap:62};
+  const ev=[];bt.rows.forEach((row,r)=>{const isDj=(row.g==="djembe"||typeof row.v==="string");const ch=isDj?9:0,note=isDj?(DRUM[row.v]||60):row.v;
+    for(let c=0;c<bt.steps;c++){if(bt.grid[r]&&bt.grid[r][c]){const t=c*stepTicks;ev.push({t,on:1,ch,note});ev.push({t:t+Math.max(10,stepTicks-8),on:0,ch,note});}}});
+  ev.sort((a,b)=>a.t-b.t||a.on-b.on);
+  const trk=[];vlqPush(trk,0);const mpqn=Math.round(60000000/bt.bpm);trk.push(0xFF,0x51,0x03,(mpqn>>16)&255,(mpqn>>8)&255,mpqn&255);
+  let last=0;ev.forEach(e=>{vlqPush(trk,e.t-last);last=e.t;trk.push(((e.on?0x90:0x80)|e.ch),e.note&127,e.on?100:0);});
+  vlqPush(trk,0);trk.push(0xFF,0x2F,0x00);
+  const head=[0x4D,0x54,0x68,0x64,0,0,0,6,0,0,0,1,(PPQ>>8)&255,PPQ&255];
+  const th=[0x4D,0x54,0x72,0x6B,(trk.length>>24)&255,(trk.length>>16)&255,(trk.length>>8)&255,trk.length&255];
+  return new Uint8Array(head.concat(th,trk));}
+function downloadBytes(bytes,filename,mime){try{const blob=new Blob([bytes],{type:mime||"application/octet-stream"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(url);},1200);}catch(e){}}
 function renderBeat(focus){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   let bpm=load(mk("beat","bpm"),92),steps=load(mk("beat","steps"),16),swing=load(mk("beat","swing"),0);
@@ -2338,7 +2364,7 @@ function renderBeat(focus){
       '<div class="actions"><button class="btn ghost" id="bmAnalyzeBtn">🔎 Analyze beat</button></div>'+
       '<div class="idea-fb" id="bmAnalyze" style="display:none"></div>'+
       '<div class="rrow2"><span class="rlab">Name</span><input id="bmName" placeholder="name this beat" style="background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit;flex:1"></div>'+
-      '<div class="actions"><button class="btn" id="bmSave">💾 Save to library</button></div>'+
+      '<div class="actions"><button class="btn" id="bmSave">💾 Save to library</button><button class="btn ghost" id="bmMidi">⬇ Export MIDI</button></div>'+
       '<div class="bean-note" id="bmMsg"></div>'+
       '<div class="rlab" style="display:block;margin:14px 0 6px">My beats</div><div id="bmLib"></div>'+
       '</div>';
@@ -2363,6 +2389,7 @@ function renderBeat(focus){
     $("#bmPerfDj").onclick=()=>{perform="djembe";draw();};
     const perf=$("#bmPerf");perf.innerHTML="";perf.appendChild(perform==="djembe"?perfDjembe():perfPan());
     $("#bmSave").onclick=()=>{const nm=($("#bmName").value||"").trim()||("Beat "+(beatLib().length+1));const lib=beatLib();lib.unshift({id:"b"+Date.now().toString(36),name:nm,bpm,steps,swing,rows:rows.map(x=>({g:x.group,v:x.kind||x.midi})),grid:grid.map(a=>a.slice())});if(lib.length>60)lib.pop();saveBeatLib(lib);const m=$("#bmMsg");if(m)m.textContent="Saved “"+nm+"” ✓";renderLib();};
+    $("#bmMidi").onclick=()=>{const nm=($("#bmName").value||"beat").trim()||"beat";downloadBytes(beatToMidi({bpm,steps,rows:rows.map(x=>({g:x.group,v:x.kind||x.midi})),grid}),nm+".mid","audio/midi");const m=$("#bmMsg");if(m)m.textContent="Exported "+nm+".mid ⬇";};
     renderLib();updSummary();
   }
   function renderLib(){const box=$("#bmLib");if(!box)return;const lib=beatLib();if(!lib.length){box.innerHTML='<div class="site-note">No saved beats yet.</div>';return;}
@@ -2373,8 +2400,9 @@ function renderBeat(focus){
         if(bt.rows&&bt.rows[0]&&typeof bt.rows[0]==="object"){rows=bt.rows.map(x=>x.g==="djembe"?{label:(x.v==="bass"?"Bass":x.v==="tone"?"Tone":"Slap"),kind:x.v,group:"djembe"}:{label:midiName(x.v),midi:x.v,group:"handpan"});}
         else{rows=beatRowsAll();}
         grid=bt.grid.map(a=>a.slice());collapsed={djembe:false,handpan:false};draw();};
+      const mi=document.createElement("button");mi.className="kb-btn";mi.style.marginLeft="6px";mi.textContent="⬇ MIDI";mi.onclick=()=>downloadBytes(beatToMidi(bt),(bt.name||"beat")+".mid","audio/midi");
       const dl=document.createElement("button");dl.className="kb-btn";dl.style.marginLeft="6px";dl.textContent="✕";dl.onclick=()=>{const l=beatLib();l.splice(idx,1);saveBeatLib(l);renderLib();};
-      row.appendChild(ld);row.appendChild(dl);box.appendChild(row);});}
+      row.appendChild(ld);row.appendChild(mi);row.appendChild(dl);box.appendChild(row);});}
   draw();
 }
 
