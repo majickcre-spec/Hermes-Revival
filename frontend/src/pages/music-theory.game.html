@@ -177,6 +177,29 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .nchip{font:inherit;font-weight:800;font-size:.92rem;padding:9px 11px;border-radius:10px;background:var(--card2);border:1px solid var(--line);color:var(--cream);cursor:pointer;font-family:"Bricolage Grotesque",system-ui,sans-serif}
 .nchip.sel{background:rgba(255,159,92,.22);border-color:var(--gold);color:#fff}
 .staffbox{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:6px;margin:12px 0;overflow-x:auto}
+.djlegend{font-size:.82rem;color:var(--muted);font-family:"Nunito Sans",system-ui,sans-serif;margin:8px 2px 4px}
+.rcell.B{color:#c9b3ff;border-color:var(--violet);background:rgba(165,121,255,.14)}
+.rcell.T{color:#ffd9a8;border-color:var(--gold);background:rgba(255,159,92,.14)}
+.rcell.S{color:#bfe3ff;border-color:var(--sky);background:rgba(85,214,232,.14)}
+.dpads{display:flex;gap:10px;margin:14px 0 4px}
+.dpad{flex:1;height:92px;border-radius:14px;border:2px solid var(--line);background:var(--card2);color:var(--cream);font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:1.05rem;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.dpad .pl{font-size:.72rem;color:var(--muted);letter-spacing:2px}
+.dpad.bass{border-color:var(--violet)} .dpad.tone{border-color:var(--gold)} .dpad.slap{border-color:var(--sky)}
+.dpad.hit{transform:scale(.97);filter:brightness(1.35)}
+.drum{position:relative;width:200px;height:230px;margin:14px auto 8px}
+.drum-head{position:absolute;left:0;top:0;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle at 50% 40%,#e3d2ab,#c3a670 58%,#6b5432 100%);border:6px solid #3a2a16;box-shadow:0 12px 26px rgba(0,0,0,.45),inset 0 -12px 22px rgba(0,0,0,.3)}
+.drum-edge{position:absolute;left:16px;top:16px;width:168px;height:168px;border-radius:50%;border:2px dashed rgba(60,40,20,.45)}
+.drum-bass{position:absolute;left:58px;top:58px;width:84px;height:84px;border-radius:50%;border:2px dashed rgba(60,40,20,.45);display:flex;align-items:center;justify-content:center;font-size:.7rem;letter-spacing:1px;color:rgba(50,34,16,.6);font-family:"Bricolage Grotesque",system-ui,sans-serif}
+.flashzone{position:absolute;border-radius:50%;opacity:0;pointer-events:none}
+.flashzone.on{animation:drumflash .24s ease-out}
+@keyframes drumflash{0%{opacity:.9;transform:scale(.55)}100%{opacity:0;transform:scale(1.3)}}
+.drum-lbl{position:absolute;left:0;top:84px;width:200px;text-align:center;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:2rem;font-weight:800;opacity:0;pointer-events:none}
+.drum-lbl.on{animation:lblpop .3s ease-out}
+@keyframes lblpop{0%{opacity:.95;transform:scale(1.2)}100%{opacity:0;transform:scale(1)}}
+.hand{position:absolute;bottom:0;font-size:2.1rem;transition:transform .09s ease-out;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))}
+.hand.hl{left:14px;transform:scaleX(-1)} .hand.hr{right:14px}
+.hand.hl.hit{transform:scaleX(-1) translateY(-40px) scale(1.1)}
+.hand.hr.hit{transform:translateY(-40px) scale(1.1)}
 .rscore{text-align:center;margin-top:16px}
 .racc{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:2.6rem;line-height:1;color:var(--good)}
 .rfeel{font-size:.95rem;color:var(--muted);font-family:"Nunito Sans",system-ui,sans-serif;margin-top:6px;transition:color .1s;min-height:22px}
@@ -1144,6 +1167,7 @@ const RHYTHM_CARDS=[
  {ic:"🥁",title:"Metronome Flow",blurb:"A magical metronome — pick a rhythm shape and count along, slow and steady.",go:()=>renderRhythm(false)},
  {ic:"👆",title:"Tap It Back",blurb:"Hear a rhythm, then tap it back on the pad — scored, no mic needed.",go:()=>tapBackMenu()},
  {ic:"🧠",title:"Name That Rhythm",blurb:"Hear a rhythm and pick which one it was — train your ear to read the beat.",go:()=>rhythmNameQuiz()},
+ {ic:"🪘",title:"Djembe Groove",blurb:"Play djembe patterns (bass/tone/slap), loop on tempo, tap or drum along — with timing feedback.",go:()=>renderDjembe()},
  {ic:"🧘",title:"Speak the Rhythm",blurb:"Count the rhythm out loud into the mic — a breath-and-beat meditation that scores how in-time you are.",go:()=>renderRhythm(true)}
 ];
 /* click voices */
@@ -1165,7 +1189,7 @@ function rCellDur(){return (60/R.bpm)/rPat().div;}
 function click(time,kind){
   const a=ac(),sd=soundDef(),o=a.createOscillator(),g=a.createGain();
   o.type=sd.type;o.frequency.value=kind==="accent"?sd.a:kind==="beat"?sd.b:sd.s;
-  const lvl=kind==="sub"?0.11:kind==="beat"?0.26:0.4;
+  const lvl=kind==="sub"?0.2:kind==="beat"?0.46:0.66;
   const atk=sd.id==="soft"?0.012:0.002;
   g.gain.setValueAtTime(0.0001,time);g.gain.exponentialRampToValueAtTime(lvl,time+atk);
   g.gain.exponentialRampToValueAtTime(0.0001,time+sd.dur);
@@ -1588,6 +1612,118 @@ function renderSongBuilder(){
     const pb=$("#play");if(pb&&!pb.disabled)pb.onclick=()=>{const a=allNotes();playSeq(a.notes,a.beats,100);};
     $("#clear").onclick=()=>{seq=[];draw();};
     const sv=$("#save");if(sv&&!sv.disabled)sv.onclick=()=>{const a=allNotes();if(!a.notes.length)return;SONGLIB.push({name:($("#sgname").value||"My song").trim(),notes:a.notes,beats:a.beats});save("mjk-songs",SONGLIB);renderMySongs();};
+  }
+  draw();
+}
+
+/* ===== DJEMBE GROOVE — bass/tone/slap patterns, play along, stay on tempo ===== */
+let NOISE_BUF=null;
+function noiseBuf(a){if(NOISE_BUF)return NOISE_BUF;const n=Math.floor(a.sampleRate*0.3),b=a.createBuffer(1,n,a.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;return NOISE_BUF=b;}
+function djNoise(a,time,dur,freq,lvl,out,hp){const s=a.createBufferSource();s.buffer=noiseBuf(a);const f=a.createBiquadFilter();f.type=hp?"highpass":"bandpass";f.frequency.value=freq;f.Q.value=0.8;const g=a.createGain();g.gain.setValueAtTime(lvl,time);g.gain.exponentialRampToValueAtTime(0.0001,time+dur);s.connect(f);f.connect(g);g.connect(out);s.start(time);s.stop(time+dur+0.02);}
+function djembe(time,kind){const a=ac(),out=pianoMaster(a);
+  if(kind==="bass"){const o=a.createOscillator(),g=a.createGain();o.type="sine";o.frequency.setValueAtTime(120,time);o.frequency.exponentialRampToValueAtTime(52,time+0.14);
+    g.gain.setValueAtTime(0.0001,time);g.gain.exponentialRampToValueAtTime(0.95,time+0.004);g.gain.exponentialRampToValueAtTime(0.0001,time+0.4);o.connect(g);g.connect(out);o.start(time);o.stop(time+0.42);}
+  else if(kind==="tone"){const o=a.createOscillator(),g=a.createGain();o.type="sine";o.frequency.setValueAtTime(215,time);o.frequency.exponentialRampToValueAtTime(178,time+0.1);
+    g.gain.setValueAtTime(0.0001,time);g.gain.exponentialRampToValueAtTime(0.7,time+0.004);g.gain.exponentialRampToValueAtTime(0.0001,time+0.26);o.connect(g);g.connect(out);o.start(time);o.stop(time+0.28);
+    djNoise(a,time,0.05,1300,0.28,out,false);}
+  else{djNoise(a,time,0.09,2800,0.6,out,true);const o=a.createOscillator(),g=a.createGain();o.type="triangle";o.frequency.value=400;
+    g.gain.setValueAtTime(0.0001,time);g.gain.exponentialRampToValueAtTime(0.3,time+0.003);g.gain.exponentialRampToValueAtTime(0.0001,time+0.06);o.connect(g);g.connect(out);o.start(time);o.stop(time+0.07);}}
+const DJEMBE_PATTERNS=[
+ {name:"Warm-up · Bass–Tone–Slap",div:4,pat:"B...T...S...T..."},
+ {name:"Tone–Slap eighths",div:4,pat:"T.S.T.S.T.S.T.S."},
+ {name:"Gallop (B T T)",div:4,pat:"B.TTB.TTB.TTB.TT"},
+ {name:"Kuku (simple)",div:4,pat:"B..TT..SB..TT..S"},
+ {name:"Djansa (simple)",div:4,pat:"B.T.S.T.B.T.S.T."},
+ {name:"Sunu (simple)",div:4,pat:"BT.STB.SBT.STB.S"},
+ {name:"6/8 Groove",div:3,pat:"B.TS.TB.TS.T"}
+];
+const DJ={bpm:100,patIdx:0,running:false,cur:0,nextTime:0,schID:null,raf:null,visQ:[],litCell:-1,barCount:0,
+  playPattern:true,metClick:true,scoring:false,countIn:1,t0:0,countEndTime:0,taps:[],hand:"R",
+  buf:null,floor:null,lastPeak:0,lastOnset:0,detected:[],expected:[],resolved:0,inPocket:0,matched:0,errAbs:0};
+function DJP(){return DJEMBE_PATTERNS[DJ.patIdx];}
+function djSteps(P){const s=P.pat.split("");while(s.length<4*P.div)s.push(".");return s;}
+function djStop(){DJ.running=false;if(DJ.schID){clearInterval(DJ.schID);DJ.schID=null;}if(DJ.raf){cancelAnimationFrame(DJ.raf);DJ.raf=null;}const b=$("#djStart");if(b)b.textContent="▶ Start";}
+function djSchedule(){const a=ac(),ahead=0.12,P=DJP(),div=P.div,cells=4*div,cellDur=(60/DJ.bpm)/div,st=djSteps(P);
+  while(DJ.nextTime<a.currentTime+ahead){const cell=DJ.cur,onBeat=cell%div===0,inCount=DJ.barCount<DJ.countIn,ch=st[cell];
+    if(DJ.metClick&&onBeat)click(DJ.nextTime,cell===0?"accent":"beat");
+    if(!inCount){
+      if(DJ.playPattern&&ch&&ch!==".")djembe(DJ.nextTime,ch==="B"?"bass":ch==="T"?"tone":"slap");
+      if(DJ.scoring&&ch&&ch!==".")DJ.expected.push({t:DJ.nextTime,done:false});
+    }
+    DJ.visQ.push({t:DJ.nextTime,cell,hit:(!inCount&&ch&&ch!==".")?ch:null});DJ.nextTime+=cellDur;DJ.cur=(DJ.cur+1)%cells;if(DJ.cur===0)DJ.barCount++;
+  }}
+function djLight(cell){const cells=document.querySelectorAll("#djCells .rcell");if(DJ.litCell>=0&&cells[DJ.litCell])cells[DJ.litCell].classList.remove("on");if(cells[cell])cells[cell].classList.add("on");DJ.litCell=cell;}
+function djHit(stroke){const fl=$("#drumFlash");if(!fl)return;
+  DJ.hand=DJ.hand==="L"?"R":"L";const h=DJ.hand==="L"?$("#handL"):$("#handR");
+  if(h){h.classList.remove("hit");void h.offsetWidth;h.classList.add("hit");setTimeout(()=>{if(h)h.classList.remove("hit");},130);}
+  let x,y,size,col;
+  if(stroke==="B"){x=100;y=100;size=98;col="rgba(165,121,255,.75)";}
+  else{const left=DJ.hand==="L";x=left?58:142;y=74;size=56;col=stroke==="T"?"rgba(255,159,92,.8)":"rgba(85,214,232,.85)";}
+  fl.style.width=fl.style.height=size+"px";fl.style.left=(x-size/2)+"px";fl.style.top=(y-size/2)+"px";
+  fl.style.background="radial-gradient(circle,"+col+",transparent 70%)";
+  fl.classList.remove("on");void fl.offsetWidth;fl.classList.add("on");
+  const lbl=$("#drumLbl");if(lbl){lbl.textContent=stroke;lbl.style.color=stroke==="B"?"#c9b3ff":stroke==="T"?"#ffd9a8":"#bfe3ff";lbl.classList.remove("on");void lbl.offsetWidth;lbl.classList.add("on");}}
+function djDetect(now,record){if(!DJ.buf)return;toneAnalyser.getFloatTimeDomainData(DJ.buf);let peak=0,sum=0;for(let i=0;i<DJ.buf.length;i++){const v=Math.abs(DJ.buf[i]);if(v>peak)peak=v;sum+=v*v;}
+  DJ.floor=(DJ.floor==null)?Math.sqrt(sum/DJ.buf.length):DJ.floor*0.96+Math.sqrt(sum/DJ.buf.length)*0.04;
+  const mf=$("#djMeterF");if(mf)mf.style.width=Math.min(100,Math.round(peak*180))+"%";
+  if(!record)return;const thr=Math.max(0.02,DJ.floor*3);
+  if(peak>thr&&DJ.lastPeak<=thr*0.6&&now-DJ.lastOnset>0.1){DJ.detected.push(now);DJ.lastOnset=now;}DJ.lastPeak=peak;}
+function djMatch(now){const P=DJP(),cellDur=(60/DJ.bpm)/P.div,win=Math.min(0.2,cellDur*0.95);
+  for(const e of DJ.expected){if(e.done||e.t>=now-win)continue;let best=null,bd=1e9;for(const d of DJ.detected){const dd=Math.abs(d-e.t);if(dd<=win&&dd<bd){bd=dd;best=d;}}DJ.resolved++;if(best!==null){DJ.matched++;DJ.errAbs+=bd;if(bd<=POCKET.normal)DJ.inPocket++;}e.done=true;}
+  if(DJ.detected.length>200)DJ.detected.splice(0,DJ.detected.length-200);}
+function djScoreUI(){const accEl=$("#djAcc"),feel=$("#djFeel");if(!accEl)return;const acc=DJ.resolved?Math.round(100*DJ.inPocket/DJ.resolved):0;accEl.textContent=DJ.resolved?acc+"%":"—";const ms=DJ.matched?Math.round(1000*DJ.errAbs/DJ.matched):0;if(feel)feel.textContent=!DJ.resolved?"Play along — hit on each cell":"±"+ms+" ms · "+(acc>=80?"locked in 🔥":acc>=55?"close — settle into the click":"listen to the click and lock in");}
+function djFrame(){const now=ac().currentTime;while(DJ.visQ.length&&DJ.visQ[0].t<=now){const e=DJ.visQ.shift();djLight(e.cell);if(e.hit)djHit(e.hit);}
+  const inCount=now<DJ.countEndTime;const ban=$("#djBanner");if(ban){ban.hidden=!inCount;if(inCount)ban.textContent="Count-in…";}
+  if(DJ.scoring){djDetect(now,!inCount);if(!inCount)djMatch(now);djScoreUI();}DJ.raf=requestAnimationFrame(djFrame);}
+function djStart(){unlockAudio();if(DJ.running)return;const a=ac();DJ.running=true;DJ.cur=0;DJ.nextTime=a.currentTime+0.15;DJ.visQ=[];DJ.litCell=-1;DJ.barCount=0;
+  DJ.t0=DJ.nextTime;DJ.countEndTime=DJ.t0+DJ.countIn*(60/DJ.bpm)*4;DJ.expected=[];DJ.detected=[];DJ.resolved=0;DJ.inPocket=0;DJ.matched=0;DJ.errAbs=0;DJ.floor=null;DJ.lastPeak=0;
+  DJ.schID=setInterval(djSchedule,25);DJ.raf=requestAnimationFrame(djFrame);const b=$("#djStart");if(b)b.textContent="⏸ Stop";}
+function djRenderCells(){const box=$("#djCells");if(!box)return;const P=DJP(),div=P.div,st=djSteps(P);box.innerHTML="";
+  for(let beat=0;beat<4;beat++){const grp=document.createElement("div");grp.className="rbeat";
+    for(let s=0;s<div;s++){const cell=beat*div+s,ch=st[cell],d=document.createElement("div");
+      d.className="rcell"+(ch&&ch!=="."?" act "+ch:"")+(div===3?" trip":"");d.innerHTML=`<span>${ch&&ch!=="."?ch:"·"}</span>`;grp.appendChild(d);}
+    box.appendChild(grp);}
+  DJ.litCell=-1;}
+async function renderDjembe(){
+  if(toneRAF)cancelAnimationFrame(toneRAF);djStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  teardown=()=>{djStop();stopMic();};
+  function toggleChip(id,label,on){return `<button class="rchip sm${on?" sel":""}" id="${id}">${label}</button>`;}
+  function draw(){
+    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🪘 Djembe Groove</span></div>
+      <div class="panel">
+        <div class="intro">Pick a pattern — it loops with <b>bass/tone/slap</b> so you can play along and lock the tempo. Mute the pattern to keep just the click, or turn on <b>Score</b> to check your timing with the mic. Tap the pads to practice the three strokes.</div>
+        <div class="rchips" id="djChips"></div>
+        <div class="djlegend"><b style="color:#c9b3ff">B</b> Bass (center) · <b style="color:#ffd9a8">T</b> Tone (edge) · <b style="color:#bfe3ff">S</b> Slap (sharp edge)</div>
+        <div class="drum">
+          <div class="drum-head"></div><div class="drum-edge"></div><div class="drum-bass">bass</div>
+          <div class="flashzone" id="drumFlash"></div><div class="drum-lbl" id="drumLbl"></div>
+          <div class="hand hl" id="handL">🖐</div><div class="hand hr" id="handR">🖐</div>
+        </div>
+        <div class="rbanner" id="djBanner" hidden></div>
+        <div class="rcells" id="djCells"></div>
+        <div class="rrow"><span class="rlab">Tempo</span><input type="range" id="djBpm" min="50" max="180" value="${DJ.bpm}" style="flex:1"><span class="rbpm" id="djBpmV">${DJ.bpm}</span><button class="rtap" id="djTap">Tap</button></div>
+        <div class="rrow2"><span class="rlab">Play</span>${toggleChip("tgPat","🪘 Pattern",DJ.playPattern)}${toggleChip("tgClick","🥁 Click",DJ.metClick)}${toggleChip("tgScore","🎤 Score me",DJ.scoring)}</div>
+        <div class="actions"><button class="btn" id="djStart">▶ Start</button></div>
+        <div class="dpads">
+          <button class="dpad bass" id="padB"><span>Bass</span><span class="pl">B</span></button>
+          <button class="dpad tone" id="padT"><span>Tone</span><span class="pl">T</span></button>
+          <button class="dpad slap" id="padS"><span>Slap</span><span class="pl">S</span></button>
+        </div>
+        ${DJ.scoring?`<div class="rrow2"><span class="rlab">Mic</span><div class="rmeter"><div class="rmeter-f" id="djMeterF"></div></div></div>
+        <div class="rscore"><div class="racc" id="djAcc">—</div><div class="rfeel" id="djFeel">Start, then play along on every hit</div></div>`:""}
+      </div>`;
+    $("#eBack").onclick=goHome;
+    const ch=$("#djChips");DJEMBE_PATTERNS.forEach((p,i)=>{const b=document.createElement("button");b.className="rchip"+(i===DJ.patIdx?" sel":"");b.textContent=p.name;b.onclick=()=>{DJ.patIdx=i;if(DJ.running){DJ.cur=0;DJ.nextTime=ac().currentTime+0.1;DJ.visQ=[];DJ.barCount=0;}draw();};ch.appendChild(b);});
+    djRenderCells();
+    const bp=$("#djBpm");bp.oninput=()=>{DJ.bpm=+bp.value;$("#djBpmV").textContent=DJ.bpm;};
+    $("#djTap").onclick=()=>{const now=performance.now();if(DJ.taps.length&&now-DJ.taps[DJ.taps.length-1]>2000)DJ.taps=[];DJ.taps.push(now);if(DJ.taps.length>5)DJ.taps.shift();if(DJ.taps.length>=2){let s=0;for(let i=1;i<DJ.taps.length;i++)s+=DJ.taps[i]-DJ.taps[i-1];let b=Math.round(60000/(s/(DJ.taps.length-1)));b=Math.max(50,Math.min(180,b));DJ.bpm=b;bp.value=b;$("#djBpmV").textContent=b;}};
+    $("#tgPat").onclick=()=>{DJ.playPattern=!DJ.playPattern;draw();};
+    $("#tgClick").onclick=()=>{DJ.metClick=!DJ.metClick;draw();};
+    $("#tgScore").onclick=async()=>{if(!DJ.scoring){const ok=await ensureMic();if(!ok){DJ.scoring=false;draw();return;}DJ.buf=new Float32Array(toneAnalyser.fftSize);DJ.scoring=true;}else DJ.scoring=false;draw();};
+    $("#djStart").onclick=()=>{unlockAudio();if(DJ.running)djStop();else djStart();};
+    const pb=$("#padB"),pt=$("#padT"),ps=$("#padS");
+    function pad(el,kind){el.addEventListener("pointerdown",e=>{e.preventDefault();unlockAudio();djembe(ac().currentTime+0.01,kind);el.classList.add("hit");setTimeout(()=>el.classList.remove("hit"),90);});}
+    pad(pb,"bass");pad(pt,"tone");pad(ps,"slap");
   }
   draw();
 }
