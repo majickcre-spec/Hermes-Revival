@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Majick Music University</title>
+<meta name="description" content="A music school with no walls. Learn by doing, get real feedback on your craft, track your progress — and tune in to the frequency beneath it all. Built by a Musicians Institute graduate, for everybody.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Majick Music University landing — MMU identity: aubergine void, violet→magenta→gold, Cinzel over Hanken Grotesk, resonance-seal mark. Editorial: one hero, left-aligned sections, feature grids. */
+:root{
+  --void:#0b0715; --panel:#140d26; --panel-2:#1b1333;
+  --line:rgba(236,226,255,.12);
+  --ink:#f4effc; --mist:#b3a4d6;
+  --violet:#b06bff; --magenta:#ec4899; --gold:#f4b740;
+  --radius:18px; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:
+    radial-gradient(900px 620px at 18% -6%, rgba(176,107,255,.20), transparent 60%),
+    radial-gradient(820px 560px at 90% 6%, rgba(236,72,153,.16), transparent 58%),
+    radial-gradient(1000px 720px at 55% 112%, rgba(244,183,64,.11), transparent 60%),
+    var(--void);
+  color:var(--ink);
+  font-family:"Hanken Grotesk",system-ui,-apple-system,sans-serif;
+  line-height:1.62; -webkit-font-smoothing:antialiased; overflow-x:hidden;
+}
+.star{position:fixed;width:2px;height:2px;border-radius:50%;background:#fff;opacity:.5;pointer-events:none;z-index:0}
+.wrap{max-width:900px;margin:0 auto;padding:0 20px;position:relative;z-index:1}
+.gradtext{background:linear-gradient(100deg,var(--violet),var(--magenta) 55%,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+
+.hero{text-align:center;padding:72px 20px 30px}
+.hero .mark{width:132px;height:132px;filter:drop-shadow(0 10px 40px rgba(236,72,153,.35))}
+.eyebrow{font-family:"Cinzel",serif;font-size:12px;letter-spacing:.34em;text-transform:uppercase;color:var(--gold);margin:22px 0 10px}
+.hero h1{font-family:"Cinzel",serif;font-weight:700;letter-spacing:.14em;line-height:1.12;font-size:clamp(30px,6.4vw,52px);margin:0;text-wrap:balance}
+.hero .sub{font-family:"Cinzel",serif;font-size:clamp(15px,3vw,20px);color:var(--mist);letter-spacing:.06em;margin-top:12px}
+.cta{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px}
+.btn{appearance:none;cursor:pointer;text-decoration:none;font-family:"Hanken Grotesk",sans-serif;font-size:15px;font-weight:600;
+  color:#160a1e;background:linear-gradient(100deg,var(--violet),var(--magenta) 55%,var(--gold));
+  border:0;border-radius:999px;padding:13px 26px;letter-spacing:.01em;display:inline-block}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.hero .fine{margin-top:18px;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mist)}
+
+section{padding:34px 0}
+.lead-eyebrow{font-family:"Cinzel",serif;font-size:12px;letter-spacing:.34em;text-transform:uppercase;color:var(--gold);display:flex;align-items:center;gap:12px;margin:0 0 8px}
+.lead-eyebrow::before{content:"";width:26px;height:1px;background:linear-gradient(90deg,var(--gold),transparent)}
+h2{font-family:"Cinzel",serif;font-weight:600;font-size:clamp(21px,3.6vw,30px);margin:0 0 14px;letter-spacing:.01em;text-wrap:balance}
+p.lead{color:var(--mist);max-width:64ch;margin:0 0 16px}
+.ink{color:var(--ink)}
+
+.mission{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:var(--radius);padding:26px}
+.mission p{max-width:60ch;margin:0 0 14px;font-size:17px;line-height:1.66}
+.mission .sig{font-family:"Cinzel",serif;color:var(--gold);font-size:15px;letter-spacing:.06em;margin-top:6px}
+.mission .sig small{display:block;font-family:"Hanken Grotesk",sans-serif;letter-spacing:0;text-transform:none;color:var(--mist);font-size:13px;margin-top:3px}
+
+.grid{display:grid;gap:16px;margin-top:6px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:720px){.g2,.g3{grid-template-columns:1fr}}
+.card{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:var(--radius);padding:20px}
+.card .n{font-family:"Cinzel",serif;color:var(--gold);font-size:13px;letter-spacing:.1em;margin-bottom:8px}
+.card h3{font-family:"Hanken Grotesk",sans-serif;font-size:17px;font-weight:700;margin:0 0 6px}
+.card p{color:var(--mist);margin:0;font-size:14.5px}
+
+.dept{display:flex;gap:13px;align-items:flex-start;padding:15px 16px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.015)}
+.dept .d-t{font-weight:700;font-size:15px}
+.dept .d-d{color:var(--mist);font-size:13.5px;margin-top:2px}
+.dept .dot{width:9px;height:9px;border-radius:50%;margin-top:6px;flex:none;background:linear-gradient(120deg,var(--violet),var(--gold))}
+
+.res{background:
+   radial-gradient(400px 260px at 80% 20%, rgba(244,183,64,.14), transparent 60%),
+   linear-gradient(180deg,var(--panel),var(--panel-2));
+  border:1px solid var(--line);border-radius:var(--radius);padding:26px}
+
+footer{padding:44px 0 72px;text-align:center}
+footer .rule{height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent);margin:0 auto 28px;max-width:420px}
+footer p{color:var(--mist);font-size:13.5px;max-width:54ch;margin:18px auto 0}
+footer b{color:var(--ink);font-weight:600}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="mmuGrad" x1="12" y1="8" x2="108" y2="112" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#b06bff"/><stop offset="0.52" stop-color="#ec4899"/><stop offset="1" stop-color="#f4b740"/>
+  </linearGradient>
+  <symbol id="mmuMark" viewBox="0 0 120 120">
+    <circle cx="60" cy="60" r="53" fill="none" stroke="url(#mmuGrad)" stroke-width="1.8"/>
+    <circle cx="60" cy="60" r="46" fill="none" stroke="url(#mmuGrad)" stroke-width="3.3" stroke-dasharray="0.6 6.3" stroke-linecap="round" opacity="0.6"/>
+    <g fill="none" stroke="url(#mmuGrad)" stroke-width="2.4" stroke-linecap="round" opacity="0.85">
+      <path d="M80 48 Q88 60 80 72"/><path d="M86.5 43 Q99 60 86.5 77" opacity="0.55"/>
+      <path d="M40 48 Q32 60 40 72"/><path d="M33.5 43 Q21 60 33.5 77" opacity="0.55"/>
+    </g>
+    <g fill="none" stroke="url(#mmuGrad)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M47 41 V67 Q47 79 60 79 Q73 79 73 67 V41"/><path d="M60 79 V92"/>
+    </g>
+    <circle cx="60" cy="96.5" r="3.6" fill="url(#mmuGrad)"/>
+    <path d="M60 15 C61.6 24 63 25.4 72 27 C63 28.6 61.6 30 60 39 C58.4 30 57 28.6 48 27 C57 25.4 58.4 24 60 15 Z" fill="#f6c452"/>
+    <circle cx="31" cy="34" r="1.5" fill="#f6c452" opacity="0.8"/><circle cx="90" cy="86" r="1.4" fill="#f6c452" opacity="0.7"/>
+  </symbol>
+</defs></svg>
+
+<header class="hero">
+  <svg class="mark" viewBox="0 0 120 120" role="img" aria-label="Majick Music University mark"><use href="#mmuMark"/></svg>
+  <div class="eyebrow">A music school with no walls</div>
+  <h1 class="gradtext">Majick Music University</h1>
+  <div class="sub">Learn by doing. Track your craft. Tune in.</div>
+  <div class="cta">
+    <a class="btn" href="https://frontend-production-19da.up.railway.app/music-theory">Enter the University</a>
+    <a class="btn ghost" href="https://frontend-production-19da.up.railway.app/resonance">Tune in to the Resonance</a>
+  </div>
+  <div class="fine">Founded in the key of 7.83 Hz &middot; open to everybody</div>
+</header>
+
+<div class="wrap">
+
+  <section>
+    <p class="lead-eyebrow">Why this exists</p>
+    <h2>A music school, for everybody</h2>
+    <div class="mission">
+      <p>I went to <span class="ink">Musicians Institute</span> in Hollywood. It changed how I play and how I hear. But most people never get that &mdash; the tuition, the city, the timing. And even for those who do, the hardest part is <span class="ink">after</span>: staying in motion once the campus is behind you.</p>
+      <p>So I built this. To help musicians keep progressing &mdash; after school, between schools, or for anyone who never got to go. So that learning music, producing music, and playing an instrument is <span class="ink">available to everybody</span>. And to understand the connection between music, meditation, and the evolution of consciousness.</p>
+      <div class="sig">&mdash; Travis Majick<small>Founder &middot; Musicians Institute graduate</small></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="lead-eyebrow">The method</p>
+    <h2>The MI way, with no campus</h2>
+    <p class="lead">MI&rsquo;s whole philosophy is <span class="ink">learn by doing</span>: you play from day one, you perform every week, you learn from working musicians, and you graduate ready to work. This carries that method to your pocket &mdash; and adds the one thing a campus can&rsquo;t.</p>
+    <div class="grid g2">
+      <div class="card"><div class="n">01</div><h3>Play from day one</h3><p>Real instruments in your hands &mdash; piano, guitar, bass, ukulele, handpan, djembe. You make sound first and learn the theory as you need it, the way MI teaches on the stand.</p></div>
+      <div class="card"><div class="n">02</div><h3>Feedback from the craft</h3><p>Drop in a track and The Instructor grades it like a midterm &mdash; gain staging, balance, low end, dynamics, stereo &mdash; genre by genre, and tells you what a pro would fix.</p></div>
+      <div class="card"><div class="n">03</div><h3>Progress you can see</h3><p>Every version of every track is saved and scored, so you watch what progressed and what regressed. You always know you&rsquo;re moving forward.</p></div>
+      <div class="card"><div class="n">04</div><h3>Learn from the music</h3><p>Ear training, chords and real songs you build yourself, beats you sequence by hand. You learn by making the thing, not reading about it.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="lead-eyebrow">The curriculum</p>
+    <h2>Your departments</h2>
+    <div class="grid g2">
+      <div class="dept"><span class="dot"></span><div><div class="d-t">Instruments</div><div class="d-d">Piano, guitar, bass, ukulele, handpan, djembe &mdash; playable, with finger charts and patterns.</div></div></div>
+      <div class="dept"><span class="dot"></span><div><div class="d-t">Ear Training</div><div class="d-d">Chords, scales and intervals by ear &mdash; the skill every pro is built on.</div></div></div>
+      <div class="dept"><span class="dot"></span><div><div class="d-t">Beat Maker</div><div class="d-d">Sequence layered beats and motifs by hand, loop them, export MIDI.</div></div></div>
+      <div class="dept"><span class="dot"></span><div><div class="d-t">The Studio</div><div class="d-d">Multi-track recorder &mdash; stack your parts into sections, then mix them.</div></div></div>
+      <div class="dept"><span class="dot"></span><div><div class="d-t">Learn a Song</div><div class="d-d">Bring in a song, get a play-along chart with loop, tempo and transpose.</div></div></div>
+      <div class="dept"><span class="dot"></span><div><div class="d-t">The Instructor</div><div class="d-d">Genre-specific mix critique, graded, with your progress tracked over time.</div></div></div>
+      <div class="dept"><span class="dot"></span><div><div class="d-t">Schumann Resonance</div><div class="d-d">The Earth&rsquo;s frequency as meditation, binaural, or a full song &mdash; the resonance wing.</div></div></div>
+      <div class="dept"><span class="dot"></span><div><div class="d-t">Song Project</div><div class="d-d">Assemble your sections into a finished song &mdash; your final.</div></div></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="lead-eyebrow">The resonance wing</p>
+    <h2>Where music meets consciousness</h2>
+    <div class="res">
+      <p class="lead">Music was never only craft. It&rsquo;s how we regulate a nervous system, enter a meditation, and move energy through the body. The University&rsquo;s resonance wing tunes everything to <span class="ink">7.83 Hz</span> &mdash; the Schumann resonance, the Earth&rsquo;s own ground note &mdash; and reads the field each day so you can feel what&rsquo;s moving through you and work with it.</p>
+      <p class="lead" style="margin-bottom:18px">Tune your craft and your frequency in the same place. That&rsquo;s the part no campus teaches.</p>
+      <a class="btn" href="https://frontend-production-19da.up.railway.app/resonance">Enter the Resonance</a>
+    </div>
+  </section>
+
+  <section>
+    <p class="lead-eyebrow">Open doors</p>
+    <h2>No tuition. No walls.</h2>
+    <p class="lead">You don&rsquo;t apply, you don&rsquo;t move to Hollywood, and you don&rsquo;t age out. Whether you&rsquo;re a graduate keeping the momentum, a player between seasons, or someone who never got the chance &mdash; the doors are open, and the only requirement is that you make something today.</p>
+  </section>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="rule"></div>
+    <div class="cta">
+      <a class="btn" href="https://frontend-production-19da.up.railway.app/music-theory">Enter the University</a>
+      <a class="btn ghost" href="https://frontend-production-19da.up.railway.app/resonance">Tune in</a>
+    </div>
+    <p>Built by <b>Travis Majick</b>, Musicians Institute graduate &mdash; in gratitude to the teachers who taught me by doing. Majick Music University is independent and not affiliated with Musicians Institute.</p>
+  </div>
+</footer>
+
+<script>
+(function(){var n=28;for(var i=0;i<n;i++){var s=document.createElement('div');s.className='star';s.style.left=(Math.random()*100)+'vw';s.style.top=(Math.random()*100)+'vh';s.style.opacity=(0.2+Math.random()*0.5).toFixed(2);s.style.transform='scale('+(0.6+Math.random()*1.2).toFixed(2)+')';document.body.appendChild(s);}})();
+</script>
+</body>
+</html>
