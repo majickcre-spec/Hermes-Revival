@@ -200,6 +200,9 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .hpcell{min-width:30px;padding:6px 9px;text-align:center;border-radius:8px;background:var(--card2);border:1px solid var(--line);color:var(--cream);font-size:.86rem;font-weight:700;transition:background .06s,color .06s,box-shadow .06s}
 .hpcell.ding{border-color:var(--gold)}
 .hpcell.on{background:#ff9f5c;color:#201a10;border-color:#ff9f5c;box-shadow:0 0 12px rgba(255,159,92,.7)}
+.finger-legend{background:var(--card2);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:9px 12px;margin:0 0 12px;color:var(--muted);font-size:.85rem;line-height:1.55}
+.finger-legend b{color:var(--cream)}
+.finger-legend .fg{display:inline-block;min-width:17px;height:17px;line-height:17px;text-align:center;background:#ff9f5c;color:#201a10;border-radius:50%;font-weight:800;font-size:.72rem;margin:0 1px}
 .djlegend{font-size:.82rem;color:var(--muted);font-family:"Nunito Sans",system-ui,sans-serif;margin:8px 2px 4px}
 .rcell.B{color:#c9b3ff;border-color:var(--violet);background:rgba(165,121,255,.14)}
 .rcell.T{color:#ffd9a8;border-color:var(--gold);background:rgba(255,159,92,.14)}
@@ -2162,7 +2165,7 @@ function renderHandpan(){
   function crLight(i){const strip=$("#crStrip");if(!strip)return;strip.querySelectorAll(".hpcell.on").forEach(e=>e.classList.remove("on"));const el=$("#crS"+i);if(el)el.classList.add("on");}
   function crCall(){unlockAudio();if(crBusy)return;if(!crPhrase.length)crGen();crBusy=true;const fb=$("#crFb");if(fb)fb.style.display="none";
     const sc=hpScaleList()[HP.scaleIdx].notes,spb=60/84,a=ac();let t=a.currentTime+0.3;const base=t;crExpected=[];
-    crPhrase.forEach((idx,i)=>{const midi=sc[Math.min(idx,sc.length-1)];handpan(t,midi);setTimeout(()=>crLight(i),(t-a.currentTime)*1000);crExpected.push({midi,t:t-base});t+=spb;});
+    crPhrase.forEach((idx,i)=>{const midi=sc[Math.min(idx,sc.length-1)];handpan(t,midi);setTimeout(()=>{crLight(i);hpLight(idx);},(t-a.currentTime)*1000);crExpected.push({midi,t:t-base});t+=spb;});
     const dur=t-base,st=$("#crStatus");if(st)st.textContent="🎧 Listen…";
     setTimeout(()=>{crBusy=false;crAnswer(dur);},(t-a.currentTime)*1000+120);}
   function crAnswer(dur){const st=$("#crStatus");if(st)st.textContent="turning on mic…";dur=dur||(60/84*crLevel);
@@ -2304,6 +2307,14 @@ const CHORDS={
    A:[2,1,0,0],D:[2,2,2,0],E:[4,4,4,2],Bm:[4,2,2,2],G7:[0,2,1,2],C7:[0,0,0,1],D7:[2,2,2,3]}
 };
 const HARD={guitar:{F:1,Bm:1,E:0},ukulele:{E:1,Bm:1}};
+/* which finger frets each string: 1=index 2=middle 3=ring 4=pinky (0=open/muted) */
+const FINGERS={
+ guitar:{C:[0,3,2,0,1,0],G:[2,1,0,0,0,3],D:[0,0,0,1,3,2],A:[0,0,1,2,3,0],E:[0,2,3,1,0,0],
+   Am:[0,0,2,3,1,0],Em:[0,2,3,0,0,0],Dm:[0,0,0,2,3,1],F:[1,3,4,2,1,1],Bm:[0,1,3,4,2,1],
+   G7:[3,2,0,0,0,1],C7:[0,3,2,4,1,0],D7:[0,0,0,2,1,3]},
+ ukulele:{C:[0,0,0,3],F:[2,0,1,0],G:[0,1,3,2],Am:[2,0,0,0],Dm:[2,3,1,0],Em:[0,3,2,1],
+   A:[2,1,0,0],D:[1,2,3,0],E:[2,3,4,1],Bm:[3,1,1,1],G7:[0,2,1,3],C7:[0,0,0,1],D7:[1,1,1,3]}
+};
 const KEY_CHORDS={
  C:{chords:["C","Dm","Em","F","G","Am"],rn:["I","ii","iii","IV","V","vi"]},
  G:{chords:["G","Am","Bm","C","D","Em"],rn:["I","ii","iii","IV","V","vi"]}
@@ -2322,15 +2333,26 @@ function pluck(midi,time,dur,peak){const a=ac(),out=pianoMaster(a),f=midiToFreq(
   const g=a.createGain();g.gain.setValueAtTime(0.0001,time);g.gain.exponentialRampToValueAtTime(peak||0.22,time+0.005);g.gain.exponentialRampToValueAtTime(0.0001,time+dur);
   o.connect(lp);lp.connect(g);g.connect(out);o.start(time);o.stop(time+dur+0.05);}
 function strum(inst,frets,time,down){const notes=chordNotes(inst,frets),order=down?notes:notes.slice().reverse();order.forEach((m,i)=>pluck(m,time+i*0.03,1.5,0.24));}
-function chordDiagram(inst,frets){const NS="http://www.w3.org/2000/svg",nS=STRING_INSTR[inst].strings.length,nF=5,x0=14,y0=26,dx=24,dy=24,W=x0*2+(nS-1)*dx,H=y0+nF*dy+8;
+function chordDiagram(inst,frets,name){const NS="http://www.w3.org/2000/svg",nS=STRING_INSTR[inst].strings.length,nF=5,x0=26,y0=30,dx=28,dy=28,W=x0+(nS-1)*dx+18,H=y0+nF*dy+10;
+  const fingers=(name&&FINGERS[inst]&&FINGERS[inst][name])||null;
   const svg=document.createElementNS(NS,"svg");svg.setAttribute("viewBox","0 0 "+W+" "+H);svg.setAttribute("width",W);
-  for(let r=0;r<=nF;r++){const y=y0+r*dy,ln=document.createElementNS(NS,"line");ln.setAttribute("x1",x0);ln.setAttribute("x2",x0+(nS-1)*dx);ln.setAttribute("y1",y);ln.setAttribute("y2",y);ln.setAttribute("stroke",r===0?"#e8e4d9":"rgba(255,255,255,.28)");ln.setAttribute("stroke-width",r===0?3.5:1.1);svg.appendChild(ln);}
-  for(let s=0;s<nS;s++){const x=x0+s*dx,ln=document.createElementNS(NS,"line");ln.setAttribute("x1",x);ln.setAttribute("x2",x);ln.setAttribute("y1",y0);ln.setAttribute("y2",y0+nF*dy);ln.setAttribute("stroke","rgba(255,255,255,.28)");ln.setAttribute("stroke-width",1.1);svg.appendChild(ln);}
+  const mk=(t,a)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
+  for(let r=0;r<=nF;r++){const y=y0+r*dy;svg.appendChild(mk("line",{x1:x0,x2:x0+(nS-1)*dx,y1:y,y2:y,stroke:r===0?"#e8e4d9":"rgba(255,255,255,.28)","stroke-width":r===0?3.5:1.1}));
+    if(r>=1){const t=mk("text",{x:x0-11,y:y0+(r-0.5)*dy+4,"text-anchor":"middle","font-size":"11",fill:"#8aa0a8"});t.textContent=r;svg.appendChild(t);}}
+  for(let s=0;s<nS;s++){const x=x0+s*dx;svg.appendChild(mk("line",{x1:x,x2:x,y1:y0,y2:y0+nF*dy,stroke:"rgba(255,255,255,.28)","stroke-width":1.1}));}
+  // barres: same finger on the same fret across 2+ strings
+  if(fingers){const grp={};frets.forEach((fr,s)=>{if(fr>0&&fingers[s]>0){const key=fingers[s]+"@"+fr;(grp[key]=grp[key]||[]).push(s);}});
+    Object.keys(grp).forEach(key=>{const ss=grp[key];if(ss.length<2)return;const fr=+key.split("@")[1],y=y0+(fr-0.5)*dy,xa=x0+Math.min.apply(null,ss)*dx,xb=x0+Math.max.apply(null,ss)*dx;
+      svg.appendChild(mk("rect",{x:xa-10,y:y-10,width:(xb-xa)+20,height:20,rx:10,fill:"#ff9f5c",opacity:"0.9"}));});}
   frets.forEach((fr,s)=>{const x=x0+s*dx;
-    if(fr<0){const t=document.createElementNS(NS,"text");t.setAttribute("x",x);t.setAttribute("y",y0-8);t.setAttribute("text-anchor","middle");t.setAttribute("fill","#ff8f8c");t.setAttribute("font-size","13");t.textContent="✕";svg.appendChild(t);}
-    else if(fr===0){const c=document.createElementNS(NS,"circle");c.setAttribute("cx",x);c.setAttribute("cy",y0-11);c.setAttribute("r",5);c.setAttribute("fill","none");c.setAttribute("stroke","#e8e4d9");c.setAttribute("stroke-width",1.5);svg.appendChild(c);}
-    else{const y=y0+(fr-0.5)*dy,d=document.createElementNS(NS,"circle");d.setAttribute("cx",x);d.setAttribute("cy",y);d.setAttribute("r",8);d.setAttribute("fill","#ff9f5c");svg.appendChild(d);}});
+    if(fr<0){const t=mk("text",{x:x,y:y0-9,"text-anchor":"middle",fill:"#ff8f8c","font-size":"14"});t.textContent="✕";svg.appendChild(t);}
+    else if(fr===0){svg.appendChild(mk("circle",{cx:x,cy:y0-12,r:5.5,fill:"none",stroke:"#e8e4d9","stroke-width":1.6}));}
+    else{const y=y0+(fr-0.5)*dy;svg.appendChild(mk("circle",{cx:x,cy:y,r:10,fill:"#ff9f5c"}));
+      if(fingers&&fingers[s]>0){const t=mk("text",{x:x,y:y+4.5,"text-anchor":"middle",fill:"#201a10","font-size":"13","font-weight":"800","font-family":"Bricolage Grotesque,system-ui,sans-serif"});t.textContent=fingers[s];svg.appendChild(t);}}});
   return svg;}
+function fingerLegend(){const d=document.createElement("div");d.className="finger-legend";
+  d.innerHTML='<b>Fretting hand:</b> the number in each dot is the finger — <span class="fg">1</span> index · <span class="fg">2</span> middle · <span class="fg">3</span> ring · <span class="fg">4</span> pinky. Numbers down the left are <b>frets</b>. <b>○</b> play open, <b>✕</b> don’t play that string. A long bar = one finger pressing several strings (a “barre”).';
+  return d;}
 function strLearned(inst){return load(mk("str",inst+"-learned"),[]);}
 function strRank(n){return n>=10?"Chord Master":n>=6?"Chord Keeper":n>=3?"Strummer":"Beginner";}
 function renderStrings(inst){
@@ -2353,14 +2375,16 @@ function strChords(inst){
   function draw(){
     const learned=strLearned(inst);
     view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎵 ${STRING_INSTR[inst].name} Chords</span></div>
-      <div class="panel"><div class="intro">Tap <b>▶</b> to hear a chord, place your fingers on the dots (✕ = don't play, ○ = open string), then mark <b>✓ I can play it</b> to earn Beans and level up.</div>
+      <div class="panel"><div class="intro">Tap <b>▶</b> to hear a chord, then put your fingers on the dots — the number in each dot tells you which finger. Mark <b>✓ I can play it</b> to earn Beans and level up.</div>
+      <div id="fgLegend"></div>
       <div class="chordgrid" id="cg"></div></div>`;
     $("#eBack").onclick=()=>renderStrings(inst);
+    const fl=$("#fgLegend");if(fl)fl.appendChild(fingerLegend());
     const cg=$("#cg");
     Object.keys(CHORDS[inst]).forEach(name=>{const frets=CHORDS[inst][name],done=learned.indexOf(name)>=0,hard=HARD[inst]&&HARD[inst][name];
       const card=document.createElement("div");card.className="chordcard"+(done?" learned":"");
       const h=document.createElement("h4");h.textContent=name+(hard?" ·hard":"");card.appendChild(h);
-      card.appendChild(chordDiagram(inst,frets));
+      card.appendChild(chordDiagram(inst,frets,name));
       const row=document.createElement("div");row.style.cssText="display:flex;gap:6px;margin-top:4px";
       const hear=document.createElement("button");hear.className="rchip sm";hear.textContent="▶";hear.onclick=()=>{unlockAudio();strum(inst,frets,ac().currentTime+0.02,true);};
       const mark=document.createElement("button");mark.className="rchip sm"+(done?" sel":"");mark.textContent=done?"✓ learned":"I can play it";
@@ -2377,13 +2401,15 @@ function strKey(inst){
     view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔑 Chords in a Key</span></div>
       <div class="panel"><div class="intro">These are the chords that belong to <b>${key} major</b> — songs in this key mostly use these. Tap one to hear it.</div>
       <div class="rrow2"><span class="rlab">Key</span><span class="rchips tight" id="keyChips"></span></div>
+      <div id="fgLegend"></div>
       <div class="chordgrid" id="kg"></div></div>`;
     $("#eBack").onclick=()=>renderStrings(inst);
+    const fl=$("#fgLegend");if(fl)fl.appendChild(fingerLegend());
     const kc=$("#keyChips");Object.keys(KEY_CHORDS).forEach(k=>{const b=document.createElement("button");b.className="rchip sm"+(k===key?" sel":"");b.textContent=k+" major";b.onclick=()=>{key=k;draw();};kc.appendChild(b);});
     const kg=$("#kg");
     K.chords.forEach((name,i)=>{const frets=CHORDS[inst][name];const card=document.createElement("div");card.className="chordcard";
       const h=document.createElement("h4");h.innerHTML=name+' <span style="color:var(--muted);font-size:.8rem">'+K.rn[i]+'</span>';card.appendChild(h);
-      if(frets){card.appendChild(chordDiagram(inst,frets));const hear=document.createElement("button");hear.className="rchip sm";hear.textContent="▶ hear";hear.onclick=()=>{unlockAudio();strum(inst,frets,ac().currentTime+0.02,true);};card.appendChild(hear);}
+      if(frets){card.appendChild(chordDiagram(inst,frets,name));const hear=document.createElement("button");hear.className="rchip sm";hear.textContent="▶ hear";hear.onclick=()=>{unlockAudio();strum(inst,frets,ac().currentTime+0.02,true);};card.appendChild(hear);}
       else{const p=document.createElement("div");p.className="site-note";p.textContent="(shape coming)";card.appendChild(p);}
       kg.appendChild(card);});
   }
@@ -2397,7 +2423,7 @@ function prgSchedule(){const a=ac(),ahead=0.25,spb=60/PRG.bpm,barDur=spb*4;
     if(frets){strum(PRG.inst,frets,PRG.nextTime,true);strum(PRG.inst,frets,PRG.nextTime+2*spb,false);}
     PRG.visQ.push({t:PRG.nextTime,idx:PRG.idx});
     PRG.nextTime+=barDur;PRG.idx=(PRG.idx+1)%PRG.chords.length;if(PRG.idx===0)PRG.loops++;}}
-function prgShow(idx){const now=$("#prgNow");if(now)now.textContent=PRG.chords[idx];const dia=$("#prgDia");if(dia){dia.innerHTML="";const f=CHORDS[PRG.inst][PRG.chords[idx]];if(f)dia.appendChild(chordDiagram(PRG.inst,f));}
+function prgShow(idx){const now=$("#prgNow");if(now)now.textContent=PRG.chords[idx];const dia=$("#prgDia");if(dia){dia.innerHTML="";const f=CHORDS[PRG.inst][PRG.chords[idx]];if(f)dia.appendChild(chordDiagram(PRG.inst,f,PRG.chords[idx]));}
   document.querySelectorAll("#prgChordRow .pchip").forEach((el,i)=>el.classList.toggle("on",i===idx));}
 function prgFrame(){const now=ac().currentTime;while(PRG.visQ.length&&PRG.visQ[0].t<=now){const e=PRG.visQ.shift();prgShow(e.idx);}
   if(PRG.loops>=1&&!PRG.paid){PRG.paid=true;if(activeId()&&!load(mk("str",PRG.inst+"-prog-"+PRG.onName),false)){addBeans(8);save(mk("str",PRG.inst+"-prog-"+PRG.onName),true);beanChip();const n=$("#prgNote");if(n)n.textContent="+8 🫘 — you played it through!";}}
@@ -2489,7 +2515,7 @@ function strProg(inst){
     $("#eBack").onclick=()=>{prgStop();if(crRaf)cancelAnimationFrame(crRaf);try{stopMic();}catch(e){}renderStrings(inst);};
     const pl=$("#prgList");PROGS.forEach((p,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===pi?" sel":"");b.textContent=p.name;b.onclick=()=>{prgStop();if(crRaf)cancelAnimationFrame(crRaf);pi=i;draw();};pl.appendChild(b);});
     const row=$("#prgChordRow");P.chords.forEach((c,i)=>{const s=document.createElement("span");s.className="pchip"+(i===0?" on":"");s.textContent=c;row.appendChild(s);});
-    const dia=$("#prgDia");const f0=CHORDS[inst][P.chords[0]];if(f0)dia.appendChild(chordDiagram(inst,f0));
+    const dia=$("#prgDia");const f0=CHORDS[inst][P.chords[0]];if(f0)dia.appendChild(chordDiagram(inst,f0,P.chords[0]));
     const bp=$("#prgBpm");bp.oninput=()=>{PRG.bpm=+bp.value;$("#prgBpmV").textContent=PRG.bpm;};
     $("#prgStart").onclick=()=>{if(PRG.running)prgStop();else prgStart();};
     $("#prgCR").onclick=prgCR;
