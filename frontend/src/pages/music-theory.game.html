@@ -878,6 +878,8 @@ const EAR_CARDS=[
  {mode:"songs",ic:"🎶",title:"Song-Phrase Match",blurb:"Learn each interval by a famous song — Twinkle Twinkle, Jaws, Star Wars…"},
  {mode:"chords",ic:"🎵",title:"Chord Ear Trainer",blurb:"Hear a chord and name it — major, minor, up to 7ths. Scored, right here — no third-party app."},
  {mode:"scales",ic:"🎶",title:"Scale Ear Trainer",blurb:"Hear a scale and name it — major, minor, modes, pentatonic, blues."},
+ {mode:"prog",ic:"🎹",title:"Progression Ear",blurb:"Hear a chord progression and name it — I–V–vi–IV, ii–V–I, the 12-bar blues."},
+ {mode:"cadence",ic:"🔚",title:"Cadence Ear",blurb:"Hear how a phrase ends — authentic, plagal (Amen), deceptive, half. The grammar of resolution."},
  {mode:"noteid",ic:"🎹",title:"Note ID",blurb:"Hear a note, then find it on the piano keyboard — trains pitch and your key sense."},
  {mode:"tone",ic:"🎤",title:"Tone Match",blurb:"Sing into the mic and match the pitch — single notes, intervals, and little song phrases, scored live."}
 ];
@@ -987,7 +989,7 @@ function playSing(midi,dur){playSustain(midiToFreq(midi),0,dur||2.2,0.9);}
 
 function openEar(mode){if(mode==="tone"){renderTone();return;}
   home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  if(mode==="intervals")renderLevels();else if(mode==="songs")renderSongs();else if(mode==="chords")renderChordEar();else if(mode==="scales")renderScaleEar();else if(mode==="noteid")renderNoteEar();beanChip();}
+  if(mode==="intervals")renderLevels();else if(mode==="songs")renderSongs();else if(mode==="chords")renderChordEar();else if(mode==="scales")renderScaleEar();else if(mode==="noteid")renderNoteEar();else if(mode==="prog")renderProgEar();else if(mode==="cadence")renderCadenceEar();beanChip();}
 
 /* ===== TONE MATCH (sing into the mic) ===== */
 const NOTE_NAMES=["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"];
@@ -2101,6 +2103,79 @@ function renderRhythmTranscribe(){if(toneRAF)cancelAnimationFrame(toneRAF);home.
       const pk=$("#rtPad_kick"),ps=$("#rtPad_snare");if(pk)pk.onclick=()=>rtTap("kick");if(ps)ps.onclick=()=>rtTap("snare");}
   }
 }
+/* ===== TUNER — tune a real guitar/bass/uke with the mic ===== */
+const TUNER_INST={guitar:{name:"Guitar",strings:[["E",40],["A",45],["D",50],["G",55],["B",59],["E",64]]},bass:{name:"Bass",strings:[["E",28],["A",33],["D",38],["G",43]]},ukulele:{name:"Ukulele",strings:[["G",67],["C",60],["E",64],["A",69]]},chromatic:{name:"Chromatic",strings:null}};
+const TN={inst:"guitar",raf:null,running:false};
+(function(){try{var s=document.createElement("style");s.textContent=
+"#tnuNote{font-family:'Fraunces',serif;font-size:4.2rem;font-weight:700;text-align:center;line-height:1;margin:6px 0}#tnuCents{text-align:center;color:var(--muted);font-size:.95rem;min-height:22px}"+
+"#tnuMeter{position:relative;height:16px;border-radius:999px;background:linear-gradient(90deg,#ff8f8c,#f4b740 44%,#5fe0a8 50%,#f4b740 56%,#ff8f8c);opacity:.55;margin:14px 0 6px}#tnuNeedle{position:absolute;top:-5px;width:3px;height:26px;background:#fff;left:50%;transform:translateX(-1px);border-radius:2px;transition:left .06s;box-shadow:0 0 6px #fff}"+
+".tnustrs{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}.tnustr{min-width:46px;padding:8px 4px;border-radius:10px;border:1px solid var(--line);text-align:center;background:var(--card)}.tnustr b{font-size:1.05rem}.tnustr span{display:block;font-size:.62rem;color:var(--muted)}.tnustr.near{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}.tnustr.ok{border-color:#5fe0a8;color:#5fe0a8;box-shadow:0 0 0 1px #5fe0a8}"+
+".dkgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}.dkpad{aspect-ratio:1.3;border-radius:14px;border:1px solid var(--line);background:linear-gradient(160deg,var(--card2),var(--card));color:var(--cream);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:inherit;-webkit-user-select:none;user-select:none}.dkpad:active{transform:scale(.96)}.dkpad.hit{background:rgba(52,224,198,.26);border-color:var(--violet);box-shadow:0 0 16px rgba(52,224,198,.3)}.dkpad .dkn{font-weight:700;font-size:.9rem}.dkpad .dkk{font-size:.62rem;color:var(--muted)}";
+document.head.appendChild(s);}catch(e){}})();
+function tnInfo(f){const m=69+12*Math.log2(f/440),r=Math.round(m);return {midi:r,name:NOTE_NAMES[((r%12)+12)%12],oct:Math.floor(r/12)-1,cents:Math.round((m-r)*100),f:f};}
+function tnNearest(midi){const inst=TUNER_INST[TN.inst];if(!inst.strings)return null;let best=null;inst.strings.forEach((st,i)=>{const diff=midi-st[1];if(!best||Math.abs(diff)<Math.abs(best.diff))best={i:i,label:st[0],target:st[1],diff:diff};});return best;}
+function tnShow(d){const n=$("#tnuNote");if(!n)return;const inTune=Math.abs(d.cents)<=5;n.innerHTML=esc(d.name)+'<span style="font-size:.4em;opacity:.55">'+d.oct+'</span>';n.style.color=inTune?"#5fe0a8":"var(--cream)";
+  const c=$("#tnuCents");if(c)c.textContent=inTune?"in tune ✓":(d.cents>0?"+"+d.cents+"¢ — sharp, loosen":d.cents+"¢ — flat, tighten");
+  const nd=$("#tnuNeedle");if(nd)nd.style.left=(50+Math.max(-50,Math.min(50,d.cents)))+"%";
+  const inst=TUNER_INST[TN.inst];if(inst.strings){const near=tnNearest(d.midi);document.querySelectorAll(".tnustr").forEach((el,i)=>{const isN=near&&i===near.i;el.classList.toggle("near",isN&&!inTune);el.classList.toggle("ok",isN&&inTune);});}}
+function tnStart(){const c=$("#tnuCents");if(c)c.textContent="turning on the mic…";ensureMic().then(ok=>{if(!ok){const n=$("#tnuNote");if(n)n.textContent="🎤";if(c)c.textContent="I need mic access to hear your instrument.";return;}TN.running=true;const buf=new Float32Array(toneAnalyser.fftSize);(function loop(){if(!TN.running)return;toneAnalyser.getFloatTimeDomainData(buf);const f=autoCorrelate(buf,ac().sampleRate);if(f>=50&&f<=1400)tnShow(tnInfo(f));TN.raf=requestAnimationFrame(loop);})();});}
+function renderTuner(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  teardown=()=>{TN.running=false;if(TN.raf)cancelAnimationFrame(TN.raf);try{stopMic();}catch(e){}};
+  function draw(){const inst=TUNER_INST[TN.inst];let strs="";if(inst.strings)strs='<div class="tnustrs">'+inst.strings.map(st=>'<div class="tnustr"><b>'+st[0]+'</b><span>'+(Math.floor(st[1]/12)-1)+'</span></div>').join("")+'</div>';
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎯 Tuner</span></div><div class="panel">'+
+      '<div class="rrow2"><span class="rchips tight" id="tnuInst"></span></div>'+
+      '<div id="tnuNote">—</div><div id="tnuCents">Play a string and let it ring.</div>'+
+      '<div id="tnuMeter"><div id="tnuNeedle"></div></div>'+
+      '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>♭ flat</span><span>in tune</span><span>sharp ♯</span></div>'+
+      strs+
+      '<div class="site-note" style="margin-top:14px">Pluck one string and hold it steady. Tune until the note name matches the string and the needle sits in the green. '+(inst.strings?'Standard tuning: '+inst.strings.map(s=>s[0]).join(' ')+'.':'Chromatic — shows the nearest note to anything you play.')+'</div></div>';
+    $("#eBack").onclick=()=>{TN.running=false;goHome();};
+    const ic=$("#tnuInst");["guitar","bass","ukulele","chromatic"].forEach(k=>{const b=document.createElement("button");b.className="rchip sm"+(TN.inst===k?" sel":"");b.textContent=TUNER_INST[k].name;b.onclick=()=>{TN.inst=k;draw();};ic.appendChild(b);});
+    if(!TN.running)tnStart();}
+  draw();
+}
+/* ===== DRUM KIT — a playable kit (pads + keyboard) ===== */
+function dkOpenHat(a,out,t){rtNz(a,out,t,0.32,7000,0.3);}
+function dkTom(a,out,t,freq){const o=a.createOscillator(),g=a.createGain();o.type="sine";o.frequency.setValueAtTime(freq,t);o.frequency.exponentialRampToValueAtTime(freq*0.5,t+0.3);g.gain.setValueAtTime(0.9,t);g.gain.exponentialRampToValueAtTime(0.0001,t+0.35);o.connect(g);g.connect(out);o.start(t);o.stop(t+0.37);}
+function dkCrash(a,out,t){rtNz(a,out,t,0.9,5000,0.42);rtNz(a,out,t,0.9,9000,0.3);}
+function dkRide(a,out,t){const o=a.createOscillator(),g=a.createGain();o.type="square";o.frequency.value=900;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.12,t+0.003);g.gain.exponentialRampToValueAtTime(0.0001,t+0.22);o.connect(g);g.connect(out);o.start(t);o.stop(t+0.24);rtNz(a,out,t,0.45,7500,0.22);}
+const DK_PADS=[[["crash","Crash","Q"],["hat","Hi-Hat","W"],["ride","Ride","E"]],[["tom1","Tom 1","A"],["snare","Snare","S"],["tom2","Tom 2","D"]],[["ohat","Open Hat","Z"],["kick","Kick","X"],["floor","Floor","C"]]];
+const DK_KEYS={q:"crash",w:"hat",e:"ride",a:"tom1",s:"snare",d:"tom2",z:"ohat",x:"kick",c:"floor"};
+function dkPlay(id){unlockAudio();const a=ac(),out=pianoMaster(a),t=a.currentTime+0.001;const v={kick:()=>rtKick(a,out,t),snare:()=>rtSnare(a,out,t),hat:()=>rtHat(a,out,t),ohat:()=>dkOpenHat(a,out,t),tom1:()=>dkTom(a,out,t,220),tom2:()=>dkTom(a,out,t,165),floor:()=>dkTom(a,out,t,110),crash:()=>dkCrash(a,out,t),ride:()=>dkRide(a,out,t)}[id];if(v)v();
+  const el=document.querySelector('.dkpad[data-id="'+id+'"]');if(el){el.classList.remove("hit");void el.offsetWidth;el.classList.add("hit");setTimeout(()=>el.classList.remove("hit"),110);}}
+function dkKey(e){if(e.repeat)return;const id=DK_KEYS[(e.key||"").toLowerCase()];if(id){e.preventDefault();dkPlay(id);}}
+function renderDrumKit(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  document.removeEventListener("keydown",dkKey);document.addEventListener("keydown",dkKey);
+  teardown=()=>{document.removeEventListener("keydown",dkKey);};
+  let grid="";DK_PADS.forEach(row=>{row.forEach(p=>{grid+='<button class="dkpad" data-id="'+p[0]+'"><span class="dkn">'+p[1]+'</span><span class="dkk">'+p[2]+'</span></button>';});});
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🥁 Drum Kit</span></div><div class="panel">'+
+    '<div class="intro">A playable kit — tap the pads, or use your keyboard (<b>Q W E / A S D / Z X C</b>). Play a beat: kick on 1 &amp; 3, snare on 2 &amp; 4, hats keeping time.</div>'+
+    '<div class="dkgrid">'+grid+'</div>'+
+    '<div class="site-note">Want to build and loop a beat instead of play it live? That’s the <b>Sampler</b> and <b>Beat Maker</b>.</div></div>';
+  $("#eBack").onclick=goHome;
+  document.querySelectorAll(".dkpad").forEach(b=>{b.onclick=()=>dkPlay(b.dataset.id);});
+}
+/* ===== EAR TRAINING — progressions & cadences ===== */
+function playChordAt(rootMidi,q,start){const iv=(CHORD_DEFS[q]||CHORD_DEFS.maj).iv;iv.forEach(s=>playTone(midiToFreq(rootMidi+s),start,1.0));}
+function playProg(root,seq){seq.forEach((ch,i)=>playChordAt(root+ch[0],ch[1],i*0.62));}
+const PROG_DEFS={
+ "1546":{iv:[[0,"maj"],[7,"maj"],[9,"min"],[5,"maj"]],name:"I–V–vi–IV (pop)"},
+ "1451":{iv:[[0,"maj"],[5,"maj"],[7,"maj"],[0,"maj"]],name:"I–IV–V–I"},
+ "1645":{iv:[[0,"maj"],[9,"min"],[5,"maj"],[7,"maj"]],name:"I–vi–IV–V (50s)"},
+ "6415":{iv:[[9,"min"],[5,"maj"],[0,"maj"],[7,"maj"]],name:"vi–IV–I–V"},
+ "251":{iv:[[2,"min7"],[7,"dom7"],[0,"maj7"]],name:"ii–V–I (jazz)"},
+ "blues":{iv:[[0,"dom7"],[5,"dom7"],[0,"dom7"],[7,"dom7"]],name:"12-bar blues (I7–IV7–I7–V7)"}
+};
+const PROG_LEVELS=[["1546","1451","1645"],["1546","1451","1645","6415","blues"],["1546","1451","1645","6415","blues","251"]];
+const CAD_DEFS={
+ auth:{iv:[[7,"maj"],[0,"maj"]],name:"Authentic (V–I)"},
+ plagal:{iv:[[5,"maj"],[0,"maj"]],name:"Plagal — “Amen” (IV–I)"},
+ half:{iv:[[0,"maj"],[7,"maj"]],name:"Half (I–V)"},
+ decept:{iv:[[7,"maj"],[9,"min"]],name:"Deceptive (V–vi)"}
+};
+const CAD_LEVELS=[["auth","plagal"],["auth","plagal","half"],["auth","plagal","half","decept"]];
+function renderProgEar(){earGame({key:"prog",title:"🎹 Progression Ear",intro:"Hear a chord progression in a key and name it.",defs:PROG_DEFS,levels:PROG_LEVELS,play:playProg});}
+function renderCadenceEar(){earGame({key:"cadence",title:"🔚 Cadence Ear",intro:"Hear how a phrase ends — the grammar of resolution.",defs:CAD_DEFS,levels:CAD_LEVELS,play:playProg});}
 /* ===== SAMPLER — your own sound library: pads, record/upload/slice, sequence ===== */
 const SAMP={pads:new Array(8).fill(null),grid:Array.from({length:8},()=>new Array(16).fill(false)),
   bpm:90,sel:0,melodic:false,playing:false,cur:0,nextTime:0,schID:null,raf:null,visQ:[],starterLoaded:false,slices:[],srcName:""};
@@ -3270,6 +3345,8 @@ const INSTRUMENT_CARDS=[
  {ic:"🪕",title:"Ukulele",blurb:"Learn ukulele chords, major-scale chord families, and play along to progressions.",go:()=>renderStrings("ukulele")},
  {ic:"🎸",title:"Bass Guitar",blurb:"Hold down the low end — tap the fretboard, learn bass chord shapes and basslines, follow the glow, record your real bass, and play it back for scoring.",go:()=>renderBass()},
  {ic:"🎸",title:"Fretboard",blurb:"A playable, full-screen fretboard — play guitar, bass or ukulele by fretting real strings, and practice chord shapes by putting your fingers on the glowing spots and holding them to build muscle memory.",go:()=>renderFretboard("guitar")},
+ {ic:"🎯",title:"Tuner",blurb:"Tune your real guitar, bass, or ukulele with the mic — see each string go sharp, flat, or green. Chromatic mode too.",go:()=>renderTuner()},
+ {ic:"🥁",title:"Drum Kit",blurb:"A playable kit — tap the pads or use your keyboard for kick, snare, hats, toms, crash and ride. Jam live.",go:()=>renderDrumKit()},
  {ic:"🪘",title:"Djembe Groove",blurb:"Play djembe patterns (bass/tone/slap), loop on tempo, tap or drum along — with timing feedback and Call & Response.",go:()=>renderDjembe()}
 ];
 const MAKE_CARDS=[
