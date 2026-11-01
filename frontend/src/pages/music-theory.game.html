@@ -1076,6 +1076,66 @@ async function renderTone(){
   teardown=stopMic;
   toneMenu();
 }
+/* ===== VOCAL WARM-UPS — 5-note scale runs with sing-along guide + end grading ===== */
+var WARM_SCALES={major:{name:"Major",iv:[0,2,4,5,7]},minor:{name:"Minor",iv:[0,2,3,5,7]},penta:{name:"Pentatonic",iv:[0,2,4,7,9]}};
+var WARM={scale:"major",start:48,dur:0.55,run:null,raf:null,samples:[],t0:0,on:false};
+function warmSeq(){var sc=WARM_SCALES[WARM.scale].iv,runIdx=[0,1,2,3,4,3,2,1,0],rootsRel=[0,2,4,6,4,2,0],seq=[];
+  rootsRel.forEach(function(root){runIdx.forEach(function(ri){seq.push(WARM.start+root+sc[ri]);});});return seq;}
+function renderWarmups(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  WARM.on=false;if(WARM.raf)cancelAnimationFrame(WARM.raf);
+  teardown=function(){WARM.on=false;if(WARM.raf)cancelAnimationFrame(WARM.raf);try{stopMic();}catch(e){}};
+  function draw(){
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎵 Vocal Warm-Ups</span></div><div class="panel">'+
+      '<div class="intro">Sing the 5-note scale run up and down with the guide — <b>1–2–3–4–5–4–3–2–1</b>, rising then falling. Hold each note steady and in tune; I’ll grade the whole exercise at the end. <b>Headphones help</b> so the guide doesn’t bleed into your mic.</div>'+
+      '<div class="rrow2"><span class="rlab">Scale</span><span class="rchips tight" id="wmScale"></span></div>'+
+      '<div class="rrow2" style="align-items:center;margin-top:8px"><span class="rlab">Start note</span><span class="rchips tight"><button class="rchip sm" id="wmDn">◀</button><span class="rbpm" id="wmNote" style="min-width:48px;text-align:center">'+noteNameOct(WARM.start)+'</span><button class="rchip sm" id="wmUp">▶</button></span><button class="rchip sm" id="wmHear">▶ hear</button></div>'+
+      '<div class="rrow" style="margin-top:6px"><span class="rlab">Pace</span><input type="range" id="wmDur" min="0.4" max="0.9" step="0.05" value="'+WARM.dur+'" style="flex:1"><span class="rbpm" id="wmDurV" style="min-width:60px;text-align:right">'+Math.round(60/WARM.dur)+"/min</span></div>"+
+      '<div class="tuner" style="margin-top:12px"><div class="t-note" id="wmCur">—</div><div class="t-bar"><div class="t-zone"></div><div class="t-center"></div><div class="t-needle" id="wmNeedle"></div></div><div class="t-hint" id="wmHint">Tap Start, then sing along with the guide</div></div>'+
+      '<div class="actions" style="justify-content:center;margin-top:8px"><button class="btn" id="wmGo">▶ Start warm-up</button></div>'+
+      '<div class="feedback" id="wmFb" style="min-height:22px"></div></div>';
+    $("#eBack").onclick=function(){WARM.on=false;toneMenu();};
+    var sc=$("#wmScale");Object.keys(WARM_SCALES).forEach(function(k){var b=document.createElement("button");b.className="rchip sm"+(WARM.scale===k?" sel":"");b.textContent=WARM_SCALES[k].name;b.onclick=function(){WARM.scale=k;draw();};sc.appendChild(b);});
+    $("#wmDn").onclick=function(){WARM.start=Math.max(40,WARM.start-1);$("#wmNote").textContent=noteNameOct(WARM.start);};
+    $("#wmUp").onclick=function(){WARM.start=Math.min(60,WARM.start+1);$("#wmNote").textContent=noteNameOct(WARM.start);};
+    $("#wmHear").onclick=function(){unlockAudio();playSing(WARM.start,1.2);};
+    var dv=$("#wmDur");if(dv)dv.oninput=function(){WARM.dur=+dv.value;$("#wmDurV").textContent=Math.round(60/WARM.dur)+"/min";};
+    $("#wmGo").onclick=start;
+  }
+  function start(){unlockAudio();var seq=warmSeq(),dur=WARM.dur;WARM.on=true;WARM.samples=[];WARM.t0=performance.now();
+    var go=$("#wmGo");if(go){go.disabled=true;go.textContent="🎤 Sing along…";}var fb=$("#wmFb");if(fb)fb.textContent="";
+    seq.forEach(function(midi,i){setTimeout(function(){if(!WARM.on)return;playSing(midi,dur*0.92);var cur=$("#wmCur");if(cur){cur.textContent=noteNameOct(midi);cur.className="t-note";}},Math.round(i*dur*1000));});
+    var total=seq.length*dur;
+    var buf=new Float32Array(toneAnalyser.fftSize);
+    function cap(){if(!WARM.on)return;var el=(performance.now()-WARM.t0)/1000;if(el>=total+0.3){WARM.on=false;grade(seq);return;}
+      var i=Math.floor(el/dur);if(i>=0&&i<seq.length){var within=el-i*dur;toneAnalyser.getFloatTimeDomainData(buf);var f=autoCorrelate(buf,ac().sampleRate);
+        if(f>=70&&f<=1200){var m=69+12*Math.log2(f/440),diff=((m-seq[i])%12+12)%12;if(diff>6)diff-=12;var cents=diff*100;
+          var n=$("#wmNeedle");if(n)n.style.transform="translateX(calc(-50% + "+Math.max(-120,Math.min(120,cents*2.4))+"px))";
+          if(within>0.12&&within<dur-0.05)WARM.samples.push({i:i,midi:seq[i],cents:cents});}
+      }WARM.raf=requestAnimationFrame(cap);}
+    WARM.raf=requestAnimationFrame(cap);}
+  function grade(seq){var go=$("#wmGo");if(go){go.disabled=false;go.textContent="▶ Again";}var fb=$("#wmFb");if(!fb)return;
+    var v=WARM.samples;if(v.length<seq.length*2){fb.className="feedback try";fb.innerHTML="I barely heard you — sing out and try again (headphones help). Make sure the mic is on.";return;}
+    var abs=v.map(function(s){return Math.abs(s.cents);}),avg=abs.reduce(function(a,b){return a+b;},0)/abs.length;
+    var within=100*v.filter(function(s){return Math.abs(s.cents)<=35;}).length/v.length;
+    var signed=v.reduce(function(a,s){return a+s.cents;},0)/v.length;
+    var lo=v.filter(function(s){return s.midi<WARM.start+4;}),hi=v.filter(function(s){return s.midi>=WARM.start+5;});
+    var loAvg=lo.length?lo.reduce(function(a,s){return a+Math.abs(s.cents);},0)/lo.length:0,hiAvg=hi.length?hi.reduce(function(a,s){return a+Math.abs(s.cents);},0)/hi.length:0;
+    var grd=avg<=12&&within>=85?"A":avg<=20&&within>=70?"B":avg<=32?"C":"Keep going";
+    var msg="<div style=\"font-size:2rem;font-weight:800;text-align:center\">"+grd+"</div>";
+    msg+="<div style=\"text-align:center\">Held within <b>±"+Math.round(avg)+" cents</b> · <b>"+Math.round(within)+"%</b> in tune</div>";
+    var tips=[];
+    if(signed<-14)tips.push("You ran <b>flat</b> overall — keep breath support up, especially as you climb.");
+    else if(signed>14)tips.push("You pushed <b>sharp</b> — stay relaxed and let the note sit.");
+    if(hi.length&&hiAvg>loAvg+10)tips.push("The <b>higher notes</b> drifted more — that’s where support matters most; don’t reach, lift from the breath.");
+    else if(lo.length&&loAvg>hiAvg+10)tips.push("The <b>lower notes</b> wandered — keep them placed and forward, not swallowed.");
+    if(!tips.length)tips.push(avg<=15?"Steady and accurate all the way up and down — nice control.":"Solid — run it again and smooth out the wobbles.");
+    msg+="<div class=\"site-note\" style=\"margin-top:8px\">"+tips.join(" ")+"</div>";
+    fb.className="feedback "+(grd==="A"||grd==="B"?"good":"try");fb.innerHTML=msg;
+    var key=mk("warm",WARM.scale+"-best");var prev=load(key,999);if(avg<prev)save(key,Math.round(avg));
+    if((grd==="A"||grd==="B")&&activeId()&&!isAdult()){addBeans(4);beanChip();}
+    var cur=$("#wmCur");if(cur)cur.textContent="✓";}
+  draw();
+}
 function toneMenu(){
   if(toneRAF)cancelAnimationFrame(toneRAF);
   home.hidden=true;view.hidden=false;window.scrollTo(0,0);
@@ -1091,6 +1151,7 @@ function toneMenu(){
   const cards=[
    {id:"match",ic:"🎯",title:"Match the Pitch",blurb:"Hear a note, then sing it back in tune."},
    {id:"dyn",ic:"🎚️",title:"Hold & Dynamics",blurb:"Hold a note steady at soft, medium, or loud — pitch control is different at each volume."},
+   {id:"warmup",ic:"🎶",title:"Vocal Warm-Ups",blurb:"Sing 5-note scale runs up and down with a guide voice — graded on how well you held each note."},
    {id:"interval",ic:"🎸",title:"Sing the Interval",blurb:"Hear the bottom note, then sing the one above it."},
    {id:"phrase",ic:"🎵",title:"Sing a Phrase",blurb:"Sing a real song — whole phrase, scored, with playback."},
    {id:"compose",ic:"🎙️",title:"Sing a Song",blurb:"Make your own tune — sing or hum it, I map the notes, you fix them, save it."}
@@ -1098,7 +1159,7 @@ function toneMenu(){
   const g=$("#tGrid");
   cards.forEach(c=>{const b=document.createElement("button");b.className="card";
     b.innerHTML=`<span class="ic">${c.ic}</span><h3>${c.title}</h3><span class="blurb">${c.blurb}</span>`;
-    b.onclick=()=>{if(c.id==="match")toneMatchLevels();else if(c.id==="interval")toneIntervalLevels();else if(c.id==="phrase")tonePhraseLevels();else if(c.id==="dyn")toneDynamics();else renderCompose();};
+    b.onclick=()=>{if(c.id==="match")toneMatchLevels();else if(c.id==="interval")toneIntervalLevels();else if(c.id==="phrase")tonePhraseLevels();else if(c.id==="dyn")toneDynamics();else if(c.id==="warmup")renderWarmups();else renderCompose();};
     g.appendChild(b);});
   beanChip();
 }
