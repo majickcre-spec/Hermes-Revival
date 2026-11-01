@@ -1979,6 +1979,125 @@ function bufferToWav(buf){const nch=buf.numberOfChannels,sr=buf.sampleRate,n=buf
   ws(0,"RIFF");v.setUint32(4,36+dataLen,true);ws(8,"WAVE");ws(12,"fmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,nch,true);v.setUint32(24,sr,true);v.setUint32(28,sr*nch*2,true);v.setUint16(32,nch*2,true);v.setUint16(34,16,true);ws(36,"data");v.setUint32(40,dataLen,true);
   let off=44;for(let i=0;i<n;i++)for(let c=0;c<nch;c++){const s=Math.max(-1,Math.min(1,chs[c][i]));v.setInt16(off,s<0?s*0x8000:s*0x7FFF,true);off+=2;}
   return new Uint8Array(ab);}
+/* ===== SONG ANALYSIS — weekly listening modules: take a song apart ===== */
+const SA_WEEKS=[
+ {ic:"🏗️",t:"Form & Structure",listen:["Where does the hook/chorus first land — and how long do you wait for it?","How many sections, and in what order?","What makes each section feel different — energy, instruments, melody?"],q:"Map the sections in order (Intro, V1, Chorus…). Where does the title sit? What's the longest you wait for the chorus?"},
+ {ic:"🔊",t:"The Low End",listen:["Who owns beat 1 — kick, bass, or both?","Do the kick and bass hit together, or take turns?","Does the bass duck/pump under the kick (sidechain)?"],q:"Describe the kick-and-bass relationship. Tight or boomy? Mono or wide?"},
+ {ic:"🥁",t:"Drums & Groove",listen:["Where's the backbeat (snare/clap)?","Straight or swung? Busy or sparse?","What fill or change signals a new section?"],q:"What's driving the groove? Tap along — what's the hardest part to feel?"},
+ {ic:"🎹",t:"Harmony",listen:["How many chords in the loop?","Does it stay on one loop or go somewhere new in the bridge?","Major, minor, or somewhere in between?"],q:"Write the progression (names or Roman numerals). Where does it feel like 'home'?"},
+ {ic:"🎵",t:"Melody & Topline",listen:["Does the vocal climb or stay flat?","Where's the highest note — and what word lands there?","How is the hook melody different from the verse?"],q:"Describe the melodic shape of the chorus. What makes the hook stick?"},
+ {ic:"✍️",t:"Lyrics & Story",listen:["Who's speaking, and to whom?","What's the one big idea (the chorus)?","Rhyme scheme — ABAB? AABB? slant rhymes?"],q:"Summarize the story in one line. What's the strongest single image?"},
+ {ic:"📈",t:"Arrangement & Dynamics",listen:["What enters or drops at each section?","Where's the biggest lift? The quietest moment?","How do they keep the last chorus from getting boring?"],q:"Sketch the energy from start to end. What's added in the final chorus?"},
+ {ic:"🎚️",t:"The Mix",listen:["What's loudest / most upfront — vocal, kick, snare?","How wide does it feel? What's panned where?","Wet (reverb/delay) or dry? Bright or warm?"],q:"Name the three most 'upfront' things. What would you change?"}
+];
+function saKey(n){return mk("sa","w"+n);}
+function saLoad(n){return load(saKey(n),{song:"",link:"",notes:"",done:false});}
+function renderSongAnalysis(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{};
+  const doneCount=SA_WEEKS.filter((w,i)=>saLoad(i).done).length;
+  let cards="";SA_WEEKS.forEach((w,i)=>{const d=saLoad(i);cards+='<button class="card" data-i="'+i+'"><span class="ic">'+w.ic+'</span><h3>Week '+(i+1)+(d.done?' ✓':'')+'</h3><span class="blurb"><b>'+esc(w.t)+'</b> — '+esc(w.listen[0])+'</span></button>';});
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔬 Song Analysis</span></div><div class="panel">'+
+    '<div class="intro">The fastest way to learn to make songs is to <b>take apart songs you love</b>, one layer at a time. Each week, put on a track and study just one thing — the low end, the groove, the harmony, the mix. Fill in what you hear; it saves. '+(doneCount?'<b>'+doneCount+'/8 done.</b>':'')+'</div>'+
+    '<div class="grid" id="saCards">'+cards+'</div>'+
+    '<div class="site-note" style="margin-top:10px">Tip: use the same song for a few weeks and hear how much more you notice each pass.</div></div>';
+  $("#eBack").onclick=goHome;
+  document.querySelectorAll("#saCards .card").forEach(b=>{b.onclick=()=>renderAnalysisWeek(+b.dataset.i);});
+}
+function renderAnalysisWeek(n){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{};
+  const w=SA_WEEKS[n];let d=saLoad(n);
+  function persist(){save(saKey(n),d);}
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+w.ic+' Week '+(n+1)+' · '+esc(w.t)+'</span></div><div class="panel">'+
+    '<div class="rrow2"><span class="rlab">Song</span><input id="saSong" value="'+esc(d.song)+'" placeholder="song &amp; artist" style="flex:1;background:rgba(255,255,255,.06);color:inherit;border:1px solid var(--line);border-radius:8px;padding:8px"></div>'+
+    '<div class="rrow2"><span class="rlab">Link</span><input id="saLink" value="'+esc(d.link)+'" placeholder="paste a YouTube / streaming link" style="flex:1;background:rgba(255,255,255,.06);color:inherit;border:1px solid var(--line);border-radius:8px;padding:8px"><button class="btn ghost" id="saOpen" style="margin-left:8px">▶ Open</button></div>'+
+    '<div class="rlab" style="display:block;margin:14px 0 6px">👂 Listen for</div>'+w.listen.map(l=>'<div class="idea-fb" style="margin:5px 0">'+esc(l)+'</div>').join("")+
+    '<div class="rlab" style="display:block;margin:14px 0 6px">✍️ Your breakdown</div>'+
+    '<div class="site-note" style="margin:-2px 0 6px">'+esc(w.q)+'</div>'+
+    '<textarea id="saNotes" rows="7" placeholder="what you hear…" style="width:100%;background:rgba(0,0,0,.25);color:inherit;border:1px solid var(--line);border-radius:8px;padding:9px;font-size:14px;line-height:1.5">'+esc(d.notes)+'</textarea>'+
+    '<div class="actions" style="margin-top:12px;gap:10px"><button class="btn" id="saSave">💾 Save</button><button class="btn ghost" id="saDone">'+(d.done?"✓ Done":"Mark complete")+'</button></div>'+
+    '<div class="feedback" id="saMsg"></div></div>';
+  $("#eBack").onclick=renderSongAnalysis;
+  $("#saSong").oninput=e=>{d.song=e.target.value;persist();};
+  $("#saLink").oninput=e=>{d.link=e.target.value;persist();};
+  $("#saNotes").oninput=e=>{d.notes=e.target.value;persist();};
+  $("#saOpen").onclick=()=>{const u=($("#saLink").value||"").trim();if(u)try{window.open(/^https?:/i.test(u)?u:"https://"+u,"_blank","noopener");}catch(e){}};
+  $("#saSave").onclick=()=>{persist();const m=$("#saMsg");if(m)m.textContent="Saved.";};
+  $("#saDone").onclick=()=>{d.done=!d.done;persist();if(d.done&&activeId())addBeans(4);renderAnalysisWeek(n);};
+}
+/* ===== RHYTHM TRANSCRIPTION — see the beat, then tap it back ===== */
+function rtKick(a,out,t){const o=a.createOscillator(),g=a.createGain();o.type="sine";o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(48,t+0.11);g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(1,t+0.004);g.gain.exponentialRampToValueAtTime(0.0001,t+0.34);o.connect(g);g.connect(out);o.start(t);o.stop(t+0.36);}
+function rtNz(a,out,t,dur,hp,lvl){const n=Math.floor(a.sampleRate*dur),b=a.createBuffer(1,n,a.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;const s=a.createBufferSource();s.buffer=b;const f=a.createBiquadFilter();f.type="highpass";f.frequency.value=hp;const g=a.createGain();g.gain.setValueAtTime(lvl,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);s.connect(f);f.connect(g);g.connect(out);s.start(t);s.stop(t+dur+0.02);}
+function rtSnare(a,out,t){rtNz(a,out,t,0.18,1500,0.5);const o=a.createOscillator(),g=a.createGain();o.type="triangle";o.frequency.value=185;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.4,t+0.003);g.gain.exponentialRampToValueAtTime(0.0001,t+0.12);o.connect(g);g.connect(out);o.start(t);o.stop(t+0.14);}
+function rtHat(a,out,t){rtNz(a,out,t,0.04,7000,0.33);}
+function rtClave(a,out,t,lvl){const o=a.createOscillator(),g=a.createGain();o.type="square";o.frequency.value=1150;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(lvl||0.4,t+0.002);g.gain.exponentialRampToValueAtTime(0.0001,t+0.05);o.connect(g);g.connect(out);o.start(t);o.stop(t+0.06);}
+const RGROOVES=[
+ {name:"Four on the Floor",lvl:"Easy",kick:[0,4,8,12],snare:[4,12],hat:[0,2,4,6,8,10,12,14]},
+ {name:"Backbeat",lvl:"Easy",kick:[0,8],snare:[4,12],hat:[0,2,4,6,8,10,12,14]},
+ {name:"Boom-Bap",lvl:"Medium",kick:[0,6,10],snare:[4,12],hat:[0,2,4,6,8,10,12,14]},
+ {name:"Disco (16th hats)",lvl:"Medium",kick:[0,4,8,12],snare:[4,12],hat:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]},
+ {name:"Half-Time",lvl:"Medium",kick:[0,10],snare:[8],hat:[0,2,4,6,8,10,12,14]},
+ {name:"Syncopated",lvl:"Hard",kick:[0,3,6,10,11],snare:[4,12],hat:[0,2,4,6,8,10,12,14]}
+];
+const RT={bpm:90,groove:0,mode:"see",solo:"all",hide:false,running:false,scoring:false,cur:0,bar:0,nextTime:0,loopStart:0,schID:null,raf:null,visQ:[],scoreBars:2,cap:{kick:new Set(),snare:new Set()},lastScore:null,refresh:null};
+function rtStop(){RT.running=false;RT.scoring=false;if(RT.schID){clearInterval(RT.schID);RT.schID=null;}if(RT.raf){cancelAnimationFrame(RT.raf);RT.raf=null;}}
+function rtPlayCell(a,out,g,cell,t){const s=RT.solo;if((s==="all"||s==="kick")&&g.kick.indexOf(cell)>=0)rtKick(a,out,t);if((s==="all"||s==="snare")&&g.snare.indexOf(cell)>=0)rtSnare(a,out,t);if((s==="all"||s==="hat")&&g.hat.indexOf(cell)>=0)rtHat(a,out,t);}
+function rtSchedule(){const a=ac(),ahead=0.1,g=RGROOVES[RT.groove],stepDur=(60/RT.bpm)/4,out=pianoMaster(a);
+  while(RT.nextTime<a.currentTime+ahead){const cell=RT.cur;if(cell===0)RT.loopStart=RT.nextTime;
+    if(RT.scoring&&cell%4===0)rtClave(a,out,RT.nextTime,cell===0?0.5:0.3);
+    rtPlayCell(a,out,g,cell,RT.nextTime);
+    RT.visQ.push({t:RT.nextTime,cell});RT.nextTime+=stepDur;RT.cur=(RT.cur+1)%16;if(RT.cur===0)RT.bar++;}
+  if(RT.scoring&&RT.bar>RT.scoreBars)rtFinishScore();}
+function rtLight(cell){document.querySelectorAll('#rtGrid .rtc').forEach(c=>{c.classList.toggle('ph',+c.dataset.step===cell);});}
+function rtFrame(){const a=ac();while(RT.visQ.length&&RT.visQ[0].t<=a.currentTime){const e=RT.visQ.shift();rtLight(e.cell);}if(RT.running)RT.raf=requestAnimationFrame(rtFrame);}
+function rtTap(inst){unlockAudio();const a=ac(),out=pianoMaster(a),t=a.currentTime+0.001;if(inst==="kick")rtKick(a,out,t);else rtSnare(a,out,t);
+  const pad=document.getElementById("rtPad_"+inst);if(pad){pad.style.transform="scale(.94)";setTimeout(()=>{pad.style.transform="";},100);}
+  if(RT.scoring&&RT.bar>=1&&RT.bar<=RT.scoreBars){const stepDur=(60/RT.bpm)/4;let ph=(a.currentTime-RT.loopStart)/stepDur,s=Math.round(ph);s=((s%16)+16)%16;RT.cap[inst].add(s);}}
+function rtKey(e){if(e.repeat||RT.mode!=="tap")return;const k=(e.key||"").toLowerCase();if(k==="f"){e.preventDefault();rtTap("kick");}else if(k==="j"){e.preventDefault();rtTap("snare");}}
+function rtFinishScore(){RT.scoring=false;rtStop();const g=RGROOVES[RT.groove];let matched=0,extra=0,total=0;const detail={};
+  ["kick","snare"].forEach(inst=>{const pat=new Set(g[inst]),cap=RT.cap[inst];total+=pat.size;let m=0, e=0;cap.forEach(s=>{if(pat.has(s))m++;else e++;});matched+=m;extra+=e;detail[inst]={pat:[...pat],cap:[...cap]};});
+  const acc=total?Math.max(0,Math.round(100*(matched-0.5*extra)/total)):0;RT.lastScore={acc,detail};
+  const best=load(mk("rt","best-"+RT.groove),0);if(acc>best)save(mk("rt","best-"+RT.groove),acc);
+  if(activeId()&&acc>=70)addBeans(acc>=90?3:1);
+  if(RT.refresh)RT.refresh();}
+function rtStartSee(){unlockAudio();if(RT.running){rtStop();if(RT.refresh)RT.refresh();return;}RT.running=true;RT.scoring=false;RT.cur=0;RT.bar=0;RT.nextTime=ac().currentTime+0.1;RT.visQ=[];RT.schID=setInterval(rtSchedule,25);rtFrame();if(RT.refresh)RT.refresh();}
+function rtStartListen(){unlockAudio();if(RT.running){rtStop();if(RT.refresh)RT.refresh();return;}RT.lastScore=null;RT.running=true;RT.scoring=false;RT.cur=0;RT.bar=0;RT.nextTime=ac().currentTime+0.1;RT.visQ=[];RT.schID=setInterval(rtSchedule,25);rtFrame();if(RT.refresh)RT.refresh();}
+function rtStartRecord(){unlockAudio();rtStop();RT.lastScore=null;RT.running=true;RT.scoring=true;RT.cur=0;RT.bar=0;RT.cap={kick:new Set(),snare:new Set()};RT.nextTime=ac().currentTime+0.1;RT.visQ=[];RT.schID=setInterval(rtSchedule,25);rtFrame();if(RT.refresh)RT.refresh();}
+function renderRhythmTranscribe(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  document.removeEventListener("keydown",rtKey);document.addEventListener("keydown",rtKey);
+  teardown=()=>{rtStop();document.removeEventListener("keydown",rtKey);};
+  RT.refresh=draw;draw();
+  function gridHTML(){const g=RGROOVES[RT.groove],rows=[["hat","Hat","#7fd6e0"],["snare","Snare","#f4b740"],["kick","Kick","#34e0c6"]],rev=RT.mode==="tap"&&RT.lastScore;
+    let h="";rows.forEach(([inst,lbl,col])=>{h+='<div style="display:flex;align-items:center;gap:6px;margin:3px 0"><span style="width:46px;font-size:12px;color:var(--muted);text-align:right">'+lbl+'</span><span style="display:flex;gap:2px;flex:1">';
+      for(let s=0;s<16;s++){const q=s%4===0;let bg,ol="";const hit=g[inst].indexOf(s)>=0;
+        if(rev&&(inst==="kick"||inst==="snare")){const d=RT.lastScore.detail[inst],pat=d.pat.indexOf(s)>=0,cap=d.cap.indexOf(s)>=0;if(pat&&cap)bg="#5fe0a8";else if(pat&&!cap){bg=q?"rgba(255,255,255,.08)":"rgba(255,255,255,.04)";ol="2px dashed rgba(255,255,255,.5)";}else if(!pat&&cap)bg="#ff8f8c";else bg=q?"rgba(255,255,255,.08)":"rgba(255,255,255,.04)";}
+        else{const show=hit&&(RT.mode==="see"?!RT.hide:(rev&&inst==="hat"));bg=show?col:(q?"rgba(255,255,255,.08)":"rgba(255,255,255,.04)");}
+        h+='<span class="rtc" data-step="'+s+'" style="flex:1;height:22px;border-radius:4px;background:'+bg+';border:1px solid '+(q?"rgba(255,255,255,.14)":"rgba(255,255,255,.06)")+';outline:'+(ol||"none")+';outline-offset:-1px"></span>';}
+      h+='</span></div>';});
+    h+='<div style="display:flex;gap:6px;margin-top:2px"><span style="width:46px"></span><span style="display:flex;gap:2px;flex:1">';for(let s=0;s<16;s++)h+='<span style="flex:1;text-align:center;font-size:10px;color:var(--muted)">'+(s%4===0?(s/4+1):"")+'</span>';h+='</span></div>';
+    return h;}
+  function draw(){const g=RGROOVES[RT.groove],best=load(mk("rt","best-"+RT.groove),0);
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🥁 Rhythm Transcription</span></div><div class="panel">'+
+      '<div class="intro">Rhythm is the hardest thing to hear — so <b>see it while you hear it</b>. In <b>See It</b>, watch each kick and snare light up; slow it down, solo a part, or hide the grid to test yourself. In <b>Tap It</b>, the beat loops with the grid hidden — tap along (<b>F</b>=kick, <b>J</b>=snare), and it shows you what you got.</div>'+
+      '<div class="rrow2"><span class="rlab">Groove</span><span class="rchips tight" id="rtGrv"></span></div>'+
+      '<div class="rrow2"><span class="rlab">Mode</span><span class="rchips tight"><button class="rchip sm'+(RT.mode==="see"?" sel":"")+'" id="rtMSee">👁️ See It</button><button class="rchip sm'+(RT.mode==="tap"?" sel":"")+'" id="rtMTap">✋ Tap It</button></span></div>'+
+      '<div class="rrow2"><span class="rlab">Tempo</span><span class="rchips tight" style="flex:1"><input type="range" min="50" max="120" value="'+RT.bpm+'" id="rtBpm" style="flex:1"><b id="rtBpmV" style="min-width:52px;text-align:right">'+RT.bpm+' bpm</b></span></div>'+
+      (RT.mode==="see"?'<div class="rrow2"><span class="rlab">Solo</span><span class="rchips tight" id="rtSolo"></span></div><div class="rrow2"><span class="rlab">Grid</span><span class="rchips tight"><button class="rchip sm'+(RT.hide?"":" sel")+'" id="rtShow">Show</button><button class="rchip sm'+(RT.hide?" sel":"")+'" id="rtHide">Hide (quiz me)</button></span></div>':"")+
+      '<div id="rtGrid" style="margin:14px 0">'+gridHTML()+'</div>'+
+      (RT.mode==="see"?'<div class="actions" style="justify-content:center"><button class="btn" id="rtPlay">'+(RT.running?"⏸ Stop":"▶ Play")+'</button></div>':
+        '<div class="actions" style="justify-content:center;gap:10px"><button class="btn ghost" id="rtListen">'+(RT.running&&!RT.scoring?"⏸ Stop":"▶ Listen")+'</button><button class="btn" id="rtRec">'+(RT.scoring?"● recording…":"● Record (tap along)")+'</button></div>'+
+        '<div style="display:flex;gap:10px;margin:14px 0"><button id="rtPad_kick" class="btn ghost" style="flex:1;padding:22px 0;font-size:1.05rem">🦶 Kick <span style="color:var(--muted)">(F)</span></button><button id="rtPad_snare" class="btn ghost" style="flex:1;padding:22px 0;font-size:1.05rem">👏 Snare <span style="color:var(--muted)">(J)</span></button></div>')+
+      '<div class="feedback" id="rtFb">'+(RT.lastScore?('<b style="color:'+(RT.lastScore.acc>=80?"#5fe0a8":RT.lastScore.acc>=50?"#f4b740":"#ff8f8c")+'">'+RT.lastScore.acc+'% on kick & snare.</b> '+(RT.lastScore.acc>=90?"Locked in. 🔥":RT.lastScore.acc>=70?"Solid — tighten the off-beats.":"Green = you got it, red = extra, dashed = missed. Watch it in See It, then try again.")+' <span style="color:var(--muted)">Best: '+Math.max(best,RT.lastScore.acc)+'%</span>'):(best?'<span style="color:var(--muted)">Best on this groove: '+best+'%</span>':""))+'</div>'+
+      '</div>';
+    $("#eBack").onclick=()=>{rtStop();renderSongwriting();};
+    const gc=$("#rtGrv");RGROOVES.forEach((gr,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===RT.groove?" sel":"");b.innerHTML=esc(gr.name)+' <span style="opacity:.6">'+gr.lvl+'</span>';b.onclick=()=>{rtStop();RT.groove=i;RT.lastScore=null;draw();};gc.appendChild(b);});
+    $("#rtMSee").onclick=()=>{rtStop();RT.mode="see";RT.lastScore=null;draw();};
+    $("#rtMTap").onclick=()=>{rtStop();RT.mode="tap";RT.lastScore=null;draw();};
+    const bp=$("#rtBpm");if(bp)bp.oninput=()=>{RT.bpm=+bp.value;$("#rtBpmV").textContent=RT.bpm+" bpm";};
+    if(RT.mode==="see"){const sc=$("#rtSolo");[["All","all"],["Kick","kick"],["Snare","snare"],["Hat","hat"]].forEach(([lbl,v])=>{const b=document.createElement("button");b.className="rchip sm"+(RT.solo===v?" sel":"");b.textContent=lbl;b.onclick=()=>{RT.solo=v;draw();};sc.appendChild(b);});
+      $("#rtShow").onclick=()=>{RT.hide=false;draw();};$("#rtHide").onclick=()=>{RT.hide=true;draw();};
+      $("#rtPlay").onclick=rtStartSee;
+    }else{$("#rtListen").onclick=rtStartListen;$("#rtRec").onclick=rtStartRecord;
+      const pk=$("#rtPad_kick"),ps=$("#rtPad_snare");if(pk)pk.onclick=()=>rtTap("kick");if(ps)ps.onclick=()=>rtTap("snare");}
+  }
+}
 /* ===== SAMPLER — your own sound library: pads, record/upload/slice, sequence ===== */
 const SAMP={pads:new Array(8).fill(null),grid:Array.from({length:8},()=>new Array(16).fill(false)),
   bpm:90,sel:0,melodic:false,playing:false,cur:0,nextTime:0,schID:null,raf:null,visQ:[],starterLoaded:false,slices:[],srcName:""};
@@ -2908,7 +3027,8 @@ const MAKE_CARDS=[
  {ic:"🎼",title:"Learn a Song",blurb:"Bring in a song you're practicing — paste a chord sheet or build it — and get a play-along chord chart with loop, tempo, and transpose.",go:()=>renderLearnSong()},
  {ic:"✍️",title:"Songwriting",blurb:"Learn to write songs that work — structure, the parts, rhyme schemes and prosody — then write your lyrics in the Lyric Lab with a syllable counter, a rhyme finder, and a coach that tightens them. This is where your midterm & final lyrics come from.",go:()=>renderSongwriting()},
  {ic:"🎼",title:"Song Project (final)",blurb:"The big one — assemble your sections into a full song: intro, verses, choruses, bridge, outro. Finish it to earn Songwriter.",go:()=>renderSongBuilder()},
- {ic:"🎓",title:"The Instructor",blurb:"Your mix teacher. Drop in a track (or a section you bounced) and get a real mix report — gain staging, tonal balance, low end, dynamics, stereo — graded for YOUR genre. Save it as a track project and track your progress version to version. Add a reference to hear why yours sounds older.",go:()=>renderInstructor()}
+ {ic:"🎓",title:"The Instructor",blurb:"Your mix teacher. Drop in a track (or a section you bounced) and get a real mix report — gain staging, tonal balance, low end, dynamics, stereo — graded for YOUR genre. Save it as a track project and track your progress version to version. Add a reference to hear why yours sounds older.",go:()=>renderInstructor()},
+ {ic:"🔬",title:"Song Analysis",blurb:"Learn to make songs by taking apart songs you love — one layer a week: structure, low end, groove, harmony, melody, lyrics, arrangement, the mix. Guided listening prompts + a worksheet that saves.",go:()=>renderSongAnalysis()}
 ];
 /* handpan voice — mellow metallic bell with octave + twelfth overtones, long decay */
 function handpan(time,midi){const a=ac(),out=pianoMaster(a),f=midiToFreq(midi);
@@ -3604,7 +3724,8 @@ function renderSongwriting(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
    {ic:"🎯",title:"Rhyme & Schemes",blurb:"Rhyme schemes (ABAB, AABB), perfect vs near/slant rhyme, and how rhyme makes a line feel resolved — with a rhyme finder.",go:()=>lessonSong("rhyme")},
    {ic:"📐",title:"Prosody & Syllables",blurb:"How stresses, syllables and line length shape the melody — and why form should serve the meaning.",go:()=>lessonSong("prosody")},
    {ic:"✍️",title:"Lyric Lab",blurb:"Write your lyrics section by section with a live syllable counter, rhyme-scheme labels, a rhyme finder, and a coach. Saves for your Song Project.",go:()=>renderLyricLab()},
-   {ic:"🎵",title:"Melody Lab",blurb:"Sing a melody (or pick a saved one) and see the notes, their scale degrees, how long each is held, and the chords that fit — like Hooktheory.",go:()=>renderMelodyLab()}  ];
+   {ic:"🎵",title:"Melody Lab",blurb:"Sing a melody (or pick a saved one) and see the notes, their scale degrees, how long each is held, and the chords that fit — like Hooktheory.",go:()=>renderMelodyLab()},
+   {ic:"🥁",title:"Rhythm Transcription",blurb:"Rhythm is the hardest thing to hear — so see it while you hear it. Watch each kick and snare light up, slow it down, solo a part, or hide the grid and tap the beat back for a score.",go:()=>renderRhythmTranscribe()}  ];
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">✍️ Songwriting</span></div><div class="panel">'+
     '<div class="intro">A song is <b>music + words working as one</b> — what songwriters call <b>prosody</b>: the sound serving the meaning. Learn the pieces — structure, the parts, rhyme and prosody — then write in the <b>Lyric Lab</b>, where the app helps you make it tighter, rhyme better, sing better, and tell a story that lands. <span style="opacity:.75">In the spirit of the MI &amp; Berklee songwriting tradition.</span></div>'+
     '<div class="grid" id="swCards"></div></div>';
