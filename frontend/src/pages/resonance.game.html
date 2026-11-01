@@ -180,8 +180,8 @@ function efFetchHistory(cb){const arch=efArch();
   try{fetch("https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json",{cache:"no-store"}).then(r=>r.json()).then(rows=>{
     if(!Array.isArray(rows)||rows.length<2){cb(arch,false);return;}
     const hdr=rows[0].map(x=>String(x).toLowerCase());let ti=hdr.findIndex(x=>x.indexOf("time")>=0);let ki=hdr.findIndex(x=>x==="kp");if(ki<0)ki=hdr.findIndex(x=>x.indexOf("kp")>=0);if(ti<0)ti=0;if(ki<0)ki=1;
-    const byDay={};for(let i=1;i<rows.length;i++){const r=rows[i],day=String(r[ti]).slice(0,10),kp=parseFloat(r[ki]);if(isNaN(kp))continue;if(byDay[day]==null||kp>byDay[day])byDay[day]=kp;}
-    Object.keys(byDay).forEach(day=>{const kp=byDay[day];arch[day]={kp,intensity:Math.round(kp/9*100),label:efKpLabel(kp)};});
+    const byDay={},series={};for(let i=1;i<rows.length;i++){const r=rows[i],ts=String(r[ti]),day=ts.slice(0,10),kp=parseFloat(r[ki]);if(isNaN(kp))continue;if(byDay[day]==null||kp>byDay[day])byDay[day]=kp;(series[day]=series[day]||[]).push({t:ts,kp:kp});}
+    Object.keys(byDay).forEach(day=>{const kp=byDay[day],ser=series[day]||[],avg=ser.length?ser.reduce((a,b)=>a+b.kp,0)/ser.length:kp;arch[day]={kp,avg,intensity:Math.round(kp/9*100),label:efKpLabel(kp),series:ser};});
     efSaveArch(arch);cb(efArch(),true);
   }).catch(()=>cb(arch,false));}catch(e){cb(arch,false);}}
 function efStart(intensity,mode,vol,voiceId){efStop();unlockAudio();const a=ac(),I=Math.max(0,Math.min(1,(intensity||0)/100)),root=7.83*32,oscs=[];
@@ -312,14 +312,41 @@ function efBinaural(intensity,vol){efStop();unlockAudio();const a=ac(),I=Math.ma
   const sho=a.createOscillator();sho.type="sine";sho.frequency.value=base*2;const shg=a.createGain();shg.gain.value=0.0;const shlfo=a.createOscillator();shlfo.type="sine";shlfo.frequency.value=7.83;const shlg=a.createGain();shlg.gain.value=0.03*(0.5+I*0.6);shlfo.connect(shlg);shlg.connect(shg.gain);shlfo.start();oscs.push(shlfo);sho.connect(shg);shg.connect(lp);sho.start();oscs.push(sho);
   EF={master,oscs,beatTimer:null};}
 function efKpLabel(kp){return kp<2?"Quiet":kp<4?"Unsettled":kp<5?"Active":kp<6?"Minor storm (G1)":kp<7?"Storm (G2)":"Strong storm";}
+function efHourLocal(ts){try{var d=new Date(String(ts).replace(' ','T')+'Z');return d.toLocaleTimeString([],{hour:'numeric'});}catch(e){return String(ts).slice(11,16)+' UTC';}}
+function efDeepAnalysis(day,arch){
+  var s=arch[day];if(!s||!s.series||!s.series.length)return "";
+  var ser=s.series.slice().sort(function(a,b){return a.t<b.t?-1:1;});
+  var peak=ser[0],trough=ser[0];ser.forEach(function(x){if(x.kp>peak.kp)peak=x;if(x.kp<trough.kp)trough=x;});
+  var avg=(s.avg!=null)?s.avg:ser.reduce(function(a,b){return a+b.kp;},0)/ser.length;
+  var spikes=[];for(var i=0;i<ser.length;i++){var jump=i>0?ser[i].kp-ser[i-1].kp:0;if(ser[i].kp>=4||jump>=1.33)spikes.push(ser[i]);}
+  var half=Math.ceil(ser.length/2);function mean(a){return a.length?a.reduce(function(x,y){return x+y.kp;},0)/a.length:0;}
+  var fh=mean(ser.slice(0,half)),sh=mean(ser.slice(half));
+  var shape=Math.abs(sh-fh)<0.4?"stayed fairly even across the day":sh>fh?("built through the day (early near Kp "+fh.toFixed(1)+", later near Kp "+sh.toFixed(1)+")"):("eased off through the day (early near Kp "+fh.toFixed(1)+", later near Kp "+sh.toFixed(1)+")");
+  var todayTxt="Today peaked at <b>Kp "+peak.kp.toFixed(1)+"</b> around "+efHourLocal(peak.t)+", averaging Kp "+avg.toFixed(1)+" across "+ser.length+" three-hour windows. ";
+  todayTxt+=spikes.length?("There "+(spikes.length===1?"was <b>1</b> charged window":"were <b>"+spikes.length+"</b> charged windows")+" (Kp 4+ or a sharp jump), topping out at Kp "+peak.kp.toFixed(1)+", with the quietest dip at Kp "+trough.kp.toFixed(1)+". "):("No real spikes — it held low all day (lowest Kp "+trough.kp.toFixed(1)+"). ");
+  todayTxt+="The reading "+shape+".";
+  var days=Object.keys(arch).filter(function(d){return arch[d]&&arch[d].series&&arch[d].series.length;}).sort();
+  var idx=days.indexOf(day),yd=idx>0?arch[days[idx-1]]:null,ydTxt="";
+  if(yd){var dP=peak.kp-yd.kp,dA=avg-((yd.avg!=null)?yd.avg:yd.kp);
+    ydTxt="Yesterday peaked at Kp "+yd.kp.toFixed(1)+". Today is "+(Math.abs(dP)<0.4?"about the same at the top":dP>0?("<b>up "+dP.toFixed(1)+"</b> at the peak — the hotter day"):("<b>down "+Math.abs(dP).toFixed(1)+"</b> at the peak — the calmer day"))+", and on average "+(Math.abs(dA)<0.3?"holding steady":dA>0?("running "+dA.toFixed(1)+" higher"):("running "+Math.abs(dA).toFixed(1)+" lower"))+".";}
+  var weekTxt="",extrap="";
+  if(days.length>=2){
+    var peaks=days.map(function(d){return arch[d].kp;}),wAvg=peaks.reduce(function(a,b){return a+b;},0)/peaks.length;
+    var hi=days.reduce(function(m,d){return arch[d].kp>arch[m].kp?d:m;},days[0]),lo=days.reduce(function(m,d){return arch[d].kp<arch[m].kp?d:m;},days[0]);
+    var sd=Math.sqrt(peaks.reduce(function(a,b){return a+(b-wAvg)*(b-wAvg);},0)/peaks.length);
+    weekTxt="Over the last "+days.length+" days the daily peaks averaged Kp "+wAvg.toFixed(1)+" — most active "+efDateLabel(hi)+" (Kp "+arch[hi].kp.toFixed(1)+"), calmest "+efDateLabel(lo)+" (Kp "+arch[lo].kp.toFixed(1)+"). Today sits "+(peak.kp>wAvg+0.4?"above":peak.kp<wAvg-0.4?"below":"right around")+" that weekly line"+(sd>1.2?", and the week has been swinging hard day to day — an unstable field":"")+".";
+    var last=days.slice(-3).map(function(d){return arch[d].kp;}),slope=last.length>=2?last[last.length-1]-last[0]:0;
+    var dir=slope>1?"climbing":slope<-1?"settling":"holding fairly steady";
+    extrap="The last few days have been <b>"+dir+"</b>"+(slope>1?", and today kept building late — if that momentum holds, expect the field to stay unsettled-to-active into tomorrow; a sensitive nervous system may want extra grounding, water, and sleep.":slope<-1?", so unless a fresh solar burst arrives, tomorrow likely eases further — a good window to rest and reset.":". No strong trend either way, so expect more of the same unless the Sun kicks up.")+" That&rsquo;s reading the pattern, not a hard forecast — NOAA posts an official 3-day outlook for the real call.";
+  }
+  var H='<div style="margin-bottom:7px"><b style="color:#d4a548">The field today.</b> '+todayTxt+'</div>';
+  if(ydTxt)H+='<div style="margin-bottom:7px"><b style="color:#d4a548">Today vs. yesterday.</b> '+ydTxt+'</div>';
+  if(weekTxt)H+='<div style="margin-bottom:7px"><b style="color:#d4a548">This week.</b> '+weekTxt+'</div>';
+  if(extrap)H+='<div style="margin-bottom:7px"><b style="color:#d4a548">Where it&rsquo;s heading.</b> '+extrap+'</div>';
+  return H;
+}
 function efDayReading(day,arch){const s=arch[day];if(!s)return "No reading for this day yet — tune in daily and the week fills in.";
-  const kp=s.kp,days=Object.keys(arch).sort(),idx=days.indexOf(day),prev=idx>0?arch[days[idx-1]]:null,dkp=prev?kp-prev.kp:0;
-  const band=kp<2?"quiet":kp<4?"unsettled":kp<5?"active":"storm";
-  const trend=!prev?"":dkp>0.8?(" It&rsquo;s risen from Kp "+prev.kp.toFixed(1)+" the day before — the field is quickening."):dkp<-0.8?(" It&rsquo;s eased from Kp "+prev.kp.toFixed(1)+" the day before — the field is settling."):" Holding near where it was the day before.";
-  const field=band==="quiet"?"The field is calm and coherent — the resonance rests close to its 7.83 Hz ground tone, the chart mostly quiet, thin lines with few spikes. The Sun is quiet; little is reaching us.":
-    band==="unsettled"?"There&rsquo;s movement in the field — a few soft spikes rising on the chart as geomagnetic activity stirs. Not a storm, just a quickening in the Earth&rsquo;s pulse.":
-    band==="active"?"The field is charged — clear spikes and peaks on the chart, geomagnetic activity picking up, often riding solar wind or a flare. The resonance is running higher than its baseline.":
-    "The field is loud — strong spikes and peaks, a geomagnetic storm ("+s.label+"), usually driven by a solar flare or a coronal mass ejection hitting the Earth. The whole resonance stack is lit.";
+  const kp=s.kp,band=kp<2?"quiet":kp<4?"unsettled":kp<5?"active":"storm";
   const body=band==="quiet"?"In this frequency work, calm days tend to feel settling for the nervous system — steadier focus, deeper sleep, a grounded and open-hearted clarity. A good day to create, meditate, and receive.":
     band==="unsettled"?"Sensitive people often notice a subtle restlessness on days like this — thoughts a touch busier, emotions nearer the surface, an energy that wants somewhere to go.":
     band==="active"?"Active days are the ones many empaths actually feel — wired or scattered energy, lighter sleep, heightened emotion, a nervous system switched on. Some feel anxious or tender; others feel electric and creative. It&rsquo;s the same charge, moving through you.":
@@ -328,9 +355,19 @@ function efDayReading(day,arch){const s=arch[day];if(!s)return "No reading for t
     band==="unsettled"?"So today&rsquo;s sound steps forward with a gentle groove — enough motion to move the restlessness <i>through</i> you instead of letting it pool.":
     band==="active"?"So today&rsquo;s track drives — fuller drums, brighter top, a real drop — built to help you move that charge, shake the tension loose, and ride the energy instead of bracing against it.":
     "So today&rsquo;s sound runs its heaviest and most physical — not to overwhelm you, but to give the intensity somewhere to go. Feel it in the body, let the bass carry it through, and come home to the 7.83 Hz ground tone humming underneath it all.";
-  return '<div style="font-weight:700;margin-bottom:6px">'+efDateLabel(day)+' · Kp '+kp.toFixed(1)+' — '+s.label+'</div>'+
-    '<div style="margin-bottom:7px"><b style="color:#d4a548">The field today.</b> '+field+trend+'</div>'+
-    '<div style="margin-bottom:7px"><b style="color:#d4a548">How it may land.</b> '+body+'</div>'+
+  var fieldHTML=efDeepAnalysis(day,arch);
+  if(!fieldHTML){
+    const days=Object.keys(arch).sort(),idx=days.indexOf(day),prev=idx>0?arch[days[idx-1]]:null,dkp=prev?kp-prev.kp:0;
+    const trend=!prev?"":dkp>0.8?(" It&rsquo;s risen from Kp "+prev.kp.toFixed(1)+" the day before — the field is quickening."):dkp<-0.8?(" It&rsquo;s eased from Kp "+prev.kp.toFixed(1)+" the day before — the field is settling."):" Holding near where it was the day before.";
+    const field=band==="quiet"?"The field is calm and coherent — the resonance rests close to its 7.83 Hz ground tone, the chart mostly quiet.":
+      band==="unsettled"?"There&rsquo;s movement in the field — a few soft spikes rising as geomagnetic activity stirs.":
+      band==="active"?"The field is charged — clear spikes and peaks, geomagnetic activity picking up.":
+      "The field is loud — strong spikes and peaks, a geomagnetic storm ("+s.label+").";
+    fieldHTML='<div style="margin-bottom:7px"><b style="color:#d4a548">The field today.</b> '+field+trend+' <span style="opacity:.7">(Live 3-hour detail loads once the geomagnetic feed responds.)</span></div>';
+  }
+  return '<div style="font-weight:700;margin-bottom:6px">'+efDateLabel(day)+' · peak Kp '+kp.toFixed(1)+' — '+s.label+'</div>'+
+    fieldHTML+
+    '<div style="margin:7px 0"><b style="color:#d4a548">How it may land.</b> '+body+'</div>'+
     '<div><b style="color:#d4a548">Why today&rsquo;s sound.</b> '+sound+' The <b>7.83 Hz fundamental is the bass</b> of every mode here (octaved up to ~250 Hz so you can hear it), so whatever the day is doing, you&rsquo;re always tuned back to the Earth&rsquo;s ground note.</div>';}
 /* ==== Schumann portal UI ==== */
 (function(){var w=document.getElementById('stars');for(var i=0;i<30;i++){var s=document.createElement('i');s.style.left=(Math.random()*100)+'vw';s.style.top=(Math.random()*100)+'vh';s.style.opacity=(0.2+Math.random()*0.5).toFixed(2);w.appendChild(s);}})();
