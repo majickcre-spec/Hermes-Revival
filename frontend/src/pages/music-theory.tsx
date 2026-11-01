@@ -2,9 +2,19 @@
 // no navigation back into the Hermes app). Safe to share on its own.
 // Custom links: /music-theory?for=Pat&focus=guitar,voice — the name + focus are
 // injected into the game so a shared link opens a personalized welcome.
+import { useEffect } from "react";
 import gameHtml from "./music-theory.game.html?raw";
 
 export default function MusicTheory() {
+  // The in-game exit button posts {mjk:"home"}; send it to the MUSIC home (never Hermes).
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (e && e.data && (e.data as any).mjk === "home") window.location.href = "/";
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, []);
+
   let html = gameHtml;
   // Tell the sandboxed game where the backend is, so its login/sync can reach it.
   try {
