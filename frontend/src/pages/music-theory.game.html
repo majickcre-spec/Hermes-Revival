@@ -955,7 +955,7 @@ function playTone(freq,start,dur){
   o.connect(g);g.connect(lp);o.start(t0);o.stop(t0+dur+0.08);
   partial(2,peak*0.12,-2); // faint octave for warmth
 }
-function playInterval(root,semis){playTone(midiToFreq(root),0,1.1);playTone(midiToFreq(root+semis),1.15,1.2);}
+function playInterval(root,semis){playTone(midiToFreq(root),0,1.4);playTone(midiToFreq(root+semis),1.45,1.55);}
 function playNote(root){playTone(midiToFreq(root),0,1.5);}
 /* sustained reference tone for singing — selectable instrument voices, HELD loud, gentle release */
 let toneVoice=load("mjk-tonevoice","piano");
@@ -3031,11 +3031,11 @@ function renderPiano(){
   document.addEventListener("keydown",kd);draw();
 }
 /* ===== IN-HOUSE EAR TRAINING — chords, scales, note ID ===== */
-const CHORD_DEFS={maj:{iv:[0,4,7],name:"Major"},min:{iv:[0,3,7],name:"Minor"},dim:{iv:[0,3,6],name:"Diminished"},aug:{iv:[0,4,8],name:"Augmented"},dom7:{iv:[0,4,7,10],name:"Dominant 7"},maj7:{iv:[0,4,7,11],name:"Major 7"},min7:{iv:[0,3,7,10],name:"Minor 7"}};
+const CHORD_DEFS={maj:{iv:[0,4,7],name:"Major",desc:"bright, happy, resolved — the home-base sound"},min:{iv:[0,3,7],name:"Minor",desc:"darker and more serious — the sad cousin of major"},dim:{iv:[0,3,6],name:"Diminished",desc:"tense and unstable — two minor 3rds stacked; it wants to resolve"},aug:{iv:[0,4,8],name:"Augmented",desc:"dreamy and unsettled — the top note stretched a half-step sharp"},dom7:{iv:[0,4,7,10],name:"Dominant 7",desc:"bluesy and restless — the engine of blues, funk and turnarounds; pulls home"},maj7:{iv:[0,4,7,11],name:"Major 7",desc:"lush and jazzy — major with a soft, floating top note"},min7:{iv:[0,3,7,10],name:"Minor 7",desc:"smooth and mellow — minor made warm; the soul/jazz sound"}};
 const CHORD_LEVELS=[["maj","min"],["maj","min","dim","aug"],["maj","min","dom7","maj7","min7"]];
 const SCALE_DEFS={major:{iv:[0,2,4,5,7,9,11,12],name:"Major"},minor:{iv:[0,2,3,5,7,8,10,12],name:"Natural minor"},dorian:{iv:[0,2,3,5,7,9,10,12],name:"Dorian"},majpent:{iv:[0,2,4,7,9,12],name:"Major pentatonic"},blues:{iv:[0,3,5,6,7,10,12],name:"Blues"},harm:{iv:[0,2,3,5,7,8,11,12],name:"Harmonic minor"}};
 const SCALE_LEVELS=[["major","minor"],["major","minor","dorian","majpent"],["major","minor","dorian","majpent","blues","harm"]];
-function playChordEar(root,iv){iv.forEach(s=>playTone(midiToFreq(root+s),0,1.7));}
+function playChordEar(root,iv){iv.forEach(s=>playTone(midiToFreq(root+s),0,2.2));}
 function playScaleEar(root,iv){iv.forEach((s,i)=>playTone(midiToFreq(root+s),i*0.32,0.5));}
 function earGame(cfg){
   home.hidden=true;view.hidden=false;window.scrollTo(0,0);let level=load(mk("ear",cfg.key+"-lvl"),0);
@@ -3050,9 +3050,10 @@ function earGame(cfg){
   function run(){let i=0,correct=0,cur=null,answered=false;const rounds=8,opts=cfg.levels[level];
     function nq(){answered=false;const root=48+Math.floor(Math.random()*12);const key=opts[Math.floor(Math.random()*opts.length)];cur={root,key};draw();setTimeout(()=>cfg.play(cur.root,cfg.defs[cur.key].iv),250);}
     function pick(k){if(answered)return;answered=true;const ok=k===cur.key;if(ok&&activeId()&&!isAdult()){addBeans(1);beanChip();}if(ok)correct++;
-      const fb=$("#egFb");if(fb){fb.className="feedback "+(ok?"good":"try");fb.innerHTML=ok?"✓ "+cfg.defs[cur.key].name:"✗ That was "+cfg.defs[cur.key].name;}
+      const def=cfg.defs[cur.key];const label=def.name+(def.desc?' <span style="opacity:.72;font-weight:400">— '+def.desc+'</span>':'');
+      const fb=$("#egFb");if(fb){fb.className="feedback "+(ok?"good":"try");fb.innerHTML=ok?"✓ "+label:"✗ That was "+label;}
       document.querySelectorAll(".egopt").forEach(b=>{const bk=b.getAttribute("data-k");if(bk===cur.key)b.classList.add("sel");else if(bk===k&&!ok)b.style.opacity=".5";b.disabled=true;});
-      i++;setTimeout(()=>{if(i>=rounds)done();else nq();},1050);}
+      i++;const delay=def.desc?2600:1050;setTimeout(()=>{if(i>=rounds)done();else nq();},delay);}
     function draw(){
       let h='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+cfg.title+' · L'+(level+1)+'</span></div><div class="panel">'+
         '<div class="q" style="text-align:center">What did you hear? <span style="color:var(--muted)">('+(i+1)+'/'+rounds+')</span></div>'+
