@@ -3016,10 +3016,12 @@ function renderPiano(){
   function draw(){
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎹 Piano</span></div><div class="panel">'+
       '<div class="intro">Play the keyboard — tap the keys, or on a computer use <b>a s d f g h j k</b> for the white notes and <b>w e t y u</b> for the blacks. The <b>1-octave</b> view is big enough for your whole hand on a phone; use ◀ ▶ to move up or down.</div>'+
+      '<div class="actions" style="margin:0 0 6px"><button class="btn ghost" id="pkMethod">📘 Piano Method — learn to read &amp; play</button></div>'+
       '<div class="rrow2"><span class="rlab">View</span><span class="rchips tight"><button class="rchip sm'+(oct===1?" sel":"")+'" id="pk1">1 octave (big)</button><button class="rchip sm'+(oct===2?" sel":"")+'" id="pk2">2 octaves</button><button class="rchip sm'+(oct===3?" sel":"")+'" id="pk3">3 octaves</button></span></div>'+
       '<div class="actions"><button class="btn ghost" id="pkDown">◀ lower</button><span class="rbpm" id="pkRange" style="min-width:70px;text-align:center"></span><button class="btn ghost" id="pkUp">higher ▶</button><button class="rchip sm'+(labels?" sel":"")+'" id="pkLab">Labels</button></div>'+
       '<div id="pkBox"></div></div>';
     $("#eBack").onclick=goHome;
+    {const pm=$("#pkMethod");if(pm)pm.onclick=()=>renderMethod("piano");}
     $("#pk1").onclick=()=>{oct=1;draw();};
     $("#pk2").onclick=()=>{oct=2;draw();};
     $("#pk3").onclick=()=>{oct=3;draw();};
@@ -3824,121 +3826,208 @@ function renderStrumming(inst){
   teardown=function(){SM.on=false;crStop();try{stopMic();}catch(e){}};
   draw();
 }
-/* ===== GUITAR METHOD — original Grade-1-style course (public-domain tunes only) ===== */
-/* open-position natural notes: midi -> [fbStringIndex(0=lowE..5=highE), fret] */
-const MTHD_POS={40:[0,0],41:[0,1],43:[0,3],45:[1,0],47:[1,2],48:[1,3],50:[2,0],52:[2,2],53:[2,3],55:[3,0],57:[3,2],59:[4,0],60:[4,1],62:[4,3],64:[5,0],65:[5,1],67:[5,3]};
-function mStr(midi){var p=MTHD_POS[midi];return p?(6-p[0]):0;}      /* human string number 1..6 */
-function mFret(midi){var p=MTHD_POS[midi];return p?p[1]:0;}
+/* ===== METHOD COURSES — original Grade-1 tracks for guitar, bass, ukulele, piano (public-domain tunes only) ===== */
+/* note objects: strings -> {m:midi,s:humanString,f:fret}; piano -> {m:midi,k:"key hint"} */
 function mLet(midi){return NOTE_NAMES[((midi%12)+12)%12].replace("♯","#");}
-/* lessons — original text; tunes are traditional/public-domain melodies */
-const MTHD=[
- {id:"l1",t:"Meet the Guitar & the Open Strings",goal:"Name all six open strings and hear each one.",
-  teach:["Hold the guitar so the thick, low-sounding string is on top and the thin, high one is on the bottom. Those six open strings, from thickest to thinnest, are E – A – D – G – B – E.",
-   "A classic way to remember them, low to high: <b>E</b>ddie <b>A</b>te <b>D</b>ynamite <b>G</b>ood <b>B</b>ye <b>E</b>ddie. Tap each string below to hear it, then use the Tuner to match your real guitar.",
-   "The thinnest string (high E) is called the <b>1st string</b>; the thickest (low E) is the <b>6th string</b>. We number them that way for the rest of the course."],
-  opens:true,notes:[],quiz:[]},
- {id:"l2",t:"Reading the Staff & Counting Time",goal:"Read notes on the treble staff and count simple rhythms.",
-  teach:["Music sits on a <b>staff</b> of five lines. The curly <b>treble clef</b> at the left tells you these are the higher notes your right-hand strings play.",
-   "A note's up-down position says which pitch it is; its shape says how long to hold it. A <b>quarter note</b> (filled head, stem) gets one beat, a <b>half note</b> (open head, stem) gets two, a <b>whole note</b> (open head, no stem) gets four.",
-   "Most songs you'll start with are in <b>4/4</b> — four beats per measure. Count “1 2 3 4” out loud and keep it steady. A steady count matters more than speed."],
-  staffDemo:true,notes:[],quiz:[]},
- {id:"l3",t:"First String: E, F, G",goal:"Read and play the three notes on the 1st (high E) string.",
-  teach:["On the thinnest string you get three notes in the first position: open is <b>E</b>, first fret is <b>F</b>, third fret is <b>G</b>. Use your 1st finger for F and your 3rd finger for G.",
-   "Look at where each note sits on the staff below, hear it, and find it on your own guitar. Then try the quiz — name the note you see."],
-  notes:[64,65,67],quiz:[64,65,67]},
- {id:"l4",t:"Second String: B, C, D",goal:"Add the three notes on the 2nd (B) string, then play your first tune.",
-  teach:["On the 2nd string: open is <b>B</b>, first fret is <b>C</b>, third fret is <b>D</b>. C and D here are just below the notes you learned on the 1st string.",
-   "Now you have enough notes for a real melody. “Ode to Joy” (Beethoven) uses only the 1st and 2nd strings. Hear it, then play along on your guitar."],
-  notes:[59,60,62],quiz:[59,60,62,64,65,67],
-  tune:{name:"Ode to Joy (Beethoven)",seq:[[64,1],[64,1],[65,1],[67,1],[67,1],[65,1],[64,1],[62,1],[60,1],[60,1],[62,1],[64,1],[64,1.5],[62,0.5],[62,2]]}},
- {id:"l5",t:"Strings 1 & 2 Together",goal:"Move smoothly between the first two strings in a melody.",
-  teach:["The trick to switching strings is keeping your count steady and your picking hand relaxed. Play slowly enough that every note is clean, then speed up.",
-   "Here's a second tune on the same notes, “Mary Had a Little Lamb.” Say the note names as you play."],
-  notes:[],quiz:[59,60,62,64,65,67],
-  tune:{name:"Mary Had a Little Lamb (traditional)",seq:[[64,1],[62,1],[60,1],[62,1],[64,1],[64,1],[64,2],[62,1],[62,1],[62,2],[64,1],[67,1],[67,2]]}},
- {id:"l6",t:"Third String: G, A",goal:"Add the 3rd (G) string: open G and A at the 2nd fret.",
-  teach:["On the 3rd string: open is <b>G</b> (one octave below the G you found on the 1st string), and the 2nd fret is <b>A</b>. Use your 2nd finger for A.",
-   "Here's a short original exercise that walks across strings 3, 2 and 1 so you get used to crossing between them."],
-  notes:[55,57],quiz:[55,57,59,60,62,64],
-  tune:{name:"Three-String Walk (exercise)",seq:[[55,1],[57,1],[59,1],[60,1],[62,1],[64,1],[62,1],[60,1],[59,1],[57,1],[55,2]]}},
- {id:"l7",t:"Fourth String: D, E, F",goal:"Start the lower strings: D, E and F on the 4th string.",
-  teach:["Now we move to the thicker strings, which you'll often use for bass notes. On the 4th string: open is <b>D</b>, 2nd fret is <b>E</b>, 3rd fret is <b>F</b>.",
-   "Read each note on the staff — these sit lower, some below the middle of the staff. Hear them and find them on your guitar."],
-  notes:[50,52,53],quiz:[50,52,53]},
- {id:"l8",t:"Fifth String: A, B, C",goal:"Add A, B and C on the 5th string.",
-  teach:["On the 5th string: open is <b>A</b>, 2nd fret is <b>B</b>, 3rd fret is <b>C</b>. This C is an octave below the C you learned on the 2nd string.",
-   "Low notes can be harder to read at first because they sit low on the staff with ledger lines. Take your time with the quiz."],
-  notes:[45,47,48],quiz:[45,47,48,50,52,53]},
- {id:"l9",t:"Sixth String: E, F, G",goal:"Finish the open position with the lowest string.",
-  teach:["On the 6th string (the thickest): open is <b>E</b>, 1st fret is <b>F</b>, 3rd fret is <b>G</b> — the lowest notes on the guitar.",
-   "You now know every natural note in the open position, all six strings. One more lesson pulls it together."],
-  notes:[40,41,43],quiz:[40,41,43,45,47,48]},
- {id:"l10",t:"Putting It Together",goal:"Play across all six strings and read anything in open position.",
-  teach:["You've learned all the natural notes in the first position. Here's “When the Saints Go Marching In,” which climbs through the strings, plus a final quiz drawn from every note you've learned.",
-   "From here, keep playing tunes you like, and revisit the quiz until reading feels automatic. That's the whole foundation — everything else builds on it."],
-  notes:[],quiz:[40,41,43,45,47,48,50,52,53,55,57,59,60,62,64,65,67],
-  tune:{name:"When the Saints Go Marching In (traditional)",seq:[[60,1],[64,1],[65,1],[67,2],[60,1],[64,1],[65,1],[67,2],[60,1],[64,1],[65,1],[67,1],[64,1],[60,1],[62,2]]}}
-];
-/* mini treble staff with one note (step 30 = E4 bottom line, 7px per diatonic step) */
-function mStaffSVG(midi){var st=midiStaff(midi+12).step;function y(s){return 70-(s-30)*7;}
+function mOrd(n){return n===1?"st":n===2?"nd":n===3?"rd":"th";}
+function mLoc(n,inst){if(inst==="piano")return n.k||(mLet(n.m)+(Math.floor(n.m/12)-1));return n.s+mOrd(n.s)+" string"+(n.f===0?", open":", fret "+n.f);}
+const METHOD={
+ guitar:{label:"Guitar",clef:"treble",disp:12,play:function(){return renderFretboard("guitar");},opens:[{m:40,s:6},{m:45,s:5},{m:50,s:4},{m:55,s:3},{m:59,s:2},{m:64,s:1}],
+  lessons:[
+   {id:"g1",t:"Meet the Guitar & the Open Strings",goal:"Name all six open strings and hear each one.",opensDemo:true,
+    teach:["Hold the guitar so the thick, low string is on top and the thin, high one is on the bottom. Those six open strings, thickest to thinnest, are E – A – D – G – B – E.",
+     "A classic way to remember them, low to high: <b>E</b>ddie <b>A</b>te <b>D</b>ynamite <b>G</b>ood <b>B</b>ye <b>E</b>ddie. Tap each string below to hear it, then use the Tuner to match your real guitar.",
+     "The thinnest string (high E) is the <b>1st string</b>; the thickest (low E) is the <b>6th</b>. We number them that way from here on."]},
+   {id:"g2",t:"Reading the Staff & Counting Time",goal:"Read notes on the treble staff and count simple rhythms.",staffDemo:true,
+    teach:["Music sits on a <b>staff</b> of five lines. The curly <b>treble clef</b> tells you these are the higher notes. Guitar music is written in treble clef.",
+     "A note's up-down position is its pitch; its shape is how long to hold it. A <b>quarter note</b> gets one beat, a <b>half note</b> two, a <b>whole note</b> four.",
+     "Most beginner songs are in <b>4/4</b> — four beats a measure. Count “1 2 3 4” out loud and keep it steady. Steady beats speed."]},
+   {id:"g3",t:"First String: E, F, G",goal:"Read and play the three notes on the 1st (high E) string.",
+    teach:["On the thinnest string: open is <b>E</b>, first fret is <b>F</b> (1st finger), third fret is <b>G</b> (3rd finger).",
+     "See where each note sits on the staff, hear it, and find it on your guitar. Then take the quiz."],
+    notes:[{m:64,s:1,f:0},{m:65,s:1,f:1},{m:67,s:1,f:3}],quiz:[64,65,67]},
+   {id:"g4",t:"Second String: B, C, D",goal:"Add the 2nd (B) string, then play your first tune.",
+    teach:["On the 2nd string: open is <b>B</b>, first fret is <b>C</b>, third fret is <b>D</b>.",
+     "Now you have enough for a melody. “Ode to Joy” uses only strings 1 and 2. Hear it, then play along."],
+    notes:[{m:59,s:2,f:0},{m:60,s:2,f:1},{m:62,s:2,f:3}],quiz:[59,60,62,64,65,67],
+    tune:{name:"Ode to Joy (Beethoven)",seq:[[64,1],[64,1],[65,1],[67,1],[67,1],[65,1],[64,1],[62,1],[60,1],[60,1],[62,1],[64,1],[64,1.5],[62,0.5],[62,2]]}},
+   {id:"g5",t:"Strings 1 & 2 Together",goal:"Move smoothly between the first two strings.",
+    teach:["Keep your count steady and your picking hand relaxed. Play slow enough that every note is clean, then speed up.",
+     "Here's “Mary Had a Little Lamb” on the same notes. Say the note names as you play."],
+    quiz:[59,60,62,64,65,67],
+    tune:{name:"Mary Had a Little Lamb (traditional)",seq:[[64,1],[62,1],[60,1],[62,1],[64,1],[64,1],[64,2],[62,1],[62,1],[62,2],[64,1],[67,1],[67,2]]}},
+   {id:"g6",t:"Third String: G, A",goal:"Add the 3rd (G) string.",
+    teach:["On the 3rd string: open is <b>G</b> (an octave below the G on string 1), 2nd fret is <b>A</b> (2nd finger).",
+     "Here's a short original exercise that crosses strings 3, 2 and 1."],
+    notes:[{m:55,s:3,f:0},{m:57,s:3,f:2}],quiz:[55,57,59,60,62,64],
+    tune:{name:"Three-String Walk (exercise)",seq:[[55,1],[57,1],[59,1],[60,1],[62,1],[64,1],[62,1],[60,1],[59,1],[57,1],[55,2]]}},
+   {id:"g7",t:"Fourth String: D, E, F",goal:"Start the lower strings.",
+    teach:["On the 4th string: open is <b>D</b>, 2nd fret is <b>E</b>, 3rd fret is <b>F</b>. These sit lower on the staff.",
+     "Read each one, hear it, find it."],
+    notes:[{m:50,s:4,f:0},{m:52,s:4,f:2},{m:53,s:4,f:3}],quiz:[50,52,53]},
+   {id:"g8",t:"Fifth String: A, B, C",goal:"Add A, B and C on the 5th string.",
+    teach:["On the 5th string: open is <b>A</b>, 2nd fret is <b>B</b>, 3rd fret is <b>C</b> (an octave below the C on string 2).",
+     "Low notes use ledger lines below the staff — take your time."],
+    notes:[{m:45,s:5,f:0},{m:47,s:5,f:2},{m:48,s:5,f:3}],quiz:[45,47,48,50,52,53]},
+   {id:"g9",t:"Sixth String: E, F, G",goal:"Finish the open position with the lowest string.",
+    teach:["On the 6th string: open is <b>E</b>, 1st fret is <b>F</b>, 3rd fret is <b>G</b> — the lowest notes on the guitar.",
+     "You now know every natural note in open position."],
+    notes:[{m:40,s:6,f:0},{m:41,s:6,f:1},{m:43,s:6,f:3}],quiz:[40,41,43,45,47,48]},
+   {id:"g10",t:"Putting It Together",goal:"Play across all six strings and read open position.",
+    teach:["You've learned every natural note in first position. Here's “When the Saints Go Marching In,” plus a final quiz from every note so far.",
+     "Keep playing tunes you like and revisit the quiz until reading feels automatic. This is the whole foundation."],
+    quiz:[40,41,43,45,47,48,50,52,53,55,57,59,60,62,64,65,67],
+    tune:{name:"When the Saints Go Marching In (traditional)",seq:[[60,1],[64,1],[65,1],[67,2],[60,1],[64,1],[65,1],[67,2],[60,1],[64,1],[65,1],[67,1],[64,1],[60,1],[62,2]]}}
+  ]},
+ bass:{label:"Bass",clef:"bass",disp:12,play:function(){return renderFretboard("bass");},opens:[{m:28,s:4},{m:33,s:3},{m:38,s:2},{m:43,s:1}],
+  lessons:[
+   {id:"b1",t:"Meet the Bass & the Open Strings",goal:"Name the four open strings and hear each one.",opensDemo:true,
+    teach:["The bass has four strings, thickest to thinnest: E – A – D – G. The thin G string is the <b>1st string</b>; the thick E string is the <b>4th</b>.",
+     "The bass is the foundation — it locks in with the drums and outlines the chords. Tap each string to hear it, then tune up.",
+     "Play with a relaxed hand; let each note ring full and even. Tone and timing are the bassist's whole job."]},
+   {id:"b2",t:"Reading the Bass Clef & Counting",goal:"Read notes on the bass staff and count 4/4.",staffDemo:true,
+    teach:["Bass music uses the <b>bass clef</b> (the one with two dots). Its lines and spaces are the lower pitches your bass plays.",
+     "A quarter note is one beat, a half note two, a whole note four. In 4/4 you count “1 2 3 4” each measure.",
+     "As a bassist you'll often play one steady note per beat — so counting cleanly is everything."]},
+   {id:"b3",t:"Fourth String: E, F, G",goal:"Read and play the low E string notes.",
+    teach:["On the 4th (low E) string: open is <b>E</b>, first fret is <b>F</b>, third fret is <b>G</b>. Use 1st finger for F, 3rd (or 4th) for G.",
+     "These are the lowest, fattest notes. Make them ring."],
+    notes:[{m:28,s:4,f:0},{m:29,s:4,f:1},{m:31,s:4,f:3}],quiz:[28,29,31]},
+   {id:"b4",t:"Third String: A, B, C",goal:"Add the A string.",
+    teach:["On the 3rd (A) string: open is <b>A</b>, 2nd fret is <b>B</b>, 3rd fret is <b>C</b>.",
+     "Here's a simple walking exercise up from the low E — one note per beat, nice and even."],
+    notes:[{m:33,s:3,f:0},{m:35,s:3,f:2},{m:36,s:3,f:3}],quiz:[28,29,31,33,35,36],
+    tune:{name:"Low Walk (exercise)",seq:[[28,1],[29,1],[31,1],[33,1],[35,1],[36,1],[35,1],[33,1],[31,1],[29,1],[28,2]]}},
+   {id:"b5",t:"Second String: D, E, F",goal:"Add the D string.",
+    teach:["On the 2nd (D) string: open is <b>D</b>, 2nd fret is <b>E</b>, 3rd fret is <b>F</b>.",
+     "Notice E and F appear here too, an octave above the low E string — the same letters, higher up."],
+    notes:[{m:38,s:2,f:0},{m:40,s:2,f:2},{m:41,s:2,f:3}],quiz:[33,35,36,38,40,41]},
+   {id:"b6",t:"First String: G, A",goal:"Add the thin G string and review.",
+    teach:["On the 1st (G) string: open is <b>G</b>, 2nd fret is <b>A</b>. You now cover a full range of natural notes.",
+     "Here's an original root-walk across all four strings — the kind of line that sits under a real song."],
+    notes:[{m:43,s:1,f:0},{m:45,s:1,f:2}],quiz:[28,29,31,33,35,36,38,40,41,43,45],
+    tune:{name:"Four-String Root Walk (exercise)",seq:[[28,1],[33,1],[38,1],[43,1],[41,1],[36,1],[31,1],[33,1],[28,2]]}}
+  ]},
+ ukulele:{label:"Ukulele",clef:"treble",disp:0,play:function(){return renderFretboard("ukulele");},opens:[{m:67,s:4},{m:60,s:3},{m:64,s:2},{m:69,s:1}],
+  lessons:[
+   {id:"u1",t:"Meet the Ukulele & the Open Strings",goal:"Name the four open strings and hear each one.",opensDemo:true,
+    teach:["The ukulele's four strings are <b>G – C – E – A</b>. A fun way to remember: “Good Cooks Eat Avocados.” The A string is the <b>1st string</b>; the top G is the <b>4th</b>.",
+     "The top G is actually higher than the C and E next to it — that's “reentrant” tuning, and it's what gives the uke its bright, jumpy sound.",
+     "Tap each string to hear it, then tune up and strum gently with your thumb."]},
+   {id:"u2",t:"Reading the Staff & Counting",goal:"Read treble-clef notes and count 4/4.",staffDemo:true,
+    teach:["Ukulele music is written in the <b>treble clef</b>, five lines with the curly symbol.",
+     "A quarter note is one beat, a half note two, a whole note four. Count “1 2 3 4” steadily in 4/4.",
+     "Keep your strumming or picking hand loose and let the count carry you."]},
+   {id:"u3",t:"First String: A, B, C",goal:"Read and play the A string notes.",
+    teach:["On the 1st (A) string: open is <b>A</b>, 2nd fret is <b>B</b>, 3rd fret is <b>C</b>.",
+     "These are your highest, brightest notes. Find each on the staff and on your uke."],
+    notes:[{m:69,s:1,f:0},{m:71,s:1,f:2},{m:72,s:1,f:3}],quiz:[69,71,72]},
+   {id:"u4",t:"Second String: E, F, G",goal:"Add the E string, then play a tune.",
+    teach:["On the 2nd (E) string: open is <b>E</b>, first fret is <b>F</b>, third fret is <b>G</b>.",
+     "Now you can play “Ode to Joy.” Hear it and play along."],
+    notes:[{m:64,s:2,f:0},{m:65,s:2,f:1},{m:67,s:2,f:3}],quiz:[64,65,67,69,71,72],
+    tune:{name:"Ode to Joy (Beethoven)",seq:[[64,1],[64,1],[65,1],[67,1],[67,1],[65,1],[64,1],[62,1],[60,1],[60,1],[62,1],[64,1],[64,1.5],[62,0.5],[62,2]]}},
+   {id:"u5",t:"Third String: C, D",goal:"Add the C string.",
+    teach:["On the 3rd (C) string: open is <b>C</b> (the uke's lowest note), 2nd fret is <b>D</b>.",
+     "Here's “Mary Had a Little Lamb” using these lower notes with the ones above."],
+    notes:[{m:60,s:3,f:0},{m:62,s:3,f:2}],quiz:[60,62,64,65,67,69],
+    tune:{name:"Mary Had a Little Lamb (traditional)",seq:[[64,1],[62,1],[60,1],[62,1],[64,1],[64,1],[64,2],[62,1],[62,1],[62,2],[64,1],[67,1],[67,2]]}},
+   {id:"u6",t:"Fourth String & Review",goal:"Add the top G string and tie it together.",
+    teach:["On the 4th (top G) string: open is <b>G</b>, 2nd fret is <b>A</b> — remember these ring higher than you'd expect.",
+     "Here's “Twinkle, Twinkle” to pull your notes together, plus a review quiz."],
+    notes:[{m:67,s:4,f:0},{m:69,s:4,f:2}],quiz:[60,62,64,65,67,69,71,72],
+    tune:{name:"Twinkle, Twinkle (traditional)",seq:[[60,1],[60,1],[67,1],[67,1],[69,1],[69,1],[67,2],[65,1],[65,1],[64,1],[64,1],[62,1],[62,1],[60,2]]}}
+  ]},
+ piano:{label:"Piano",clef:"treble",disp:0,play:function(){return renderPiano();},opens:[],
+  lessons:[
+   {id:"p1",t:"Meet the Keyboard",goal:"Find any C and Middle C, and hear the white keys.",pianoDemo:true,
+    teach:["Look at the black keys: they come in groups of <b>two</b> and <b>three</b>. The white key just to the <b>left of each pair of two</b> black keys is a <b>C</b>.",
+     "The C nearest the middle of the piano is <b>Middle C</b> — your home base. From any C, the white keys going up spell C D E F G A B, then C again.",
+     "Open the piano below and tap around. Find every C by the two-black-key landmark."]},
+   {id:"p2",t:"Reading the Staff & Middle C",goal:"Read treble-clef notes and count 4/4.",staffDemo:true,
+    teach:["The right hand usually reads the <b>treble clef</b>. <b>Middle C</b> sits just below its bottom line, on a little ledger line of its own.",
+     "A quarter note is one beat, a half note two, a whole note four. Count “1 2 3 4” in 4/4.",
+     "Say the note name as you play it — naming builds reading."]},
+   {id:"p3",t:"C Position: C D E F G",goal:"Place your right hand and play five notes.",
+    teach:["Put your right thumb on <b>Middle C</b>, then one finger per white key: thumb C, then D, E, F, and pinky on <b>G</b>. This is <b>C position</b>.",
+     "Each note below shows where it sits on the staff and which key it is. Hear it, play it, then quiz yourself."],
+    notes:[{m:60,s:0,f:0,k:"Middle C (thumb)"},{m:62,s:0,f:0,k:"D (2nd finger)"},{m:64,s:0,f:0,k:"E (3rd finger)"},{m:65,s:0,f:0,k:"F (4th finger)"},{m:67,s:0,f:0,k:"G (pinky)"}],quiz:[60,62,64,65,67]},
+   {id:"p4",t:"Your First Tune",goal:"Play a melody without moving your hand.",
+    teach:["“Ode to Joy” fits perfectly in C position — you never move your hand. Hear it, then match each note.",
+     "Count out loud and keep it even. Clean beats first, speed later."],
+    quiz:[60,62,64,65,67],
+    tune:{name:"Ode to Joy (Beethoven)",seq:[[64,1],[64,1],[65,1],[67,1],[67,1],[65,1],[64,1],[62,1],[60,1],[60,1],[62,1],[64,1],[64,1.5],[62,0.5],[62,2]]}},
+   {id:"p5",t:"Up to High C: A, B, C",goal:"Reach the rest of the octave.",
+    teach:["Above G come <b>A</b>, <b>B</b>, and the next <b>C</b> — one octave above Middle C. Now you can play a full C-to-C octave.",
+     "These sit higher on the staff. Read each one and find it on the keys."],
+    notes:[{m:69,s:0,f:0,k:"A"},{m:71,s:0,f:0,k:"B"},{m:72,s:0,f:0,k:"High C (C5)"}],quiz:[60,62,64,65,67,69,71,72]},
+   {id:"p6",t:"The C Major Scale & a Tune",goal:"Play a whole octave and read it all.",
+    teach:["Play C D E F G A B C straight up and back down — that's the <b>C major scale</b>, all white keys. It's the map the rest of theory is built on.",
+     "Here's “Twinkle, Twinkle” across the octave, plus a final quiz from every note."],
+    quiz:[60,62,64,65,67,69,71,72],
+    tune:{name:"Twinkle, Twinkle (traditional)",seq:[[60,1],[60,1],[67,1],[67,1],[69,1],[69,1],[67,2],[65,1],[65,1],[64,1],[64,1],[62,1],[62,1],[60,2]]}}
+  ]}
+};
+/* mini staff with one note, per-instrument clef + octave display */
+function mStaffSVG(midi,inst){var cfg=METHOD[inst],base=cfg.clef==="bass"?18:30;var st=midiStaff(midi+cfg.disp).step;function y(s){return 70-(s-base)*7;}
   var s='<svg viewBox="0 0 120 150" width="120" height="150" style="display:block;margin:0 auto">';
-  for(var k=0;k<5;k++){var ly=y(30+k*2);s+='<line x1="16" y1="'+ly+'" x2="104" y2="'+ly+'" stroke="rgba(255,255,255,.4)" stroke-width="1.1"/>';}
-  s+='<text x="18" y="'+ (y(32)+14) +'" font-size="42" fill="#f4b740">𝄞</text>';
-  var ny=y(st);
-  /* ledger lines below (middle C step28 and lower) and above */
-  for(var lg=28;lg>=st&&lg<30;lg-=2)s+='<line x1="56" y1="'+y(lg)+'" x2="80" y2="'+y(lg)+'" stroke="rgba(255,255,255,.4)" stroke-width="1.1"/>';
-  for(var lg2=40;lg2<=st&&lg2>38;lg2+=2)s+='<line x1="56" y1="'+y(lg2)+'" x2="80" y2="'+y(lg2)+'" stroke="rgba(255,255,255,.4)" stroke-width="1.1"/>';
-  s+='<ellipse cx="68" cy="'+ny+'" rx="8.5" ry="6.4" transform="rotate(-18 68 '+ny+')" fill="#34e0c6"/>';
-  s+='<line x1="76" y1="'+(ny-2)+'" x2="76" y2="'+(ny-34)+'" stroke="#34e0c6" stroke-width="1.6"/>';
+  for(var k=0;k<5;k++){var ly=y(base+k*2);s+='<line x1="16" y1="'+ly+'" x2="104" y2="'+ly+'" stroke="rgba(255,255,255,.4)" stroke-width="1.1"/>';}
+  if(cfg.clef==="bass")s+='<text x="20" y="'+(y(base+6)+5)+'" font-size="34" fill="#f4b740">𝄢</text>';
+  else s+='<text x="18" y="'+(y(base+2)+14)+'" font-size="42" fill="#f4b740">𝄞</text>';
+  function led(yy){return '<line x1="56" y1="'+yy+'" x2="82" y2="'+yy+'" stroke="rgba(255,255,255,.4)" stroke-width="1.1"/>';}
+  for(var lg=base-2;lg>=st;lg-=2)s+=led(y(lg));
+  for(var lg2=base+10;lg2<=st;lg2+=2)s+=led(y(lg2));
+  var ny=y(st),up=ny>42;
+  s+='<ellipse cx="69" cy="'+ny+'" rx="8.5" ry="6.4" transform="rotate(-18 69 '+ny+')" fill="#34e0c6"/>';
+  s+='<line x1="'+(up?77:61)+'" y1="'+(ny+(up?-2:2))+'" x2="'+(up?77:61)+'" y2="'+(ny+(up?-32:32))+'" stroke="#34e0c6" stroke-width="1.6"/>';
   return s+'</svg>';}
 function mPlayNote(midi){unlockAudio();playTone(midiToFreq(midi),0,1.1);}
-function mLoc(midi){return mStr(midi)+getOrd(mStr(midi))+" string"+(mFret(midi)===0?", open":", fret "+mFret(midi));}
-function getOrd(n){return n===1?"st":n===2?"nd":n===3?"rd":"th";}
 function mDone(id){return load(mk("method",id+"-done"),false);}
 function mSetDone(id){if(!mDone(id)){save(mk("method",id+"-done"),true);if(activeId()&&!isAdult())addBeans(8);}}
-function mUnlocked(i){if(i===0)return true;return mDone(MTHD[i-1].id);}
-function renderGuitarMethod(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){mStopTune();};
-  function list(){var done=0;MTHD.forEach(function(L){if(mDone(L.id))done++;});
-    var h='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎸 Guitar Method</span></div><div class="panel">'+
-      '<div class="intro">A step-by-step beginner course — learn to read music and play it on the neck, one string at a time, the way a first method book teaches. Finish a lesson to unlock the next.</div>'+
-      '<div class="biobar-row"><span class="biobar-l">Lessons done</span><div class="biobar"><div class="biobar-f" style="width:'+Math.round(100*done/MTHD.length)+'%;background:linear-gradient(90deg,var(--gold),var(--gold-deep))"></div></div><span class="biobar-v">'+done+'/'+MTHD.length+'</span></div>'+
+var MTHD_TUNE={timers:[]};
+function mStopTune(){MTHD_TUNE.timers.forEach(function(t){clearTimeout(t);});MTHD_TUNE.timers=[];}
+function renderMethod(inst){inst=inst||"guitar";var C=METHOD[inst];if(!C)return;if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){mStopTune();};
+  var L=C.lessons;
+  function unlocked(i){return i===0?true:mDone(L[i-1].id);}
+  function list(){var done=0;L.forEach(function(x){if(mDone(x.id))done++;});
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎵 '+C.label+' Method</span></div><div class="panel">'+
+      '<div class="intro">A step-by-step beginner course — learn to read music and play it on the '+(inst==="piano"?"keys":"neck")+', one '+(inst==="piano"?"step":"string")+' at a time. Finish a lesson to unlock the next.</div>'+
+      '<div class="biobar-row"><span class="biobar-l">Lessons done</span><div class="biobar"><div class="biobar-f" style="width:'+Math.round(100*done/L.length)+'%;background:linear-gradient(90deg,var(--gold),var(--gold-deep))"></div></div><span class="biobar-v">'+done+'/'+L.length+'</span></div>'+
       '<div class="grid" id="mList"></div></div>';
-    view.innerHTML=h;$("#eBack").onclick=goHome;
-    var g=$("#mList");MTHD.forEach(function(L,i){var unlocked=mUnlocked(i),d=mDone(L.id);var b=document.createElement("button");b.className="card"+(d?" learned":"");b.style.opacity=unlocked?"1":".5";b.innerHTML='<span class="ic">'+(d?"✅":unlocked?(i+1):"🔒")+'</span><h3>'+esc(L.t)+'</h3><span class="blurb">'+esc(L.goal)+'</span>';b.onclick=function(){if(unlocked)lesson(i);else{var s=$(".intro");}};g.appendChild(b);});}
-  function lesson(i){var L=MTHD[i];mStopTune();
-    var h='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+(i+1)+'. '+esc(L.t)+'</span></div><div class="panel">'+
-      '<div class="rlab" style="display:block;margin-bottom:6px">Goal</div><div class="idea-fb" style="margin-top:0">'+esc(L.goal)+'</div>';
-    L.teach.forEach(function(p){h+='<p style="color:var(--cream);line-height:1.6;margin:10px 2px">'+p+'</p>';});
-    if(L.opens){h+='<div class="rlab" style="display:block;margin:12px 0 4px">The six open strings — tap to hear</div><div class="rchips" id="mOpens"></div>';}
-    if(L.staffDemo){h+='<div style="margin:12px 0">'+clefStaffSVG()+'</div>';}
-    if(L.notes&&L.notes.length){h+='<div class="rlab" style="display:block;margin:14px 0 4px">New notes</div><div class="grid" id="mNotes" style="grid-template-columns:repeat(3,1fr)"></div>';}
-    if(L.tune){h+='<div class="rlab" style="display:block;margin:16px 0 4px">Tune: '+esc(L.tune.name)+'</div><div class="idea-fb" id="mTuneBox"><div id="mTuneRow" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px"></div><div class="actions" style="margin:0"><button class="btn" id="mPlayTune">▶ Hear it</button><button class="btn ghost" id="mTuneNeck">🎸 Play on the neck</button></div></div>';}
-    if(L.quiz&&L.quiz.length){h+='<div class="actions" style="margin-top:16px"><button class="btn" id="mQuiz">📝 Note-reading quiz</button></div><div id="mQuizBox"></div>';}
-    h+='<div class="actions" style="margin-top:16px;justify-content:center"><button class="btn'+(mDone(L.id)?" ghost":"")+'" id="mDone">'+(mDone(L.id)?"✓ Completed — revisit anytime":"✓ Mark lesson complete")+'</button></div>';
-    h+='</div>';view.innerHTML=h;$("#eBack").onclick=list;
-    if(L.opens){var oc=$("#mOpens");[40,45,50,55,59,64].forEach(function(m){var b=document.createElement("button");b.className="rchip";b.textContent=mLet(m)+" ("+mStr(m)+getOrd(mStr(m))+")";b.onclick=function(){mPlayNote(m);};oc.appendChild(b);});}
-    if(L.notes&&L.notes.length){var nb=$("#mNotes");L.notes.forEach(function(m){var c=document.createElement("button");c.className="card";c.style.padding="8px";c.innerHTML=mStaffSVG(m)+'<h3 style="margin:4px 0 0">'+mLet(m)+'</h3><span class="blurb">'+mLoc(m)+'</span>';c.onclick=function(){mPlayNote(m);};nb.appendChild(c);});}
-    if(L.tune){var row=$("#mTuneRow");L.tune.seq.forEach(function(n,idx){var sp=document.createElement("span");sp.className="rchip sm";sp.id="mtn-"+idx;sp.textContent=mLet(n[0]);sp.title=mLoc(n[0]);row.appendChild(sp);});
-      $("#mPlayTune").onclick=function(){mPlayTune(L.tune.seq);};$("#mTuneNeck").onclick=function(){renderFretboard("guitar");};}
-    if(L.quiz&&L.quiz.length){$("#mQuiz").onclick=function(){mRunQuiz(L.quiz);};}
-    $("#mDone").onclick=function(){mSetDone(L.id);beanChip();if(i+1<MTHD.length){lesson(i+1);}else{list();}};
-  }
-  /* tune player */
-  function mPlayTune(seq){mStopTune();unlockAudio();var a=ac(),t=a.currentTime+0.1,bq=0.5;MTHD_TUNE.on=true;
-    seq.forEach(function(n,idx){var dur=n[1]*bq;pluck(n[0],t,Math.max(0.3,dur*0.95),0.3);var delay=(t-a.currentTime)*1000;MTHD_TUNE.timers.push(setTimeout(function(){var el=document.getElementById("mtn-"+idx);if(el){document.querySelectorAll('[id^="mtn-"]').forEach(function(x){x.classList.remove("sel");});el.classList.add("sel");}},Math.max(0,delay)));t+=dur;});
+    $("#eBack").onclick=goHome;var g=$("#mList");
+    L.forEach(function(les,i){var u=unlocked(i),d=mDone(les.id);var b=document.createElement("button");b.className="card"+(d?" learned":"");b.style.opacity=u?"1":".5";b.innerHTML='<span class="ic">'+(d?"✅":u?(i+1):"🔒")+'</span><h3>'+esc(les.t)+'</h3><span class="blurb">'+esc(les.goal)+'</span>';b.onclick=function(){if(u)lesson(i);};g.appendChild(b);});}
+  function lesson(i){var les=L[i];mStopTune();
+    var h='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+(i+1)+'. '+esc(les.t)+'</span></div><div class="panel">'+
+      '<div class="rlab" style="display:block;margin-bottom:6px">Goal</div><div class="idea-fb" style="margin-top:0">'+esc(les.goal)+'</div>';
+    les.teach.forEach(function(p){h+='<p style="color:var(--cream);line-height:1.6;margin:10px 2px">'+p+'</p>';});
+    if(les.opensDemo&&C.opens.length){h+='<div class="rlab" style="display:block;margin:12px 0 4px">The open strings — tap to hear</div><div class="rchips" id="mOpens"></div>';}
+    if(les.staffDemo){h+='<div style="margin:12px 0">'+clefStaffSVG()+'</div>';}
+    if(les.pianoDemo){h+='<div style="margin:12px 0">'+clefPianoSVG()+'</div><div class="actions" style="margin:0"><button class="btn ghost" id="mOpenInst">🎹 Open the piano</button></div>';}
+    if(les.notes&&les.notes.length){h+='<div class="rlab" style="display:block;margin:14px 0 4px">New notes</div><div class="grid" id="mNotes" style="grid-template-columns:repeat(3,1fr)"></div>';}
+    if(les.tune){h+='<div class="rlab" style="display:block;margin:16px 0 4px">Tune: '+esc(les.tune.name)+'</div><div class="idea-fb"><div id="mTuneRow" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px"></div><div class="actions" style="margin:0"><button class="btn" id="mPlayTune">▶ Hear it</button><button class="btn ghost" id="mInst">'+(inst==="piano"?"🎹 Open the piano":"🎸 Play on the neck")+'</button></div></div>';}
+    if(les.quiz&&les.quiz.length){h+='<div class="actions" style="margin-top:16px"><button class="btn" id="mQuiz">📝 Note-reading quiz</button></div><div id="mQuizBox"></div>';}
+    h+='<div class="actions" style="margin-top:16px;justify-content:center"><button class="btn'+(mDone(les.id)?" ghost":"")+'" id="mDone">'+(mDone(les.id)?"✓ Completed — revisit anytime":"✓ Mark lesson complete")+'</button></div></div>';
+    view.innerHTML=h;$("#eBack").onclick=list;
+    if(les.opensDemo&&C.opens.length){var oc=$("#mOpens");C.opens.forEach(function(n){var b=document.createElement("button");b.className="rchip";b.textContent=mLet(n.m)+" ("+n.s+mOrd(n.s)+")";b.onclick=function(){mPlayNote(n.m);};oc.appendChild(b);});}
+    if(les.pianoDemo){var oi=$("#mOpenInst");if(oi)oi.onclick=function(){C.play();};}
+    if(les.notes&&les.notes.length){var nb=$("#mNotes");les.notes.forEach(function(n){var c=document.createElement("button");c.className="card";c.style.padding="8px";c.innerHTML=mStaffSVG(n.m,inst)+'<h3 style="margin:4px 0 0">'+mLet(n.m)+'</h3><span class="blurb">'+esc(mLoc(n,inst))+'</span>';c.onclick=function(){mPlayNote(n.m);};nb.appendChild(c);});}
+    if(les.tune){var row=$("#mTuneRow");les.tune.seq.forEach(function(nt,idx){var sp=document.createElement("span");sp.className="rchip sm";sp.id="mtn-"+idx;sp.textContent=mLet(nt[0]);row.appendChild(sp);});
+      $("#mPlayTune").onclick=function(){playTune(les.tune.seq);};$("#mInst").onclick=function(){C.play();};}
+    if(les.quiz&&les.quiz.length){$("#mQuiz").onclick=function(){runQuiz(les.quiz);};}
+    $("#mDone").onclick=function(){mSetDone(les.id);beanChip();if(i+1<L.length)lesson(i+1);else list();};}
+  function playTune(seq){mStopTune();unlockAudio();var a=ac(),t=a.currentTime+0.1,bq=0.5;
+    seq.forEach(function(n,idx){var dur=n[1]*bq;pluck(n[0],t,Math.max(0.3,dur*0.95),0.3);MTHD_TUNE.timers.push(setTimeout(function(){var el=document.getElementById("mtn-"+idx);if(el){document.querySelectorAll('[id^="mtn-"]').forEach(function(x){x.classList.remove("sel");});el.classList.add("sel");}},Math.max(0,(t-a.currentTime)*1000)));t+=dur;});
     MTHD_TUNE.timers.push(setTimeout(function(){document.querySelectorAll('[id^="mtn-"]').forEach(function(x){x.classList.remove("sel");});},Math.max(0,(t-a.currentTime)*1000)));}
-  /* note-reading quiz */
-  function mRunQuiz(pool){var box=$("#mQuizBox");var rounds=Math.min(8,Math.max(5,pool.length)),i=0,correct=0;
-    function q(){if(i>=rounds){box.innerHTML='<div class="idea-fb" style="text-align:center"><div class="q">You got <b>'+correct+'/'+rounds+'</b></div>'+(correct>=Math.ceil(rounds*0.75)?'<div class="bean-note">Nice reading! 🎉</div>':'<div class="site-note">Keep practicing — run it again.</div>')+'<div class="actions" style="justify-content:center"><button class="btn" id="mQAgain">Again</button></div></div>';if(activeId()&&!isAdult()&&correct>=Math.ceil(rounds*0.75))addBeans(5);beanChip();$("#mQAgain").onclick=function(){mRunQuiz(pool);};return;}
-      var target=pool[Math.floor(Math.random()*pool.length)];var letter=mLet(target);
-      var letters=["C","D","E","F","G","A","B"];var opts=[letter];while(opts.length<4){var r=letters[Math.floor(Math.random()*7)];if(opts.indexOf(r)<0)opts.push(r);}opts=shuffle(opts);
-      box.innerHTML='<div class="idea-fb" style="text-align:center"><div class="rlab" style="display:block">What note is this? ('+(i+1)+'/'+rounds+')</div>'+mStaffSVG(target)+'<div class="choices" id="mQc" style="justify-content:center"></div><div class="feedback" id="mQfb" style="min-height:20px"></div></div>';
-      var c=$("#mQc");opts.forEach(function(o){var b=document.createElement("button");b.className="choice";b.textContent=o;b.onclick=function(){var ok=(o===letter);var fb=$("#mQfb");if(fb){fb.className="feedback "+(ok?"good":"try");fb.innerHTML=ok?"✓ Yes — "+letter+" ("+mLoc(target)+")":"✗ That's "+letter+" — "+mLoc(target);}mPlayNote(target);if(ok)correct++;c.querySelectorAll(".choice").forEach(function(x){x.disabled=true;if(x.textContent===letter)x.classList.add("sel");});i++;setTimeout(q,1250);};c.appendChild(b);});}
+  function runQuiz(pool){var box=$("#mQuizBox");var rounds=Math.min(8,Math.max(5,pool.length)),i=0,correct=0;
+    function q(){if(i>=rounds){box.innerHTML='<div class="idea-fb" style="text-align:center"><div class="q">You got <b>'+correct+'/'+rounds+'</b></div>'+(correct>=Math.ceil(rounds*0.75)?'<div class="bean-note">Nice reading! 🎉</div>':'<div class="site-note">Keep practicing — run it again.</div>')+'<div class="actions" style="justify-content:center"><button class="btn" id="mQAgain">Again</button></div></div>';if(activeId()&&!isAdult()&&correct>=Math.ceil(rounds*0.75))addBeans(5);beanChip();$("#mQAgain").onclick=function(){runQuiz(pool);};return;}
+      var target=pool[Math.floor(Math.random()*pool.length)],letter=mLet(target);
+      var letters=["C","D","E","F","G","A","B"],opts=[letter];while(opts.length<4){var r=letters[Math.floor(Math.random()*7)];if(opts.indexOf(r)<0)opts.push(r);}opts=shuffle(opts);
+      box.innerHTML='<div class="idea-fb" style="text-align:center"><div class="rlab" style="display:block">What note is this? ('+(i+1)+'/'+rounds+')</div>'+mStaffSVG(target,inst)+'<div class="choices" id="mQc" style="justify-content:center"></div><div class="feedback" id="mQfb" style="min-height:20px"></div></div>';
+      var c=$("#mQc");opts.forEach(function(o){var b=document.createElement("button");b.className="choice";b.textContent=o;b.onclick=function(){var ok=(o===letter),fb=$("#mQfb");if(fb){fb.className="feedback "+(ok?"good":"try");fb.innerHTML=ok?"✓ Yes — "+letter:"✗ That's "+letter;}mPlayNote(target);if(ok)correct++;c.querySelectorAll(".choice").forEach(function(x){x.disabled=true;if(x.textContent===letter)x.classList.add("sel");});i++;setTimeout(q,1150);};c.appendChild(b);});}
     q();box.scrollIntoView({behavior:"smooth",block:"nearest"});}
   list();
 }
-var MTHD_TUNE={on:false,timers:[]};
-function mStopTune(){MTHD_TUNE.on=false;MTHD_TUNE.timers.forEach(function(t){clearTimeout(t);});MTHD_TUNE.timers=[];}
+function renderGuitarMethod(){return renderMethod("guitar");}
 function renderStrings(inst){
   if(toneRAF)cancelAnimationFrame(toneRAF);prgStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{prgStop();};
   const I=STRING_INSTR[inst],total=Object.keys(CHORDS[inst]).length,learned=strLearned(inst).length;
@@ -3956,7 +4045,7 @@ function renderStrings(inst){
     {t:"Scales on the Neck",ic:"🎶",b:"See and play scales across the neck — major, pentatonic, blues — with the root and degrees labeled.",go:()=>renderFretboard(inst,"scale")},
     {t:"Strumming",ic:"👋",b:"Strum patterns for different song styles, play-along, and call-and-response that listens and grades your timing.",go:()=>renderStrumming(inst)},
     {t:"Bring a Song",ic:"🎼",b:"Paste a chord sheet, snap a photo of one, or build a progression — then play along with loop, tempo and transpose.",go:()=>renderLearnSong()}];
-  if(inst==="guitar")cards.unshift({t:"Guitar Method",ic:"📘",b:"A step-by-step beginner course — read music and play it on the neck, one string at a time. Lessons unlock as you go.",go:()=>renderGuitarMethod()});
+  if(inst==="guitar"||inst==="ukulele")cards.unshift({t:(inst==="guitar"?"Guitar":"Ukulele")+" Method",ic:"📘",b:"A step-by-step beginner course — read music and play it, one string at a time. Lessons unlock as you go.",go:()=>renderMethod(inst)});
   const g=$("#strGrid");cards.forEach(c=>{const b=document.createElement("button");b.className="card";b.innerHTML=`<span class="ic">${c.ic}</span><h3>${c.t}</h3><span class="blurb">${c.b}</span>`;b.onclick=c.go;g.appendChild(b);});
 }
 function strChords(inst){
@@ -4205,7 +4294,7 @@ function renderBass(){
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎸 Bass Guitar</span></div>'+
      '<div class="panel">'+
       '<div class="intro">'+intro+'</div>'+
-      '<div class="actions" style="margin:0 0 10px"><button class="btn ghost" id="bgNeck">🎸 Play the full neck (Fretboard)</button></div>'+ fb()+
+      '<div class="actions" style="margin:0 0 10px;flex-wrap:wrap"><button class="btn ghost" id="bgNeck">🎸 Play the full neck (Fretboard)</button><button class="btn ghost" id="bgMethod">📘 Bass Method</button></div>'+ fb()+
       '<div class="rchips" id="bgModes" style="margin:4px 0 12px">'+
         '<button class="rchip sm'+(BG.mode==="lines"?" sel":"")+'" data-mode="lines">Basslines</button>'+
         '<button class="rchip sm'+(BG.mode==="chords"?" sel":"")+'" data-mode="chords">Chords</button>'+
@@ -4215,6 +4304,7 @@ function renderBass(){
      '</div>';
     $("#eBack").onclick=goHome;
     {const nk=$("#bgNeck");if(nk)nk.onclick=()=>renderFretboard("bass");}
+    {const mb=$("#bgMethod");if(mb)mb.onclick=()=>renderMethod("bass");}
     view.querySelectorAll(".bgcell").forEach(c=>{c.onclick=()=>{unlockAudio();const m=+c.getAttribute("data-m");bassVoice(m,ac().currentTime,0.6,0.6);c.classList.remove("glow");void c.offsetWidth;c.classList.add("glow");setTimeout(()=>c.classList.remove("glow"),360);};});
     view.querySelectorAll("#bgModes .rchip").forEach(b=>{b.onclick=()=>{bgStop();if(recOn)stopRec();BG.mode=b.getAttribute("data-mode");draw();};});
     if(BG.mode==="lines"){
