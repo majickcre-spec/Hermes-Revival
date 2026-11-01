@@ -5168,7 +5168,7 @@ function acctSignIn(mode,u,c){var p=(mode==="register")?acctRegister(u,c):acctLo
 function renderCloudBar(){var el=$("#cloudBar");if(!el)return;
   if(!syncOn()){el.innerHTML='<div class="cloudnote">On the full site you can create an account to sync your players across devices.</div>';return;}
   if(acctTok()){el.innerHTML='<div class="cloudnote">☁ Synced as <b>'+esc(acctName()||"")+'</b> · <a href="#" id="cloudOut">Sign out</a></div>';var o=$("#cloudOut");if(o)o.onclick=function(e){e.preventDefault();clearAcct();renderGate();};return;}
-  el.innerHTML='<button class="btn ghost" id="cloudBtn" style="width:100%">☁ Sign in / create account — sync across devices</button><div id="cloudForm"></div>';
+  el.innerHTML='<button class="btn ghost" id="cloudBtn" style="width:100%">☁ Sign In / Sign Up — sync your progress across devices</button><div id="cloudForm"></div>';
   var b=$("#cloudBtn");if(b)b.onclick=showCloudForm;}
 function showCloudForm(){var f=$("#cloudForm");if(!f)return;var mode="login";
   function go(){var u=($("#caName").value||"").trim(),c=$("#caCode").value||"",fb=$("#caFb");
@@ -5176,11 +5176,11 @@ function showCloudForm(){var f=$("#cloudForm");if(!f)return;var mode="login";
     if(c.length<4){fb.textContent="Code must be at least 4 characters.";return;}
     fb.textContent="One moment…";var g=$("#caGo");if(g)g.disabled=true;
     acctSignIn(mode,u,c).then(function(){renderGate();}).catch(function(e){fb.textContent=(e&&e.message)?e.message:"Could not sign in.";var g2=$("#caGo");if(g2)g2.disabled=false;});}
-  function paint(){f.innerHTML='<div class="create"><div class="cloudtabs"><button type="button" class="ctab'+(mode==="login"?" sel":"")+'" data-m="login">Log in</button><button type="button" class="ctab'+(mode==="register"?" sel":"")+'" data-m="register">Create account</button></div>'+
+  function paint(){f.innerHTML='<div class="create"><div class="cloudtabs"><button type="button" class="ctab'+(mode==="login"?" sel":"")+'" data-m="login">Sign In</button><button type="button" class="ctab'+(mode==="register"?" sel":"")+'" data-m="register">Sign Up</button></div>'+
     '<div class="ulabel">Account name</div><input class="pin-input name" id="caName" maxlength="24" placeholder="a name for your account" aria-label="account name">'+
     '<div class="ulabel">Code &mdash; 4+ characters</div><input class="pin-input" id="caCode" type="password" maxlength="32" placeholder="your secret code" aria-label="code">'+
     '<div class="feedback try" id="caFb"></div>'+
-    '<div class="actions"><button class="btn ghost" id="caCancel">Cancel</button><button class="btn" id="caGo">'+(mode==="register"?"Create &amp; sync":"Log in &amp; sync")+'</button></div></div>';
+    '<div class="actions"><button class="btn ghost" id="caCancel">Cancel</button><button class="btn" id="caGo">'+(mode==="register"?"Sign Up &amp; sync":"Sign In &amp; sync")+'</button></div></div>';
     f.querySelectorAll(".ctab").forEach(function(t){t.onclick=function(){mode=t.getAttribute("data-m");paint();};});
     $("#caCancel").onclick=function(){f.innerHTML="";};
     $("#caGo").onclick=go;
