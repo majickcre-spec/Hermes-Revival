@@ -185,9 +185,9 @@ function efFetchHistory(cb){const arch=efArch();
     Object.keys(byDay).forEach(day=>{const kp=byDay[day],ser=series[day]||[],avg=ser.length?ser.reduce((a,b)=>a+b.kp,0)/ser.length:kp;arch[day]={kp,avg,intensity:Math.round(kp/9*100),label:efKpLabel(kp),series:ser};});
     efSaveArch(arch);cb(efArch(),true);
   }).catch(()=>cb(arch,false));}catch(e){cb(arch,false);}}
-function efStart(intensity,mode,vol,voiceId){efStop();unlockAudio();const a=ac(),I=Math.max(0,Math.min(1,(intensity||0)/100)),root=7.83*32,oscs=[];
+function efStart(intensity,mode,vol,voiceId,opt){var off=opt&&opt.ctx;if(!off){efStop();unlockAudio();}const a=off?opt.ctx:ac(),I=Math.max(0,Math.min(1,(intensity||0)/100)),root=7.83*32,oscs=[];
   const V=EF_VOICES.find(v=>v.id===voiceId)||EF_VOICES[0],lvlf=(V.t==="sine")?1:0.5;
-  const master=a.createGain();master.gain.value=0.0001;master.connect(a.destination);master.gain.setTargetAtTime((vol==null?0.6:vol),a.currentTime,0.6);
+  const master=a.createGain();master.connect(a.destination);if(off){master.gain.value=(vol==null?0.9:vol);}else{master.gain.value=0.0001;master.gain.setTargetAtTime((vol==null?0.6:vol),a.currentTime,0.6);}
   const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=380+I*2000;lp.connect(master);
   function voice1(freq,level,pan){const o=a.createOscillator();o.type=V.t;o.frequency.value=freq;const g=a.createGain();g.gain.value=level*lvlf;if(pan!=null&&a.createStereoPanner){const p=a.createStereoPanner();p.pan.value=pan;g.connect(p);p.connect(lp);}else g.connect(lp);o.connect(g);o.start();oscs.push(o);
     if(V.det){const o2=a.createOscillator();o2.type=V.t;o2.frequency.value=freq;o2.detune.value=V.det;const g2=a.createGain();g2.gain.value=level*lvlf*0.8;o2.connect(g2);g2.connect(lp);o2.start();oscs.push(o2);}}
@@ -198,6 +198,7 @@ function efStart(intensity,mode,vol,voiceId){efStop();unlockAudio();const a=ac()
   if(I>0.5||V.shimmer){[14.3,20.8].forEach(f=>{const o=a.createOscillator();o.type="sine";o.frequency.value=f*16;const g=a.createGain();g.gain.value=0.02*(V.shimmer?0.8:I);o.connect(g);g.connect(lp);o.start();oscs.push(o);});}
   const bpm=7.83*60/8,spb=60/bpm;let beatI=0;
   function kick(t,lvl){const o=a.createOscillator();o.type="sine";o.frequency.setValueAtTime(92,t);o.frequency.exponentialRampToValueAtTime(40,t+0.12);const g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(lvl,t+0.005);g.gain.exponentialRampToValueAtTime(0.0001,t+0.26);o.connect(g);g.connect(master);o.start(t);o.stop(t+0.3);}
+  if(off){for(var tt=0.06;tt<opt.dur;tt+=spb){var st=beatI%4;if(st===0)kick(tt,0.5);else if(I>0.6&&st===2)kick(tt,0.3);else if(I>0.82)kick(tt,0.16);beatI++;}return;}
   const beatTimer=setInterval(()=>{const t=a.currentTime+0.05,step=beatI%4;if(step===0)kick(t,0.5);else if(I>0.6&&step===2)kick(t,0.3);else if(I>0.82)kick(t,0.16);beatI++;},spb*1000);
   EF={master,oscs,beatTimer};}
 /* ---- Earth song: shared synth voices ---- */
@@ -279,9 +280,9 @@ const EF_GENRES={
    else if(s===0)ch.forEach(n=>efRhodes(c.a,c.pump,t,c.f(n+12),c.spb*3));
    if(bar>=4&&[4,12].includes(s))efLeadNote(c.a,c.pump,t,c.f([3,7,10][bar%3]+24),c.stepDur*2,"sine",2000);}}
 };
-function efSong(intensity,vol,genreKey,variant){efStop();unlockAudio();const a=ac(),I=Math.max(0,Math.min(1,(intensity||0)/100));
+function efSong(intensity,vol,genreKey,variant,opt){var off=opt&&opt.ctx;if(!off){efStop();unlockAudio();}const a=off?opt.ctx:ac(),I=Math.max(0,Math.min(1,(intensity||0)/100));
   const G=EF_GENRES[genreKey]||EF_GENRES.house,root=7.83*16,f=s=>root*Math.pow(2,s/12),oscs=[];
-  const master=a.createGain();master.gain.value=0.0001;const comp=a.createDynamicsCompressor();comp.threshold.value=-15;comp.knee.value=22;comp.ratio.value=2.6;comp.attack.value=0.004;comp.release.value=0.2;master.connect(comp);comp.connect(a.destination);master.gain.setTargetAtTime(vol==null?0.6:vol,a.currentTime,0.5);
+  const master=a.createGain();master.gain.value=0.0001;const comp=a.createDynamicsCompressor();comp.threshold.value=-15;comp.knee.value=22;comp.ratio.value=2.6;comp.attack.value=0.004;comp.release.value=0.2;master.connect(comp);comp.connect(a.destination);if(off){master.gain.value=(vol==null?0.9:vol);}else{master.gain.setTargetAtTime(vol==null?0.6:vol,a.currentTime,0.5);}
   const rev=a.createConvolver();rev.buffer=makeIR(a,2.4,2.6);const rg=a.createGain();rg.gain.value=0.85;rev.connect(rg);rg.connect(master);
   const del=a.createDelay(1.0);del.delayTime.value=(60/G.bpm)*0.75;const dfb=a.createGain();dfb.gain.value=0.33;del.connect(dfb);dfb.connect(del);const dg=a.createGain();dg.gain.value=0.55;del.connect(dg);dg.connect(master);
   const pump=a.createGain();pump.gain.value=1;const music=a.createGain();pump.connect(music);music.connect(master);
@@ -290,7 +291,8 @@ function efSong(intensity,vol,genreKey,variant){efStop();unlockAudio();const a=a
   function duck(t){if(dd<=0)return;try{pump.gain.cancelScheduledValues(t);pump.gain.setValueAtTime(1-dd,t);pump.gain.linearRampToValueAtTime(1,t+Math.min(0.24,spb*0.85));}catch(e){}}
   const c={a,master,pump,music,rev,del,root,f,CH:EF_CH,CH7:EF_CH7,BR:EF_BR,I,spb,stepDur,duck,oscs,g:G,var:variant};
   if(G.setup)G.setup(c);
-  let step=0,nextTime=a.currentTime+0.14;
+  let step=0,nextTime=(off?0.1:a.currentTime+0.14);
+  if(off){while(nextTime<opt.dur){const s=step%16,bar=Math.floor(step/16)%8;try{G.step(s,bar,nextTime,I,c);}catch(e){}nextTime+=stepDur;step++;}return;}
   const timer=setInterval(()=>{if(!EF){clearInterval(timer);return;}const now=a.currentTime;while(nextTime<now+0.14){const s=step%16,bar=Math.floor(step/16)%8;try{G.step(s,bar,nextTime,I,c);}catch(e){}nextTime+=stepDur;step++;}},25);
   EF={master,oscs,beatTimer:timer};}
 function efDaySignature(day,arch){
@@ -313,9 +315,9 @@ function efWhyBeat(day,arch){var g=efDaySignature(day,arch);
   why+="So the mix leans on "+lead+" "+(g.e>0.55?"— the higher Schumann modes light up when the field is active":g.e<0.3?"— a calm field sits almost purely on the ground tone":"— a middle balance as the field stirs")+", the breath runs "+(g.breath>0.09?"a little quicker":"slow and easy")+", and the 7.83 Hz pulse sits "+(g.pulse>0.05?"more forward":"gently underneath")+". ";
   why+=g.shape>0.4?"It builds across the day.":g.shape<-0.4?"It eases as the day goes on.":"It holds fairly even.";
   return why;}
-function efBinaural(sig,vol,carrierHi){efStop();unlockAudio();const a=ac();sig=sig||{w1:0.6,w2:0.28,w3:0.12,breath:0.06,pulse:0.03,bright:1800,e:0.4};
+function efBinaural(sig,vol,carrierHi,opt){var off=opt&&opt.ctx;if(!off){efStop();unlockAudio();}const a=off?opt.ctx:ac();sig=sig||{w1:0.6,w2:0.28,w3:0.12,breath:0.06,pulse:0.03,bright:1800,e:0.4};
   const I=Math.max(0,Math.min(1,sig.e!=null?sig.e:0.4)),base=7.83*(carrierHi?40:16),oscs=[],SCH=[7.83,14.3,20.8],W=[sig.w1,sig.w2,sig.w3];
-  const master=a.createGain();master.gain.value=0.0001;master.connect(a.destination);master.gain.setTargetAtTime(vol==null?0.55:vol,a.currentTime,0.8);
+  const master=a.createGain();master.connect(a.destination);if(off){master.gain.value=(vol==null?0.9:vol);}else{master.gain.value=0.0001;master.gain.setTargetAtTime(vol==null?0.55:vol,a.currentTime,0.8);}
   const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=sig.bright||1800;lp.connect(master);
   const carriers=[base,base*1.5,base*2];
   carriers.forEach((car,i)=>{const beat=SCH[i],detune=beat/2,amp=0.2*W[i];
@@ -327,7 +329,7 @@ function efBinaural(sig,vol,carrierHi){efStop();unlockAudio();const a=ac();sig=s
       o.connect(pan||g);if(pan)pan.connect(g);g.connect(lp);o.start();oscs.push(o);});});
   [0,3,7].forEach(n=>{const o=a.createOscillator();o.type="sine";o.frequency.value=base*Math.pow(2,n/12)*2;const g=a.createGain();g.gain.value=0.03+0.02*I;const trem=a.createOscillator();trem.type="sine";trem.frequency.value=0.08;const tg=a.createGain();tg.gain.value=0.015;trem.connect(tg);tg.connect(g.gain);trem.start();oscs.push(trem);o.connect(g);g.connect(lp);o.start();oscs.push(o);});
   const sho=a.createOscillator();sho.type="sine";sho.frequency.value=base*2;const shg=a.createGain();shg.gain.value=0.0;const shlfo=a.createOscillator();shlfo.type="sine";shlfo.frequency.value=7.83;const shlg=a.createGain();shlg.gain.value=(sig.pulse!=null?sig.pulse:0.03);shlfo.connect(shlg);shlg.connect(shg.gain);shlfo.start();oscs.push(shlfo);sho.connect(shg);shg.connect(lp);sho.start();oscs.push(sho);
-  EF={master,oscs,beatTimer:null};}
+  if(!off)EF={master,oscs,beatTimer:null};}
 function efKpLabel(kp){return kp<2?"Quiet":kp<4?"Unsettled":kp<5?"Active":kp<6?"Minor storm (G1)":kp<7?"Storm (G2)":"Strong storm";}
 function efHourLocal(ts){try{var d=new Date(String(ts).replace(' ','T')+'Z');return d.toLocaleTimeString([],{hour:'numeric'});}catch(e){return String(ts).slice(11,16)+' UTC';}}
 function efDeepAnalysis(day,arch){
@@ -398,29 +400,67 @@ var GLIST=[['house','Melodic House'],['bass','Space Bass'],['rock','Alt Rock'],[
 
 function ensureToday(){if(!arch[selDate]){var kp=override!=null?override/100*9:4;arch[selDate]={kp:kp,intensity:override!=null?override:44,label:efKpLabel(kp)};}}
 function cur(){if(override!=null)return override;var s=arch[selDate];return s?s.intensity:44;}
+/* ===== Background playback: render the day's session to a looping audio file so it keeps playing when the app is backgrounded/closed, with lock-screen controls ===== */
+var efAudioEl=null,efPlaying=false,efRendering=false,efRerenderT=null,efBlobUrl=null;
+function efEncodeWav(chans,sr){var n=chans[0].length,nc=chans.length,bytes=n*nc*2,buf=new ArrayBuffer(44+bytes),v=new DataView(buf),p=0;
+  function ws(s){for(var i=0;i<s.length;i++)v.setUint8(p++,s.charCodeAt(i));}
+  function w32(x){v.setUint32(p,x,true);p+=4;}function w16(x){v.setUint16(p,x,true);p+=2;}
+  ws("RIFF");w32(36+bytes);ws("WAVE");ws("fmt ");w32(16);w16(1);w16(nc);w32(sr);w32(sr*nc*2);w16(nc*2);w16(16);ws("data");w32(bytes);
+  for(var i=0;i<n;i++){for(var c=0;c<nc;c++){var s=Math.max(-1,Math.min(1,chans[c][i]));v.setInt16(p,s<0?s*0x8000:s*0x7FFF,true);p+=2;}}
+  return new Blob([buf],{type:"audio/wav"});}
+function efLoopWav(buf,dur,XF,sr){var L=Math.floor(dur*sr),xf=Math.floor(XF*sr),nc=Math.min(2,buf.numberOfChannels),out=[];
+  for(var c=0;c<nc;c++){var src=buf.getChannelData(c),o=new Float32Array(L);
+    for(var i=0;i<L;i++)o[i]=src[i];
+    for(var j=0;j<xf&&(L+j)<src.length;j++){var k=j/xf;o[j]=src[j]*Math.sqrt(k)+src[L+j]*Math.sqrt(1-k);}
+    out.push(o);}
+  if(nc<2)out.push(out[0]);
+  return efEncodeWav(out,sr);}
+function efSongLoopSec(){var G=EF_GENRES[genre]||EF_GENRES.house,spb=60/G.bpm,cyc=32*spb,n=Math.max(1,Math.round(18/cyc));return n*cyc;}
+function efBuilderFor(oc,total){var V=Math.max(0.0001,Math.min(1,vol));
+  if(arr==='song')return function(){efSong(cur(),V,genre,genre==='bass'?bassvar:null,{ctx:oc,dur:total});};
+  if(arr==='binaural'){var sig=efDaySignature(selDate,arch);if(override!=null){sig.e=Math.max(0,Math.min(1,override/100));sig.bright=1200+2600*sig.e;}return function(){efBinaural(sig,V,carrierHi(),{ctx:oc,dur:total});};}
+  return function(){efStart(cur(),'iso',V,voice,{ctx:oc,dur:total});};}
+function efRenderCurrent(){var dur=(arr==='song')?efSongLoopSec():30,sr=44100,XF=2.0,total=dur+XF,OC=(window.OfflineAudioContext||window.webkitOfflineAudioContext),oc=new OC(2,Math.ceil(total*sr),sr);
+  efBuilderFor(oc,total)();
+  return oc.startRendering().then(function(b){return URL.createObjectURL(efLoopWav(b,dur,XF,sr));});}
+function efSessionTitle(){var m=arr==='song'?('Song · '+((EF_GENRES[genre]||{}).name||'')):arr==='binaural'?'Binaural':'Meditation';var s=arch[selDate];return m+' · '+efDateLabel(selDate)+(s?(' · Kp '+s.kp.toFixed(1)):'');}
+function efSetMediaSession(){if(!('mediaSession'in navigator))return;try{
+  navigator.mediaSession.metadata=new MediaMetadata({title:efSessionTitle(),artist:'Schumann Resonance · 7.83 Hz',album:'Majick Music University'});
+  navigator.mediaSession.setActionHandler('play',function(){if(efAudioEl){efAudioEl.play();efPlaying=true;updPlayBtn();}});
+  navigator.mediaSession.setActionHandler('pause',function(){if(efAudioEl){efAudioEl.pause();efPlaying=false;updPlayBtn();}});
+  navigator.mediaSession.setActionHandler('stop',function(){efStopBg();});
+  try{navigator.mediaSession.playbackState='playing';}catch(e){}
+}catch(e){}}
+function updPlayBtn(){var b=$('#play');if(!b)return;b.innerHTML=efPlaying?'■&nbsp; Stop':efRendering?'…&nbsp; tuning':'▶&nbsp; Play this day';}
+function efSilentUrl(){var sr=8000,n=Math.floor(sr*0.15),s=new Float32Array(n);return URL.createObjectURL(efEncodeWav([s,s],sr));}
+function efAudioInit(){if(efAudioEl)return;efAudioEl=document.createElement('audio');efAudioEl.loop=true;efAudioEl.setAttribute('playsinline','');efAudioEl.setAttribute('preload','auto');try{efAudioEl.src=efSilentUrl();}catch(e){}document.body.appendChild(efAudioEl);}
+function efPlayBg(){if(efRendering)return;efAudioInit();efRendering=true;updPlayBtn();try{efStop();}catch(e){}
+  return efRenderCurrent().then(function(url){if(efBlobUrl)try{URL.revokeObjectURL(efBlobUrl);}catch(e){}efBlobUrl=url;efAudioEl.src=url;efAudioEl.loop=true;try{efAudioEl.volume=1;}catch(e){}var pr=efAudioEl.play();if(pr&&pr.catch)pr.catch(function(){});efPlaying=true;efRendering=false;updPlayBtn();efSetMediaSession();}).catch(function(e){efRendering=false;efPlaying=false;updPlayBtn();});}
+function efStopBg(){efPlaying=false;efRendering=false;clearTimeout(efRerenderT);try{efAudioEl&&efAudioEl.pause();}catch(e){}try{if('mediaSession'in navigator)navigator.mediaSession.playbackState='paused';}catch(e){}updPlayBtn();}
+function efApply(){if(!efPlaying&&!efRendering)return;clearTimeout(efRerenderT);efRerenderT=setTimeout(efPlayBg,400);}
 function go(){if(arr==='song')efSong(cur(),vol,genre,genre==='bass'?bassvar:null);else if(arr==='binaural'){var sig=efDaySignature(selDate,arch);if(override!=null){sig.e=Math.max(0,Math.min(1,override/100));sig.bright=1200+2600*sig.e;}efBinaural(sig,vol,carrierHi());}else efStart(cur(),'iso',vol,voice);}
 
 function drawDays(){var days=Object.keys(arch).sort().reverse().slice(0,7),w=$('#days');w.innerHTML='';
   if(!days.length){w.innerHTML='<span class="note">Reading today&rsquo;s field&hellip;</span>';return;}
-  days.forEach(function(d){var b=document.createElement('button');b.className='chip'+(d===selDate?' sel':'');b.textContent=efDateLabel(d);b.onclick=function(){selDate=d;override=null;syncInt();drawDays();drawReading();drawModeNote();drawCarrier();if(EF)go();};w.appendChild(b);});}
+  days.forEach(function(d){var b=document.createElement('button');b.className='chip'+(d===selDate?' sel':'');b.textContent=efDateLabel(d);b.onclick=function(){selDate=d;override=null;syncInt();drawDays();drawReading();drawModeNote();drawCarrier();efApply();};w.appendChild(b);});}
 function drawReading(){ensureToday();$('#reading').innerHTML=efDayReading(selDate,arch);}
-function drawFeel(){var w=$('#feel');w.innerHTML='';[['med','🧘 Meditation'],['binaural','🌀 Binaural'],['song','🎶 Song']].forEach(function(o){var b=document.createElement('button');b.className='chip'+(arr===o[0]?' sel':'');b.textContent=o[1];b.onclick=function(){arr=o[0];save('schumann-arr',arr);drawFeel();drawGenre();drawCarrier();drawModeNote();if(EF)go();};w.appendChild(b);});}
+function drawFeel(){var w=$('#feel');w.innerHTML='';[['med','🧘 Meditation'],['binaural','🌀 Binaural'],['song','🎶 Song']].forEach(function(o){var b=document.createElement('button');b.className='chip'+(arr===o[0]?' sel':'');b.textContent=o[1];b.onclick=function(){arr=o[0];save('schumann-arr',arr);drawFeel();drawGenre();drawCarrier();drawModeNote();efApply();};w.appendChild(b);});}
 function drawGenre(){var w=$('#genreWrap');w.innerHTML='';if(arr!=='song')return;
   var g=document.createElement('div');g.className='chips';g.style.marginTop='10px';
-  GLIST.forEach(function(o){var b=document.createElement('button');b.className='chip'+(genre===o[0]?' sel':'');b.textContent=o[1];b.onclick=function(){genre=o[0];save('schumann-genre',genre);drawGenre();drawModeNote();if(EF)go();};g.appendChild(b);});w.appendChild(g);
-  if(genre==='bass'){var v=document.createElement('div');v.className='chips';v.style.marginTop='8px';[['agg','⚡ Aggressive'],['chill','🌙 Chill']].forEach(function(o){var b=document.createElement('button');b.className='chip'+(bassvar===o[0]?' sel':'');b.textContent=o[1];b.onclick=function(){bassvar=o[0];save('schumann-bassvar',bassvar);drawGenre();if(EF)go();};v.appendChild(b);});w.appendChild(v);}}
+  GLIST.forEach(function(o){var b=document.createElement('button');b.className='chip'+(genre===o[0]?' sel':'');b.textContent=o[1];b.onclick=function(){genre=o[0];save('schumann-genre',genre);drawGenre();drawModeNote();efApply();};g.appendChild(b);});w.appendChild(g);
+  if(genre==='bass'){var v=document.createElement('div');v.className='chips';v.style.marginTop='8px';[['agg','⚡ Aggressive'],['chill','🌙 Chill']].forEach(function(o){var b=document.createElement('button');b.className='chip'+(bassvar===o[0]?' sel':'');b.textContent=o[1];b.onclick=function(){bassvar=o[0];save('schumann-bassvar',bassvar);drawGenre();efApply();};v.appendChild(b);});w.appendChild(v);}}
 function drawCarrier(){var w=$('#carrierWrap');if(!w)return;w.innerHTML='';if(arr!=='binaural')return;
   var g=document.createElement('div');g.className='chips';g.style.marginTop='10px';
   var lab=document.createElement('span');lab.className='k';lab.style.marginRight='6px';lab.textContent='Tone';g.appendChild(lab);
-  [['earthy','🌍 Earthy (low)'],['clear','✨ Clear (high)']].forEach(function(o){var b=document.createElement('button');b.className='chip'+(carrier===o[0]?' sel':'');b.textContent=o[1];b.onclick=function(){carrier=o[0];save('schumann-carrier',carrier);drawCarrier();if(EF)go();};g.appendChild(b);});
+  [['earthy','🌍 Earthy (low)'],['clear','✨ Clear (high)']].forEach(function(o){var b=document.createElement('button');b.className='chip'+(carrier===o[0]?' sel':'');b.textContent=o[1];b.onclick=function(){carrier=o[0];save('schumann-carrier',carrier);drawCarrier();efApply();};g.appendChild(b);});
   w.appendChild(g);}
 function drawModeNote(){var t;if(arr==='song'){t='Built on the day&rsquo;s 7.83 Hz as the bass. <b>Melodic House</b> is deep &amp; euphoric in tribute to <b>R\u00DCF\u00DCS DU SOL</b>; <b>Space Bass</b> is heavy halftime in tribute to <b>LSDREAM</b> (Aggressive = screech &amp; filth, Chill = cosmic downtempo). Inspired by their styles, not sampled.';}else if(arr==='binaural'){t='🎧 Headphones essential — a true binaural beat (a different tone in each ear; the <i>difference</i> is the Schumann frequency). Each day is built from that day&rsquo;s own geomagnetic chart, so pick a day above and it changes.<br>'+efWhyBeat(selDate,arch);}else{t='A drone octaved up from 7.83 Hz, pulsed at the real 7.83 Hz over a slow ~59 BPM Earth beat &mdash; made for long, easy breathing.';}$('#modeNote').innerHTML=t;}
 function syncInt(){$('#int').value=cur();$('#intV').textContent=cur();}
 
-$('#int').oninput=function(){override=+this.value;$('#intV').textContent=override;if(!liveData){var kp=override/100*9;arch[selDate]={kp:kp,intensity:override,label:efKpLabel(kp)};drawReading();}if(EF)go();};
+$('#int').oninput=function(){override=+this.value;$('#intV').textContent=override;if(!liveData){var kp=override/100*9;arch[selDate]={kp:kp,intensity:override,label:efKpLabel(kp)};drawReading();}efApply();};
 $('#vol').value=vol;$('#volV').textContent=vol.toFixed(2);
-$('#vol').oninput=function(){vol=+this.value;$('#volV').textContent=vol.toFixed(2);if(EF&&EF.master){try{EF.master.gain.setTargetAtTime(vol,ac().currentTime,0.1);}catch(e){}}};
-$('#play').onclick=function(){if(EF){efStop();this.innerHTML='▶  Play this day';}else{go();this.innerHTML='■  Stop';}};
+$('#vol').oninput=function(){vol=+this.value;$('#volV').textContent=vol.toFixed(2);if(efAudioEl)try{efAudioEl.volume=vol;}catch(e){}efApply();};
+$('#play').onclick=function(){efAudioInit();if(efPlaying||efRendering){efStopBg();}else{try{var p=efAudioEl.play();if(p&&p.catch)p.catch(function(){});}catch(e){}efPlayBg();}};
 
 /* ===== A message from Gayle — fed from a Google Sheet she controls ===== */
 /* GO LIVE: Gayle makes a Google Sheet with columns:  date | title | message | media
@@ -435,7 +475,7 @@ function gayleToday(){var d=new Date();var y=d.getFullYear(),m=d.getMonth()+1,da
 function gayleMedia(url){if(!url)return '';url=url.trim();var dr=url.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);if(dr)return '<iframe class="gmedia" src="https://drive.google.com/file/d/'+dr[1]+'/preview" allow="autoplay" loading="lazy"></iframe>';var yt=url.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=|youtube\.com\/embed\/)([A-Za-z0-9_-]{6,})/);if(yt)return '<iframe class="gmedia" src="https://www.youtube.com/embed/'+yt[1]+'" allow="autoplay" loading="lazy" frameborder="0"></iframe>';if(/\.(mp3|m4a|wav|aac|ogg)(\?|$)/i.test(url))return '<audio controls preload="none" src="'+esc(url)+'" style="width:100%;margin-top:12px"></audio>';if(/\.(mp4|webm|mov)(\?|$)/i.test(url))return '<video controls preload="none" src="'+esc(url)+'" style="width:100%;margin-top:12px;border-radius:12px"></video>';return '<a class="glink" href="'+esc(url)+'" target="_blank" rel="noopener">▶ Listen / watch</a>';}
 function renderGayle(e,isSample){var body=$('#gayleBody'),note=$('#gayleNote');if(!body)return;var paras=(e.message||'').split(/\n+/).filter(function(s){return s.trim();}).map(function(p){return '<p>'+esc(p)+'</p>';}).join('');body.innerHTML=(e.title?'<h3 class="gtitle">'+esc(e.title)+'</h3>':'')+paras+gayleMedia(e.media);note.innerHTML=isSample?'✨ <i>Sample — this is where your words live, Gayle. Type a short message into a simple Google Sheet whenever you like (add a voice note or video if you want) and it appears right here, beside the day’s live reading. No code, ever.</i>':'';}
 function loadGayle(){if(!GAYLE_SHEET_CSV){renderGayle(GAYLE_SAMPLE,true);return;}try{fetch(GAYLE_SHEET_CSV,{cache:'no-store'}).then(function(r){return r.text();}).then(function(txt){var rows=csvParse(txt),keys=gayleToday(),row=null;for(var i=0;i<rows.length;i++){if(keys.indexOf((rows[i].date||'').trim())>=0){row=rows[i];break;}}if(row&&(row.message||row.title))renderGayle({title:row.title,message:row.message,media:row.media||row.link||row.audio||row.video||''},false);else renderGayle(GAYLE_SAMPLE,true);}).catch(function(){renderGayle(GAYLE_SAMPLE,true);});}catch(e){renderGayle(GAYLE_SAMPLE,true);}}
-drawFeel();drawGenre();drawCarrier();drawModeNote();drawDays();syncInt();drawReading();loadGayle();
+efAudioInit();drawFeel();drawGenre();drawCarrier();drawModeNote();drawDays();syncInt();drawReading();loadGayle();updPlayBtn();
 try{efFetchHistory(function(a,ok){if(ok&&a&&Object.keys(a).length){arch=a;liveData=true;if(arch[efDayUTC(0)])selDate=efDayUTC(0);}override=null;syncInt();drawDays();drawReading();drawModeNote();drawCarrier();});}catch(e){}
 </script>
 </body>
