@@ -3077,7 +3077,7 @@ function renderPathHero(){const el=$("#pathHero");if(!el)return;const st=pathSta
 function renderPath(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{};
   const st=pathStats(),done=st.done===st.total,flat={};pathAllSteps().forEach(s=>flat[s.id]=s);
   let bodyH="";MMU_PATH.forEach((L,li)=>{const ldone=L.steps.every(s=>pathDone(s.id));
-    bodyH+='<div class="pathlvl"><div class="pl-h"><span class="pl-n">Level '+(li+1)+(ldone?' ✓':'')+'</span><span class="pl-t">'+esc(L.t)+'</span></div><div class="pl-sub">'+esc(L.sub)+'</div>';
+    bodyH+='<div class="pathlvl"><div class="pl-h"><span class="pl-n">Level '+(li+1)+(ldone?' ✓':'')+'</span><span class="pl-t">'+esc(L.t)+'</span><button class="pl-syl" data-li="'+li+'" style="margin-left:auto;font-size:.68rem;color:var(--gold);background:none;border:1px solid var(--line);border-radius:999px;padding:3px 10px;cursor:pointer;flex:none">📋 Syllabus</button></div><div class="pl-sub">'+esc(L.sub)+'</div>';
     L.steps.forEach(s=>{const d=pathDone(s.id),isCur=st.cur&&st.cur.id===s.id;
       bodyH+='<div class="pstep'+(d?" done":"")+(isCur?" cur":"")+(s.g==="ground"?" ground":"")+'"><span class="ps-ic">'+s.ic+'</span><div class="ps-main"><div class="ps-t">'+esc(s.t)+(s.g==="ground"?' <span class="ps-tag">breathe</span>':"")+'</div><div class="ps-b">'+esc(s.blurb)+'</div></div><div class="ps-act"><button class="rchip sm ps-open" data-id="'+s.id+'">▶ Open</button><button class="rchip sm ps-done" data-id="'+s.id+'">'+(d?"✓":"○")+'</button></div></div>';});
     bodyH+='</div>';});
@@ -3085,11 +3085,95 @@ function renderPath(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;
     (done?'<div class="idea-fb" style="border:1px solid #5fe0a8;color:#5fe0a8;margin-bottom:10px"><b>🎓 MMU Foundations — complete.</b> You moved through every level, craft and breath alike. This is just the first turn of the spiral — keep making.</div>':'')+
     '<div class="intro">In the spirit of <b>Musicians Institute</b>: you <b>learn by doing</b> — real music from day one, ear and hands and theory together. What we add is the part MI left out — before you play, you <b>regulate your nervous system</b>. A calm, present body learns faster, hears more, and plays freer. Music and meditation are the same practice: <b>attention, breath, time</b>.</div>'+
     '<div class="ph-bar"><div class="ph-fill" style="width:'+Math.round(st.done/st.total*100)+'%"></div></div><div class="ph-n" style="margin-bottom:10px">'+st.done+' / '+st.total+' steps'+(st.cur?' · next: <b>'+esc(st.cur.t)+'</b>':'')+'</div>'+
+    '<div class="actions" style="margin:0 0 12px"><button class="btn ghost" id="pathOrient">🎓 Orientation &amp; course catalog</button></div>'+
     bodyH+
     '<div class="site-note" style="margin-top:12px">Do a step, then tap <b>○</b> to mark it done. The daily rhythm is simple: <b>ground, then play</b>.</div></div>';
   $("#eBack").onclick=goHome;
   view.querySelectorAll(".ps-open").forEach(b=>{b.onclick=()=>{const s=flat[b.dataset.id];if(s&&s.go)s.go();};});
   view.querySelectorAll(".ps-done").forEach(b=>{b.onclick=()=>{const id=b.dataset.id;pathSetDone(id,!pathDone(id));renderPath();};});
+  {var po=$("#pathOrient");if(po)po.onclick=renderOrientation;}
+  view.querySelectorAll(".pl-syl").forEach(b=>{b.onclick=()=>renderSyllabus(+b.dataset.li);});
+}
+/* ===== ORIENTATION + SYLLABI — each Path level is a college course ===== */
+const COURSES=[
+ {code:"MUS 101",title:"Foundations — Arrive & Attune",credits:3,
+  goal:"Build the ground every musician stands on: a regulated nervous system, a steady pulse, and an ear that can hold a single note. You learn to arrive before you play.",
+  outcomes:["Drop into a calm, focused state on demand using the breath","Feel and keep a steady pulse","Identify a single pitch by ear","Explain why nervous-system regulation makes you a faster, freer learner"],
+  expect:"About 15 minutes a day. Every session starts with breath. Do the steps in order — ground, then play.",
+  midterm:"Hold coherent breathing for 3 minutes, then keep a 60-bpm pulse by hand for one full minute.",
+  final:"Score 7/10 on Note ID, sit a 5-minute Schumann meditation, and note one line on how your body felt before vs. after."},
+ {code:"INS 110",title:"Your Instrument I",credits:4,
+  goal:"Get your hands on a real instrument and make music immediately — notes, chords, a progression — the MI way, with grounding built into every practice.",
+  outcomes:["Play single notes on the Fretboard or Piano","Form and cleanly hold three open chords (C, G, Em)","Strum a 4-chord progression in time","Keep a daily ground-then-practice habit"],
+  expect:"20 minutes a day on a real or on-screen instrument. Two minutes of breath before you practice — always.",
+  midterm:"On the Fretboard, form C, G, and Em and lock each shape (hold ~3s until it turns green).",
+  final:"Play a 4-chord progression through twice in time, and record a 30-second clip in the Idea Lab."},
+ {code:"RHY 120",title:"Rhythm & Groove",credits:3,
+  goal:"Develop the internal clock — the ability to hear, feel, and build rhythm — using the body as the instrument and the breath as the first metronome.",
+  outcomes:["See and hear a groove and name where the hits land","Transcribe a beat by ear","Play the three djembe strokes (bass, tone, slap)","Program an original beat"],
+  expect:"15 minutes a day. Tap along to something every day, even away from the app.",
+  midterm:"Score 80% on Rhythm Transcription (Tap It) for a medium groove.",
+  final:"Build an original one-bar beat in the Sampler and perform it in time over the metronome."},
+ {code:"EAR 130",title:"Ear Training & Harmony",credits:4,
+  goal:"Train the ear — the same attention muscle meditation builds — to recognize chords, scales, melody, and where a song rests.",
+  outcomes:["Identify major vs. minor chords by ear","Recognize common scale colors","Find a melody's notes and scale degrees by singing","Identify a song's key and its main loop"],
+  expect:"10–15 minutes of ear reps a day. Short and often beats long and rare.",
+  midterm:"Score 8/10 on the Chord Ear Trainer.",
+  final:"Transcribe an 8-note melody in the Melody Lab, and identify the key and loop of a song in Song Analysis."},
+ {code:"SNG 140",title:"Songwriting I",credits:4,
+  goal:"Write a song that works — structure, a hook, rhyme and prosody — and learn to create from a safe, regulated place instead of a self-critical one.",
+  outcomes:["Explain the common song forms and each section's job","Write a chorus that states one big idea","Use rhyme schemes and matched syllable counts","Soften the inner critic before writing"],
+  expect:"Write most days. Speak your ideas into the Lyric Lab — don't wait for them to be perfect.",
+  midterm:"Write a complete chorus with a consistent rhyme scheme and matched syllable lengths, and run it through the coach.",
+  final:"Write a full lyric (verse–chorus–verse–chorus–bridge) and submit it to the coach for feedback."},
+ {code:"PRO 150",title:"Music Production",credits:4,
+  goal:"Turn an idea into a finished-sounding track — beat, recording, and mix — and learn to hear a mix like a producer.",
+  outcomes:["Build a beat with drums and a melodic part","Record an idea and keep the keepers","Read a mix report and improve a mix","Reverse-engineer a pro record's mix"],
+  expect:"Short, focused sessions. Breathe between takes — tension is audible in a performance.",
+  midterm:"Produce an 8-bar beat with drums plus one melodic part in the Sampler / Beat Maker.",
+  final:"Bounce a mix through The Instructor, then raise your score from version 1 to version 2."},
+ {code:"CAP 190",title:"Capstone — Your Song",credits:5,
+  goal:"Bring everything together into one finished song that is yours — written, built, and completed from a grounded, present place.",
+  outcomes:["Ground deeply before creating","Write a complete, meant lyric","Build a full song structure","Finish and keep an original song"],
+  expect:"This is the big one. Take your time, and return to the breath whenever you get stuck.",
+  midterm:"A finished lyric plus a chord or melody sketch for your song.",
+  final:"A complete song assembled in the Song Project — intro, verses, chorus, bridge, outro. Finishing it earns your MMU Foundations certificate."}
+];
+function renderOrientation(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{};
+  let cat="";COURSES.forEach((c,i)=>{const done=MMU_PATH[i].steps.every(s=>pathDone(s.id));cat+='<button class="pstep" data-i="'+i+'" style="width:100%;text-align:left;cursor:pointer"><span class="ps-ic">'+MMU_PATH[i].steps[0].ic+'</span><div class="ps-main"><div class="ps-t">'+c.code+' · '+esc(c.title)+(done?' ✓':'')+'</div><div class="ps-b">'+esc(c.goal.split(":")[0])+'.</div></div><span class="rchip sm">Syllabus ▸</span></button>';});
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎓 Orientation</span></div><div class="panel">'+
+    '<div class="hero" style="padding:4px 0 8px"><div class="eyebrow" style="letter-spacing:3px;text-transform:uppercase;color:var(--muted);font-size:.72rem">New-student orientation</div><h2 style="font-family:\'Fraunces\',serif;font-weight:600;margin:6px 0">Welcome to Majick Music University.</h2></div>'+
+    '<div class="intro">A music school with <b>no walls</b> — built by a Musicians Institute graduate, for everybody. The idea is simple: music lives in the head, the ear, and the hands, and it belongs to everyone. You’ll <b>learn by doing</b> — real music from day one — and you’ll learn to <b>regulate your nervous system</b> as part of the craft, because a calm, present body plays freer. Music, meditation, and the evolution of your own consciousness are one practice here.</div>'+
+    '<div class="rlab" style="display:block;margin:14px 0 6px">How it works</div>'+
+    '<div class="idea-fb">You move through <b>The Path</b> — seven courses, each a level. Every session follows one rhythm: <b>ground, then play</b>. It’s self-paced; do a step, then mark it done. You earn <b>Beans</b> as you go, complete courses, and finish with a <b>Capstone song</b> and your <b>Foundations certificate</b>.</div>'+
+    '<div class="rlab" style="display:block;margin:14px 0 6px">What’s expected</div>'+
+    '<div class="idea-fb">~15–20 minutes a day beats a long cram. Start every practice with breath. Be <b>honest</b> in your practice and <b>kind</b> to yourself — this is a place to grow, not to judge. That’s the whole honor code.</div>'+
+    '<div class="rlab" style="display:block;margin:14px 0 6px">What you’ll walk away with</div>'+
+    '<div class="idea-fb">A grounded daily practice, a playable instrument, a trained ear, songs you wrote, and one finished track that’s yours — plus the <b>MMU Foundations</b> certificate.</div>'+
+    '<div class="actions" style="margin:16px 0"><button class="btn" id="orBegin">Begin the Path →</button></div>'+
+    '<div class="rlab" style="display:block;margin:14px 0 6px">📋 Course catalog</div><div>'+cat+'</div>'+
+    '<div class="site-note" style="margin-top:10px">Tap any course for its full syllabus — goals, outcomes, what’s expected, and the midterm &amp; final.</div></div>';
+  $("#eBack").onclick=goHome;
+  $("#orBegin").onclick=renderPath;
+  view.querySelectorAll(".pstep[data-i]").forEach(b=>{b.onclick=()=>renderSyllabus(+b.dataset.i);});
+}
+function renderSyllabus(i){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{};
+  const c=COURSES[i],L=MMU_PATH[i];
+  const work=L.steps.map(s=>'<div class="ps-b" style="margin:3px 0">'+s.ic+' '+esc(s.t)+(s.g==="ground"?' <span class="ps-tag">breathe</span>':'')+'</div>').join("");
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">📋 Syllabus</span></div><div class="panel">'+
+    '<div class="eyebrow" style="letter-spacing:2px;text-transform:uppercase;color:var(--gold);font-size:.72rem;font-weight:800">'+c.code+' · Level '+(i+1)+' · '+c.credits+' credits</div>'+
+    '<h2 style="font-family:\'Fraunces\',serif;font-weight:600;margin:4px 0 10px">'+esc(c.title)+'</h2>'+
+    '<div class="rlab" style="display:block;margin:10px 0 4px">🎯 Overall goal</div><div class="intro" style="margin:0">'+esc(c.goal)+'</div>'+
+    '<div class="rlab" style="display:block;margin:14px 0 4px">✅ Learning outcomes</div><div class="idea-fb"><b>By the end of this course, you will be able to:</b><ul style="margin:6px 0 0;padding-left:18px">'+c.outcomes.map(o=>'<li style="margin:3px 0">'+esc(o)+'</li>').join("")+'</ul></div>'+
+    '<div class="rlab" style="display:block;margin:14px 0 4px">⏱️ What’s expected</div><div class="idea-fb">'+esc(c.expect)+'</div>'+
+    '<div class="rlab" style="display:block;margin:14px 0 4px">📚 The coursework</div><div class="idea-fb">'+work+'</div>'+
+    '<div class="rlab" style="display:block;margin:14px 0 4px">📝 Midterm</div><div class="idea-fb" style="border-left:3px solid var(--gold)">'+esc(c.midterm)+'</div>'+
+    '<div class="rlab" style="display:block;margin:10px 0 4px">🎓 Final</div><div class="idea-fb" style="border-left:3px solid #5fe0a8">'+esc(c.final)+'</div>'+
+    (i>0?'<div class="site-note" style="margin-top:10px">Prerequisite: <b>'+COURSES[i-1].code+'</b> — '+esc(COURSES[i-1].title)+'.</div>':'<div class="site-note" style="margin-top:10px">No prerequisite — this is where everyone begins.</div>')+
+    '<div class="actions" style="margin-top:14px;gap:10px"><button class="btn" id="sylGo">Go to this course →</button><button class="btn ghost" id="sylCat">📋 Catalog</button></div></div>';
+  $("#eBack").onclick=renderOrientation;
+  $("#sylGo").onclick=renderPath;
+  $("#sylCat").onclick=renderOrientation;
 }
 /* ===== FRETBOARD — playable, life-size neck + chord-shape trainer ===== */
 const FB_TUNE={guitar:[40,45,50,55,59,64],bass:[28,33,38,43],ukulele:[67,60,64,69]};
