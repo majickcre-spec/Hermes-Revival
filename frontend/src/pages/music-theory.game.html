@@ -3597,6 +3597,7 @@ const MAKE_CARDS=[
  {ic:"🎼",title:"Learn a Song",blurb:"Bring in a song you're practicing — paste a chord sheet or build it — and get a play-along chord chart with loop, tempo, and transpose.",go:()=>renderLearnSong()},
  {ic:"✍️",title:"Songwriting",blurb:"Learn to write songs that work — structure, the parts, rhyme schemes and prosody — then write your lyrics in the Lyric Lab with a syllable counter, a rhyme finder, and a coach that tightens them. This is where your midterm & final lyrics come from.",go:()=>renderSongwriting()},
  {ic:"🎼",title:"Song Project (final)",blurb:"The big one — assemble your sections into a full song: intro, verses, choruses, bridge, outro. Finish it to earn Songwriter.",go:()=>renderSongBuilder()},
+ {ic:"🎚️",title:"Mixing Station",blurb:"Real in-app mixing — load a track and process it with a channel strip (mono sub, saturator, sheen, pump, bus comp, limiter), A/B against the original, watch LUFS/peak/width meters, then bounce a processed WAV to finish in Ableton. Devices pre-set from your mix report.",go:()=>renderMixStation()},
  {ic:"🎓",title:"The Instructor",blurb:"Your mix teacher. Drop in a track (or a section you bounced) and get a real mix report — gain staging, tonal balance, low end, dynamics, stereo — graded for YOUR genre. Save it as a track project and track your progress version to version. Add a reference to hear why yours sounds older.",go:()=>renderInstructor()},
  {ic:"🔬",title:"Song Analysis",blurb:"Learn to make songs by taking apart songs you love — one layer a week: structure, low end, groove, harmony, melody, lyrics, arrangement, the mix. Guided listening prompts + a worksheet that saves.",go:()=>renderSongAnalysis()}
 ];
@@ -5329,6 +5330,92 @@ function renderMMUProject(id){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidd
     pv.appendChild(d);});
  }
  draw();
+}
+/* ===== MIXING STATION — real-DSP channel strip, meters, A/B, WAV bounce ===== */
+/* devices preset from a Melodic House/EDM mix report: limiter -1dBTP, mono sub <120, pump, sheen, saturator */
+function mxDb(db){return Math.pow(10,db/20);}
+function mxSoftCurve(amt){var n=1024,c=new Float32Array(n),k=1+amt*6;for(var i=0;i<n;i++){var x=i*2/n-1;c[i]=Math.tanh(k*x)/Math.tanh(k);}return c;}
+function mxClampCurve(ceil){var n=2048,c=new Float32Array(n);for(var i=0;i<n;i++){var x=i*2/n-1;c[i]=Math.max(-ceil,Math.min(ceil,x));}return c;}
+function mxMono(ctx,hz,on){var inp=ctx.createGain(),out=ctx.createGain();var sp=ctx.createChannelSplitter(2);inp.connect(sp);
+  var mid=ctx.createGain();var la=ctx.createGain();la.gain.value=0.5;var ra=ctx.createGain();ra.gain.value=0.5;sp.connect(la,0);sp.connect(ra,1);la.connect(mid);ra.connect(mid);
+  var side=ctx.createGain();var lb=ctx.createGain();lb.gain.value=0.5;var rb=ctx.createGain();rb.gain.value=-0.5;sp.connect(lb,0);sp.connect(rb,1);lb.connect(side);rb.connect(side);
+  var hp=ctx.createBiquadFilter();hp.type="highpass";hp.frequency.value=on?hz:8;hp.Q.value=0.707;side.connect(hp);
+  var oL=ctx.createGain(),oR=ctx.createGain();mid.connect(oL);hp.connect(oL);var sn=ctx.createGain();sn.gain.value=-1;hp.connect(sn);mid.connect(oR);sn.connect(oR);
+  var mg=ctx.createChannelMerger(2);oL.connect(mg,0,0);oR.connect(mg,0,1);mg.connect(out);return {input:inp,output:out};}
+function mxBuildChain(ctx,p,bypass){var B=!!bypass;
+  var mono=mxMono(ctx,p.monoHz,p.monoOn&&!B);
+  var drive=ctx.createGain();drive.gain.value=(p.satOn&&!B)?1+p.satDrive*3:1;var sh=ctx.createWaveShaper();sh.curve=mxSoftCurve((p.satOn&&!B)?p.satDrive:0);sh.oversample="2x";var satMk=ctx.createGain();satMk.gain.value=(p.satOn&&!B)?1/(1+p.satDrive*0.8):1;mono.output.connect(drive);drive.connect(sh);sh.connect(satMk);
+  var sheen=ctx.createBiquadFilter();sheen.type="highshelf";sheen.frequency.value=p.sheenHz;sheen.gain.value=(p.sheenOn&&!B)?p.sheenDb:0;satMk.connect(sheen);
+  var comp=ctx.createDynamicsCompressor();if(p.compOn&&!B){comp.threshold.value=p.compThresh;comp.ratio.value=p.compRatio;comp.knee.value=6;comp.attack.value=0.01;comp.release.value=0.2;}else{comp.threshold.value=0;comp.ratio.value=1;comp.knee.value=0;comp.attack.value=0.003;comp.release.value=0.1;}var compMk=ctx.createGain();compMk.gain.value=(p.compOn&&!B)?mxDb(p.compMakeup):1;sheen.connect(comp);comp.connect(compMk);
+  var pumpG=ctx.createGain();var depth=(p.pumpOn&&!B)?(1-mxDb(-p.pumpDb)):0;pumpG.gain.value=1-depth;
+  if(depth>0){try{var lfo=ctx.createOscillator();lfo.type="sine";lfo.frequency.value=p.pumpBpm/60;var lg=ctx.createGain();lg.gain.value=depth/2;var cs=ctx.createConstantSource();cs.offset.value=depth/2;lfo.connect(lg);lg.connect(pumpG.gain);cs.connect(pumpG.gain);lfo.start();cs.start();}catch(e){}}
+  compMk.connect(pumpG);
+  var lim=ctx.createDynamicsCompressor();if(p.limOn&&!B){lim.threshold.value=p.limCeil-1;lim.ratio.value=20;lim.knee.value=0;lim.attack.value=0.003;lim.release.value=0.05;}else{lim.threshold.value=0;lim.ratio.value=1;lim.knee.value=0;lim.attack.value=0.003;lim.release.value=0.05;}
+  var clip=ctx.createWaveShaper();clip.curve=mxClampCurve((p.limOn&&!B)?mxDb(p.limCeil):1);var outG=ctx.createGain();pumpG.connect(lim);lim.connect(clip);clip.connect(outG);
+  return {input:mono.input,output:outG};}
+var MX={buf:null,name:"",src:null,chain:null,playing:false,bypass:false,raf:null,peakHold:0,
+  params:{monoOn:true,monoHz:120,satOn:true,satDrive:0.22,sheenOn:true,sheenHz:9000,sheenDb:2.5,compOn:false,compThresh:-18,compRatio:2,compMakeup:1.5,pumpOn:true,pumpBpm:124,pumpDb:1.5,limOn:true,limCeil:-1}};
+function mxMeterNodes(){var a=ac();MX.mainAn=a.createAnalyser();MX.mainAn.fftSize=2048;
+  MX.kHP=a.createBiquadFilter();MX.kHP.type="highpass";MX.kHP.frequency.value=38;MX.kHS=a.createBiquadFilter();MX.kHS.type="highshelf";MX.kHS.frequency.value=1500;MX.kHS.gain.value=4;MX.kHP.connect(MX.kHS);MX.kAn=a.createAnalyser();MX.kAn.fftSize=4096;MX.kHS.connect(MX.kAn);
+  MX.msSplit=a.createChannelSplitter(2);MX.anL=a.createAnalyser();MX.anR=a.createAnalyser();MX.anL.fftSize=2048;MX.anR.fftSize=2048;MX.msSplit.connect(MX.anL,0);MX.msSplit.connect(MX.anR,1);}
+function mxConnect(){var a=ac();if(!MX.mainAn)mxMeterNodes();
+  if(MX.chain){try{MX.chain.output.disconnect();}catch(e){}}
+  MX.chain=mxBuildChain(a,MX.params,MX.bypass);
+  if(MX.src){try{MX.src.disconnect();}catch(e){}MX.src.connect(MX.chain.input);}
+  MX.chain.output.connect(a.destination);MX.chain.output.connect(MX.mainAn);MX.chain.output.connect(MX.kHP);MX.chain.output.connect(MX.msSplit);}
+function mxMeterLoop(){
+  if(!MX.mainAn)return;var tb=MX._tb||(MX._tb=new Float32Array(2048));MX.mainAn.getFloatTimeDomainData(tb);
+  var pk=0,i;for(i=0;i<tb.length;i++){var v=Math.abs(tb[i]);if(v>pk)pk=v;}
+  MX.peakHold=Math.max(pk,MX.peakHold*0.92);var pkdb=MX.peakHold>0?20*Math.log10(MX.peakHold):-99;
+  var kb=MX._kb||(MX._kb=new Float32Array(MX.kAn.fftSize));MX.kAn.getFloatTimeDomainData(kb);var ms=0;for(i=0;i<kb.length;i++)ms+=kb[i]*kb[i];ms/=kb.length;var lufs=ms>1e-9?(-0.691+10*Math.log10(ms)):-70;
+  var lb=MX._lb||(MX._lb=new Float32Array(2048)),rb=MX._rb||(MX._rb=new Float32Array(2048));MX.anL.getFloatTimeDomainData(lb);MX.anR.getFloatTimeDomainData(rb);var sl=0,sr=0,slr=0;for(i=0;i<lb.length;i++){sl+=lb[i]*lb[i];sr+=rb[i]*rb[i];slr+=lb[i]*rb[i];}var corr=(sl>1e-9&&sr>1e-9)?slr/Math.sqrt(sl*sr):1;
+  var set=function(id,v){var e=document.getElementById(id);if(e)e.textContent=v;};
+  set("mxLufs",lufs<=-70?"—":lufs.toFixed(1));set("mxPeak",pkdb<=-99?"—":(pkdb>0?"+":"")+pkdb.toFixed(1));set("mxCorr",corr.toFixed(2));
+  var pe=document.getElementById("mxPeak");if(pe)pe.style.color=pkdb>-1?"#ff8f8c":(pkdb>-3?"var(--gold)":"#5fe0a8");
+  var we=document.getElementById("mxWidth");if(we)we.textContent=corr>0.9?"narrow / mono-ish":corr>0.3?"balanced":corr>-0.2?"wide":"very wide / phasey";
+  MX.raf=requestAnimationFrame(mxMeterLoop);}
+function mxPlay(){if(!MX.buf)return;unlockAudio();var a=ac();if(MX.src){try{MX.src.stop();}catch(e){}}
+  MX.src=a.createBufferSource();MX.src.buffer=MX.buf;MX.src.loop=true;mxConnect();MX.src.start();MX.playing=true;if(MX.raf)cancelAnimationFrame(MX.raf);mxMeterLoop();mxSyncTransport();}
+function mxStop(){MX.playing=false;if(MX.src){try{MX.src.stop();}catch(e){}MX.src=null;}if(MX.raf){cancelAnimationFrame(MX.raf);MX.raf=null;}mxSyncTransport();}
+function mxSyncTransport(){var b=document.getElementById("mxPlay");if(b)b.textContent=MX.playing?"⏹ Stop":"▶ Play";var ab=document.getElementById("mxAB");if(ab){ab.classList.toggle("sel",MX.bypass);ab.textContent=MX.bypass?"A · original":"B · processed";}}
+function mxBounce(){if(!MX.buf)return;var st=document.getElementById("mxStatus");if(st)st.textContent="Bouncing…";
+  var OAC=window.OfflineAudioContext||window.webkitOfflineAudioContext;var oc=new OAC(2,MX.buf.length,MX.buf.sampleRate);var src=oc.createBufferSource();src.buffer=MX.buf;var ch=mxBuildChain(oc,MX.params,false);src.connect(ch.input);ch.output.connect(oc.destination);src.start();
+  oc.startRendering().then(function(rb){var bytes=bufferToWav(rb);blobDownload(bytes,(MX.name||"mix").replace(/\.[^.]+$/,"")+"-MMU-mix.wav","audio/wav");if(st)st.textContent="Bounced a processed WAV — check your downloads. Open it in Ableton to finish.";}).catch(function(){if(st)st.textContent="Couldn’t render the bounce here — try again on the live site.";});}
+function renderMixStation(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  teardown=function(){mxStop();};
+  var P=MX.params;
+  function dev(id,title,why,on,body){return '<div class="idea-fb" style="margin:8px 0"><div style="display:flex;align-items:center;justify-content:space-between"><b>'+title+'</b><button class="rchip sm'+(on?" sel":"")+'" data-tog="'+id+'">'+(on?"ON":"OFF")+'</button></div><div class="site-note" style="margin:3px 0 7px">'+why+'</div>'+body+'</div>';}
+  function sl(id,lbl,min,max,step,val,unit){return '<div class="rrow" style="margin:3px 0"><span class="rlab" style="min-width:66px">'+lbl+'</span><input type="range" data-p="'+id+'" min="'+min+'" max="'+max+'" step="'+step+'" value="'+val+'" style="flex:1"><span class="rbpm" id="mxv-'+id+'" style="min-width:58px;text-align:right">'+val+unit+'</span></div>';}
+  function draw(){
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎚️ Mixing Station</span></div><div class="panel">'+
+      '<div class="intro">Real in-app mixing — these devices actually process your track. Load a bounce, A/B against the original, then <b>bounce a WAV</b> to finish in Ableton. Each device is pre-set from a Melodic House/EDM mix report.</div>'+
+      '<div class="actions" style="flex-wrap:wrap"><label class="btn" style="cursor:pointer">📁 Load track<input type="file" id="mxFile" accept="audio/*,.wav,.mp3,.m4a,.aac,.aif,.aiff,.flac,.ogg" style="display:none"></label><span id="mxName" class="rlab" style="align-self:center">'+(MX.name?esc(MX.name):"no track loaded")+'</span></div>'+
+      (MX.buf?(
+      '<div class="actions" style="margin-top:8px;flex-wrap:wrap"><button class="btn" id="mxPlay">▶ Play</button><button class="rchip sm" id="mxAB">B · processed</button><button class="btn ghost" id="mxBounceBtn">⬇ Bounce WAV</button></div>'+
+      '<div class="rrow2" style="margin-top:10px;gap:10px;text-align:center"><div style="flex:1"><div class="rlab" style="display:block">~LUFS</div><div id="mxLufs" style="font-size:1.3rem;font-weight:800">—</div></div><div style="flex:1"><div class="rlab" style="display:block">Peak dB</div><div id="mxPeak" style="font-size:1.3rem;font-weight:800">—</div></div><div style="flex:1"><div class="rlab" style="display:block">Correlation</div><div id="mxCorr" style="font-size:1.3rem;font-weight:800">—</div><div id="mxWidth" class="site-note" style="margin:0">—</div></div></div>'+
+      '<div class="feedback" id="mxStatus" style="min-height:20px"></div>'+
+      '<div class="rlab" style="display:block;margin:14px 0 2px">Channel strip — signal flows top to bottom</div>'+
+      dev("mono","Mono Sub (&lt;120 Hz)","From your report: keep the sub mono below ~120 Hz so it translates everywhere.",P.monoOn,sl("monoHz","Crossover",60,200,1,P.monoHz," Hz"))+
+      dev("sat","Saturator","Adds harmonics so parts cut without just being louder (Ableton Saturator/soft-clip).",P.satOn,sl("satDrive","Drive",0,1,0.01,P.satDrive,""))+
+      dev("sheen","High-Shelf Sheen","Bright, airy top end — the “expensive” modern sheen. Dull highs are what sound 2012.",P.sheenOn,sl("sheenHz","Freq",6000,14000,100,P.sheenHz," Hz")+sl("sheenDb","Gain",0,6,0.1,P.sheenDb," dB"))+
+      dev("pump","Pump (sidechain feel)","Sidechain-to-kick glue — even 1–2 dB of pump reads instantly modern.",P.pumpOn,sl("pumpBpm","Tempo",90,160,1,P.pumpBpm," bpm")+sl("pumpDb","Depth",0,4,0.1,P.pumpDb," dB"))+
+      dev("comp","Bus Compressor","Optional glue — gentle 2:1, 1–2 dB if the mix feels weak/uneven. Off by default (your dynamics scored well).",P.compOn,sl("compMakeup","Makeup",0,4,0.1,P.compMakeup," dB"))+
+      dev("lim","Limiter / Ceiling","From your report: peaks hit the ceiling — set a true-peak ceiling of −1 dBTP so it stops clipping harsh.",P.limOn,sl("limCeil","Ceiling",-3,0,0.1,P.limCeil," dBTP"))+
+      '<div class="site-note" style="margin-top:12px">“Bounce WAV” renders this whole chain offline and downloads a processed file — real audio you can drop into Ableton. (Browsers can’t run VST plugins or export an .als, so this is the pre-processor + coach; Ableton stays where you do final surgical work.)</div>'
+      ):'<div class="site-note" style="margin-top:12px">Load a track to start — a full bounce, or a section you exported from Ableton (WAV or MP3).</div>')+
+      '</div>';
+    $("#eBack").onclick=function(){mxStop();goHome();};
+    var fi=$("#mxFile");if(fi)fi.onchange=function(){var f=fi.files&&fi.files[0];if(!f)return;var nm=$("#mxName");if(nm)nm.textContent="decoding "+f.name+"…";f.arrayBuffer().then(function(ab){return ac().decodeAudioData(ab.slice(0));}).then(function(buf){mxStop();MX.buf=buf;MX.name=f.name;MX.peakHold=0;draw();}).catch(function(){if(nm)nm.textContent="couldn’t read that — try a WAV or MP3";});};
+    if(MX.buf){
+      $("#mxPlay").onclick=function(){if(MX.playing)mxStop();else mxPlay();};
+      $("#mxAB").onclick=function(){MX.bypass=!MX.bypass;if(MX.playing)mxConnect();mxSyncTransport();};
+      $("#mxBounceBtn").onclick=mxBounce;
+      view.querySelectorAll("[data-tog]").forEach(function(b){b.onclick=function(){var k=b.getAttribute("data-tog")+"On";P[k]=!P[k];if(MX.playing)mxConnect();draw();};});
+      view.querySelectorAll("[data-p]").forEach(function(r){var key=r.getAttribute("data-p");r.oninput=function(){var v=+r.value;P[key]=v;var lab=document.getElementById("mxv-"+key);if(lab){var unit=key==="monoHz"||key==="sheenHz"?" Hz":key==="pumpBpm"?" bpm":key==="limCeil"?" dBTP":(key==="sheenDb"||key==="pumpDb"||key==="compMakeup")?" dB":"";lab.textContent=(key==="satDrive"?v.toFixed(2):v)+unit;}};r.onchange=function(){if(MX.playing)mxConnect();};});
+      mxSyncTransport();
+    }
+  }
+  draw();
 }
 function renderInstructor(){
  if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{};
