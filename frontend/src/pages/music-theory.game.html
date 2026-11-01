@@ -2216,6 +2216,48 @@ function renderTuner(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true
   draw();
 }
 /* ===== DRUM KIT — a playable kit (pads + keyboard) ===== */
+/* ===== EXPORT TO DAW — Standard MIDI File writer + store-ZIP packer + stem/MIDI export ===== */
+var _crcT=null;
+function crc32(bytes){if(!_crcT){_crcT=[];for(var n=0;n<256;n++){var c=n;for(var k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);_crcT[n]=c>>>0;}}var crc=0xFFFFFFFF;for(var i=0;i<bytes.length;i++)crc=(_crcT[(crc^bytes[i])&0xFF]^(crc>>>8))>>>0;return (crc^0xFFFFFFFF)>>>0;}
+function zipStore(files){var enc=new TextEncoder(),parts=[],central=[],offset=0;
+  function u16(n){return [n&255,(n>>8)&255];}function u32(n){return [n&255,(n>>8)&255,(n>>16)&255,(n>>>24)&255];}
+  files.forEach(function(f){var nameB=enc.encode(f.name),crc=crc32(f.bytes),sz=f.bytes.length;
+    var local=[0x50,0x4b,0x03,0x04].concat(u16(20),u16(0),u16(0),u16(0),u16(0),u32(crc),u32(sz),u32(sz),u16(nameB.length),u16(0));
+    var la=new Uint8Array(local.length+nameB.length+sz);la.set(local,0);la.set(nameB,local.length);la.set(f.bytes,local.length+nameB.length);parts.push(la);
+    var cen=[0x50,0x4b,0x01,0x02].concat(u16(20),u16(20),u16(0),u16(0),u16(0),u16(0),u32(crc),u32(sz),u32(sz),u16(nameB.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(offset));
+    var ca=new Uint8Array(cen.length+nameB.length);ca.set(cen,0);ca.set(nameB,cen.length);central.push(ca);offset+=la.length;});
+  var cenSize=central.reduce(function(a,c){return a+c.length;},0);
+  var end=[0x50,0x4b,0x05,0x06].concat(u16(0),u16(0),u16(files.length),u16(files.length),u32(cenSize),u32(offset),u16(0));
+  var total=offset+cenSize+end.length,out=new Uint8Array(total),pos=0;
+  parts.forEach(function(p){out.set(p,pos);pos+=p.length;});central.forEach(function(c){out.set(c,pos);pos+=c.length;});out.set(new Uint8Array(end),pos);return out;}
+function _vlq(n){var b=[n&0x7F];n=Math.floor(n/128);while(n>0){b.unshift((n&0x7F)|0x80);n=Math.floor(n/128);}return b;}
+function midiFile(bpm,notes){var PPQ=480,ev=[];
+  notes.forEach(function(n){var on=Math.round(n.t*PPQ),off=Math.round((n.t+n.dur)*PPQ);ev.push({tick:on,on:true,d:[0x90|(n.ch&15),n.note&127,n.vel||100]});ev.push({tick:off,on:false,d:[0x80|(n.ch&15),n.note&127,0]});});
+  ev.sort(function(a,b){return a.tick-b.tick||(a.on===b.on?0:(a.on?1:-1));});
+  var mpqn=Math.round(60000000/bpm),track=[0,0xFF,0x51,0x03,(mpqn>>16)&255,(mpqn>>8)&255,mpqn&255];
+  var last=0;ev.forEach(function(e){track=track.concat(_vlq(e.tick-last),e.d);last=e.tick;});
+  track=track.concat([0,0xFF,0x2F,0x00]);
+  var tlen=track.length,hdr=[0x4D,0x54,0x68,0x64,0,0,0,6,0,0,0,1,(PPQ>>8)&255,PPQ&255],trk=[0x4D,0x54,0x72,0x6B,(tlen>>>24)&255,(tlen>>16)&255,(tlen>>8)&255,tlen&255];
+  return new Uint8Array(hdr.concat(trk,track));}
+/* ---- Drum Kit beat -> MIDI + per-drum stems + mix, zipped ---- */
+var DK_GM={kick:36,snare:38,hhc:42,hho:46,tom1:50,tom2:47,floor:43,crash:49,ride:51,clap:39,cow:56};
+function dkExport(){unlockAudio();var st=document.getElementById("dkExpStatus");if(st)st.textContent="Rendering stems + MIDI…";
+  var bpm=DKSEQ.bpm,sr=44100,stepDur=(60/bpm)/4,barDur=16*stepDur,tail=1.6;
+  var active=DK_ROWS.map(function(r){return r[0];}).filter(function(id){return DKSEQ.grid[id]&&DKSEQ.grid[id].some(Boolean);});
+  if(!active.length){if(st)st.textContent="Add some hits to the grid first.";return;}
+  var notes=[];active.forEach(function(id){for(var s=0;s<16;s++){if(DKSEQ.grid[id][s])notes.push({t:s*0.25,dur:0.12,note:DK_GM[id]||38,ch:9,vel:112});}});
+  var mid=midiFile(bpm,notes);
+  var OAC=window.OfflineAudioContext||window.webkitOfflineAudioContext,len=Math.ceil(sr*(barDur+tail));
+  function renderRows(ids){var oc=new OAC(2,len,sr);ids.forEach(function(id){for(var s=0;s<16;s++){if(DKSEQ.grid[id]&&DKSEQ.grid[id][s]&&DKV[id])DKV[id](oc,oc.destination,s*stepDur+0.01);}});return oc.startRendering();}
+  var jobs=[renderRows(active)].concat(active.map(function(id){return renderRows([id]);}));
+  Promise.all(jobs).then(function(bufs){var files=[{name:"beat.mid",bytes:mid},{name:"beat-mix.wav",bytes:bufferToWav(bufs[0])}];
+    active.forEach(function(id,i){files.push({name:"stems/"+(i+1)+"-"+id+".wav",bytes:bufferToWav(bufs[i+1])});});
+    var zip=zipStore(files);blobDownload(zip,"MMU-beat-"+bpm+"bpm.zip","application/zip");
+    if(st)st.innerHTML="Exported <b>MMU-beat-"+bpm+"bpm.zip</b> — beat.mid + a WAV stem per drum + the full mix. Unzip and drop into any DAW (everything starts at bar 1).";
+  }).catch(function(){if(st)st.textContent="Couldn’t render the export here — try it on the live site.";});}
+/* ---- Melody -> MIDI (for saved songs) ---- */
+function songMidiBytes(noteArr,bpm){var notes=[];(noteArr||[]).forEach(function(m,i){if(m==null)return;notes.push({t:i*0.5,dur:0.45,note:m,ch:0,vel:100});});return midiFile(bpm||100,notes);}
+function songExportMidi(name,noteArr){var bytes=songMidiBytes(noteArr,100);blobDownload(bytes,(name||"melody").replace(/[^\w.-]+/g,"_").slice(0,40)+".mid","audio/midi");}
 /* ===== DRUM KIT — full playable kit + beat sequencer (separate from djembe) ===== */
 function dkMetal(a,out,t,freqs,dur,lvl,hpf){var hp=a.createBiquadFilter();hp.type="highpass";hp.frequency.value=hpf||3500;var g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(lvl,t+0.002);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);hp.connect(g);g.connect(out);
   freqs.forEach(function(fr){var o=a.createOscillator();o.type="square";o.frequency.value=fr;o.connect(hp);o.start(t);o.stop(t+dur+0.02);});
@@ -2311,7 +2353,7 @@ function renderDrumKit(startMode){if(toneRAF)cancelAnimationFrame(toneRAF);home.
       '<div class="rrow2" style="margin-bottom:4px"><span class="rlab">Groove</span><span class="rchips tight" id="dkGrv"></span></div>'+
       '<div class="seqwrap"><div class="seqgrid" id="dkSeq"></div></div>'+
       '<div class="rrow" style="margin-top:10px"><span class="rlab">Tempo</span><input type="range" id="dkBpm" min="60" max="180" value="'+DKSEQ.bpm+'" style="flex:1"><span class="rbpm" id="dkBpmV" style="min-width:58px;text-align:right">'+DKSEQ.bpm+' bpm</span></div>'+
-      '<div class="actions" style="margin-top:4px"><button class="btn" id="dkPlay">▶ Play</button><button class="rchip sm'+(DKSEQ.click?" sel":"")+'" id="dkClick">🎵 Click</button><button class="rchip sm" id="dkClear">⌫ Clear</button></div>';
+      '<div class="actions" style="margin-top:4px"><button class="btn" id="dkPlay">▶ Play</button><button class="rchip sm'+(DKSEQ.click?" sel":"")+'" id="dkClick">🎵 Click</button><button class="rchip sm" id="dkClear">⌫ Clear</button></div>'+'<div class="actions" style="margin-top:6px"><button class="btn ghost" id="dkExport">⬇ Export to DAW (MIDI + stems)</button></div><div class="site-note" id="dkExpStatus" style="margin-top:4px"></div>';
     }
     h+='</div>';view.innerHTML=h;
     $("#eBack").onclick=goHome;
@@ -2329,6 +2371,7 @@ function renderDrumKit(startMode){if(toneRAF)cancelAnimationFrame(toneRAF);home.
       var bp=$("#dkBpm");if(bp)bp.oninput=function(){DKSEQ.bpm=+bp.value;$("#dkBpmV").textContent=DKSEQ.bpm+" bpm";};
       $("#dkClick").onclick=function(){DKSEQ.click=!DKSEQ.click;$("#dkClick").classList.toggle("sel",DKSEQ.click);};
       $("#dkClear").onclick=function(){DKSEQ.grid=dkBlankGrid();draw();};
+      {var ex=$("#dkExport");if(ex)ex.onclick=dkExport;}
       $("#dkPlay").onclick=function(){if(DKSEQ.on){dkSeqStop();$("#dkPlay").textContent="▶ Play";}else{unlockAudio();DKSEQ.on=true;DKSEQ.step=0;DKSEQ.next=ac().currentTime+0.1;dkSeqSchedule();$("#dkPlay").textContent="⏹ Stop";}};
     }
   }
