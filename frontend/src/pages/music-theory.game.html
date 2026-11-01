@@ -2105,14 +2105,14 @@ function renderRhythmTranscribe(){if(toneRAF)cancelAnimationFrame(toneRAF);home.
 }
 /* ===== TUNER — tune a real guitar/bass/uke with the mic ===== */
 const TUNER_INST={guitar:{name:"Guitar",strings:[["E",40],["A",45],["D",50],["G",55],["B",59],["E",64]]},bass:{name:"Bass",strings:[["E",28],["A",33],["D",38],["G",43]]},ukulele:{name:"Ukulele",strings:[["G",67],["C",60],["E",64],["A",69]]},chromatic:{name:"Chromatic",strings:null}};
-const TN={inst:"guitar",raf:null,running:false};
+const TN={inst:"guitar",raf:null,running:false,ref:440};
 (function(){try{var s=document.createElement("style");s.textContent=
 "#tnuNote{font-family:'Fraunces',serif;font-size:4.2rem;font-weight:700;text-align:center;line-height:1;margin:6px 0}#tnuCents{text-align:center;color:var(--muted);font-size:.95rem;min-height:22px}"+
 "#tnuMeter{position:relative;height:16px;border-radius:999px;background:linear-gradient(90deg,#ff8f8c,#f4b740 44%,#5fe0a8 50%,#f4b740 56%,#ff8f8c);opacity:.55;margin:14px 0 6px}#tnuNeedle{position:absolute;top:-5px;width:3px;height:26px;background:#fff;left:50%;transform:translateX(-1px);border-radius:2px;transition:left .06s;box-shadow:0 0 6px #fff}"+
 ".tnustrs{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}.tnustr{min-width:46px;padding:8px 4px;border-radius:10px;border:1px solid var(--line);text-align:center;background:var(--card)}.tnustr b{font-size:1.05rem}.tnustr span{display:block;font-size:.62rem;color:var(--muted)}.tnustr.near{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}.tnustr.ok{border-color:#5fe0a8;color:#5fe0a8;box-shadow:0 0 0 1px #5fe0a8}"+
 ".dkgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}.dkpad{aspect-ratio:1.3;border-radius:14px;border:1px solid var(--line);background:linear-gradient(160deg,var(--card2),var(--card));color:var(--cream);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:inherit;-webkit-user-select:none;user-select:none}.dkpad:active{transform:scale(.96)}.dkpad.hit{background:rgba(52,224,198,.26);border-color:var(--violet);box-shadow:0 0 16px rgba(52,224,198,.3)}.dkpad .dkn{font-weight:700;font-size:.9rem}.dkpad .dkk{font-size:.62rem;color:var(--muted)}";
 document.head.appendChild(s);}catch(e){}})();
-function tnInfo(f){const m=69+12*Math.log2(f/440),r=Math.round(m);return {midi:r,name:NOTE_NAMES[((r%12)+12)%12],oct:Math.floor(r/12)-1,cents:Math.round((m-r)*100),f:f};}
+function tnInfo(f){const m=69+12*Math.log2(f/TN.ref),r=Math.round(m);return {midi:r,name:NOTE_NAMES[((r%12)+12)%12],oct:Math.floor(r/12)-1,cents:Math.round((m-r)*100),f:f};}
 function tnNearest(midi){const inst=TUNER_INST[TN.inst];if(!inst.strings)return null;let best=null;inst.strings.forEach((st,i)=>{const diff=midi-st[1];if(!best||Math.abs(diff)<Math.abs(best.diff))best={i:i,label:st[0],target:st[1],diff:diff};});return best;}
 function tnShow(d){const n=$("#tnuNote");if(!n)return;const inTune=Math.abs(d.cents)<=5;n.innerHTML=esc(d.name)+'<span style="font-size:.4em;opacity:.55">'+d.oct+'</span>';n.style.color=inTune?"#5fe0a8":"var(--cream)";
   const c=$("#tnuCents");if(c)c.textContent=inTune?"in tune ✓":(d.cents>0?"+"+d.cents+"¢ — sharp, loosen":d.cents+"¢ — flat, tighten");
@@ -2124,13 +2124,15 @@ function renderTuner(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true
   function draw(){const inst=TUNER_INST[TN.inst];let strs="";if(inst.strings)strs='<div class="tnustrs">'+inst.strings.map(st=>'<div class="tnustr"><b>'+st[0]+'</b><span>'+(Math.floor(st[1]/12)-1)+'</span></div>').join("")+'</div>';
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎯 Tuner</span></div><div class="panel">'+
       '<div class="rrow2"><span class="rchips tight" id="tnuInst"></span></div>'+
+      '<div class="rrow2" style="margin-top:2px"><span style="font-size:11px;color:var(--muted);align-self:center;margin-right:2px">Reference A</span><span class="rchips tight" id="tnuRef"></span></div>'+
       '<div id="tnuNote">—</div><div id="tnuCents">Play a string and let it ring.</div>'+
       '<div id="tnuMeter"><div id="tnuNeedle"></div></div>'+
       '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>♭ flat</span><span>in tune</span><span>sharp ♯</span></div>'+
       strs+
-      '<div class="site-note" style="margin-top:14px">Pluck one string and hold it steady. Tune until the note name matches the string and the needle sits in the green. '+(inst.strings?'Standard tuning: '+inst.strings.map(s=>s[0]).join(' ')+'.':'Chromatic — shows the nearest note to anything you play.')+'</div></div>';
+      '<div class="site-note" style="margin-top:14px">Pluck one string and hold it steady. Tune until the note name matches the string and the needle sits in the green. '+(inst.strings?'Standard tuning: '+inst.strings.map(s=>s[0]).join(' ')+'.':'Chromatic — shows the nearest note to anything you play.')+' '+(TN.ref===432?'You&rsquo;re tuned to <b>A=432 Hz</b> — every string sits about a third of a semitone lower than concert pitch.':'You&rsquo;re at <b>A=440 Hz</b> (standard concert pitch). Switch to 432 for a lower, warmer reference.')+'</div></div>';
     $("#eBack").onclick=()=>{TN.running=false;goHome();};
     const ic=$("#tnuInst");["guitar","bass","ukulele","chromatic"].forEach(k=>{const b=document.createElement("button");b.className="rchip sm"+(TN.inst===k?" sel":"");b.textContent=TUNER_INST[k].name;b.onclick=()=>{TN.inst=k;draw();};ic.appendChild(b);});
+    const rc=$("#tnuRef");[440,432].forEach(hz=>{const b=document.createElement("button");b.className="rchip sm"+(TN.ref===hz?" sel":"");b.textContent=hz+" Hz";b.onclick=()=>{TN.ref=hz;draw();};rc.appendChild(b);});
     if(!TN.running)tnStart();}
   draw();
 }
