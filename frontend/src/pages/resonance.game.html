@@ -140,6 +140,7 @@ footer .hz{font-family:"Fraunces",serif;font-style:italic;font-size:17px;color:v
     <div class="lab">How do you want to feel it?</div>
     <div id="feel" class="chips"></div>
     <div id="genreWrap"></div>
+    <div id="carrierWrap"></div>
     <div class="modenote" id="modeNote"></div>
     <div class="srow"><span class="k">Intensity</span><input type="range" id="int" min="0" max="100"><span class="sval" id="intV">0</span></div>
     <div class="srow"><span class="k">Volume</span><input type="range" id="vol" min="0" max="1" step="0.01"><span class="sval" id="volV"></span></div>
@@ -292,24 +293,40 @@ function efSong(intensity,vol,genreKey,variant){efStop();unlockAudio();const a=a
   let step=0,nextTime=a.currentTime+0.14;
   const timer=setInterval(()=>{if(!EF){clearInterval(timer);return;}const now=a.currentTime;while(nextTime<now+0.14){const s=step%16,bar=Math.floor(step/16)%8;try{G.step(s,bar,nextTime,I,c);}catch(e){}nextTime+=stepDur;step++;}},25);
   EF={master,oscs,beatTimer:timer};}
-function efBinaural(intensity,vol){efStop();unlockAudio();const a=ac(),I=Math.max(0,Math.min(1,(intensity||0)/100));
-  const root=7.83*16,oscs=[],base=root,SCH=[7.83,14.3,20.8];
+function efDaySignature(day,arch){
+  var s=arch&&arch[day],ser=(s&&s.series&&s.series.length)?s.series.slice().sort(function(a,b){return a.t<b.t?-1:1;}):null;
+  var peak=s?s.kp:4,avg=(s&&s.avg!=null)?s.avg:peak,trough=peak,spikes=0,vol=0,shape=0,peakT=null;
+  if(ser){peak=ser[0].kp;trough=ser[0].kp;peakT=ser[0];
+    for(var i=0;i<ser.length;i++){var x=ser[i];if(x.kp>peak){peak=x.kp;peakT=x;}if(x.kp<trough)trough=x.kp;var jump=i>0?x.kp-ser[i-1].kp:0;if(x.kp>=4||jump>=1.33)spikes++;}
+    var m=ser.reduce(function(a,b){return a+b.kp;},0)/ser.length;avg=m;
+    vol=Math.min(1,Math.sqrt(ser.reduce(function(a,b){return a+(b.kp-m)*(b.kp-m);},0)/ser.length)/2.5);
+    var half=Math.ceil(ser.length/2);function mn(a){return a.length?a.reduce(function(x,y){return x+y.kp;},0)/a.length:0;}
+    shape=mn(ser.slice(half))-mn(ser.slice(0,half));}
+  var e=Math.max(0,Math.min(1,peak/9));
+  var w1=1.0-0.55*e,w2=0.30+0.55*e,w3=0.08+0.75*e*(0.4+0.6*Math.min(1,spikes/4)),sum=w1+w2+w3;
+  return {w1:w1/sum,w2:w2/sum,w3:w3/sum,breath:0.05+0.07*Math.max(e,vol),pulse:0.02+0.05*Math.max(e,Math.min(1,spikes/5)),bright:1200+2600*e,
+    peak:peak,avg:avg,trough:trough,spikes:spikes,vol:vol,shape:shape,peakT:peakT,e:e,hasData:!!ser};}
+function efWhyBeat(day,arch){var g=efDaySignature(day,arch);
+  if(!g.hasData)return "This day&rsquo;s beat tunes itself once the live geomagnetic feed loads — every day gets its own mix.";
+  var lead=(g.w3>=g.w1&&g.w3>=g.w2)?"the <b>20.8 Hz third harmonic</b>":(g.w2>=g.w1)?"the <b>14.3 Hz second harmonic</b>":"the <b>7.83 Hz fundamental</b>";
+  var why="<b>Why this day&rsquo;s beat is unique:</b> the field peaked at <b>Kp "+g.peak.toFixed(1)+"</b>"+(g.peakT?(" around "+efHourLocal(g.peakT.t)):"")+" with "+(g.spikes||"no")+" charged window"+(g.spikes===1?"":"s")+" (quietest dip Kp "+g.trough.toFixed(1)+"). ";
+  why+="So the mix leans on "+lead+" "+(g.e>0.55?"— the higher Schumann modes light up when the field is active":g.e<0.3?"— a calm field sits almost purely on the ground tone":"— a middle balance as the field stirs")+", the breath runs "+(g.breath>0.09?"a little quicker":"slow and easy")+", and the 7.83 Hz pulse sits "+(g.pulse>0.05?"more forward":"gently underneath")+". ";
+  why+=g.shape>0.4?"It builds across the day.":g.shape<-0.4?"It eases as the day goes on.":"It holds fairly even.";
+  return why;}
+function efBinaural(sig,vol,carrierHi){efStop();unlockAudio();const a=ac();sig=sig||{w1:0.6,w2:0.28,w3:0.12,breath:0.06,pulse:0.03,bright:1800,e:0.4};
+  const I=Math.max(0,Math.min(1,sig.e!=null?sig.e:0.4)),base=7.83*(carrierHi?40:16),oscs=[],SCH=[7.83,14.3,20.8],W=[sig.w1,sig.w2,sig.w3];
   const master=a.createGain();master.gain.value=0.0001;master.connect(a.destination);master.gain.setTargetAtTime(vol==null?0.55:vol,a.currentTime,0.8);
-  const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=1800;lp.connect(master);
-  // three binaural layers: each a carrier panned L/R with a Schumann-harmonic interaural beat
+  const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=sig.bright||1800;lp.connect(master);
   const carriers=[base,base*1.5,base*2];
-  carriers.forEach((car,i)=>{const beat=SCH[i];const detune=beat/2;
-    [["L",-1,-detune],["R",1,detune]].forEach(([_,panv,off])=>{
+  carriers.forEach((car,i)=>{const beat=SCH[i],detune=beat/2,amp=0.2*W[i];
+    [[-1,-detune],[1,detune]].forEach(([panv,off])=>{
       const o=a.createOscillator();o.type="sine";o.frequency.value=car+off;
       const pan=a.createStereoPanner?a.createStereoPanner():null;if(pan)pan.pan.value=panv;
-      const g=a.createGain();g.gain.value=(i===0?0.16:i===1?0.1:0.06)*(0.7+I*0.5);
-      // slow swell so it breathes
-      const sw=a.createOscillator();sw.type="sine";sw.frequency.value=0.05+0.03*i;const sg=a.createGain();sg.gain.value=g.gain.value*0.5;sw.connect(sg);sg.connect(g.gain);sw.start();oscs.push(sw);
+      const g=a.createGain();g.gain.value=amp;
+      const sw=a.createOscillator();sw.type="sine";sw.frequency.value=(sig.breath||0.06)+0.02*i;const sg=a.createGain();sg.gain.value=amp*0.5;sw.connect(sg);sg.connect(g.gain);sw.start();oscs.push(sw);
       o.connect(pan||g);if(pan)pan.connect(g);g.connect(lp);o.start();oscs.push(o);});});
-  // soft pad underneath for warmth (centered), brighter on more active days
   [0,3,7].forEach(n=>{const o=a.createOscillator();o.type="sine";o.frequency.value=base*Math.pow(2,n/12)*2;const g=a.createGain();g.gain.value=0.03+0.02*I;const trem=a.createOscillator();trem.type="sine";trem.frequency.value=0.08;const tg=a.createGain();tg.gain.value=0.015;trem.connect(tg);tg.connect(g.gain);trem.start();oscs.push(trem);o.connect(g);g.connect(lp);o.start();oscs.push(o);});
-  // gentle 7.83 Hz isochronic shimmer on the top carrier so the pulse is felt even without perfect headphones
-  const sho=a.createOscillator();sho.type="sine";sho.frequency.value=base*2;const shg=a.createGain();shg.gain.value=0.0;const shlfo=a.createOscillator();shlfo.type="sine";shlfo.frequency.value=7.83;const shlg=a.createGain();shlg.gain.value=0.03*(0.5+I*0.6);shlfo.connect(shlg);shlg.connect(shg.gain);shlfo.start();oscs.push(shlfo);sho.connect(shg);shg.connect(lp);sho.start();oscs.push(sho);
+  const sho=a.createOscillator();sho.type="sine";sho.frequency.value=base*2;const shg=a.createGain();shg.gain.value=0.0;const shlfo=a.createOscillator();shlfo.type="sine";shlfo.frequency.value=7.83;const shlg=a.createGain();shlg.gain.value=(sig.pulse!=null?sig.pulse:0.03);shlfo.connect(shlg);shlg.connect(shg.gain);shlfo.start();oscs.push(shlfo);sho.connect(shg);shg.connect(lp);sho.start();oscs.push(sho);
   EF={master,oscs,beatTimer:null};}
 function efKpLabel(kp){return kp<2?"Quiet":kp<4?"Unsettled":kp<5?"Active":kp<6?"Minor storm (G1)":kp<7?"Storm (G2)":"Strong storm";}
 function efHourLocal(ts){try{var d=new Date(String(ts).replace(' ','T')+'Z');return d.toLocaleTimeString([],{hour:'numeric'});}catch(e){return String(ts).slice(11,16)+' UTC';}}
@@ -376,22 +393,28 @@ function efDayReading(day,arch){const s=arch[day];if(!s)return "No reading for t
 
 var arr=load('schumann-arr','med'), genre=load('schumann-genre','house'), bassvar=load('schumann-bassvar','agg'), voice='pure';
 var arch=efArch(), selDate=efDayUTC(0), override=null, vol=0.6, liveData=false;
+var carrier=load('schumann-carrier','earthy');function carrierHi(){return carrier==='clear';}
 var GLIST=[['house','Melodic House'],['bass','Space Bass'],['rock','Alt Rock'],['lofi','Lo-fi']];
 
 function ensureToday(){if(!arch[selDate]){var kp=override!=null?override/100*9:4;arch[selDate]={kp:kp,intensity:override!=null?override:44,label:efKpLabel(kp)};}}
 function cur(){if(override!=null)return override;var s=arch[selDate];return s?s.intensity:44;}
-function go(){if(arr==='song')efSong(cur(),vol,genre,genre==='bass'?bassvar:null);else if(arr==='binaural')efBinaural(cur(),vol);else efStart(cur(),'iso',vol,voice);}
+function go(){if(arr==='song')efSong(cur(),vol,genre,genre==='bass'?bassvar:null);else if(arr==='binaural'){var sig=efDaySignature(selDate,arch);if(override!=null){sig.e=Math.max(0,Math.min(1,override/100));sig.bright=1200+2600*sig.e;}efBinaural(sig,vol,carrierHi());}else efStart(cur(),'iso',vol,voice);}
 
 function drawDays(){var days=Object.keys(arch).sort().reverse().slice(0,7),w=$('#days');w.innerHTML='';
   if(!days.length){w.innerHTML='<span class="note">Reading today&rsquo;s field&hellip;</span>';return;}
-  days.forEach(function(d){var b=document.createElement('button');b.className='chip'+(d===selDate?' sel':'');b.textContent=efDateLabel(d);b.onclick=function(){selDate=d;override=null;syncInt();drawDays();drawReading();if(EF)go();};w.appendChild(b);});}
+  days.forEach(function(d){var b=document.createElement('button');b.className='chip'+(d===selDate?' sel':'');b.textContent=efDateLabel(d);b.onclick=function(){selDate=d;override=null;syncInt();drawDays();drawReading();drawModeNote();drawCarrier();if(EF)go();};w.appendChild(b);});}
 function drawReading(){ensureToday();$('#reading').innerHTML=efDayReading(selDate,arch);}
-function drawFeel(){var w=$('#feel');w.innerHTML='';[['med','🧘 Meditation'],['binaural','🌀 Binaural'],['song','🎶 Song']].forEach(function(o){var b=document.createElement('button');b.className='chip'+(arr===o[0]?' sel':'');b.textContent=o[1];b.onclick=function(){arr=o[0];save('schumann-arr',arr);drawFeel();drawGenre();drawModeNote();if(EF)go();};w.appendChild(b);});}
+function drawFeel(){var w=$('#feel');w.innerHTML='';[['med','🧘 Meditation'],['binaural','🌀 Binaural'],['song','🎶 Song']].forEach(function(o){var b=document.createElement('button');b.className='chip'+(arr===o[0]?' sel':'');b.textContent=o[1];b.onclick=function(){arr=o[0];save('schumann-arr',arr);drawFeel();drawGenre();drawCarrier();drawModeNote();if(EF)go();};w.appendChild(b);});}
 function drawGenre(){var w=$('#genreWrap');w.innerHTML='';if(arr!=='song')return;
   var g=document.createElement('div');g.className='chips';g.style.marginTop='10px';
   GLIST.forEach(function(o){var b=document.createElement('button');b.className='chip'+(genre===o[0]?' sel':'');b.textContent=o[1];b.onclick=function(){genre=o[0];save('schumann-genre',genre);drawGenre();drawModeNote();if(EF)go();};g.appendChild(b);});w.appendChild(g);
   if(genre==='bass'){var v=document.createElement('div');v.className='chips';v.style.marginTop='8px';[['agg','⚡ Aggressive'],['chill','🌙 Chill']].forEach(function(o){var b=document.createElement('button');b.className='chip'+(bassvar===o[0]?' sel':'');b.textContent=o[1];b.onclick=function(){bassvar=o[0];save('schumann-bassvar',bassvar);drawGenre();if(EF)go();};v.appendChild(b);});w.appendChild(v);}}
-function drawModeNote(){var t;if(arr==='song'){t='Built on the day&rsquo;s 7.83 Hz as the bass. <b>Melodic House</b> is deep &amp; euphoric in tribute to <b>R\u00DCF\u00DCS DU SOL</b>; <b>Space Bass</b> is heavy halftime in tribute to <b>LSDREAM</b> (Aggressive = screech &amp; filth, Chill = cosmic downtempo). Inspired by their styles, not sampled.';}else if(arr==='binaural'){t='🎧 Headphones essential. Three carriers on the day&rsquo;s fundamental with a Schumann-harmonic beat between your ears (7.83 / 14.3 / 20.8 Hz), breathing slowly.';}else{t='A drone octaved up from 7.83 Hz, pulsed at the real 7.83 Hz over a slow ~59 BPM Earth beat &mdash; made for long, easy breathing.';}$('#modeNote').innerHTML=t;}
+function drawCarrier(){var w=$('#carrierWrap');if(!w)return;w.innerHTML='';if(arr!=='binaural')return;
+  var g=document.createElement('div');g.className='chips';g.style.marginTop='10px';
+  var lab=document.createElement('span');lab.className='k';lab.style.marginRight='6px';lab.textContent='Tone';g.appendChild(lab);
+  [['earthy','🌍 Earthy (low)'],['clear','✨ Clear (high)']].forEach(function(o){var b=document.createElement('button');b.className='chip'+(carrier===o[0]?' sel':'');b.textContent=o[1];b.onclick=function(){carrier=o[0];save('schumann-carrier',carrier);drawCarrier();if(EF)go();};g.appendChild(b);});
+  w.appendChild(g);}
+function drawModeNote(){var t;if(arr==='song'){t='Built on the day&rsquo;s 7.83 Hz as the bass. <b>Melodic House</b> is deep &amp; euphoric in tribute to <b>R\u00DCF\u00DCS DU SOL</b>; <b>Space Bass</b> is heavy halftime in tribute to <b>LSDREAM</b> (Aggressive = screech &amp; filth, Chill = cosmic downtempo). Inspired by their styles, not sampled.';}else if(arr==='binaural'){t='🎧 Headphones essential — a true binaural beat (a different tone in each ear; the <i>difference</i> is the Schumann frequency). Each day is built from that day&rsquo;s own geomagnetic chart, so pick a day above and it changes.<br>'+efWhyBeat(selDate,arch);}else{t='A drone octaved up from 7.83 Hz, pulsed at the real 7.83 Hz over a slow ~59 BPM Earth beat &mdash; made for long, easy breathing.';}$('#modeNote').innerHTML=t;}
 function syncInt(){$('#int').value=cur();$('#intV').textContent=cur();}
 
 $('#int').oninput=function(){override=+this.value;$('#intV').textContent=override;if(!liveData){var kp=override/100*9;arch[selDate]={kp:kp,intensity:override,label:efKpLabel(kp)};drawReading();}if(EF)go();};
@@ -412,8 +435,8 @@ function gayleToday(){var d=new Date();var y=d.getFullYear(),m=d.getMonth()+1,da
 function gayleMedia(url){if(!url)return '';url=url.trim();var dr=url.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);if(dr)return '<iframe class="gmedia" src="https://drive.google.com/file/d/'+dr[1]+'/preview" allow="autoplay" loading="lazy"></iframe>';var yt=url.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=|youtube\.com\/embed\/)([A-Za-z0-9_-]{6,})/);if(yt)return '<iframe class="gmedia" src="https://www.youtube.com/embed/'+yt[1]+'" allow="autoplay" loading="lazy" frameborder="0"></iframe>';if(/\.(mp3|m4a|wav|aac|ogg)(\?|$)/i.test(url))return '<audio controls preload="none" src="'+esc(url)+'" style="width:100%;margin-top:12px"></audio>';if(/\.(mp4|webm|mov)(\?|$)/i.test(url))return '<video controls preload="none" src="'+esc(url)+'" style="width:100%;margin-top:12px;border-radius:12px"></video>';return '<a class="glink" href="'+esc(url)+'" target="_blank" rel="noopener">▶ Listen / watch</a>';}
 function renderGayle(e,isSample){var body=$('#gayleBody'),note=$('#gayleNote');if(!body)return;var paras=(e.message||'').split(/\n+/).filter(function(s){return s.trim();}).map(function(p){return '<p>'+esc(p)+'</p>';}).join('');body.innerHTML=(e.title?'<h3 class="gtitle">'+esc(e.title)+'</h3>':'')+paras+gayleMedia(e.media);note.innerHTML=isSample?'✨ <i>Sample — this is where your words live, Gayle. Type a short message into a simple Google Sheet whenever you like (add a voice note or video if you want) and it appears right here, beside the day’s live reading. No code, ever.</i>':'';}
 function loadGayle(){if(!GAYLE_SHEET_CSV){renderGayle(GAYLE_SAMPLE,true);return;}try{fetch(GAYLE_SHEET_CSV,{cache:'no-store'}).then(function(r){return r.text();}).then(function(txt){var rows=csvParse(txt),keys=gayleToday(),row=null;for(var i=0;i<rows.length;i++){if(keys.indexOf((rows[i].date||'').trim())>=0){row=rows[i];break;}}if(row&&(row.message||row.title))renderGayle({title:row.title,message:row.message,media:row.media||row.link||row.audio||row.video||''},false);else renderGayle(GAYLE_SAMPLE,true);}).catch(function(){renderGayle(GAYLE_SAMPLE,true);});}catch(e){renderGayle(GAYLE_SAMPLE,true);}}
-drawFeel();drawGenre();drawModeNote();drawDays();syncInt();drawReading();loadGayle();
-try{efFetchHistory(function(a,ok){if(ok&&a&&Object.keys(a).length){arch=a;liveData=true;if(arch[efDayUTC(0)])selDate=efDayUTC(0);}override=null;syncInt();drawDays();drawReading();});}catch(e){}
+drawFeel();drawGenre();drawCarrier();drawModeNote();drawDays();syncInt();drawReading();loadGayle();
+try{efFetchHistory(function(a,ok){if(ok&&a&&Object.keys(a).length){arch=a;liveData=true;if(arch[efDayUTC(0)])selDate=efDayUTC(0);}override=null;syncInt();drawDays();drawReading();drawModeNote();drawCarrier();});}catch(e){}
 </script>
 </body>
 </html>
