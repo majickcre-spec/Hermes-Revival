@@ -3226,6 +3226,77 @@ function renderCR(){
 }
 
 /* ===== INSTRUMENTS ===== */
+/* ===== WAVETABLE SYNTH — original morphing-wavetable instrument (not Serum, our own) ===== */
+var WT={wavePos:0.35,unison:3,detune:12,subLevel:0.2,cutoff:2200,res:3,lfoRate:0.4,lfoDepth:300,ampA:0.02,ampD:0.2,ampS:0.8,ampR:0.3,oct:4,
+  master:null,filter:null,lfo:null,lfoG:null,buf:null,_ctx:null,active:{}};
+var WT_FRAMES=(function(){var N=40,sine=[0],tri=[0],saw=[0],sq=[0];for(var h=1;h<N;h++){sine[h]=h===1?1:0;tri[h]=(h%2===1)?(Math.pow(-1,(h-1)/2)/(h*h)):0;saw[h]=1/h;sq[h]=(h%2===1)?1/h:0;}return [sine,tri,saw,sq];})();
+function wtFrame(pos){var F=WT_FRAMES,fi=Math.max(0,Math.min(1,pos))*(F.length-1),i0=Math.floor(fi),i1=Math.min(F.length-1,i0+1),fr=fi-i0,A=F[i0],B=F[i1],N=Math.max(A.length,B.length),amps=[];for(var h=0;h<N;h++)amps[h]=(A[h]||0)*(1-fr)+(B[h]||0)*fr;return amps;}
+function wtBuffer(ctx,pos){var L=2048,buf=ctx.createBuffer(1,L,ctx.sampleRate),d=buf.getChannelData(0),amps=wtFrame(pos),n,h,mx=0;for(n=0;n<L;n++){var s=0;for(h=1;h<amps.length;h++)s+=amps[h]*Math.sin(2*Math.PI*h*n/L);d[n]=s;}for(n=0;n<L;n++)mx=Math.max(mx,Math.abs(d[n]));if(mx>0)for(n=0;n<L;n++)d[n]/=mx;return buf;}
+function wtEnsure(){var a=ac();if(WT.filter&&WT._ctx===a)return;WT._ctx=a;
+  WT.master=a.createGain();WT.master.gain.value=0.5;WT.master.connect(a.destination);
+  WT.filter=a.createBiquadFilter();WT.filter.type="lowpass";WT.filter.frequency.value=WT.cutoff;WT.filter.Q.value=WT.res;WT.filter.connect(WT.master);
+  WT.lfo=a.createOscillator();WT.lfo.type="sine";WT.lfo.frequency.value=WT.lfoRate;WT.lfoG=a.createGain();WT.lfoG.gain.value=WT.lfoDepth;WT.lfo.connect(WT.lfoG);WT.lfoG.connect(WT.filter.frequency);WT.lfo.start();
+  WT.buf=wtBuffer(a,WT.wavePos);}
+function wtRefresh(){if(!WT.filter)return;WT.filter.frequency.value=WT.cutoff;WT.filter.Q.value=WT.res;WT.lfo.frequency.value=WT.lfoRate;WT.lfoG.gain.value=WT.lfoDepth;}
+function wtRebuild(){if(WT._ctx)WT.buf=wtBuffer(WT._ctx,WT.wavePos);}
+function wtNoteOn(midi,pid){unlockAudio();wtEnsure();var a=ac(),freq=midiToFreq(midi),L=2048,sr=a.sampleRate;
+  if(WT.active[pid])wtKill(pid);
+  var g=a.createGain();g.gain.value=0.0001;g.connect(WT.filter);var voices=[];
+  for(var u=0;u<WT.unison;u++){var src=a.createBufferSource();src.buffer=WT.buf;src.loop=true;var spread=WT.unison>1?((u/(WT.unison-1))-0.5):0;var det=spread*WT.detune;src.playbackRate.value=freq*L/sr*Math.pow(2,det/1200);var vg=a.createGain();vg.gain.value=0.9/Math.max(1,WT.unison);src.connect(vg);vg.connect(g);try{src.start();}catch(e){}voices.push(src);}
+  if(WT.subLevel>0){var sub=a.createOscillator();sub.type="sine";sub.frequency.value=freq/2;var sg=a.createGain();sg.gain.value=WT.subLevel;sub.connect(sg);sg.connect(g);try{sub.start();}catch(e){}voices.push(sub);}
+  var t=a.currentTime;g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(0.9,t+Math.max(0.002,WT.ampA));g.gain.linearRampToValueAtTime(Math.max(0.0002,0.9*WT.ampS),t+Math.max(0.002,WT.ampA)+Math.max(0.01,WT.ampD));
+  WT.active[pid]={g:g,voices:voices,midi:midi};}
+function wtNoteOff(pid){var v=WT.active[pid];if(!v)return;var a=ac(),t=a.currentTime;try{v.g.gain.cancelScheduledValues(t);v.g.gain.setValueAtTime(Math.max(0.0001,v.g.gain.value),t);v.g.gain.linearRampToValueAtTime(0.0001,t+Math.max(0.02,WT.ampR));}catch(e){}var stop=t+Math.max(0.02,WT.ampR)+0.06;v.voices.forEach(function(s){try{s.stop(stop);}catch(e){}});delete WT.active[pid];}
+function wtKill(pid){var v=WT.active[pid];if(!v)return;v.voices.forEach(function(s){try{s.stop();}catch(e){}});try{v.g.disconnect();}catch(e){}delete WT.active[pid];}
+function wtAllOff(){Object.keys(WT.active).forEach(wtKill);}
+var WT_PRESETS={
+ "Warm Pad":{wavePos:0.35,unison:4,detune:14,subLevel:0.2,cutoff:1800,res:3,lfoRate:0.3,lfoDepth:400,ampA:0.4,ampD:0.3,ampS:0.85,ampR:0.6},
+ "Pluck":{wavePos:0.62,unison:1,detune:0,subLevel:0.12,cutoff:3200,res:5,lfoRate:0,lfoDepth:0,ampA:0.002,ampD:0.18,ampS:0.0,ampR:0.15},
+ "Detuned Lead":{wavePos:0.5,unison:5,detune:20,subLevel:0.15,cutoff:4200,res:2,lfoRate:5,lfoDepth:220,ampA:0.01,ampD:0.2,ampS:0.7,ampR:0.2},
+ "Glass":{wavePos:0.85,unison:2,detune:6,subLevel:0,cutoff:6500,res:7,lfoRate:0.6,lfoDepth:500,ampA:0.003,ampD:0.6,ampS:0.1,ampR:0.5},
+ "Sub Bass":{wavePos:0.2,unison:1,detune:0,subLevel:0.55,cutoff:700,res:2,lfoRate:0,lfoDepth:0,ampA:0.005,ampD:0.1,ampS:0.9,ampR:0.12}};
+function wtApplyPreset(name){var p=WT_PRESETS[name];if(!p)return;for(var k in p)WT[k]=p[k];wtRefresh();wtRebuild();}
+function renderSynth(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  var pidMap={};
+  function kd(e){if(e.repeat)return;var i="awsedftgyhujk".indexOf((e.key||"").toLowerCase());if(i<0)return;var m=WT.oct*12+12+i;if(pidMap["k"+i])return;pidMap["k"+i]=m;wtNoteOn(m,"k"+i);}
+  function ku(e){var i="awsedftgyhujk".indexOf((e.key||"").toLowerCase());if(i<0)return;if(pidMap["k"+i]){wtNoteOff("k"+i);delete pidMap["k"+i];}}
+  function docUp(e){if(pidMap["p"+e.pointerId]!=null){wtNoteOff("p"+e.pointerId);delete pidMap["p"+e.pointerId];var el=document.querySelector('.pk [data-m].on');}document.querySelectorAll('.synthkey.on').forEach(function(x){x.classList.remove("on");});}
+  document.addEventListener("keydown",kd);document.addEventListener("keyup",ku);document.addEventListener("pointerup",docUp);document.addEventListener("pointercancel",docUp);
+  teardown=function(){wtAllOff();document.removeEventListener("keydown",kd);document.removeEventListener("keyup",ku);document.removeEventListener("pointerup",docUp);document.removeEventListener("pointercancel",docUp);};
+  function sl(id,lbl,min,max,step,val,fmt){return '<div class="rrow" style="margin:2px 0"><span class="rlab" style="min-width:74px">'+lbl+'</span><input type="range" data-s="'+id+'" min="'+min+'" max="'+max+'" step="'+step+'" value="'+val+'" style="flex:1"><span class="rbpm" id="wtv-'+id+'" style="min-width:52px;text-align:right">'+fmt(val)+'</span></div>';}
+  function draw(){
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎛️ Wavetable Synth</span></div><div class="panel">'+
+      '<div class="intro">An original morphing-wavetable synth — sweep the wavetable, stack detuned voices, shape the filter and envelope. Play it, then record your part and export it as MIDI to re-sound with any plugin in your DAW.</div>'+
+      '<div class="rrow2"><span class="rlab">Preset</span><span class="rchips tight" id="wtPre"></span></div>'+
+      '<div class="rlab" style="display:block;margin:10px 0 2px">Oscillator</div>'+
+      sl("wavePos","Wavetable",0,1,0.01,WT.wavePos,function(v){return ["sine","tri","saw","square"][Math.round(v*3)];})+
+      sl("unison","Unison",1,5,1,WT.unison,function(v){return v+" vox";})+
+      sl("detune","Detune",0,30,1,WT.detune,function(v){return v+"¢";})+
+      sl("subLevel","Sub",0,0.7,0.01,WT.subLevel,function(v){return Math.round(v*100)+"%";})+
+      '<div class="rlab" style="display:block;margin:10px 0 2px">Filter &amp; movement</div>'+
+      sl("cutoff","Cutoff",200,9000,10,WT.cutoff,function(v){return Math.round(v)+" Hz";})+
+      sl("res","Resonance",0.5,12,0.1,WT.res,function(v){return (+v).toFixed(1);})+
+      sl("lfoRate","LFO rate",0,8,0.1,WT.lfoRate,function(v){return (+v).toFixed(1)+" Hz";})+
+      sl("lfoDepth","LFO depth",0,2000,10,WT.lfoDepth,function(v){return Math.round(v)+" Hz";})+
+      '<div class="rlab" style="display:block;margin:10px 0 2px">Amp envelope</div>'+
+      sl("ampA","Attack",0.001,1,0.001,WT.ampA,function(v){return Math.round(v*1000)+"ms";})+
+      sl("ampD","Decay",0.01,1.2,0.01,WT.ampD,function(v){return Math.round(v*1000)+"ms";})+
+      sl("ampS","Sustain",0,1,0.01,WT.ampS,function(v){return Math.round(v*100)+"%";})+
+      sl("ampR","Release",0.02,1.5,0.01,WT.ampR,function(v){return Math.round(v*1000)+"ms";})+
+      '<div class="actions" style="margin-top:8px"><button class="rchip sm" id="wtDown">◀ oct</button><span class="rbpm" id="wtOct" style="align-self:center">C'+WT.oct+'</span><button class="rchip sm" id="wtUp">oct ▶</button></div>'+
+      '<div id="wtKb" style="touch-action:none;margin-top:8px"></div>'+
+      '<div class="site-note">Computer keys <b>a s d f g h j k</b> (white) and <b>w e t y u</b> (black) play it too. This is our own synth — for Serum-style sound design you’d export your MIDI and load Serum in Ableton.</div>'+
+      '</div>';
+    $("#eBack").onclick=goHome;
+    var pc=$("#wtPre");Object.keys(WT_PRESETS).forEach(function(nm){var b=document.createElement("button");b.className="rchip sm";b.textContent=nm;b.onclick=function(){wtApplyPreset(nm);draw();};pc.appendChild(b);});
+    view.querySelectorAll("[data-s]").forEach(function(r){var key=r.getAttribute("data-s");r.oninput=function(){var v=+r.value;WT[key]=v;var lab=document.getElementById("wtv-"+key);if(lab){var fmts={wavePos:function(v){return ["sine","tri","saw","square"][Math.round(v*3)];},unison:function(v){return v+" vox";},detune:function(v){return v+"¢";},subLevel:function(v){return Math.round(v*100)+"%";},cutoff:function(v){return Math.round(v)+" Hz";},res:function(v){return (+v).toFixed(1);},lfoRate:function(v){return (+v).toFixed(1)+" Hz";},lfoDepth:function(v){return Math.round(v)+" Hz";},ampA:function(v){return Math.round(v*1000)+"ms";},ampD:function(v){return Math.round(v*1000)+"ms";},ampS:function(v){return Math.round(v*100)+"%";},ampR:function(v){return Math.round(v*1000)+"ms";}};lab.textContent=fmts[key](v);}if(key==="wavePos")wtRebuild();else wtRefresh();};});
+    $("#wtDown").onclick=function(){WT.oct=Math.max(2,WT.oct-1);$("#wtOct").textContent="C"+WT.oct;draw();};
+    $("#wtUp").onclick=function(){WT.oct=Math.min(6,WT.oct+1);$("#wtOct").textContent="C"+WT.oct;draw();};
+    var kb=buildKeyboard(WT.oct*12+12,2,function(){},true);kb.style.height="150px";$("#wtKb").appendChild(kb);
+    kb.querySelectorAll("[data-m]").forEach(function(k){k.classList.add("synthkey");k.onpointerdown=function(e){e.preventDefault();var m=+k.getAttribute("data-m");pidMap["p"+e.pointerId]=m;wtNoteOn(m,"p"+e.pointerId);k.classList.add("on");};});
+  }
+  draw();
+}
 /* ===== PIANO — playable keyboard (reusable) ===== */
 function buildKeyboard(low,oct,onKey,labels){
   const WK=[0,2,4,5,7,9,11],wrap=document.createElement("div");wrap.className="pk";
@@ -3630,6 +3701,7 @@ function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.
 }
 const INSTRUMENT_CARDS=[
  {ic:"🎹",title:"Piano",blurb:"Play a real keyboard — tap or use your computer keys, shift octaves, and see the note names. The heart of music theory.",go:()=>renderPiano()},
+ {ic:"🎛️",title:"Wavetable Synth",blurb:"An original morphing-wavetable synth — sweep the wavetable, stack detuned voices, and shape the filter, LFO and envelope. Modern textures you can play, with presets.",go:()=>renderSynth()},
  {ic:"🛸",title:"Handpan",blurb:"Play a handpan — tap the notes, pick a scale, and follow the glow to learn gentle patterns.",go:()=>renderHandpan()},
  {ic:"🎸",title:"Guitar",blurb:"Learn chords with diagrams, the chord family of a key, and strum along to progressions — leveling up as you go.",go:()=>renderStrings("guitar")},
  {ic:"🪕",title:"Ukulele",blurb:"Learn ukulele chords, major-scale chord families, and play along to progressions.",go:()=>renderStrings("ukulele")},
