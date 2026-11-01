@@ -3550,7 +3550,7 @@ function lessonSong(which){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=
   if(which==="rhyme"){const go=()=>{const w=$("#rfWord").value,out=$("#rfOut");out.innerHTML="finding rhymes for <b>"+esc(w)+"</b>…";rhymeFind(w,(res,err)=>{if(!res){out.innerHTML=err==="offline"?"The rhyme finder needs a connection — it works on the live site. (The in-app preview can block it.)":"Type a word first.";return;}out.innerHTML='<div><b style="color:#5fd38d">Perfect rhymes</b><div style="margin:4px 0 10px">'+(res.perfect.length?res.perfect.map(esc).join(" · "):"none found")+'</div><b style="color:#e9c46a">Near / slant rhymes</b><div style="margin-top:4px">'+(res.near.length?res.near.map(esc).join(" · "):"none found")+'</div></div>';});};$("#rfGo").onclick=go;$("#rfWord").onkeydown=e=>{if(e.key==="Enter")go();};}
 }
 function lyricLoad(){return load(mk("lyrics","draft"),{title:"",sections:[{tag:"Verse 1",text:""},{tag:"Chorus",text:""}]});}
-function renderLyricLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{};
+function renderLyricLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let rec=null,micIdx=-1;teardown=()=>{try{if(rec)rec.stop();}catch(e){}};
   let song=lyricLoad();const TAGS=["Verse 1","Verse 2","Verse 3","Pre-Chorus","Chorus","Bridge","Intro","Outro","Hook"];
   function persist(){save(mk("lyrics","draft"),song);}
   function breakdown(text){const lines=text.split(/\n/);const nonEmpty=lines.filter(l=>l.trim());const sc=schemeFor(nonEmpty);let si=0;
@@ -3558,7 +3558,7 @@ function renderLyricLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=t
   function draw(){
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">✍️ Lyric Lab</span></div><div class="panel">'+
       '<div class="rrow2"><span class="rlab">Title</span><input id="llTitle" placeholder="song title" value="'+esc(song.title)+'" style="flex:1;background:rgba(255,255,255,.06);color:inherit;border:1px solid var(--line);border-radius:8px;padding:8px"></div>'+
-      '<div class="site-note">Each line shows its <b>syllable count</b> and <b>rhyme letter</b> (lines with the same letter rhyme). Keep matched lines close in syllables; use the rhyme finder for words.</div>'+
+      '<div class="site-note">Each line shows its <b>syllable count</b> and <b>rhyme letter</b> (lines with the same letter rhyme). Keep matched lines close in syllables; use the rhyme finder for words. <b>Tap 🎤 on a section to speak your words</b> instead of typing — say &ldquo;new line&rdquo; to break a line.</div>'+
       '<div id="llSecs"></div>'+
       '<div class="actions" style="margin:8px 0"><button class="btn ghost" id="llAdd">+ Add section</button></div>'+
       '<div class="rlab" style="display:block;margin:12px 0 6px">🔎 Rhyme finder</div><div class="rrow2"><input id="rfWord" placeholder="a word to rhyme…" style="flex:1;background:rgba(255,255,255,.06);color:inherit;border:1px solid var(--line);border-radius:8px;padding:8px"><button class="btn" id="rfGo" style="margin-left:8px">Find</button></div><div id="rfOut" class="idea-fb" style="margin-top:8px">Type a word to get perfect &amp; near rhymes.</div>'+
@@ -3569,13 +3569,30 @@ function renderLyricLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=t
     $("#llTitle").oninput=e=>{song.title=e.target.value;persist();};
     const sc=$("#llSecs");sc.innerHTML="";
     song.sections.forEach((s,i)=>{const box=document.createElement("div");box.style.cssText="margin:12px 0;padding:10px;border:1px solid var(--line);border-radius:12px";
-      box.innerHTML='<div class="rrow2" style="margin:0 0 6px"><select class="llTag" data-i="'+i+'" style="background:rgba(255,255,255,.06);color:inherit;border:1px solid var(--line);border-radius:8px;padding:6px">'+TAGS.map(t=>'<option'+(t===s.tag?" selected":"")+'>'+t+'</option>').join("")+'</select><button class="rchip sm llDel" data-i="'+i+'" style="margin-left:auto">✕</button></div>'+
+      box.innerHTML='<div class="rrow2" style="margin:0 0 6px"><select class="llTag" data-i="'+i+'" style="background:rgba(255,255,255,.06);color:inherit;border:1px solid var(--line);border-radius:8px;padding:6px">'+TAGS.map(t=>'<option'+(t===s.tag?" selected":"")+'>'+t+'</option>').join("")+'</select><button class="rchip sm llMic" data-i="'+i+'" title="Speak your lyrics" style="margin-left:auto">🎤</button><button class="rchip sm llDel" data-i="'+i+'">✕</button></div>'+
         '<textarea class="llText" data-i="'+i+'" rows="4" placeholder="write '+esc(s.tag.toLowerCase())+'…" style="width:100%;background:rgba(0,0,0,.25);color:inherit;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:14px;line-height:1.5;resize:vertical">'+esc(s.text)+'</textarea>'+
         '<div class="llBd" data-i="'+i+'" style="margin-top:6px">'+breakdown(s.text)+'</div>';
       sc.appendChild(box);});
     sc.querySelectorAll(".llText").forEach(t=>{t.oninput=()=>{const i=+t.dataset.i;song.sections[i].text=t.value;persist();const bd=sc.querySelector('.llBd[data-i="'+i+'"]');if(bd)bd.innerHTML=breakdown(t.value);};});
     sc.querySelectorAll(".llTag").forEach(sel=>{sel.onchange=()=>{song.sections[+sel.dataset.i].tag=sel.value;persist();};});
     sc.querySelectorAll(".llDel").forEach(b=>{b.onclick=()=>{if(song.sections.length<=1)return;song.sections.splice(+b.dataset.i,1);persist();draw();};});
+    function needsSpace(s){return s.length>0&&!/[\s]$/.test(s);}
+    function startMic(i,btn){
+      if(!SR){const el=$("#llFb");if(el)el.innerHTML='<div class="idea-fb">Voice typing isn’t available in this browser. Tip: tap the 🎤 key on your phone’s keyboard to dictate into any box.</div>';return;}
+      if(rec){try{rec.stop();}catch(e){}}
+      const ta=sc.querySelector('.llText[data-i="'+i+'"]');if(!ta)return;
+      try{rec=new SR();}catch(e){return;}
+      rec.lang=navigator.language||'en-US';rec.continuous=true;rec.interimResults=true;
+      micIdx=i;let baseText=song.sections[i].text||"";
+      sc.querySelectorAll('.llMic').forEach(b=>{b.textContent='🎤';b.classList.remove('sel');});
+      btn.textContent='● rec';btn.classList.add('sel');
+      rec.onresult=function(e){var interim='';for(var k=e.resultIndex;k<e.results.length;k++){var r=e.results[k],t=r[0].transcript;if(r.isFinal){var c=t.trim();if(/^(new line|next line|line break)$/i.test(c)){baseText=baseText.replace(/[ \t]+$/,'')+'\n';}else{baseText=baseText+(needsSpace(baseText)?' ':'')+c;}}else interim+=t;}
+        var shown=baseText+(interim.trim()?(needsSpace(baseText)?' ':'')+interim.trim():'');ta.value=shown;song.sections[i].text=baseText;var bd=sc.querySelector('.llBd[data-i="'+i+'"]');if(bd)bd.innerHTML=breakdown(shown);};
+      rec.onerror=function(){try{rec.stop();}catch(e){}};
+      rec.onend=function(){song.sections[i].text=(ta.value||'').replace(/\s+$/,'');persist();var bd=sc.querySelector('.llBd[data-i="'+i+'"]');if(bd)bd.innerHTML=breakdown(song.sections[i].text);if(btn){btn.textContent='🎤';btn.classList.remove('sel');}rec=null;micIdx=-1;};
+      try{rec.start();}catch(e){}
+    }
+    sc.querySelectorAll(".llMic").forEach(b=>{b.onclick=()=>{const i=+b.dataset.i;if(micIdx===i&&rec){try{rec.stop();}catch(e){}return;}startMic(i,b);};});
     $("#llAdd").onclick=()=>{song.sections.push({tag:"Verse 2",text:""});persist();draw();};
     const rgo=()=>{const w=$("#rfWord").value,out=$("#rfOut");out.innerHTML="finding rhymes for <b>"+esc(w)+"</b>…";rhymeFind(w,(res,err)=>{if(!res){out.innerHTML=err==="offline"?"Rhyme finder needs a connection — works on the live site.":"Type a word first.";return;}out.innerHTML='<b style="color:#5fd38d">Perfect</b><div style="margin:4px 0 10px">'+(res.perfect.length?res.perfect.map(esc).join(" · "):"none")+'</div><b style="color:#e9c46a">Near / slant</b><div style="margin-top:4px">'+(res.near.length?res.near.map(esc).join(" · "):"none")+'</div>';});};
     $("#rfGo").onclick=rgo;$("#rfWord").onkeydown=e=>{if(e.key==="Enter")rgo();};
