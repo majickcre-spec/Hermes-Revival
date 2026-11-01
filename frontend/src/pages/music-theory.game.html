@@ -1090,6 +1090,7 @@ function toneMenu(){
   $("#tVoiceTry").onclick=()=>playSing(67,1.8);
   const cards=[
    {id:"match",ic:"🎯",title:"Match the Pitch",blurb:"Hear a note, then sing it back in tune."},
+   {id:"dyn",ic:"🎚️",title:"Hold & Dynamics",blurb:"Hold a note steady at soft, medium, or loud — pitch control is different at each volume."},
    {id:"interval",ic:"🎸",title:"Sing the Interval",blurb:"Hear the bottom note, then sing the one above it."},
    {id:"phrase",ic:"🎵",title:"Sing a Phrase",blurb:"Sing a real song — whole phrase, scored, with playback."},
    {id:"compose",ic:"🎙️",title:"Sing a Song",blurb:"Make your own tune — sing or hum it, I map the notes, you fix them, save it."}
@@ -1097,7 +1098,7 @@ function toneMenu(){
   const g=$("#tGrid");
   cards.forEach(c=>{const b=document.createElement("button");b.className="card";
     b.innerHTML=`<span class="ic">${c.ic}</span><h3>${c.title}</h3><span class="blurb">${c.blurb}</span>`;
-    b.onclick=()=>{if(c.id==="match")toneMatchLevels();else if(c.id==="interval")toneIntervalLevels();else if(c.id==="phrase")tonePhraseLevels();else renderCompose();};
+    b.onclick=()=>{if(c.id==="match")toneMatchLevels();else if(c.id==="interval")toneIntervalLevels();else if(c.id==="phrase")tonePhraseLevels();else if(c.id==="dyn")toneDynamics();else renderCompose();};
     g.appendChild(b);});
   beanChip();
 }
@@ -1266,6 +1267,90 @@ function toneDone(title,hits,total,passKey,beanAmt){
   $("#eBack").onclick=toneMenu;$("#toTone").onclick=toneMenu;
   if(pass)burst($(".q"),12);
   return $("#again");
+}
+/* ===== VOCAL DYNAMICS — hold pitch steady at soft / medium / loud ===== */
+function toneDynamics(){
+  if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  var VOX={level:load(mk("tone","dyn-level"),"med"),note:load(mk("tone","dyn-note"),60)};
+  var LV={soft:{lbl:"🔉 Soft",band:[0.012,0.05],tip:"the hardest to keep from going flat — keep the breath supported"},
+          med:{lbl:"🔊 Medium",band:[0.05,0.13],tip:"your natural, speaking-strength voice"},
+          loud:{lbl:"📢 Loud",band:[0.13,0.42],tip:"power without pushing sharp or straining the throat"}};
+  var MMAX=0.42,HOLD=5;
+  var holding=false,samples=[],holdStart=0,buf=new Float32Array(toneAnalyser.fftSize);
+  function rms(b){var s=0;for(var i=0;i<b.length;i++)s+=b[i]*b[i];return Math.sqrt(s/b.length);}
+  function band(){return LV[VOX.level].band;}
+  function draw(){
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎚️ Hold &amp; Dynamics</span></div><div class="panel">'+
+      '<div class="intro">Pick a volume and hold the note <b>dead steady</b> — same pitch, same loudness — for '+HOLD+' seconds. Controlling pitch is a different skill soft, medium, and loud, so train all three.</div>'+
+      '<div class="rrow2"><span class="rlab">Volume</span><span class="rchips tight" id="dynLv"></span></div>'+
+      '<div class="site-note" id="dynTip" style="margin:4px 0 2px"></div>'+
+      '<div class="rrow2" style="align-items:center;margin-top:8px"><span class="rlab">Target note</span><span class="rchips tight"><button class="rchip sm" id="dnDown">◀</button><span class="rbpm" id="dnNote" style="min-width:48px;text-align:center">'+midiName(VOX.note)+'</span><button class="rchip sm" id="dnUp">▶</button></span><button class="rchip sm" id="dnHear">▶ hear it</button></div>'+
+      '<div class="tuner" style="margin-top:12px"><div class="t-note" id="tNote">—</div>'+
+        '<div class="t-bar"><div class="t-zone"></div><div class="t-center"></div><div class="t-needle" id="tNeedle"></div></div>'+
+        '<div class="t-hint" id="tHint">Pick a volume, then tap Hold and sing a steady “ah”</div></div>'+
+      '<div class="rlab" style="display:block;margin:14px 0 4px">Loudness — keep it inside the band</div>'+
+      '<div id="lmeter" style="position:relative;height:16px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden">'+
+        '<div id="lzone" style="position:absolute;top:0;bottom:0;background:rgba(52,224,198,.28)"></div>'+
+        '<div id="lfill" style="position:absolute;top:0;bottom:0;left:0;width:0;background:var(--gold)"></div></div>'+
+      '<div class="actions" style="margin-top:14px;justify-content:center"><button class="btn" id="dnHold">● Hold '+HOLD+'s</button></div>'+
+      '<div class="feedback" id="dnFb" style="min-height:24px"></div></div>';
+    $("#eBack").onclick=function(){holding=false;if(toneRAF)cancelAnimationFrame(toneRAF);toneMenu();};
+    var lc=$("#dynLv");["soft","med","loud"].forEach(function(k){var b=document.createElement("button");b.className="rchip sm"+(VOX.level===k?" sel":"");b.textContent=LV[k].lbl;b.onclick=function(){VOX.level=k;save(mk("tone","dyn-level"),k);draw();};lc.appendChild(b);});
+    $("#dynTip").innerHTML="<b>"+LV[VOX.level].lbl+"</b> — "+LV[VOX.level].tip+".";
+    $("#dnDown").onclick=function(){VOX.note=Math.max(45,VOX.note-1);save(mk("tone","dyn-note"),VOX.note);$("#dnNote").textContent=midiName(VOX.note);};
+    $("#dnUp").onclick=function(){VOX.note=Math.min(79,VOX.note+1);save(mk("tone","dyn-note"),VOX.note);$("#dnNote").textContent=midiName(VOX.note);};
+    $("#dnHear").onclick=function(){playSing(VOX.note,2.0);};
+    $("#dnHold").onclick=startHold;
+    // position the loudness band zone
+    var bd=band();var z=$("#lzone");if(z){z.style.left=(100*bd[0]/MMAX)+"%";z.style.width=(100*(bd[1]-bd[0])/MMAX)+"%";}
+    teardown=function(){holding=false;try{stopMic();}catch(e){}};
+    loop();
+  }
+  function startHold(){holding=true;samples=[];holdStart=performance.now();var btn=$("#dnHold");if(btn){btn.disabled=true;btn.textContent="🎤 Hold…";}var fb=$("#dnFb");if(fb){fb.className="feedback";fb.textContent="";}}
+  function loop(){
+    toneAnalyser.getFloatTimeDomainData(buf);
+    var f=autoCorrelate(buf,ac().sampleRate),r=rms(buf),voiced=(f>=70&&f<=1100);
+    var cents=null;
+    if(voiced){var m=69+12*Math.log2(f/440);var diff=((m-VOX.note)%12+12)%12;if(diff>6)diff-=12;cents=diff*100;
+      $("#tNote").textContent=midiName(m);var px=Math.max(-120,Math.min(120,cents*(120/50)));$("#tNeedle").style.transform="translateX(calc(-50% + "+px+"px))";
+      var inTune=Math.abs(cents)<=35;$("#tNote").className="t-note"+(inTune?" good":"");}
+    else{$("#tNote").textContent="—";$("#tNote").className="t-note";$("#tNeedle").style.transform="translateX(-50%)";}
+    var bd=band();var fill=$("#lfill");if(fill){fill.style.width=Math.min(100,100*r/MMAX)+"%";fill.style.background=(r>=bd[0]&&r<=bd[1])?"#5fe0a8":(r>bd[1]?"#ff8f8c":"var(--gold)");}
+    if(holding){samples.push({cents:cents,voiced:voiced,r:r,inBand:(r>=bd[0]&&r<=bd[1])});
+      var left=HOLD-(performance.now()-holdStart)/1000;var h=$("#tHint");if(h)h.textContent=left>0?("Hold it… "+left.toFixed(1)+"s"):"";
+      if(left<=0){holding=false;score();}}
+    toneRAF=requestAnimationFrame(loop);
+  }
+  function score(){
+    var btn=$("#dnHold");if(btn){btn.disabled=false;btn.textContent="● Hold again";}
+    var fb=$("#dnFb");if(!fb)return;
+    var v=samples.filter(function(s){return s.voiced&&s.cents!=null;});
+    if(v.length<samples.length*0.3||v.length<8){fb.className="feedback try";fb.innerHTML="I barely heard a steady note — sing one clear “ah” and hold it the whole time.";return;}
+    var absC=v.map(function(s){return Math.abs(s.cents);});
+    var avgAbs=absC.reduce(function(a,b){return a+b;},0)/absC.length;
+    var within=100*v.filter(function(s){return Math.abs(s.cents)<=35;}).length/v.length;
+    var inBand=100*samples.filter(function(s){return s.inBand;}).length/samples.length;
+    // drift: first third vs last third
+    var n=v.length,a=v.slice(0,Math.floor(n/3)),b=v.slice(Math.ceil(2*n/3));
+    var mean=function(arr){return arr.reduce(function(x,s){return x+s.cents;},0)/arr.length;};
+    var drift=(b.length&&a.length)?(mean(b)-mean(a)):0;
+    // volume steadiness
+    var rs=v.map(function(s){return s.r;}),rm=rs.reduce(function(a,b){return a+b;},0)/rs.length;
+    var rsd=Math.sqrt(rs.map(function(x){return (x-rm)*(x-rm);}).reduce(function(a,b){return a+b;},0)/rs.length);
+    var cv=rm>0?rsd/rm:1;
+    var pitchMsg=avgAbs<=12?"🔥 Rock steady — you held it within ±"+Math.round(avgAbs)+" cents.":avgAbs<=25?"👍 Good — within ±"+Math.round(avgAbs)+" cents. Smooth out the small wobbles.":"Your pitch wandered (±"+Math.round(avgAbs)+" cents). Slow down and lock onto one spot.";
+    var driftMsg="";
+    if(drift<-22)driftMsg=" You slid <b>flat</b> as you held"+(VOX.level==="soft"?" — the classic soft-singing trap. Keep the breath pushing even when quiet.":" — keep breath support up to the last second.");
+    else if(drift>22)driftMsg=" You crept <b>sharp</b>"+(VOX.level==="loud"?" — common when loud. Stay relaxed and don’t push.":" — ease off a touch as you hold.");
+    var volMsg=cv<=0.22?" Volume was nicely even.":" Your volume wavered — aim for one constant loudness.";
+    var bandMsg=inBand>=60?"":" (You were often outside the "+VOX.level+" band — watch the meter.)";
+    var good=avgAbs<=20&&Math.abs(drift)<=25;
+    fb.className="feedback "+(good?"good":"try");
+    fb.innerHTML=pitchMsg+driftMsg+volMsg+bandMsg;
+    var key=mk("tone","dyn-"+VOX.level+"-best");var prev=load(key,999);if(avgAbs<prev)save(key,Math.round(avgAbs));
+    if(good&&activeId()&&!isAdult()){addBeans(3);beanChip();}
+  }
+  draw();
 }
 function toneMatchRound(level){
   const pool=TONE_PITCH_LEVELS[level-1].pool.slice();
