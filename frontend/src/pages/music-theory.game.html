@@ -3012,7 +3012,7 @@ function renderNoteEar(){
 /* ===== FRETBOARD — playable, life-size neck + chord-shape trainer ===== */
 const FB_TUNE={guitar:[40,45,50,55,59,64],bass:[28,33,38,43],ukulele:[67,60,64,69]};
 const FB_LBL={guitar:["E","A","D","G","B","e"],bass:["E","A","D","G"],ukulele:["G","C","E","A"]};
-const FB={inst:"guitar",mode:"play",chord:"C",frets:5,active:new Map(),holdRAF:null,holdT:0,lastPressure:0,sawReal:false,locked:{}};
+const FB={inst:"guitar",mode:"play",chord:"C",frets:5,active:new Map(),strum:new Map(),holdRAF:null,holdT:0,lastPressure:0,sawReal:false,locked:{}};
 (function(){try{var s=document.createElement("style");s.textContent=
 "#fbWrap{touch-action:none;-webkit-user-select:none;user-select:none}"+
 "#fbBoard{position:relative;display:grid;gap:0;border-radius:12px;overflow:hidden;background:linear-gradient(100deg,#241b33,#1a1430);box-shadow:inset 0 0 0 1px var(--line);height:min(62vh,540px);min-height:330px}"+
@@ -3025,7 +3025,10 @@ const FB={inst:"guitar",mode:"play",chord:"C",frets:5,active:new Map(),holdRAF:n
 ".fbdot.got{background:#5fe0a8;border-color:#5fe0a8;color:#07271a}"+
 ".fbox{font-size:15px;font-weight:800;color:var(--muted);pointer-events:none}.fbox.mut{color:#ff8f8c}"+
 "#fbHold{height:8px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:8px}#fbHoldBar{height:100%;width:0;background:#5fe0a8;transition:width .05s}"+
-"#fbPressWrap{height:6px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;flex:1}#fbPress{height:100%;width:0;background:var(--gold)}";
+"#fbPressWrap{height:6px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;flex:1}#fbPress{height:100%;width:0;background:var(--gold)}"+
+"#fbStrumBar{display:grid;gap:0;height:70px;border-radius:12px;overflow:hidden;background:linear-gradient(180deg,#221a33,#17122a);box-shadow:inset 0 0 0 1px var(--line);touch-action:none;margin-top:8px}"+
+".fblane{border-right:1px solid rgba(255,255,255,.08);position:relative;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.18);font-size:11px}.fblane:last-child{border-right:none}.fblane.hit{background:rgba(52,224,198,.28)}"+
+".fbstrumlbl{font-size:12px;color:var(--muted);text-align:center;margin-top:10px}";
 document.head.appendChild(s);}catch(e){}})();
 function fbStrings(){return FB_TUNE[FB.inst];}
 function fbShape(){return (CHORDS[FB.inst]&&CHORDS[FB.inst][FB.chord])||null;}
@@ -3034,8 +3037,12 @@ function fbStringFret(s){let mx=-1;FB.active.forEach(v=>{if(v.s===s&&v.f>mx)mx=v
 function fbPluck(s,f){unlockAudio();pluck(fbStrings()[s]+f,ac().currentTime+0.001,1.7);}
 function fbTrackP(e){const p=(typeof e.pressure==="number")?e.pressure:0;FB.lastPressure=p;if(p>0&&p!==0.5&&p!==1)FB.sawReal=true;}
 function fbDown(e){const b=document.getElementById("fbBoard");if(!b)return;const r=b.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)return;const c=fbCellAt(e.clientX,e.clientY);if(!c)return;e.preventDefault();FB.active.set(e.pointerId,c);fbTrackP(e);if(FB.mode==="play")fbPluck(c.s,c.f);fbUpdate();}
-function fbMove(e){if(!FB.active.has(e.pointerId))return;fbTrackP(e);const c=fbCellAt(e.clientX,e.clientY);if(c){const p=FB.active.get(e.pointerId);if(p.s!==c.s||p.f!==c.f){FB.active.set(e.pointerId,c);if(FB.mode==="play")fbPluck(c.s,c.f);}}fbUpdate();}
-function fbUp(e){if(FB.active.has(e.pointerId)){FB.active.delete(e.pointerId);fbUpdate();}}
+function fbMove(e){if(FB.active.has(e.pointerId)){fbTrackP(e);const c=fbCellAt(e.clientX,e.clientY);if(c){const p=FB.active.get(e.pointerId);if(p.s!==c.s||p.f!==c.f){FB.active.set(e.pointerId,c);if(FB.mode==="play")fbPluck(c.s,c.f);}}fbUpdate();return;}
+  if(FB.strum.has(e.pointerId)){const l=fbLaneAt(e.clientX);if(l>=0){const prev=FB.strum.get(e.pointerId);if(prev!==l){FB.strum.set(e.pointerId,l);fbPlayString(l);}}}}
+function fbUp(e){let ch=false;if(FB.active.has(e.pointerId)){FB.active.delete(e.pointerId);ch=true;}if(FB.strum.has(e.pointerId))FB.strum.delete(e.pointerId);if(ch)fbUpdate();}
+function fbLaneAt(x){const bar=document.getElementById("fbStrumBar");if(!bar)return -1;const r=bar.getBoundingClientRect();if(x<r.left||x>r.right)return -1;const N=fbStrings().length;return Math.max(0,Math.min(N-1,Math.floor((x-r.left)/r.width*N)));}
+function fbPlayString(s){const strings=fbStrings(),sh=(FB.mode==="chord")?fbShape():null;let f;if(sh){f=sh[s];if(f<0)return;}else{const h=fbStringFret(s);f=h>=0?h:0;}unlockAudio();pluck(strings[s]+f,ac().currentTime+0.001,2.1);const lane=document.querySelector('#fbStrumBar .fblane[data-s="'+s+'"]');if(lane){lane.classList.add("hit");setTimeout(()=>lane.classList.remove("hit"),130);}}
+function fbStrumDown(e){const bar=document.getElementById("fbStrumBar");if(!bar)return;const r=bar.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)return;e.preventDefault();const l=fbLaneAt(e.clientX);FB.strum.set(e.pointerId,l);fbPlayString(l);}
 function fbStrum(){unlockAudio();const a=ac(),strings=fbStrings(),sh=fbShape();let t=a.currentTime+0.02;for(let s=0;s<strings.length;s++){let f;if(FB.mode==="chord"&&sh){f=sh[s];if(f<0)continue;}else{const h=fbStringFret(s);f=h>=0?h:0;}pluck(strings[s]+f,t,2.3);t+=0.028;}}
 function fbChordCorrect(){const sh=fbShape();if(!sh)return false;for(let s=0;s<sh.length;s++){if(sh[s]>0){let ok=false;FB.active.forEach(v=>{if(v.s===s&&v.f===sh[s])ok=true;});if(!ok)return false;}}return true;}
 function fbStopHold(){if(FB.holdRAF){cancelAnimationFrame(FB.holdRAF);FB.holdRAF=null;}const bar=document.getElementById("fbHoldBar");if(bar)bar.style.width="0";}
@@ -3071,13 +3078,16 @@ function renderFretboard(inst){if(inst)FB.inst=inst;if(toneRAF)cancelAnimationFr
       '<div style="display:flex;color:var(--muted);font-size:12px;margin:6px 0 2px">'+labels+'</div>'+
       '<div id="fbBoard" style="grid-template-columns:repeat('+N+',1fr);grid-template-rows:32px repeat('+FB.frets+',1fr)">'+cells+strLines+'</div>'+
       (FB.mode==="chord"?'<div id="fbHold"><div id="fbHoldBar"></div></div>':'')+
-      '<div class="actions" style="justify-content:center;margin-top:10px"><button class="btn" id="fbStrum">🎸 Strum</button></div>'+
+      '<div class="fbstrumlbl">👇 Strum or pick here — drag across to strum, tap a lane to pick one string</div>'+
+      '<div id="fbStrumBar" style="grid-template-columns:repeat('+N+',1fr)">'+(function(){let h="";for(let s=0;s<N;s++)h+='<div class="fblane" data-s="'+s+'">'+FB_LBL[FB.inst][s]+'</div>';return h;})()+'</div>'+
+      '<div class="actions" style="justify-content:center;margin-top:10px"><button class="btn ghost" id="fbStrum">🎸 Strum all</button></div>'+
       '<div class="feedback" id="fbStatus" style="min-height:22px">'+(FB.mode==="chord"?"Place a finger on each glowing dot — hold 3s to lock it in.":"Tap the strings to play. Press lower on the neck (toward the nut) for lower notes.")+'</div>'+
       '<div class="rrow2" style="align-items:center;margin-top:6px"><span class="rlab">Pressure</span><span id="fbPressWrap"><span id="fbPress"></span></span></div>'+
       '<div class="site-note">Most phones can’t sense finger pressure, so we grade on <b>placement</b> and <b>how long you hold</b> — the bar fills only if your device reports pressure. Hold a shape to burn it into muscle memory.</div>'+
       '</div>';
     $("#eBack").onclick=goHome;
     document.getElementById("fbBoard").addEventListener("pointerdown",fbDown);
+    {const sb=document.getElementById("fbStrumBar");if(sb)sb.addEventListener("pointerdown",fbStrumDown);}
     $("#fbIg").onclick=()=>{FB.inst="guitar";if(!CHORDS.guitar[FB.chord])FB.chord="C";draw();};
     $("#fbIb").onclick=()=>{FB.inst="bass";FB.mode="play";draw();};
     $("#fbIu").onclick=()=>{FB.inst="ukulele";if(!CHORDS.ukulele[FB.chord])FB.chord="C";draw();};
