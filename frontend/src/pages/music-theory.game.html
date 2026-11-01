@@ -429,6 +429,8 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
       <div class="pillars"><span class="pillar">🎯 <b>Know it</b></span><span class="pillar">👂 <b>Hear it</b></span><span class="pillar">🥁 <b>Feel it</b></span><span class="pillar">🎹 <b>Play it</b></span></div>
     </div>
 
+    <div id="pathHero"></div>
+
     <div id="questBox"></div>
 
     <div class="label">Know it — study & memorize</div>
@@ -675,6 +677,7 @@ function topicDone(t){return load(mk(t.id,"quiz"),false)&&load(mk(t.id,"match"),
 function renderHome(){
   beanChip();renderQuest();
   const nm=activeName();if(nm){const h=document.querySelector(".hero h2 .nm");if(h)h.textContent=nm;}
+  renderPathHero();
   const tg=$("#topicGrid");tg.innerHTML="";
   TOPICS.forEach(t=>{const b=document.createElement("button");b.className="card";
     b.innerHTML=`<span class="ic">${t.icon}</span><h3>${esc(t.title)}</h3><span class="blurb">${esc(t.blurb)}</span>
@@ -3008,6 +3011,85 @@ function renderNoteEar(){
     $("#neBox").appendChild(buildKeyboard(low,oct,guess,true));}
   function done(){view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎹 Note ID</span></div><div class="panel" style="text-align:center"><div class="q">You got <b>'+correct+'/'+rounds+'</b>!</div><div class="actions" style="justify-content:center"><button class="btn" id="neAgain">Again</button><button class="btn ghost" id="neHome">Done</button></div></div>';$("#eBack").onclick=goHome;$("#neAgain").onclick=renderNoteEar;$("#neHome").onclick=goHome;if(correct>=7)burst($(".panel"),12);beanChip();}
   newQ();
+}
+/* ===== THE PATH — guided curriculum: MI 'learn by doing' + nervous-system regulation ===== */
+const MMU_PATH=[
+ {t:"Arrive & Attune",sub:"Before a note — land in your body. A regulated nervous system hears more and learns faster.",steps:[
+   {id:"a1",ic:"🌬️",g:"ground",t:"The first breath",blurb:"Coherent breathing — the on-ramp to every practice. Learn to drop in before you play.",go:renderBreathwork},
+   {id:"a2",ic:"🌍",g:"ground",t:"The Earth's note",blurb:"Sit with the 7.83 Hz Schumann resonance — attune to the ground frequency everything tunes against.",go:renderEarthFreq},
+   {id:"a3",ic:"🔊",g:"do",t:"Hear one note",blurb:"Your ear's first rep: hear a single pitch and find it. The seed of everything.",go:renderNoteEar},
+   {id:"a4",ic:"🥁",g:"do",t:"Feel the pulse",blurb:"Tap the beat. Your inner clock is the foundation of groove — and of a settled nervous system.",go:renderDjembe}
+ ]},
+ {t:"Your Instrument",sub:"MI's way — you play real music from day one. Hands on, from the first lesson.",steps:[
+   {id:"i1",ic:"🎸",g:"do",t:"Pick it up",blurb:"Open the Fretboard (or Piano) and make your first sounds. No theory gate — just play.",go:()=>renderFretboard("guitar")},
+   {id:"i2",ic:"✋",g:"do",t:"Your first chords",blurb:"C, G, Em. Place your fingers on the glowing dots, hold to lock the shape in, then strum.",go:()=>renderFretboard("guitar")},
+   {id:"i3",ic:"🌬️",g:"ground",t:"Ground, then practice",blurb:"Two minutes of box breathing, then ten on your instrument. Regulate → repeat. This is the daily habit.",go:renderBreathwork},
+   {id:"i4",ic:"🎸",g:"do",t:"Play a progression",blurb:"Chain your chords into a progression and strum along. Music, immediately.",go:()=>renderStrings("guitar")}
+ ]},
+ {t:"Rhythm & Groove",sub:"Rhythm is a body practice. Your breath is your first metronome.",steps:[
+   {id:"r1",ic:"👁️",g:"do",t:"See the beat",blurb:"Watch a groove light up as it plays — ear, eye and body syncing.",go:renderRhythmTranscribe},
+   {id:"r2",ic:"✋",g:"do",t:"Tap it back",blurb:"Now reproduce it. Transcribing rhythm is how you learn to feel it.",go:renderRhythmTranscribe},
+   {id:"r3",ic:"🪘",g:"do",t:"Hands on skin",blurb:"Djembe — bass, tone, slap. Rhythm you feel in your hands.",go:renderDjembe},
+   {id:"r4",ic:"🎛️",g:"do",t:"Build a beat",blurb:"Program your own groove in the Sampler. Make the thing you've been feeling.",go:renderSampler}
+ ]},
+ {t:"Ear & Harmony",sub:"Training the ear is training attention — the same muscle meditation builds.",steps:[
+   {id:"e1",ic:"🎵",g:"do",t:"Chords by ear",blurb:"Hear a chord's color — major, minor, the feeling of each.",go:renderChordEar},
+   {id:"e2",ic:"🎚️",g:"do",t:"Scales by ear",blurb:"The flavors of scales. Start to hear why a song feels the way it does.",go:renderScaleEar},
+   {id:"e3",ic:"🎤",g:"do",t:"Find the melody",blurb:"Sing a line and see its notes, scale degrees and the chords beneath it.",go:renderMelodyLab},
+   {id:"e4",ic:"🎹",g:"do",t:"Where's home?",blurb:"Take a song apart for its harmony — the loop, the key, where it rests.",go:renderSongAnalysis}
+ ]},
+ {t:"Songwriting",sub:"Creativity needs a safe nervous system. Soften the inner critic, then write.",steps:[
+   {id:"s1",ic:"🏗️",g:"do",t:"Anatomy of a song",blurb:"Structure, the parts, what each section's job is.",go:renderSongwriting},
+   {id:"s2",ic:"✍️",g:"do",t:"Write a hook",blurb:"In the Lyric Lab — speak your words, count syllables, find rhymes, let the coach tighten it.",go:renderLyricLab},
+   {id:"s3",ic:"🌬️",g:"ground",t:"Free the critic",blurb:"A short sit. Creativity flows when you feel safe — soften the judge before you create.",go:renderMedSession},
+   {id:"s4",ic:"🔬",g:"do",t:"Study a great lyric",blurb:"Analyze a song's story and words — learn from what already works.",go:renderSongAnalysis}
+ ]},
+ {t:"Production",sub:"Bring it to life. Breathe between takes — tension is audible.",steps:[
+   {id:"p1",ic:"🎛️",g:"do",t:"Make the beat",blurb:"Lay the groove and the sounds in the Sampler / Beat Maker.",go:renderSampler},
+   {id:"p2",ic:"🎙️",g:"do",t:"Record your idea",blurb:"Sing or play your idea in and keep the keepers.",go:renderIdeaLab},
+   {id:"p3",ic:"🎚️",g:"do",t:"Mix it",blurb:"Drop it in The Instructor for a real mix report, graded for your genre.",go:renderInstructor},
+   {id:"p4",ic:"🎧",g:"do",t:"Reverse-engineer a mix",blurb:"Study a pro record's mix — what's upfront, wide, bright.",go:renderSongAnalysis}
+ ]},
+ {t:"Capstone — Your Song",sub:"Everything comes together. Ground deep, then make something that's yours.",steps:[
+   {id:"c1",ic:"🕯️",g:"ground",t:"Sit before you start",blurb:"A longer meditation. Arrive fully — then create from a settled place.",go:renderMedSession},
+   {id:"c2",ic:"✍️",g:"do",t:"Write your words",blurb:"Your lyric, in the Lyric Lab. The one you mean.",go:renderLyricLab},
+   {id:"c3",ic:"🎼",g:"do",t:"Build the song",blurb:"Assemble your sections — intro, verses, chorus, bridge — into a finished song.",go:renderSongBuilder},
+   {id:"c4",ic:"🌬️",g:"ground",t:"Close the circle",blurb:"One slow breath cycle to land it. You made something — notice how that feels.",go:renderBreathwork}
+ ]}
+];
+(function(){try{var s=document.createElement("style");s.textContent=
+".pathhero{width:100%;text-align:left;cursor:pointer;color:inherit;font:inherit;background:linear-gradient(135deg,rgba(52,224,198,.15),rgba(244,183,64,.12));border:1px solid rgba(52,224,198,.4);border-radius:16px;padding:14px 16px;margin:2px 0 18px}"+
+".pathhero .ph-top{display:flex;align-items:center;gap:12px}.ph-ic{font-size:1.7rem;flex:none}.ph-t{font-family:'Fraunces',serif;font-weight:600;font-size:1.15rem}.ph-s{font-size:.8rem;color:var(--muted);line-height:1.4}"+
+".ph-go{margin-left:auto;background:var(--gold);color:#241800;font-weight:800;padding:7px 14px;border-radius:999px;font-size:.85rem;flex:none}"+
+".ph-bar{height:7px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:10px}.ph-fill{height:100%;background:linear-gradient(90deg,#34e0c6,#f4b740)}.ph-n{font-size:.72rem;color:var(--muted);margin-top:5px}"+
+".pathlvl{margin:14px 0;padding:12px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.02)}"+
+".pl-h{display:flex;align-items:baseline;gap:10px}.pl-n{font-size:.68rem;letter-spacing:1px;text-transform:uppercase;color:var(--gold);font-weight:800}.pl-t{font-family:'Fraunces',serif;font-weight:600;font-size:1.08rem}.pl-sub{font-size:.8rem;color:var(--muted);margin:4px 0 8px;line-height:1.5}"+
+".pstep{display:flex;align-items:center;gap:10px;padding:9px;border-radius:10px;margin:5px 0;background:var(--card);border:1px solid var(--line)}.pstep.cur{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}.pstep.done{opacity:.55}.pstep.ground{background:linear-gradient(160deg,rgba(52,224,198,.1),var(--card))}"+
+".ps-ic{font-size:1.3rem;flex:none}.ps-main{flex:1;min-width:0}.ps-t{font-weight:700;font-size:.92rem}.ps-b{font-size:.77rem;color:var(--muted);line-height:1.45}.ps-tag{font-size:.58rem;background:rgba(52,224,198,.22);color:#34e0c6;padding:1px 6px;border-radius:999px;margin-left:5px;vertical-align:middle;font-weight:700}.ps-act{display:flex;gap:5px;flex:none}";
+document.head.appendChild(s);}catch(e){}})();
+function pathAllSteps(){const a=[];MMU_PATH.forEach((L,li)=>L.steps.forEach(s=>a.push(Object.assign({li:li},s))));return a;}
+function pathDone(id){return load(mk("path",id),false);}
+function pathStats(){const all=pathAllSteps();const done=all.filter(s=>pathDone(s.id)).length;const cur=all.find(s=>!pathDone(s.id));return {done:done,total:all.length,cur:cur};}
+function pathSetDone(id,v){save(mk("path",id),v);if(v&&activeId())addBeans(4);}
+function renderPathHero(){const el=$("#pathHero");if(!el)return;const st=pathStats(),pct=Math.round(st.done/st.total*100),done=st.done===st.total;
+  el.innerHTML='<button class="pathhero" id="pathHeroBtn"><div class="ph-top"><span class="ph-ic">🧭</span><div><div class="ph-t">The Path</div><div class="ph-s">'+(done?'🎓 Foundations complete — revisit any step':st.done?('Continue · next: '+(st.cur?esc(st.cur.t):'')):'Start here — a guided journey, MI-style, with breath &amp; nervous-system practice woven in')+'</div></div><span class="ph-go">'+(done?'↻':st.done?'Continue':'Start')+'</span></div><div class="ph-bar"><div class="ph-fill" style="width:'+pct+'%"></div></div><div class="ph-n">'+st.done+' / '+st.total+' steps</div></button>';
+  var b=$("#pathHeroBtn");if(b)b.onclick=renderPath;}
+function renderPath(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{};
+  const st=pathStats(),done=st.done===st.total,flat={};pathAllSteps().forEach(s=>flat[s.id]=s);
+  let bodyH="";MMU_PATH.forEach((L,li)=>{const ldone=L.steps.every(s=>pathDone(s.id));
+    bodyH+='<div class="pathlvl"><div class="pl-h"><span class="pl-n">Level '+(li+1)+(ldone?' ✓':'')+'</span><span class="pl-t">'+esc(L.t)+'</span></div><div class="pl-sub">'+esc(L.sub)+'</div>';
+    L.steps.forEach(s=>{const d=pathDone(s.id),isCur=st.cur&&st.cur.id===s.id;
+      bodyH+='<div class="pstep'+(d?" done":"")+(isCur?" cur":"")+(s.g==="ground"?" ground":"")+'"><span class="ps-ic">'+s.ic+'</span><div class="ps-main"><div class="ps-t">'+esc(s.t)+(s.g==="ground"?' <span class="ps-tag">breathe</span>':"")+'</div><div class="ps-b">'+esc(s.blurb)+'</div></div><div class="ps-act"><button class="rchip sm ps-open" data-id="'+s.id+'">▶ Open</button><button class="rchip sm ps-done" data-id="'+s.id+'">'+(d?"✓":"○")+'</button></div></div>';});
+    bodyH+='</div>';});
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🧭 The Path</span></div><div class="panel">'+
+    (done?'<div class="idea-fb" style="border:1px solid #5fe0a8;color:#5fe0a8;margin-bottom:10px"><b>🎓 MMU Foundations — complete.</b> You moved through every level, craft and breath alike. This is just the first turn of the spiral — keep making.</div>':'')+
+    '<div class="intro">In the spirit of <b>Musicians Institute</b>: you <b>learn by doing</b> — real music from day one, ear and hands and theory together. What we add is the part MI left out — before you play, you <b>regulate your nervous system</b>. A calm, present body learns faster, hears more, and plays freer. Music and meditation are the same practice: <b>attention, breath, time</b>.</div>'+
+    '<div class="ph-bar"><div class="ph-fill" style="width:'+Math.round(st.done/st.total*100)+'%"></div></div><div class="ph-n" style="margin-bottom:10px">'+st.done+' / '+st.total+' steps'+(st.cur?' · next: <b>'+esc(st.cur.t)+'</b>':'')+'</div>'+
+    bodyH+
+    '<div class="site-note" style="margin-top:12px">Do a step, then tap <b>○</b> to mark it done. The daily rhythm is simple: <b>ground, then play</b>.</div></div>';
+  $("#eBack").onclick=goHome;
+  view.querySelectorAll(".ps-open").forEach(b=>{b.onclick=()=>{const s=flat[b.dataset.id];if(s&&s.go)s.go();};});
+  view.querySelectorAll(".ps-done").forEach(b=>{b.onclick=()=>{const id=b.dataset.id;pathSetDone(id,!pathDone(id));renderPath();};});
 }
 /* ===== FRETBOARD — playable, life-size neck + chord-shape trainer ===== */
 const FB_TUNE={guitar:[40,45,50,55,59,64],bass:[28,33,38,43],ukulele:[67,60,64,69]};
