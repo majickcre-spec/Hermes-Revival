@@ -3258,7 +3258,11 @@ function renderSyllabus(i){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=
 const FB_TUNE={guitar:[40,45,50,55,59,64],bass:[28,33,38,43],ukulele:[67,60,64,69]};
 const FB_LBL={guitar:["E","A","D","G","B","e"],bass:["E","A","D","G"],ukulele:["G","C","E","A"]};
 const FB_MAXFRET=15;
-const FB={inst:"guitar",mode:"play",chord:"C",win:1,showNotes:false,adv:false,active:new Map(),locked:{},holdRAF:null,holdT:0};
+const FB={inst:"guitar",mode:"play",chord:"C",win:1,showNotes:false,adv:false,scaleRoot:0,scaleType:"majpent",active:new Map(),locked:{},holdRAF:null,holdT:0};
+const FB_SCALES=["major","minor","majpent","minpent","blues","dorian"];
+const FB_SCALE_IV={major:[0,2,4,5,7,9,11],minor:[0,2,3,5,7,8,10],majpent:[0,2,4,7,9],minpent:[0,3,5,7,10],blues:[0,3,5,6,7,10],dorian:[0,2,3,5,7,9,10]};
+const FB_SCALE_NM={major:"Major",minor:"Minor",majpent:"Major pentatonic",minpent:"Minor pentatonic",blues:"Blues",dorian:"Dorian"};
+function fbScaleSet(){var iv=FB_SCALE_IV[FB.scaleType]||FB_SCALE_IV.majpent,m={};for(var i=0;i<iv.length;i++)m[(FB.scaleRoot+iv[i])%12]=i+1;return m;}
 /* advanced / movable shapes — absolute frets, -1 mute 0 open */
 const FB_ADV={guitar:{"F (barre)":[1,3,3,2,1,1],"Bb":[-1,1,3,3,3,1],"B":[-1,2,4,4,4,2],"C#m":[-1,4,6,6,5,4],"Fmaj7":[-1,-1,3,2,1,0],"Cadd9":[-1,3,2,0,3,3],"Asus2":[-1,0,2,2,0,0],"Dsus4":[-1,-1,0,2,3,3],"A7":[-1,0,2,0,2,0],"Em7":[0,2,2,0,3,0],"G/B":[-1,2,0,0,0,3],"D barre (5th)":[-1,5,7,7,7,5]},
  ukulele:{"Bb":[3,2,1,1],"B":[4,3,2,2],"F#m":[2,1,2,0],"A7":[0,1,0,0],"Dmaj7":[2,2,2,4],"Cadd9":[0,2,0,3],"Gsus4":[0,2,3,3]}};
@@ -3325,11 +3329,16 @@ function fbSVG(){var g=fbGeo(),N=g.N,shape=fbCurShape(),fingers=(FB.mode==="chor
   // finger target dots (chord mode)
   if(shape){for(var cs=0;cs<N;cs++){var cf=shape[cs];if(cf>0&&cf>=FB.win&&cf<FB.win+4){var dx=g.sx(cs,g.fy(cf)),dy=g.fy(cf);var got=false;FB.active.forEach(function(v){if(v.s===cs&&v.f===cf)got=true;});var lab=(fingers&&fingers[cs])?fingers[cs]:(FB.showNotes?fbNote(cs,cf):"");
     s.push('<circle cx="'+dx.toFixed(1)+'" cy="'+dy.toFixed(1)+'" r="15" fill="'+(got?"url(#fbgot)":"url(#fbdot)")+'" stroke="'+(got?"#3fcf7a":"#7ff0d6")+'" stroke-width="2"/>'+(lab!==""?'<text x="'+dx.toFixed(1)+'" y="'+(dy+5).toFixed(1)+'" font-size="14" font-weight="800" fill="#06281d" text-anchor="middle" font-family="system-ui">'+lab+'</text>':''));}}}
+  // scale notes (scale mode)
+  if(FB.mode==="scale"){var sset=fbScaleSet();
+    var drawSc=function(cs,cf,x,y){var pc=(((fbStrings()[cs]+cf)%12)+12)%12;if(!(pc in sset))return;var isRoot=(pc===FB.scaleRoot);var lab=FB.showNotes?fbNote(cs,cf):String(sset[pc]);
+      s.push('<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="13" fill="'+(isRoot?"#f4b740":"url(#fbdot)")+'" stroke="'+(isRoot?"#d9952f":"#7ff0d6")+'" stroke-width="2"/><text x="'+x.toFixed(1)+'" y="'+(y+4).toFixed(1)+'" font-size="12" font-weight="800" fill="'+(isRoot?"#3a2600":"#06281d")+'" text-anchor="middle" font-family="system-ui">'+lab+'</text>');};
+    for(var zs=0;zs<N;zs++){if(win1){drawSc(zs,0,g.sx(zs,g.nutY),g.nutY-20);}for(var zf=FB.win;zf<FB.win+4;zf++){drawSc(zs,zf,g.sx(zs,g.fy(zf)),g.fy(zf));}}}
   // pressed highlights (play mode) + note labels + hit targets for every fret in window
   for(var ps=0;ps<N;ps++){for(var pf=FB.win;pf<FB.win+4;pf++){var px=g.sx(ps,g.fy(pf)),py=g.fy(pf);
     var pressed=false;FB.active.forEach(function(v){if(v.s===ps&&v.f===pf)pressed=true;});
     if(pressed)s.push('<circle cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="15" fill="url(#fbdot)" stroke="#7ff0d6" stroke-width="2"/>');
-    if(FB.showNotes&&!(shape&&shape[ps]===pf)){s.push('<text x="'+px.toFixed(1)+'" y="'+(py+4).toFixed(1)+'" font-size="11" font-weight="700" fill="'+(pressed?"#06281d":"rgba(255,255,255,.72)")+'" text-anchor="middle" font-family="system-ui" style="paint-order:stroke" stroke="rgba(0,0,0,.35)" stroke-width="'+(pressed?0:2.5)+'">'+fbNote(ps,pf)+'</text>');}
+    if(FB.showNotes&&FB.mode==="play"){s.push('<text x="'+px.toFixed(1)+'" y="'+(py+4).toFixed(1)+'" font-size="11" font-weight="700" fill="'+(pressed?"#06281d":"rgba(255,255,255,.72)")+'" text-anchor="middle" font-family="system-ui" style="paint-order:stroke" stroke="rgba(0,0,0,.35)" stroke-width="'+(pressed?0:2.5)+'">'+fbNote(ps,pf)+'</text>');}
     s.push('<circle class="fbhit" data-pos="'+ps+':'+pf+'" cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="18" fill="transparent"/>');}}
   s.push('</svg>');return s.join("");}
 /* ---- interaction ---- */
@@ -3345,7 +3354,8 @@ function fbPaint(){var box=document.getElementById("fbBox");if(box)box.innerHTML
   if(FB.mode==="chord"){var st=document.getElementById("fbStatus"),sh=fbCurShape();
     if(fbChordCorrect()){if(!FB.holdRAF)fbStartHold();if(st&&!/Locked/.test(st.textContent))st.innerHTML='<b style="color:#5fe0a8">Shape is right — hold it to lock it in.</b>';}
     else{fbStopHold();if(st&&!/Locked/.test(st.textContent))st.textContent=sh?"Place a finger on each glowing dot — hold 3s to lock it in.":"No shapes for bass here — use Play mode.";}}}
-function renderFretboard(inst){if(inst){FB.inst=inst;if(inst==="bass")FB.mode="play";if(FB.mode==="chord"&&!fbShapeFor(FB.chord))FB.chord=(CHORDS[FB.inst]?Object.keys(CHORDS[FB.inst])[0]:"C");}
+function fbPlayScale(){unlockAudio();var set=fbScaleSet(),strings=fbStrings(),N=strings.length,win1=(FB.win===1),notes=[];for(var s=0;s<N;s++){for(var f=(win1?0:FB.win);f<FB.win+4;f++){var m=strings[s]+f;if((((m%12)+12)%12) in set)notes.push(m);}}notes=notes.filter(function(v,i,a){return a.indexOf(v)===i;}).sort(function(a,b){return a-b;});if(!notes.length)return;var seq=notes.concat(notes.slice(0,-1).reverse());var t=ac().currentTime+0.05;seq.forEach(function(m){pluck(m,t,0.5,0.3);t+=0.26;});}
+function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.mode=startMode;if(FB.inst==="bass"&&FB.mode==="chord")FB.mode="play";if(FB.mode==="chord"&&!fbShapeFor(FB.chord))FB.chord=(CHORDS[FB.inst]?Object.keys(CHORDS[FB.inst])[0]:"C");
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   document.removeEventListener("pointerup",fbUpPt);document.removeEventListener("pointercancel",fbUpPt);
   document.addEventListener("pointerup",fbUpPt);document.addEventListener("pointercancel",fbUpPt);
@@ -3357,13 +3367,14 @@ function renderFretboard(inst){if(inst){FB.inst=inst;if(inst==="bass")FB.mode="p
     var canChord=!!CHORDS[FB.inst];
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎸 '+instName+' Neck</span></div><div class="panel">'+
       '<div class="rrow2"><span class="rchips tight"><button class="rchip sm'+(FB.inst==="guitar"?" sel":"")+'" id="fbIg">Guitar</button><button class="rchip sm'+(FB.inst==="bass"?" sel":"")+'" id="fbIb">Bass</button><button class="rchip sm'+(FB.inst==="ukulele"?" sel":"")+'" id="fbIu">Ukulele</button></span>'+
-      '<span class="rchips tight" style="margin-left:auto"><button class="rchip sm'+(FB.mode==="play"?" sel":"")+'" id="fbMp">🎵 Play</button><button class="rchip sm'+(FB.mode==="chord"?" sel":"")+'" id="fbMc">✋ Chords</button></span></div>'+
+      '<span class="rchips tight" style="margin-left:auto"><button class="rchip sm'+(FB.mode==="play"?" sel":"")+'" id="fbMp">🎵 Play</button><button class="rchip sm'+(FB.mode==="chord"?" sel":"")+'" id="fbMc">✋ Chords</button><button class="rchip sm'+(FB.mode==="scale"?" sel":"")+'" id="fbMs">🎼 Scales</button></span></div>'+
       (FB.mode==="chord"?'<div class="rrow2"><span class="rlab">Chord</span><span class="rchips tight" id="fbChips"></span></div>'+(FB_ADV[FB.inst]?'<div class="rrow2" style="margin-top:2px"><button class="rchip sm'+(FB.adv?" sel":"")+'" id="fbAdv">'+(FB.adv?"★ Showing advanced shapes":"➕ More / advanced shapes")+'</button></div>':''):'')+
+      (FB.mode==="scale"?'<div class="rrow2"><span class="rlab">Root</span><span class="rchips tight" id="fbRoot"></span></div><div class="rrow2" style="margin-top:2px"><span class="rlab">Scale</span><span class="rchips tight" id="fbScale"></span></div><div class="actions" style="margin:6px 0 0"><button class="btn ghost" id="fbPlayScale">▶ Play the scale (up &amp; down)</button></div>':'')+
       '<div class="actions" style="justify-content:space-between;align-items:center;margin:8px 0 4px"><button class="btn ghost" id="fbUp">▲ lower frets</button><span class="rbpm" id="fbWinLbl" style="min-width:120px;text-align:center;font-size:13px">'+winLabel+'</span><button class="btn ghost" id="fbDn">higher frets ▼</button></div>'+
       '<div id="fbBox">'+fbSVG()+'</div>'+
       (FB.mode==="chord"?'<div id="fbHold"><div id="fbHoldBar"></div></div>':'')+
       '<div class="actions" style="justify-content:center;margin-top:10px"><button class="btn" id="fbStrum">🎸 Strum</button><button class="rchip sm'+(FB.showNotes?" sel":"")+'" id="fbNotes">🏷️ Note names</button></div>'+
-      '<div class="feedback" id="fbStatus" style="min-height:22px">'+(FB.mode==="chord"?"Place a finger on each glowing dot — hold 3s to lock it in.":"Tap a spot on a string to play that note. The neck is narrower at the nut (top) and widens toward the body, like the real thing.")+'</div>'+
+      '<div class="feedback" id="fbStatus" style="min-height:22px">'+(FB.mode==="chord"?"Place a finger on each glowing dot — hold 3s to lock it in.":FB.mode==="scale"?"Gold dots are the root; numbers are scale degrees. Tap any note to hear it, or play the whole scale. Page ▲▼ to see the shape move up the neck.":"Tap a spot on a string to play that note. The neck is narrower at the nut (top) and widens toward the body, like the real thing.")+'</div>'+
       '<div class="site-note">Page up and down the neck with ▲▼ — four frets at a time, numbered on the left. Turn on <b>Note names</b> to learn what every spot is. Hold a chord shape 3 seconds to burn it into muscle memory.</div>'+
       '</div>';
     $("#eBack").onclick=goHome;
@@ -3373,6 +3384,10 @@ function renderFretboard(inst){if(inst){FB.inst=inst;if(inst==="bass")FB.mode="p
     $("#fbIu").onclick=function(){FB.inst="ukulele";if(FB.mode==="chord"&&!fbShapeFor(FB.chord))FB.chord="C";draw();};
     $("#fbMp").onclick=function(){FB.mode="play";draw();};
     $("#fbMc").onclick=function(){if(!canChord){var st=$("#fbStatus");if(st)st.textContent="Bass has no chord shapes here — switch to guitar or ukulele.";return;}FB.mode="chord";if(!fbShapeFor(FB.chord))FB.chord=Object.keys(CHORDS[FB.inst])[0];draw();};
+    $("#fbMs").onclick=function(){FB.mode="scale";draw();};
+    if(FB.mode==="scale"){var rr=$("#fbRoot");for(var ri=0;ri<12;ri++){(function(pc){var b=document.createElement("button");b.className="rchip sm"+(FB.scaleRoot===pc?" sel":"");b.textContent=NOTE_NAMES[pc];b.onclick=function(){FB.scaleRoot=pc;draw();};rr.appendChild(b);})(ri);}
+      var sc=$("#fbScale");FB_SCALES.forEach(function(k){var b=document.createElement("button");b.className="rchip sm"+(FB.scaleType===k?" sel":"");b.textContent=FB_SCALE_NM[k];b.onclick=function(){FB.scaleType=k;draw();};sc.appendChild(b);});
+      var ps=$("#fbPlayScale");if(ps)ps.onclick=fbPlayScale;}
     var up=$("#fbUp");if(up)up.onclick=function(){FB.win=Math.max(1,FB.win-4);draw();};
     var dn=$("#fbDn");if(dn)dn.onclick=function(){FB.win=Math.min(FB_MAXFRET-3,FB.win+4);draw();};
     $("#fbStrum").onclick=fbStrum;
@@ -3694,6 +3709,121 @@ function fingerLegend(){const d=document.createElement("div");d.className="finge
   return d;}
 function strLearned(inst){return load(mk("str",inst+"-learned"),[]);}
 function strRank(n){return n>=10?"Chord Master":n>=6?"Chord Keeper":n>=3?"Strummer":"Beginner";}
+/* ===== STRUMMING STUDIO — patterns, play-along, mic call & response ===== */
+const STRUM_PATS=[
+ {id:"alldown",name:"All Downs",grid:["D","","D","","D","","D",""],bpm:85,great:"Campfire songs, punk, folk singalongs — “Knockin’ on Heaven’s Door”",why:"One down-strum on every beat. The simplest, steadiest feel — lock your foot to it before anything else. Everything harder is built on this."},
+ {id:"8down",name:"Eighth Downs",grid:["D","D","D","D","D","D","D","D"],bpm:80,great:"Punk & hard rock — “Blitzkrieg Bop,” “American Idiot”",why:"Down on every eighth note, all downstrokes. Relentless and driving — it’s pure forward energy, which is why aggressive music lives here."},
+ {id:"downup",name:"Down–Up Eighths",grid:["D","U","D","U","D","U","D","U"],bpm:90,great:"Pop & folk — a huge number of songs",why:"Down on the beat, up on the “&.” Your hand never stops swinging — that constant motion is the engine behind almost all strumming."},
+ {id:"dduudu",name:"The Common One (D·DU·UDU)",grid:["D","","D","U","","U","D","U"],bpm:100,great:"“Wonderwall,” “Horse With No Name,” endless pop/folk",why:"The most-used pattern in pop music. Keep your hand swinging in steady eighths and simply miss the strings where there’s no arrow — that unbroken motion is the whole secret."},
+ {id:"ballad",name:"Gentle Ballad",grid:["D","","","U","D","","D","U"],bpm:68,great:"Slow songs — “Let It Be,” “Stand By Me”",why:"Sparse, with space between hits. Leaving gaps lets a slow song breathe — crowding a ballad with strums kills the mood."},
+ {id:"country",name:"Folk / Country Bounce",grid:["D","","D","U","D","","D","U"],bpm:96,great:"Country, bluegrass, Johnny Cash",why:"An alternating bass-and-strum bounce. Accent the downbeats and it swings like a porch song — the lift on the “&” is what makes it dance."},
+ {id:"reggae",name:"Reggae Upstrokes",grid:["","U","","U","","U","","U"],bpm:74,great:"Reggae & ska — “Three Little Birds”",why:"Only the off-beats (the “&”s), short and clipped — the “skank.” Mute the strings right after each hit. Playing the gaps instead of the beats is what makes reggae feel reggae."}
+];
+const STRUM_CHORDS={guitar:["G","C","D","Em","Am","E","A"],ukulele:["C","G","Am","F","Em","D","A"],bass:["G","C","D","Em","Am"]};
+(function(){try{var s=document.createElement("style");s.textContent=
+"#smGrid{display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin:10px 0}"+
+".smcell{border:1px solid var(--line);border-radius:9px;padding:9px 2px 6px;text-align:center;background:rgba(255,255,255,.03);transition:background .05s,transform .05s}"+
+".smcell .ar{font-size:22px;font-weight:800;line-height:1;color:var(--cream)}"+
+".smcell .ar.gh{color:rgba(255,255,255,.18);font-size:16px}"+
+".smcell .bt{font-size:10px;color:var(--muted);margin-top:4px}"+
+".smcell.d .ar{color:var(--gold)}.smcell.u .ar{color:var(--teal)}"+
+".smcell.hi{background:rgba(52,224,198,.28);transform:translateY(-2px)}"+
+".smcell.beat{box-shadow:inset 0 0 0 1px rgba(244,183,64,.25)}";
+document.head.appendChild(s);}catch(e){}})();
+function strumPatById(id){for(var i=0;i<STRUM_PATS.length;i++)if(STRUM_PATS[i].id===id)return STRUM_PATS[i];return STRUM_PATS[0];}
+function renderStrumming(inst){
+  if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  var SM={inst:inst,mode:"along",patId:"dduudu",chord:(STRUM_CHORDS[inst]||STRUM_CHORDS.guitar)[0],bpm:90,metro:true,on:false,idx:0,next:0,raf:null,phase:"",cr:false,crRaf:null,onsets:[],listenStart:0,timers:[]};
+  var beatLbl=["1","&","2","&","3","&","4","&"];
+  function pat(){return strumPatById(SM.patId);}
+  function frets(){var c=CHORDS[SM.inst]&&CHORDS[SM.inst][SM.chord];if(c)return c;return CHORDS.guitar[SM.chord]||CHORDS.guitar.G;}
+  function eighth(){return 60/SM.bpm/2;}
+  function clearTimers(){SM.timers.forEach(function(t){clearTimeout(t);});SM.timers=[];}
+  function click(t,accent){try{var a=ac(),o=a.createOscillator(),gn=a.createGain();o.frequency.value=accent?1700:1150;o.connect(gn);gn.connect(a.destination);gn.gain.setValueAtTime(0.0001,t);gn.gain.exponentialRampToValueAtTime(accent?0.22:0.12,t+0.001);gn.gain.exponentialRampToValueAtTime(0.0001,t+0.05);o.start(t);o.stop(t+0.07);}catch(e){}}
+  function strokeAt(slot,t){if(slot==="D")strum(SM.inst,frets(),t,true);else if(slot==="U")strum(SM.inst,frets(),t,false);}
+  function hiSlot(i){var cells=view.querySelectorAll("#smGrid .smcell");cells.forEach(function(c,k){c.classList.toggle("hi",k===i);});}
+  function hiClear(){var cells=view.querySelectorAll("#smGrid .smcell");cells.forEach(function(c){c.classList.remove("hi");});}
+  /* ---- play-along loop ---- */
+  function schedule(){if(!SM.on)return;var a=ac();while(SM.next<a.currentTime+0.18){var i=SM.idx%8,g=pat().grid[i],t=SM.next;
+      if(SM.metro&&i%2===0)click(t,i===0);
+      strokeAt(g,t);
+      (function(ii,delay){var tm=setTimeout(function(){hiSlot(ii);},Math.max(0,delay));SM.timers.push(tm);})(i,(t-a.currentTime)*1000);
+      SM.next+=eighth();SM.idx++;}
+    SM.raf=requestAnimationFrame(schedule);}
+  function startAlong(){unlockAudio();SM.on=true;SM.idx=0;SM.next=ac().currentTime+0.12;schedule();drawControls();}
+  function stopAlong(){SM.on=false;if(SM.raf)cancelAnimationFrame(SM.raf);clearTimers();hiClear();drawControls();}
+  /* ---- call & response ---- */
+  function expTimes(){var g=pat().grid,e=[],ei=eighth();for(var i=0;i<8;i++)if(g[i])e.push({i:i,t:i*ei});return e;}
+  function rms(buf){var s=0;for(var i=0;i<buf.length;i++)s+=buf[i]*buf[i];return Math.sqrt(s/buf.length);}
+  function crStop(){SM.cr=false;if(SM.crRaf)cancelAnimationFrame(SM.crRaf);clearTimers();hiClear();}
+  function crStart(){unlockAudio();var st=$("#smStatus");if(st)st.textContent="Turning on the mic…";
+    ensureMic().then(function(ok){SM.cr=true;SM.micOk=!!ok;cycle();if(!ok){var s2=$("#smStatus");if(s2)s2.innerHTML="I’ll play it and you play it back — <b>mic access is off</b>, so I can’t score you. Turn it on for feedback.";}drawControls();});}
+  function cycle(){if(!SM.cr)return;var a=ac(),ei=eighth(),q=ei*2,g=pat().grid;
+    var t0=a.currentTime+0.2;
+    // count-in: 4 clicks
+    for(var k=0;k<4;k++){click(t0+k*q,k===0);}
+    var callStart=t0+4*q;
+    // call: play pattern with highlight
+    for(var i=0;i<8;i++){var t=callStart+i*ei;if(SM.metro&&i%2===0)click(t,i===0);strokeAt(g[i],t);(function(ii,delay){SM.timers.push(setTimeout(function(){hiSlot(ii);},Math.max(0,delay)));})(i,(t-a.currentTime)*1000);}
+    var listenStart=callStart+8*ei;
+    SM.timers.push(setTimeout(function(){var s=$("#smStatus");if(s)s.innerHTML="<b style=\"color:var(--teal)\">Your turn — play it back 🎸</b>";},Math.max(0,(callStart-a.currentTime)*1000)));
+    // listen window
+    SM.onsets=[];SM.listenStart=listenStart;
+    SM.timers.push(setTimeout(function(){if(SM.cr)startListen();},Math.max(0,(listenStart-a.currentTime)*1000)));
+    var listenEnd=listenStart+8*ei+0.25;
+    SM.timers.push(setTimeout(function(){if(SM.cr){stopListen();score();if(SM.cr)SM.timers.push(setTimeout(cycle,900));}},Math.max(0,(listenEnd-a.currentTime)*1000)));
+  }
+  function startListen(){if(!SM.micOk)return;var buf=new Float32Array(toneAnalyser.fftSize);var prev=0,last=-1;
+    var loop=function(){if(!SM.cr){return;}toneAnalyser.getFloatTimeDomainData(buf);var r=rms(buf),now=ac().currentTime;
+      if(r>0.045&&(r-prev)>0.02&&(now-last)>0.09){SM.onsets.push(now);last=now;}
+      prev=r;SM.crRaf=requestAnimationFrame(loop);};
+    SM.crRaf=requestAnimationFrame(loop);}
+  function stopListen(){if(SM.crRaf)cancelAnimationFrame(SM.crRaf);SM.crRaf=null;}
+  function score(){var st=$("#smStatus");if(!SM.micOk){if(st)st.innerHTML="Played it for you. Turn the mic on and I’ll grade your timing.";return;}
+    var exp=expTimes(),ei=eighth(),tol=0.45*ei,used={},hits=0,errs=[],missLbl=null;
+    for(var e=0;e<exp.length;e++){var want=exp[e].t,best=-1,bd=1e9;for(var o=0;o<SM.onsets.length;o++){if(used[o])continue;var rel=SM.onsets[o]-SM.listenStart,d=Math.abs(rel-want);if(d<bd){bd=d;best=o;}}
+      if(best>=0&&bd<=tol){used[best]=1;hits++;errs.push((SM.onsets[best]-SM.listenStart)-want);}else if(missLbl===null){missLbl=beatLbl[exp[e].i];}}
+    var acc=exp.length?Math.round(100*hits/exp.length):0;
+    var avg=errs.length?errs.reduce(function(a,b){return a+b;},0)/errs.length:0;
+    var key=mk("strum",SM.patId+"-best"),best=load(key,0);if(acc>best){save(key,acc);best=acc;}
+    var msg="";
+    if(acc>=85&&Math.abs(avg)<0.045){msg="🔥 Clean and steady — try bumping the tempo up a notch.";if(activeId()&&!isAdult())addBeans(2);}
+    else if(acc<55){msg="Keep your strumming hand swinging in constant eighths — even on the empty slots. That non-stop motion is the fix.";}
+    else if(avg<-0.05){msg="You’re a little ahead of the beat (rushing). Let the click come to you — relax into it.";}
+    else if(avg>0.05){msg="You’re a touch behind (dragging). Lean into the downbeats and push the tempo.";}
+    else if(missLbl){msg="Close! Watch the “"+missLbl+"” — you dropped that strum. Say the count out loud as you play.";}
+    else{msg="Good — solid timing. Keep it going and it’ll get automatic.";}
+    if(st)st.innerHTML='<b>'+acc+'%</b> on time · best '+best+'%<br>'+msg;}
+  /* ---- UI ---- */
+  function gridHTML(){var g=pat().grid,h="";for(var i=0;i<8;i++){var cl="smcell"+(i%2===0?" beat":"")+(g[i]==="D"?" d":g[i]==="U"?" u":"");var ar=g[i]==="D"?"↓":g[i]==="U"?"↑":"·";h+='<div class="'+cl+'"><div class="ar'+(g[i]?"":" gh")+'">'+ar+'</div><div class="bt">'+beatLbl[i]+'</div></div>';}return h;}
+  function draw(){
+    var p=pat(),chords=STRUM_CHORDS[SM.inst]||STRUM_CHORDS.guitar;
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🪗 Strumming</span></div><div class="panel">'+
+      '<div class="rrow2"><span class="rchips tight"><button class="rchip sm'+(SM.mode==="along"?" sel":"")+'" id="smAlong">▶ Play along</button><button class="rchip sm'+(SM.mode==="cr"?" sel":"")+'" id="smCR">🎤 Call &amp; response</button></span></div>'+
+      '<div class="rrow2" style="margin-top:6px"><span class="rlab">Pattern</span><span class="rchips tight" id="smPats"></span></div>'+
+      '<div id="smGrid">'+gridHTML()+'</div>'+
+      '<div class="idea-fb"><div style="margin-bottom:5px"><b>Great for:</b> '+p.great+'</div><div><b>Why it works:</b> '+p.why+'</div></div>'+
+      '<div class="rrow2" style="margin-top:10px"><span class="rlab">Chord</span><span class="rchips tight" id="smChords"></span></div>'+
+      '<div class="rrow"><span class="rlab">Tempo</span><input type="range" id="smBpm" min="50" max="140" value="'+SM.bpm+'" style="flex:1"><span class="rbpm" id="smBpmV">'+SM.bpm+'</span></div>'+
+      '<div class="actions" style="margin-top:4px"><span id="smMain"></span><button class="rchip sm'+(SM.metro?" sel":"")+'" id="smMetro">🎵 Click</button></div>'+
+      '<div class="feedback" id="smStatus" style="min-height:40px">'+(SM.mode==="cr"?"I’ll play the pattern, then you play it back — I’ll grade your timing and tell you how to improve.":"Pick a pattern and a chord, hit Start, and strum along. The highlighted square is where you are in the bar.")+'</div>'+
+      '<div class="site-note">Tip: keep your strumming hand moving down-up in steady eighths the whole time. On the empty squares you just miss the strings — the motion never stops. That’s the secret to clean, even strumming.</div>'+
+      '</div>';
+    $("#eBack").onclick=function(){SM.on=false;crStop();goHome();};
+    $("#smAlong").onclick=function(){SM.on=false;crStop();SM.mode="along";draw();};
+    $("#smCR").onclick=function(){SM.on=false;crStop();SM.mode="cr";draw();};
+    var pc=$("#smPats");STRUM_PATS.forEach(function(P){var b=document.createElement("button");b.className="rchip sm"+(P.id===SM.patId?" sel":"");b.textContent=P.name;b.onclick=function(){SM.on=false;crStop();SM.patId=P.id;SM.bpm=P.bpm;draw();};pc.appendChild(b);});
+    var cc=$("#smChords");chords.forEach(function(nm){var b=document.createElement("button");b.className="rchip sm"+(nm===SM.chord?" sel":"");b.textContent=nm;b.onclick=function(){SM.chord=nm;if(SM.mode==="along"&&!SM.on){unlockAudio();strum(SM.inst,frets(),ac().currentTime+0.02,true);}var all=cc.querySelectorAll(".rchip");all.forEach(function(x){x.classList.remove("sel");});b.classList.add("sel");};cc.appendChild(b);});
+    var bp=$("#smBpm");if(bp)bp.oninput=function(){SM.bpm=+bp.value;$("#smBpmV").textContent=SM.bpm;};
+    $("#smMetro").onclick=function(){SM.metro=!SM.metro;$("#smMetro").classList.toggle("sel",SM.metro);};
+    drawControls();
+  }
+  function drawControls(){var m=$("#smMain");if(!m)return;m.innerHTML="";
+    if(SM.mode==="along"){var b=document.createElement("button");b.className="btn";b.id="smGo";b.textContent=SM.on?"⏹ Stop":"▶ Start";b.onclick=SM.on?stopAlong:startAlong;m.appendChild(b);}
+    else{var b2=document.createElement("button");b2.className="btn";b2.id="smGo";b2.textContent=SM.cr?"⏹ Stop":"▶ Start call & response";b2.onclick=function(){if(SM.cr){crStop();drawControls();}else crStart();};m.appendChild(b2);}}
+  teardown=function(){SM.on=false;crStop();try{stopMic();}catch(e){}};
+  draw();
+}
 function renderStrings(inst){
   if(toneRAF)cancelAnimationFrame(toneRAF);prgStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{prgStop();};
   const I=STRING_INSTR[inst],total=Object.keys(CHORDS[inst]).length,learned=strLearned(inst).length;
@@ -3707,7 +3837,10 @@ function renderStrings(inst){
   const cards=[{t:"Play the Neck",ic:"🎸",b:"The full "+I.name.toLowerCase()+" fretboard — play real strings up and down the neck, fret chords, and learn every note.",go:()=>renderFretboard(inst)},
     {t:"Learn Chords",ic:"🎵",b:"Chord diagrams you can hear — mark the ones you can play.",go:()=>strChords(inst)},
     {t:"Chords in a Key",ic:"🔑",b:"The chord family of a major key (I ii iii IV V vi).",go:()=>strKey(inst)},
-    {t:"Progressions",ic:"🔁",b:"Strum along to common progressions, on tempo.",go:()=>strProg(inst)}];
+    {t:"Progressions",ic:"🔁",b:"Strum along to common progressions, on tempo.",go:()=>strProg(inst)},
+    {t:"Scales on the Neck",ic:"🎶",b:"See and play scales across the neck — major, pentatonic, blues — with the root and degrees labeled.",go:()=>renderFretboard(inst,"scale")},
+    {t:"Strumming",ic:"👋",b:"Strum patterns for different song styles, play-along, and call-and-response that listens and grades your timing.",go:()=>renderStrumming(inst)},
+    {t:"Bring a Song",ic:"🎼",b:"Paste a chord sheet, snap a photo of one, or build a progression — then play along with loop, tempo and transpose.",go:()=>renderLearnSong()}];
   const g=$("#strGrid");cards.forEach(c=>{const b=document.createElement("button");b.className="card";b.innerHTML=`<span class="ic">${c.ic}</span><h3>${c.t}</h3><span class="blurb">${c.b}</span>`;b.onclick=c.go;g.appendChild(b);});
 }
 function strChords(inst){
