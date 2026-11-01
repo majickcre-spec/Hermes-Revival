@@ -5,7 +5,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
 <style>
-/* Music theory: know it (games) · hear it (musictheory.net) · play it (your keyboard). */
+/* Music theory: know it (games) · hear it (in-app ear training) · play it (your keyboard). */
 :root{
   --bg:#0b0a12; --bg2:#12101f; --card:#1a1630; --card2:#221c3d;
   --gold:#f4b740; --gold-deep:#d9952f; --cream:#f3eefc; --muted:#a79fc4;
@@ -482,7 +482,7 @@ const TOPICS=[
   {t:"Octave",d:"12 semitones (C→C)"}
  ],
  keyboard:{t:"Play the twelve intervals up from C",s:"Start on C. Play C→D♭ (minor 2nd), C→D (major 2nd)… all the way to C→C (octave). Say each name as you play it."},
- ear:{label:"Interval Ear Training",url:"https://www.musictheory.net/exercises/ear-interval"}
+ ear:{label:"Interval Ear Training",go:()=>openEar("intervals")}
 },
 {
  id:"key-signatures", icon:"🔑", title:"Key Signatures",
@@ -507,7 +507,7 @@ const TOPICS=[
   {t:"C♭ major",d:"7 flats — every note is flat"}
  ],
  keyboard:{t:"Play & compare",s:"Play the C, G, D, and F major scales slowly. Listen for the one new sharp or flat each key adds."},
- ear:{label:"Key Signature Identification",url:"https://www.musictheory.net/exercises/keysignature"}
+ ear:{label:"Scale Ear Training",go:()=>openEar("scales")}
 },
 {
  id:"circle", icon:"🧭", title:"The Circle of Fifths",
@@ -521,7 +521,7 @@ const TOPICS=[
   {t:"Relative minor",d:"down a minor 3rd (3 semitones) from the major — C→A minor, G→E minor, D→B minor. Same key signature, same notes, just a darker ‘home.’"}
  ],
  keyboard:{t:"Walk the circle",s:"Play C, then up a perfect 5th to G, then D, A, E, B… Hear how each key sits a fifth above the last."},
- ear:{label:"Scale Ear Training",url:"https://www.musictheory.net/exercises/ear-scale"}
+ ear:{label:"Scale Ear Training",go:()=>openEar("scales")}
 },
 {
  id:"terms", icon:"🎼", title:"Musical Terms",
@@ -542,7 +542,7 @@ const TOPICS=[
   {t:"fermata",d:"hold the note longer than written"}
  ],
  keyboard:{t:"Feel the words",s:"Play a C major scale three ways: staccato (short), legato (smooth), then with a crescendo from soft to loud."},
- ear:{label:"Lessons & more exercises",url:"https://www.musictheory.net/lessons"}
+ ear:{label:"Follow The Path",go:()=>renderPath()}
 },
 {
  id:"staff", icon:"🎵", title:"Reading the Staff",
@@ -557,18 +557,11 @@ const TOPICS=[
   {t:"Order of flats (♭)",d:"B E A D G C F — “BEAD, Go Cat Fish”"}
  ],
  keyboard:{t:"Say the staff, then find it on the keys",s:"Name each line and space out loud with the sayings, then find those same notes on the piano."},
- ear:{label:"Note & Keyboard Identification",url:"https://www.musictheory.net/exercises/note"}
+ ear:{label:"Note & Keyboard ID",go:()=>openEar("noteid")}
 }
 ];
 
-const EAR=[
- {ic:"👂",t:"Interval Ear Training",s:"Hear two notes, name the interval. The core ear skill.",url:"https://www.musictheory.net/exercises/ear-interval"},
- {ic:"🎵",t:"Chord Ear Training",s:"Hear a chord, name its quality (major, minor, and more).",url:"https://www.musictheory.net/exercises/ear-chord"},
- {ic:"🎶",t:"Scale Ear Training",s:"Hear a scale, name it (major, minor, modes).",url:"https://www.musictheory.net/exercises/ear-scale"},
- {ic:"🎹",t:"Note & Keyboard ID",s:"Name notes on the staff and on the keyboard.",url:"https://www.musictheory.net/exercises/keyboard"},
- {ic:"🥁",t:"Rhythm & everything else",s:"The full exercises page — includes rhythm and note‑value drills. Pick one and customize it.",url:"https://www.musictheory.net/exercises"},
- {ic:"📖",t:"Lessons",s:"Short illustrated lessons, from the basics up — read alongside the drills.",url:"https://www.musictheory.net/lessons"}
-];
+/* legacy external ear links removed — in-app ear training lives in EAR_CARDS */
 
 const KB=[
  {id:"kb-cs",ic:"🔎",t:"Find all the C’s",s:"Play every C on the keyboard, lowest to highest. Notice the pattern of black keys that marks each one."},
@@ -731,9 +724,10 @@ function renderTopic(){
       <span class="dt-ic">🎹</span>
       <div><div class="dt-t">At the keyboard: ${esc(T.keyboard.t)}</div>
       <div class="dt-s">${esc(T.keyboard.s)}</div>
-      <div class="dt-s" style="margin-top:7px">👂 Train your ear: <a href="${T.ear.url}" target="_blank" rel="noopener">${esc(T.ear.label)} ↗</a></div></div>
+      <div class="dt-s" style="margin-top:7px">👂 Train your ear: <button id="tEarBtn" style="background:none;border:none;color:var(--teal);font:inherit;cursor:pointer;padding:0;text-decoration:underline">${esc(T.ear.label)} →</button></div></div>
     </div>`;
   $("#tBack").onclick=goHome;
+  {const eb=$("#tEarBtn");if(eb&&T.ear&&T.ear.go)eb.onclick=T.ear.go;}
   view.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{tab=t.dataset.t;renderTopic();});
   if(tab==="learn")renderLearn();else if(tab==="clefs")renderClefs();else if(tab==="quiz")renderQuiz();else renderMatch();
   beanChip();window.scrollTo(0,0);
