@@ -303,7 +303,7 @@ function efDaySignature(day,arch){
     var half=Math.ceil(ser.length/2);function mn(a){return a.length?a.reduce(function(x,y){return x+y.kp;},0)/a.length:0;}
     shape=mn(ser.slice(half))-mn(ser.slice(0,half));}
   var e=Math.max(0,Math.min(1,peak/9));
-  var w1=1.0-0.55*e,w2=0.30+0.55*e,w3=0.08+0.75*e*(0.4+0.6*Math.min(1,spikes/4)),sum=w1+w2+w3;
+  var w1=1.0-0.80*e,w2=0.25+0.70*e,w3=0.05+1.15*e*(0.35+0.65*Math.min(1,spikes/4)),sum=w1+w2+w3;
   return {w1:w1/sum,w2:w2/sum,w3:w3/sum,breath:0.05+0.07*Math.max(e,vol),pulse:0.02+0.05*Math.max(e,Math.min(1,spikes/5)),bright:1200+2600*e,
     peak:peak,avg:avg,trough:trough,spikes:spikes,vol:vol,shape:shape,peakT:peakT,e:e,hasData:!!ser};}
 function efWhyBeat(day,arch){var g=efDaySignature(day,arch);
