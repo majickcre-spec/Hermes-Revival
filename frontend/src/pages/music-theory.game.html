@@ -2242,13 +2242,13 @@ function midiFile(bpm,notes){var PPQ=480,ev=[];
 /* ---- Drum Kit beat -> MIDI + per-drum stems + mix, zipped ---- */
 var DK_GM={kick:36,snare:38,hhc:42,hho:46,tom1:50,tom2:47,floor:43,crash:49,ride:51,clap:39,cow:56};
 function dkExport(){unlockAudio();var st=document.getElementById("dkExpStatus");if(st)st.textContent="Rendering stems + MIDI…";
-  var bpm=DKSEQ.bpm,sr=44100,stepDur=(60/bpm)/4,barDur=16*stepDur,tail=1.6;
+  var bpm=DKSEQ.bpm,sr=44100,stepDur=(60/bpm)/4,N=(DKSEQ.bars||1)*16,barDur=N*stepDur,tail=1.6;
   var active=DK_ROWS.map(function(r){return r[0];}).filter(function(id){return DKSEQ.grid[id]&&DKSEQ.grid[id].some(Boolean);});
   if(!active.length){if(st)st.textContent="Add some hits to the grid first.";return;}
-  var notes=[];active.forEach(function(id){for(var s=0;s<16;s++){if(DKSEQ.grid[id][s])notes.push({t:s*0.25,dur:0.12,note:DK_GM[id]||38,ch:9,vel:112});}});
+  var notes=[];active.forEach(function(id){for(var s=0;s<N;s++){if(DKSEQ.grid[id][s])notes.push({t:s*0.25,dur:0.12,note:DK_GM[id]||38,ch:9,vel:112});}});
   var mid=midiFile(bpm,notes);
   var OAC=window.OfflineAudioContext||window.webkitOfflineAudioContext,len=Math.ceil(sr*(barDur+tail));
-  function renderRows(ids){var oc=new OAC(2,len,sr);ids.forEach(function(id){for(var s=0;s<16;s++){if(DKSEQ.grid[id]&&DKSEQ.grid[id][s]&&DKV[id])DKV[id](oc,oc.destination,s*stepDur+0.01);}});return oc.startRendering();}
+  function renderRows(ids){var oc=new OAC(2,len,sr);ids.forEach(function(id){for(var s=0;s<N;s++){if(DKSEQ.grid[id]&&DKSEQ.grid[id][s]&&DKV[id])DKV[id](oc,oc.destination,s*stepDur+0.01);}});return oc.startRendering();}
   var jobs=[renderRows(active)].concat(active.map(function(id){return renderRows([id]);}));
   Promise.all(jobs).then(function(bufs){var files=[{name:"beat.mid",bytes:mid},{name:"beat-mix.wav",bytes:bufferToWav(bufs[0])}];
     active.forEach(function(id,i){files.push({name:"stems/"+(i+1)+"-"+id+".wav",bytes:bufferToWav(bufs[i+1])});});
@@ -2323,9 +2323,10 @@ document.head.appendChild(st);}catch(e){}})();
 function dkFlash(id){var el=document.querySelector('.dpad[data-id="'+id+'"]');if(el){el.classList.add("hit");setTimeout(function(){el.classList.remove("hit");},110);}}
 function dkHit(id){unlockAudio();dkTrigger(id);dkFlash(id);}
 function dkKey(e){if(e.repeat)return;var id=DK_KEYS[(e.key||"").toLowerCase()];if(id){if(e.key===" ")e.preventDefault();dkHit(id);}}
-var DKSEQ={on:false,bpm:100,step:0,next:0,raf:null,click:false,grid:null};
+var DKSEQ={on:false,bpm:100,step:0,next:0,raf:null,click:false,grid:null,bars:1,zoom:"m"};
 var DK_ROWS=[["kick","Kick"],["snare","Snare"],["hhc","Hats"],["hho","Open Hat"],["tom1","Hi Tom"],["tom2","Mid Tom"],["floor","Floor"],["crash","Crash"],["ride","Ride"],["clap","Clap"],["cow","Cowbell"]];
-function dkBlankGrid(){var g={};DK_ROWS.forEach(function(r){g[r[0]]=new Array(16).fill(false);});return g;}
+function dkBlankGrid(){var n=(DKSEQ.bars||1)*16,g={};DK_ROWS.forEach(function(r){g[r[0]]=new Array(n).fill(false);});return g;}
+function dkSetBars(n){n=Math.max(1,Math.min(4,n));var old=DKSEQ.grid||dkBlankGrid();DKSEQ.bars=n;var ng=dkBlankGrid();DK_ROWS.forEach(function(r){var oa=old[r[0]]||[];for(var i=0;i<ng[r[0]].length;i++)ng[r[0]][i]=!!oa[i];});DKSEQ.grid=ng;}
 var DK_GROOVES={
  rock:{name:"Basic Rock",bpm:100,hits:{kick:[0,8],snare:[4,12],hhc:[0,2,4,6,8,10,12,14]}},
  four:{name:"Four on the Floor",bpm:124,hits:{kick:[0,4,8,12],snare:[4,12],hhc:[0,2,4,6,8,10,12,14]}},
@@ -2338,7 +2339,7 @@ var DK_GROOVES={
 function dkLoadGroove(key){var g=dkBlankGrid(),G=DK_GROOVES[key];if(G){for(var id in G.hits){if(!g[id])continue;G.hits[id].forEach(function(s){g[id][s]=true;});}DKSEQ.bpm=G.bpm;}DKSEQ.grid=g;}
 function dkSeqStop(){DKSEQ.on=false;if(DKSEQ.raf)cancelAnimationFrame(DKSEQ.raf);document.querySelectorAll(".sc.playing").forEach(function(c){c.classList.remove("playing");});}
 function dkSeqSchedule(){if(!DKSEQ.on)return;var a=ac(),sd=(60/DKSEQ.bpm)/4;
-  while(DKSEQ.next<a.currentTime+0.12){var s=DKSEQ.step%16,t=DKSEQ.next;
+  var N=(DKSEQ.bars||1)*16;while(DKSEQ.next<a.currentTime+0.12){var s=DKSEQ.step%N,t=DKSEQ.next;
     DK_ROWS.forEach(function(r){if(DKSEQ.grid[r[0]]&&DKSEQ.grid[r[0]][s])dkTrigger(r[0],t);});
     if(DKSEQ.click&&s%4===0){var o=a.createOscillator(),g=a.createGain();o.frequency.value=s===0?1600:1100;o.connect(g);g.connect(a.destination);g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.12,t+0.001);g.gain.exponentialRampToValueAtTime(0.0001,t+0.04);o.start(t);o.stop(t+0.05);}
     (function(col,delay){setTimeout(function(){document.querySelectorAll(".sc.playing").forEach(function(c){c.classList.remove("playing");});document.querySelectorAll('.sc[data-s="'+col+'"]').forEach(function(c){c.classList.add("playing");});},Math.max(0,delay));})(s,(t-a.currentTime)*1000);
@@ -2358,7 +2359,7 @@ function renderDrumKit(startMode){if(toneRAF)cancelAnimationFrame(toneRAF);home.
       h+='</div><div class="site-note">Keyboard: Q W E / A S D for cymbals, I O P toms, J (or space) snare, B (or space) kick, Z rim, X clap, C cowbell, M hi-hat pedal.</div>';
     } else {
       h+='<div class="intro">Build a beat on the grid — each row is a drum, each column a 16th note. Tap cells, hit play, tweak the tempo. Load a groove to start.</div>'+
-      '<div class="rrow2" style="margin-bottom:4px"><span class="rlab">Groove</span><span class="rchips tight" id="dkGrv"></span></div>'+
+      '<div class="rrow2" style="margin-bottom:4px"><span class="rlab">Groove</span><span class="rchips tight" id="dkGrv"></span></div>'+'<div class="rrow2" style="margin-bottom:4px"><span class="rlab">Bars</span><span class="rchips tight" id="dkBars"></span><span class="rlab" style="margin-left:auto">Zoom</span><span class="rchips tight" id="dkZoom"></span></div>'+
       '<div class="seqwrap"><div class="seqgrid" id="dkSeq"></div></div>'+
       '<div class="rrow" style="margin-top:10px"><span class="rlab">Tempo</span><input type="range" id="dkBpm" min="60" max="180" value="'+DKSEQ.bpm+'" style="flex:1"><span class="rbpm" id="dkBpmV" style="min-width:58px;text-align:right">'+DKSEQ.bpm+' bpm</span></div>'+
       '<div class="actions" style="margin-top:4px"><button class="btn" id="dkPlay">▶ Play</button><button class="rchip sm'+(DKSEQ.click?" sel":"")+'" id="dkClick">🎵 Click</button><button class="rchip sm" id="dkClear">⌫ Clear</button></div>'+'<div class="actions" style="margin-top:6px"><button class="btn ghost" id="dkExport">⬇ Export to DAW (MIDI + stems)</button></div><div class="site-note" id="dkExpStatus" style="margin-top:4px"></div>';
@@ -2372,9 +2373,9 @@ function renderDrumKit(startMode){if(toneRAF)cancelAnimationFrame(toneRAF);home.
       view.querySelectorAll(".dpad").forEach(function(b){b.addEventListener("pointerdown",function(e){e.preventDefault();dkHit(b.dataset.id);});});
     } else {
       document.removeEventListener("keydown",dkKey);
-      var gv=$("#dkGrv");Object.keys(DK_GROOVES).forEach(function(k){var b=document.createElement("button");b.className="rchip sm";b.textContent=DK_GROOVES[k].name;b.onclick=function(){dkSeqStop();dkLoadGroove(k);draw();};gv.appendChild(b);});
-      var seq=$("#dkSeq");DK_ROWS.forEach(function(r){var row=document.createElement("div");row.className="seqrow";var lbl=document.createElement("div");lbl.className="seqlbl";lbl.textContent=r[1];row.appendChild(lbl);
-        for(var s=0;s<16;s++){(function(sIdx){var c=document.createElement("button");c.className="sc"+(sIdx%4===0?" b0":"")+(DKSEQ.grid[r[0]][sIdx]?" on":"");c.setAttribute("data-s",sIdx);c.onclick=function(){DKSEQ.grid[r[0]][sIdx]=!DKSEQ.grid[r[0]][sIdx];c.classList.toggle("on",DKSEQ.grid[r[0]][sIdx]);if(DKSEQ.grid[r[0]][sIdx])dkTrigger(r[0]);};row.appendChild(c);})(s);}
+      var gv=$("#dkGrv");Object.keys(DK_GROOVES).forEach(function(k){var b=document.createElement("button");b.className="rchip sm";b.textContent=DK_GROOVES[k].name;b.onclick=function(){dkSeqStop();dkLoadGroove(k);draw();};gv.appendChild(b);});var bc=$("#dkBars");[1,2,3,4].forEach(function(n){var bb=document.createElement("button");bb.className="rchip sm"+(DKSEQ.bars===n?" sel":"");bb.textContent=n+(n>1?" bars":" bar");bb.onclick=function(){dkSeqStop();dkSetBars(n);draw();};bc.appendChild(bb);});var zc=$("#dkZoom");[["s","S"],["m","M"],["l","L"]].forEach(function(z){var zb=document.createElement("button");zb.className="rchip sm"+(DKSEQ.zoom===z[0]?" sel":"");zb.textContent=z[1];zb.onclick=function(){DKSEQ.zoom=z[0];draw();};zc.appendChild(zb);});
+      var seq=$("#dkSeq");DK_ROWS.forEach(function(r){var row=document.createElement("div");row.className="seqrow";var lbl=document.createElement("div");lbl.className="seqlbl";lbl.style.position="sticky";lbl.style.left="0";lbl.style.zIndex="2";lbl.style.background="var(--card2)";lbl.textContent=r[1];row.appendChild(lbl);
+        var N=(DKSEQ.bars||1)*16,ZW={s:18,m:26,l:40}[DKSEQ.zoom]||26,ZH={s:20,m:26,l:34}[DKSEQ.zoom]||26;for(var s=0;s<N;s++){(function(sIdx){var c=document.createElement("button");c.className="sc"+(sIdx%4===0?" b0":"")+(DKSEQ.grid[r[0]][sIdx]?" on":"");c.style.flex="0 0 "+ZW+"px";c.style.width=ZW+"px";c.style.height=ZH+"px";if(sIdx%16===0&&sIdx>0)c.style.marginLeft="9px";c.setAttribute("data-s",sIdx);c.onclick=function(){DKSEQ.grid[r[0]][sIdx]=!DKSEQ.grid[r[0]][sIdx];c.classList.toggle("on",DKSEQ.grid[r[0]][sIdx]);if(DKSEQ.grid[r[0]][sIdx])dkTrigger(r[0]);};row.appendChild(c);})(s);}
         seq.appendChild(row);});
       var bp=$("#dkBpm");if(bp)bp.oninput=function(){DKSEQ.bpm=+bp.value;$("#dkBpmV").textContent=DKSEQ.bpm+" bpm";};
       $("#dkClick").onclick=function(){DKSEQ.click=!DKSEQ.click;$("#dkClick").classList.toggle("sel",DKSEQ.click);};
