@@ -3009,12 +3009,91 @@ function renderNoteEar(){
   function done(){view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎹 Note ID</span></div><div class="panel" style="text-align:center"><div class="q">You got <b>'+correct+'/'+rounds+'</b>!</div><div class="actions" style="justify-content:center"><button class="btn" id="neAgain">Again</button><button class="btn ghost" id="neHome">Done</button></div></div>';$("#eBack").onclick=goHome;$("#neAgain").onclick=renderNoteEar;$("#neHome").onclick=goHome;if(correct>=7)burst($(".panel"),12);beanChip();}
   newQ();
 }
+/* ===== FRETBOARD — playable, life-size neck + chord-shape trainer ===== */
+const FB_TUNE={guitar:[40,45,50,55,59,64],bass:[28,33,38,43],ukulele:[67,60,64,69]};
+const FB_LBL={guitar:["E","A","D","G","B","e"],bass:["E","A","D","G"],ukulele:["G","C","E","A"]};
+const FB={inst:"guitar",mode:"play",chord:"C",frets:5,active:new Map(),holdRAF:null,holdT:0,lastPressure:0,sawReal:false,locked:{}};
+(function(){try{var s=document.createElement("style");s.textContent=
+"#fbWrap{touch-action:none;-webkit-user-select:none;user-select:none}"+
+"#fbBoard{position:relative;display:grid;gap:0;border-radius:12px;overflow:hidden;background:linear-gradient(100deg,#241b33,#1a1430);box-shadow:inset 0 0 0 1px var(--line);height:min(62vh,540px);min-height:330px}"+
+".fbcell{position:relative;display:flex;align-items:center;justify-content:center;z-index:2}"+
+".fbcell.nut{border-top:5px solid #cdb888}.fbcell.fret{border-top:2px solid rgba(255,255,255,.16)}"+
+".fbcell.on{box-shadow:inset 0 0 0 999px rgba(52,224,198,.16)}"+
+".fbstr{position:absolute;top:0;bottom:0;width:2px;background:rgba(255,255,255,.3);transform:translateX(-1px);z-index:1;pointer-events:none}"+
+".fbmark{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.16)}"+
+".fbdot{width:clamp(26px,8vw,38px);aspect-ratio:1;border-radius:50%;background:rgba(52,224,198,.22);border:2px solid var(--violet);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;pointer-events:none}"+
+".fbdot.got{background:#5fe0a8;border-color:#5fe0a8;color:#07271a}"+
+".fbox{font-size:15px;font-weight:800;color:var(--muted);pointer-events:none}.fbox.mut{color:#ff8f8c}"+
+"#fbHold{height:8px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:8px}#fbHoldBar{height:100%;width:0;background:#5fe0a8;transition:width .05s}"+
+"#fbPressWrap{height:6px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;flex:1}#fbPress{height:100%;width:0;background:var(--gold)}";
+document.head.appendChild(s);}catch(e){}})();
+function fbStrings(){return FB_TUNE[FB.inst];}
+function fbShape(){return (CHORDS[FB.inst]&&CHORDS[FB.inst][FB.chord])||null;}
+function fbCellAt(x,y){const el=document.elementFromPoint(x,y);if(!el||!el.closest)return null;const c=el.closest(".fbcell");if(!c||!c.dataset.s)return null;return {s:+c.dataset.s,f:+c.dataset.f};}
+function fbStringFret(s){let mx=-1;FB.active.forEach(v=>{if(v.s===s&&v.f>mx)mx=v.f;});return mx;}
+function fbPluck(s,f){unlockAudio();pluck(fbStrings()[s]+f,ac().currentTime+0.001,1.7);}
+function fbTrackP(e){const p=(typeof e.pressure==="number")?e.pressure:0;FB.lastPressure=p;if(p>0&&p!==0.5&&p!==1)FB.sawReal=true;}
+function fbDown(e){const b=document.getElementById("fbBoard");if(!b)return;const r=b.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)return;const c=fbCellAt(e.clientX,e.clientY);if(!c)return;e.preventDefault();FB.active.set(e.pointerId,c);fbTrackP(e);if(FB.mode==="play")fbPluck(c.s,c.f);fbUpdate();}
+function fbMove(e){if(!FB.active.has(e.pointerId))return;fbTrackP(e);const c=fbCellAt(e.clientX,e.clientY);if(c){const p=FB.active.get(e.pointerId);if(p.s!==c.s||p.f!==c.f){FB.active.set(e.pointerId,c);if(FB.mode==="play")fbPluck(c.s,c.f);}}fbUpdate();}
+function fbUp(e){if(FB.active.has(e.pointerId)){FB.active.delete(e.pointerId);fbUpdate();}}
+function fbStrum(){unlockAudio();const a=ac(),strings=fbStrings(),sh=fbShape();let t=a.currentTime+0.02;for(let s=0;s<strings.length;s++){let f;if(FB.mode==="chord"&&sh){f=sh[s];if(f<0)continue;}else{const h=fbStringFret(s);f=h>=0?h:0;}pluck(strings[s]+f,t,2.3);t+=0.028;}}
+function fbChordCorrect(){const sh=fbShape();if(!sh)return false;for(let s=0;s<sh.length;s++){if(sh[s]>0){let ok=false;FB.active.forEach(v=>{if(v.s===s&&v.f===sh[s])ok=true;});if(!ok)return false;}}return true;}
+function fbStopHold(){if(FB.holdRAF){cancelAnimationFrame(FB.holdRAF);FB.holdRAF=null;}const bar=document.getElementById("fbHoldBar");if(bar)bar.style.width="0";}
+function fbStartHold(){FB.holdT=performance.now();const loop=()=>{if(!fbChordCorrect()){fbStopHold();return;}const held=(performance.now()-FB.holdT)/1000,bar=document.getElementById("fbHoldBar");if(bar)bar.style.width=Math.min(100,held/3*100)+"%";if(held>=3){fbHoldDone();return;}FB.holdRAF=requestAnimationFrame(loop);};FB.holdRAF=requestAnimationFrame(loop);}
+function fbHoldDone(){fbStopHold();const st=document.getElementById("fbStatus");if(st)st.innerHTML='<b style="color:#5fe0a8">🔒 Locked in — that’s the shape. Strum it!</b>';fbStrum();const key=FB.inst+"-"+FB.chord;if(!FB.locked[key]){FB.locked[key]=1;if(activeId())addBeans(5);}}
+function fbUpdate(){const b=document.getElementById("fbBoard");if(!b)return;
+  b.querySelectorAll(".fbcell.on").forEach(c=>c.classList.remove("on"));
+  FB.active.forEach(v=>{const c=b.querySelector('.fbcell[data-s="'+v.s+'"][data-f="'+v.f+'"]');if(c)c.classList.add("on");});
+  if(FB.mode==="chord"){b.querySelectorAll(".fbdot").forEach(d=>{const s=+d.dataset.s,f=+d.dataset.f;let got=false;FB.active.forEach(v=>{if(v.s===s&&v.f===f)got=true;});d.classList.toggle("got",got);});
+    const st=document.getElementById("fbStatus"),sh=fbShape();
+    if(fbChordCorrect()){if(!FB.holdRAF)fbStartHold();if(st&&!/Locked/.test(st.textContent))st.innerHTML='<b style="color:#5fe0a8">Shape is right — hold it to lock it in.</b>';}
+    else{fbStopHold();if(st)st.textContent=sh?"Place a finger on each glowing dot.":"No chord shapes for bass — use Play, or switch to guitar/ukulele.";}}
+  const pm=document.getElementById("fbPress");if(pm)pm.style.width=Math.round((FB.lastPressure||0)*100)+"%";}
+function renderFretboard(inst){if(inst)FB.inst=inst;if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  document.removeEventListener("pointermove",fbMove);document.removeEventListener("pointerup",fbUp);document.removeEventListener("pointercancel",fbUp);
+  document.addEventListener("pointermove",fbMove);document.addEventListener("pointerup",fbUp);document.addEventListener("pointercancel",fbUp);
+  teardown=()=>{fbStopHold();FB.active.clear();document.removeEventListener("pointermove",fbMove);document.removeEventListener("pointerup",fbUp);document.removeEventListener("pointercancel",fbUp);};
+  draw();
+  function draw(){FB.active.clear();fbStopHold();
+    const strings=fbStrings(),N=strings.length,sh=(FB.mode==="chord")?fbShape():null,fingers=(FB.mode==="chord"&&FINGERS[FB.inst])?FINGERS[FB.inst][FB.chord]:null;
+    const chordNames=CHORDS[FB.inst]?Object.keys(CHORDS[FB.inst]):[];
+    let cells="";
+    for(let f=0;f<=FB.frets;f++){for(let s=0;s<N;s++){const cls="fbcell"+(f===1?" nut":(f>1?" fret":""));let inner="";
+      if((f===3||f===5)&&s===(N>=5?2:1))inner+='<span class="fbmark"></span>';
+      if(f===0&&sh){if(sh[s]===0)inner+='<span class="fbox">○</span>';else if(sh[s]<0)inner+='<span class="fbox mut">✕</span>';}
+      if(sh&&sh[s]===f&&f>0)inner+='<span class="fbdot" data-s="'+s+'" data-f="'+f+'">'+((fingers&&fingers[s])||"")+'</span>';
+      cells+='<div class="'+cls+'" data-s="'+s+'" data-f="'+f+'">'+inner+'</div>';}}
+    let strLines="";for(let s=0;s<N;s++)strLines+='<div class="fbstr" style="left:'+((s+0.5)/N*100)+'%"></div>';
+    let labels="";for(let s=0;s<N;s++)labels+='<span style="flex:1;text-align:center">'+FB_LBL[FB.inst][s]+'</span>';
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎸 Fretboard</span></div><div class="panel" id="fbWrap">'+
+      '<div class="rrow2"><span class="rchips tight"><button class="rchip sm'+(FB.inst==="guitar"?" sel":"")+'" id="fbIg">Guitar</button><button class="rchip sm'+(FB.inst==="bass"?" sel":"")+'" id="fbIb">Bass</button><button class="rchip sm'+(FB.inst==="ukulele"?" sel":"")+'" id="fbIu">Ukulele</button></span><span class="rchips tight" style="margin-left:auto"><button class="rchip sm'+(FB.mode==="play"?" sel":"")+'" id="fbMp">🎵 Play</button><button class="rchip sm'+(FB.mode==="chord"?" sel":"")+'" id="fbMc">✋ Chords</button></span></div>'+
+      (FB.mode==="chord"?'<div class="rrow2"><span class="rlab">Chord</span><span class="rchips tight" id="fbChips"></span></div>':'')+
+      '<div style="display:flex;color:var(--muted);font-size:12px;margin:6px 0 2px">'+labels+'</div>'+
+      '<div id="fbBoard" style="grid-template-columns:repeat('+N+',1fr);grid-template-rows:32px repeat('+FB.frets+',1fr)">'+cells+strLines+'</div>'+
+      (FB.mode==="chord"?'<div id="fbHold"><div id="fbHoldBar"></div></div>':'')+
+      '<div class="actions" style="justify-content:center;margin-top:10px"><button class="btn" id="fbStrum">🎸 Strum</button></div>'+
+      '<div class="feedback" id="fbStatus" style="min-height:22px">'+(FB.mode==="chord"?"Place a finger on each glowing dot — hold 3s to lock it in.":"Tap the strings to play. Press lower on the neck (toward the nut) for lower notes.")+'</div>'+
+      '<div class="rrow2" style="align-items:center;margin-top:6px"><span class="rlab">Pressure</span><span id="fbPressWrap"><span id="fbPress"></span></span></div>'+
+      '<div class="site-note">Most phones can’t sense finger pressure, so we grade on <b>placement</b> and <b>how long you hold</b> — the bar fills only if your device reports pressure. Hold a shape to burn it into muscle memory.</div>'+
+      '</div>';
+    $("#eBack").onclick=goHome;
+    document.getElementById("fbBoard").addEventListener("pointerdown",fbDown);
+    $("#fbIg").onclick=()=>{FB.inst="guitar";if(!CHORDS.guitar[FB.chord])FB.chord="C";draw();};
+    $("#fbIb").onclick=()=>{FB.inst="bass";FB.mode="play";draw();};
+    $("#fbIu").onclick=()=>{FB.inst="ukulele";if(!CHORDS.ukulele[FB.chord])FB.chord="C";draw();};
+    $("#fbMp").onclick=()=>{FB.mode="play";draw();};
+    $("#fbMc").onclick=()=>{if(!CHORDS[FB.inst]){const st=$("#fbStatus");if(st)st.textContent="Bass has no chord shapes here — switch to guitar or ukulele.";return;}FB.mode="chord";draw();};
+    $("#fbStrum").onclick=fbStrum;
+    if(FB.mode==="chord"){const cc=$("#fbChips");chordNames.forEach(nm=>{const btn=document.createElement("button");btn.className="rchip sm"+(nm===FB.chord?" sel":"");btn.textContent=nm;btn.onclick=()=>{FB.chord=nm;draw();};cc.appendChild(btn);});}
+  }
+}
 const INSTRUMENT_CARDS=[
  {ic:"🎹",title:"Piano",blurb:"Play a real keyboard — tap or use your computer keys, shift octaves, and see the note names. The heart of music theory.",go:()=>renderPiano()},
  {ic:"🛸",title:"Handpan",blurb:"Play a handpan — tap the notes, pick a scale, and follow the glow to learn gentle patterns.",go:()=>renderHandpan()},
  {ic:"🎸",title:"Guitar",blurb:"Learn chords with diagrams, the chord family of a key, and strum along to progressions — leveling up as you go.",go:()=>renderStrings("guitar")},
  {ic:"🪕",title:"Ukulele",blurb:"Learn ukulele chords, major-scale chord families, and play along to progressions.",go:()=>renderStrings("ukulele")},
  {ic:"🎸",title:"Bass Guitar",blurb:"Hold down the low end — tap the fretboard, learn bass chord shapes and basslines, follow the glow, record your real bass, and play it back for scoring.",go:()=>renderBass()},
+ {ic:"🎸",title:"Fretboard",blurb:"A playable, full-screen fretboard — play guitar, bass or ukulele by fretting real strings, and practice chord shapes by putting your fingers on the glowing spots and holding them to build muscle memory.",go:()=>renderFretboard("guitar")},
  {ic:"🪘",title:"Djembe Groove",blurb:"Play djembe patterns (bass/tone/slap), loop on tempo, tap or drum along — with timing feedback and Call & Response.",go:()=>renderDjembe()}
 ];
 const MAKE_CARDS=[
