@@ -411,6 +411,15 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .fxp{position:absolute;font-size:1.1rem;animation:rise var(--t,900ms) ease-out forwards}
 @keyframes rise{0%{transform:translate(-50%,-50%) scale(.6);opacity:0}15%{opacity:1}100%{transform:translate(calc(-50% + var(--dx,0px)),calc(-50% + var(--dy,-110px))) rotate(var(--dr,0deg));opacity:0}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.snd-drop{border:2px dashed var(--line);border-radius:12px;padding:12px;margin-bottom:8px;transition:border-color .15s,background .15s}
+.snd-drop.over{border-color:var(--gold);background:rgba(212,165,72,.08)}
+.sndgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.sndtile{display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:8px}
+.sndtile .sndplay{flex:0 0 auto;width:34px;height:34px;border-radius:50%;border:none;background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:#241800;font-size:.9rem;cursor:pointer}
+.sndtile .sndmeta{flex:1 1 auto;min-width:0}
+.sndtile .sndname{font-weight:700;font-size:.9rem;color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sndtile .sndtag{font-size:.72rem;color:var(--muted)}
+.sndtile .sndx{flex:0 0 auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem}
 </style>
 
 <canvas id="sky"></canvas>
@@ -3783,6 +3792,101 @@ const INSTRUMENT_CARDS=[
  {ic:"🥁",title:"Drum Kit",blurb:"A playable kit — tap the pads or use your keyboard for kick, snare, hats, toms, crash and ride. Jam live.",go:()=>renderDrumKit()},
  {ic:"🪘",title:"Djembe Groove",blurb:"Play djembe patterns (bass/tone/slap), loop on tempo, tap or drum along — with timing feedback and Call & Response.",go:()=>renderDjembe()}
 ];
+/* ===== SOUND LIBRARY — categorized, uploadable sound repository (used across the app) ===== */
+const SND_CATS=["Kicks","Snares","Claps & Rims","Hi-Hats","Percussion","808 & Bass","Keys & Bells","Pads","Textures","FX & Risers","Vocals","Loops","Uncategorized"];
+const SND={cat:"Kicks",seed:null,loading:false};
+function sndList(){return load(mk("sndlib","list"),[]);}
+function sndSaveList(l){save(mk("sndlib","list"),l);}
+function sndKey(id){return "snd-"+id;}
+function sndFmtSize(b){return b>=1048576?(b/1048576).toFixed(1)+" MB":Math.max(1,Math.round(b/1024))+" KB";}
+function sndAddBlob(blob,name,cat){return new Promise(function(res){var id="s"+Date.now().toString(36)+Math.floor(Math.random()*46656).toString(36);
+  idbPut(sndKey(id),blob).then(function(){var l=sndList();l.push({id:id,name:(name||("Sound "+(l.length+1))).replace(/\.[a-z0-9]+$/i,""),cat:cat||"Uncategorized",type:blob.type||"audio",size:blob.size||0,added:Date.now()});sndSaveList(l);res(id);}).catch(function(){res(null);});});}
+function sndPlayBuf(buf){try{unlockAudio();var a=ac(),s=a.createBufferSource();s.buffer=buf;var g=a.createGain();g.gain.value=0.9;s.connect(g);g.connect(a.destination);s.start();}catch(e){}}
+function sndPlayId(id){idbGet(sndKey(id)).then(function(b){if(!b)return;try{var el=new Audio(URL.createObjectURL(b));el.volume=0.95;el.play().catch(function(){});}catch(e){}});}
+/* ---- self-contained one-shot voices for the built-in starter seed (100% our own) ---- */
+function sndNoise(a,dur){var n=Math.max(1,Math.floor(a.sampleRate*dur)),b=a.createBuffer(1,n,a.sampleRate),d=b.getChannelData(0);for(var i=0;i<n;i++)d[i]=Math.random()*2-1;return b;}
+function sndNz(a,out,t,dur,freq,lvl,hp){var s=a.createBufferSource();s.buffer=sndNoise(a,dur+0.03);var f=a.createBiquadFilter();f.type=hp?"highpass":"bandpass";f.frequency.value=freq;f.Q.value=0.8;var g=a.createGain();g.gain.setValueAtTime(lvl,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);s.connect(f);f.connect(g);g.connect(out);s.start(t);s.stop(t+dur+0.03);}
+function sndKick(a,out,t,f0,f1){var o=a.createOscillator();o.type="sine";o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+0.12);var g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.96,t+0.004);g.gain.exponentialRampToValueAtTime(0.0001,t+0.4);o.connect(g);g.connect(out);o.start(t);o.stop(t+0.45);var c=a.createOscillator();c.type="triangle";c.frequency.value=1300;var cg=a.createGain();cg.gain.setValueAtTime(0.45,t);cg.gain.exponentialRampToValueAtTime(0.001,t+0.02);c.connect(cg);cg.connect(out);c.start(t);c.stop(t+0.03);}
+function sndSnare(a,out,t,lvl){sndNz(a,out,t,0.14,1800,0.6*lvl,false);sndNz(a,out,t,0.08,5000,0.35*lvl,true);var o=a.createOscillator();o.type="triangle";o.frequency.setValueAtTime(190,t);o.frequency.exponentialRampToValueAtTime(140,t+0.08);var g=a.createGain();g.gain.setValueAtTime(0.45*lvl,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.1);o.connect(g);g.connect(out);o.start(t);o.stop(t+0.12);}
+function sndClap(a,out,t){[0,0.009,0.019,0.03].forEach(function(d,i){sndNz(a,out,t+d,0.05,2100,(i===3?0.6:0.35),false);});}
+function sndRim(a,out,t){var o=a.createOscillator();o.type="triangle";o.frequency.value=330;var g=a.createGain();g.gain.setValueAtTime(0.5,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.03);o.connect(g);g.connect(out);o.start(t);o.stop(t+0.04);sndNz(a,out,t,0.02,3000,0.3,true);}
+function sndHat(a,out,t,dur,freq){sndNz(a,out,t,dur,freq||9000,0.5,true);}
+function sndTom(a,out,t,f){var o=a.createOscillator();o.type="sine";o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(f*0.6,t+0.2);var g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.7,t+0.005);g.gain.exponentialRampToValueAtTime(0.0001,t+0.35);o.connect(g);g.connect(out);o.start(t);o.stop(t+0.4);}
+function sndSub(a,out,t,freq){var o=a.createOscillator();o.type="sine";o.frequency.value=freq;var o2=a.createOscillator();o2.type="triangle";o2.frequency.value=freq;var g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.85,t+0.01);g.gain.setValueAtTime(0.8,t+0.5);g.gain.exponentialRampToValueAtTime(0.0001,t+0.85);var g2=a.createGain();g2.gain.value=0.2;o2.connect(g2);g2.connect(g);o.connect(g);g.connect(out);o.start(t);o2.start(t);o.stop(t+0.9);o2.stop(t+0.9);}
+function sndBell(a,out,t,freq){[[1,0.12],[2.76,0.06],[5.4,0.025]].forEach(function(p){var o=a.createOscillator();o.type="sine";o.frequency.value=freq*p[0];var g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(p[1],t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+1.1);o.connect(g);g.connect(out);o.start(t);o.stop(t+1.15);});}
+function sndPluck(a,out,t,freq){var o=a.createOscillator();o.type="sawtooth";o.frequency.value=freq;var lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.setValueAtTime(3200,t);lp.frequency.exponentialRampToValueAtTime(500,t+0.4);var g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.3,t+0.006);g.gain.exponentialRampToValueAtTime(0.0001,t+0.45);o.connect(lp);lp.connect(g);g.connect(out);o.start(t);o.stop(t+0.5);}
+function sndPad(a,out,t,freqs){var lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=1600;var g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(0.13,t+0.6);g.gain.setValueAtTime(0.13,t+1.6);g.gain.exponentialRampToValueAtTime(0.0001,t+2.4);lp.connect(g);g.connect(out);freqs.forEach(function(fr){[-6,6].forEach(function(det){var o=a.createOscillator();o.type="sawtooth";o.frequency.value=fr;o.detune.value=det;o.connect(lp);o.start(t);o.stop(t+2.45);});});}
+function sndRiser(a,out,t,dur){var s=a.createBufferSource();s.buffer=sndNoise(a,dur+0.1);s.loop=true;var bp=a.createBiquadFilter();bp.type="bandpass";bp.frequency.setValueAtTime(400,t);bp.frequency.exponentialRampToValueAtTime(8000,t+dur);bp.Q.value=1.6;var g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.14,t+dur);g.gain.exponentialRampToValueAtTime(0.0001,t+dur+0.1);s.connect(bp);bp.connect(g);g.connect(out);s.start(t);s.stop(t+dur+0.15);}
+function sndSweep(a,out,t,dur){var s=a.createBufferSource();s.buffer=sndNoise(a,dur+0.1);s.loop=true;var bp=a.createBiquadFilter();bp.type="bandpass";bp.frequency.setValueAtTime(8000,t);bp.frequency.exponentialRampToValueAtTime(300,t+dur);bp.Q.value=1.4;var g=a.createGain();g.gain.setValueAtTime(0.12,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);s.connect(bp);bp.connect(g);g.connect(out);s.start(t);s.stop(t+dur+0.12);}
+function sndBake(dur,build){var sr=44100,OC=(window.OfflineAudioContext||window.webkitOfflineAudioContext),oc=new OC(2,Math.ceil(dur*sr),sr);build(oc,oc.destination);return oc.startRendering();}
+function sndMakeSeed(){var defs=[
+  ["Deep Kick","Kicks",0.5,function(a,o){sndKick(a,o,0,120,42);}],
+  ["Punch Kick","Kicks",0.45,function(a,o){sndKick(a,o,0,180,50);}],
+  ["Tight Snare","Snares",0.3,function(a,o){sndSnare(a,o,0,1.0);}],
+  ["Soft Snare","Snares",0.3,function(a,o){sndSnare(a,o,0,0.7);}],
+  ["Clap","Claps & Rims",0.3,function(a,o){sndClap(a,o,0);}],
+  ["Rimshot","Claps & Rims",0.12,function(a,o){sndRim(a,o,0);}],
+  ["Closed Hat","Hi-Hats",0.09,function(a,o){sndHat(a,o,0,0.03,9000);}],
+  ["Open Hat","Hi-Hats",0.3,function(a,o){sndHat(a,o,0,0.14,9000);}],
+  ["Shaker","Percussion",0.14,function(a,o){sndHat(a,o,0,0.05,6000);}],
+  ["Low Tom","Percussion",0.4,function(a,o){sndTom(a,o,0,150);}],
+  ["Sub 808 (C)","808 & Bass",0.95,function(a,o){sndSub(a,o,0,65.41);}],
+  ["Bell (C)","Keys & Bells",1.2,function(a,o){sndBell(a,o,0,523.25);}],
+  ["Pluck (C)","Keys & Bells",0.5,function(a,o){sndPluck(a,o,0,261.63);}],
+  ["Warm Pad (Cmaj)","Pads",2.4,function(a,o){sndPad(a,o,0,[261.63,329.63,392.0]);}],
+  ["Uplifter","FX & Risers",1.4,function(a,o){sndRiser(a,o,0,1.4);}],
+  ["Downsweep","FX & Risers",1.0,function(a,o){sndSweep(a,o,0,1.0);}]
+ ];
+ return Promise.all(defs.map(function(d){return sndBake(d[2],d[3]).then(function(buf){return {name:d[0],cat:d[1],buf:buf,seed:true};}).catch(function(){return null;});})).then(function(a){return a.filter(Boolean);});}
+function renderSoundLib(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  teardown=null;
+  function counts(){var l=sndList(),by={},tot=0;l.forEach(function(x){by[x.cat]=(by[x.cat]||0)+1;tot+=x.size||0;});return {by:by,tot:tot,n:l.length};}
+  function draw(){
+    var c=counts();
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔊 Sound Library</span></div>'+
+      '<div class="panel">'+
+      '<div class="intro">Your whole sound library in one place. Browse by category, tap ▶ to audition, and <b>drag in your own</b> one-shots, downloaded packs, or loops — they’re saved on this device. Built-in starter sounds are always here to get you going.</div>'+
+      '<div class="rchips" id="sndCats" style="margin-bottom:10px"></div>'+
+      '<div id="sndDrop" class="snd-drop"><div class="rrow2" style="justify-content:center;gap:10px;flex-wrap:wrap"><button class="btn" id="sndPick">➕ Add sounds to “<span id="sndCatName"></span>”</button><span class="rlab">drag &amp; drop audio here</span></div><input type="file" id="sndFile" accept="audio/*" multiple style="display:none"></div>'+
+      '<div id="sndStatus" class="site-note" style="margin:6px 0"></div>'+
+      '<div id="sndGrid" class="sndgrid"></div>'+
+      '<div class="site-note" style="margin-top:10px">'+c.n+' of your sounds saved · '+sndFmtSize(c.tot)+' on this device'+'</div>'+
+      '</div>';
+    $("#eBack").onclick=goHome;
+    var cc=$("#sndCats");SND_CATS.forEach(function(cat){var b=document.createElement("button");var n=c.by[cat]||0;b.className="rchip sm"+(cat===SND.cat?" sel":"");b.textContent=cat+(n?" ("+n+")":"");b.onclick=function(){SND.cat=cat;draw();};cc.appendChild(b);});
+    $("#sndCatName").textContent=SND.cat;
+    $("#sndPick").onclick=function(){$("#sndFile").click();};
+    $("#sndFile").onchange=function(e){handleFiles(e.target.files);e.target.value="";};
+    var dz=$("#sndDrop");
+    ["dragover","dragenter"].forEach(function(ev){dz.addEventListener(ev,function(e){e.preventDefault();dz.classList.add("over");});});
+    ["dragleave","drop"].forEach(function(ev){dz.addEventListener(ev,function(e){e.preventDefault();dz.classList.remove("over");});});
+    dz.addEventListener("drop",function(e){if(e.dataTransfer&&e.dataTransfer.files)handleFiles(e.dataTransfer.files);});
+    drawGrid();
+  }
+  function handleFiles(files){files=Array.prototype.slice.call(files||[]).filter(function(f){return /^audio\//.test(f.type)||/\.(wav|mp3|m4a|aac|ogg|flac|aiff?)$/i.test(f.name);});
+    if(!files.length){setStatus("Those didn’t look like audio files — try WAV, MP3, M4A, OGG…");return;}
+    setStatus("Adding "+files.length+" sound"+(files.length>1?"s":"")+" to “"+SND.cat+"”…");
+    Promise.all(files.map(function(f){return sndAddBlob(f,f.name,SND.cat);})).then(function(){setStatus("✓ Added "+files.length+" to “"+SND.cat+"”.");draw();});}
+  function setStatus(t){var s=$("#sndStatus");if(s)s.textContent=t||"";}
+  function drawGrid(){var g=$("#sndGrid");if(!g)return;g.innerHTML="";
+    var seed=(SND.seed||[]).filter(function(x){return x.cat===SND.cat;});
+    var mine=sndList().filter(function(x){return x.cat===SND.cat;});
+    if(SND.loading&&!SND.seed)g.innerHTML='<div class="site-note">Loading starter sounds…</div>';
+    seed.forEach(function(x){g.appendChild(tile(x.name,"Starter",function(){sndPlayBuf(x.buf);},null,null));});
+    mine.forEach(function(x){g.appendChild(tile(x.name,sndFmtSize(x.size),function(){sndPlayId(x.id);},function(){renameSnd(x.id);},function(){delSnd(x.id);}));});
+    if(!seed.length&&!mine.length)g.innerHTML+='<div class="site-note">Nothing here yet — drop some sounds in, or pick another category.</div>';}
+  function tile(name,tag,onplay,onrename,ondel){var d=document.createElement("div");d.className="sndtile";
+    d.innerHTML='<button class="sndplay">▶</button><div class="sndmeta"><div class="sndname"></div><div class="sndtag">'+esc(tag)+'</div></div>'+(ondel?'<button class="sndx" title="Delete">✕</button>':'');
+    d.querySelector(".sndname").textContent=name;
+    d.querySelector(".sndplay").onclick=onplay;
+    if(onrename)d.querySelector(".sndname").onclick=onrename;
+    if(ondel)d.querySelector(".sndx").onclick=ondel;
+    return d;}
+  function renameSnd(id){var l=sndList(),it=l.find(function(x){return x.id===id;});if(!it)return;var nm=prompt("Rename sound:",it.name);if(nm==null)return;it.name=nm.trim()||it.name;sndSaveList(l);draw();}
+  function delSnd(id){if(!confirm("Delete this sound?"))return;idbDel(sndKey(id));sndSaveList(sndList().filter(function(x){return x.id!==id;}));draw();}
+  draw();
+  if(!SND.seed&&!SND.loading){SND.loading=true;sndMakeSeed().then(function(s){SND.seed=s;SND.loading=false;drawGrid();var cc=$("#sndCats");if(cc){cc.innerHTML="";SND_CATS.forEach(function(cat){var cnt=counts().by;var b=document.createElement("button");var n=cnt[cat]||0;b.className="rchip sm"+(cat===SND.cat?" sel":"");b.textContent=cat+(n?" ("+n+")":"");b.onclick=function(){SND.cat=cat;draw();};cc.appendChild(b);});}}).catch(function(){SND.loading=false;});}
+}
 const MAKE_CARDS=[
  {ic:"🎙️",title:"Sing a Song",blurb:"Sing or hum your own tune — it maps the notes and rhythm onto a staff. Fix them, then save it as a section or a whole song.",go:()=>renderCompose()},
  {ic:"⭐",title:"My Songs",blurb:"Your saved melodies and imported songs — sing them back, or import a MIDI.",go:()=>renderMySongs()},
@@ -3790,6 +3894,7 @@ const MAKE_CARDS=[
  {ic:"🎛️",title:"Studio",blurb:"Multi-track recorder — lay down each real instrument and voice, stack them in sections, then mix with volume, pan, mute/solo and effects.",go:()=>renderStudio()},
  {ic:"🧩",title:"Beat Maker",blurb:"Build layered beats & motifs on a grid — djembe and handpan together. Play the instrument live into the sequencer, loop, save, and get feedback.",go:()=>renderBeat()},
  {ic:"🎛️",title:"Sampler",blurb:"Your own sound library. Tap pads to play, then record, upload, or slice your own sounds onto them — tune each pad, program a 16-step beat, and save your kits. Starter sounds built in.",go:()=>renderSampler()},
+ {ic:"🔊",title:"Sound Library",blurb:"Your whole sound library in one place — browse by category, audition, and drag in your own one-shots, packs, and loops. Built-in starter sounds included; your uploads are saved on this device.",go:()=>renderSoundLib()},
  {ic:"🎼",title:"Learn a Song",blurb:"Bring in a song you're practicing — paste a chord sheet or build it — and get a play-along chord chart with loop, tempo, and transpose.",go:()=>renderLearnSong()},
  {ic:"✍️",title:"Songwriting",blurb:"Learn to write songs that work — structure, the parts, rhyme schemes and prosody — then write your lyrics in the Lyric Lab with a syllable counter, a rhyme finder, and a coach that tightens them. This is where your midterm & final lyrics come from.",go:()=>renderSongwriting()},
  {ic:"🎼",title:"Song Project (final)",blurb:"The big one — assemble your sections into a full song: intro, verses, choruses, bridge, outro. Finish it to earn Songwriter.",go:()=>renderSongBuilder()},
