@@ -705,7 +705,122 @@ function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 const home=$("#home"),view=$("#view");
 function beanChip(){const c=$("#beanChipM");if(!c)return;
-  if(activeId()&&!isAdult()){c.hidden=false;$("#beanNumM").textContent=getBeans();}else c.hidden=true;}
+  if(activeId()&&!isAdult()){c.hidden=false;c.style.cursor="pointer";c.title="Open the Bean Shop";c.onclick=function(){if(activeId()&&!isAdult())renderMusicShop();};$("#beanNumM").textContent=getBeans();}else c.hidden=true;}
+/* ===== BEAN SHOP — shared economy with Star's Heads (same catalog, goals, claims, beans) ===== */
+(function(){try{var s=document.createElement("style");s.textContent=
+".mshop .cats{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 16px}"+
+".mshop .cat{cursor:pointer;font:inherit;font-weight:700;background:var(--bg);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:6px 14px;font-size:.84rem}"+
+".mshop .cat.on{background:var(--gold);color:#241800;border-color:var(--gold)}"+
+".mshop .items{display:grid;grid-template-columns:1fr 1fr;gap:12px}"+
+".mshop .item{background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:15px;display:flex;flex-direction:column;gap:9px;position:relative}"+
+".mshop .item.ready{border-color:var(--gold);box-shadow:0 0 18px rgba(229,183,105,.14)}"+
+".mshop .it-top{display:flex;align-items:flex-start;gap:10px}"+
+".mshop .it-ic{font-size:1.8rem;flex:none}"+
+".mshop .it-name{font-family:'Fraunces',serif;font-size:1.05rem;color:var(--cream);line-height:1.2}"+
+".mshop .it-note{font-size:.8rem;color:var(--muted);margin-top:2px}"+
+".mshop .it-badge{position:absolute;top:12px;right:12px;font-size:.6rem;letter-spacing:1px;border:1px solid var(--line);border-radius:999px;padding:2px 7px;text-transform:uppercase}"+
+".mshop .it-badge.online{color:#9bd0ff;border-color:#2f4e74}"+
+".mshop .it-badge.have{color:var(--teal);border-color:#2a5b54}"+
+".mshop .it-cost{font-family:'Fraunces',serif;color:var(--gold);font-size:.95rem}"+
+".mshop .it-bar{height:9px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--line);overflow:hidden}"+
+".mshop .it-bar i{display:block;height:100%;background:linear-gradient(90deg,#d9b25a,var(--gold));transition:width .3s}"+
+".mshop .it-save{font-size:.78rem;color:var(--muted)}"+
+".mshop .it-acts{display:flex;gap:7px;flex-wrap:wrap;margin-top:2px}"+
+".mshop .ibtn{flex:1;min-width:84px;font:inherit;font-weight:700;cursor:pointer;border-radius:11px;padding:10px;font-size:.86rem;background:var(--bg);border:1px solid var(--line);color:var(--cream)}"+
+".mshop .ibtn:hover{border-color:var(--gold)}.mshop .ibtn:disabled{opacity:.4;cursor:default}"+
+".mshop .ibtn.go{background:linear-gradient(180deg,var(--gold),#c9933f);color:#241800;border:none}"+
+".mshop .ibtn.link{flex:0 0 auto;min-width:0;text-decoration:none;display:inline-flex;align-items:center;color:#9bd0ff;background:none}"+
+".mshop .ibtn.tiny{flex:0 0 auto;min-width:0;background:none;color:var(--muted);padding:10px 12px}"+
+".mshop .claim{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:11px 13px;display:flex;align-items:flex-start;gap:10px;margin-bottom:8px}"+
+".mshop .cl-ic{font-size:1.3rem}.mshop .cl-main{flex:1;min-width:0}.mshop .cl-name{font-weight:700}"+
+".mshop .cl-st{font-size:.72rem;letter-spacing:1px;text-transform:uppercase}.mshop .cl-st.pending{color:var(--gold)}.mshop .cl-st.fulfilled{color:#5fe0a8}"+
+".mshop .cl-got{font-size:.86rem;color:var(--cream);opacity:.82;font-style:italic;margin-top:3px}"+
+".mshop .empty{color:var(--muted);text-align:center;padding:22px;grid-column:1/-1}"+
+".mshop .guardian{margin-top:22px;border-top:1px solid var(--line);padding-top:12px}"+
+".mshop .ginput{background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:8px 10px;font:inherit}";
+document.head.appendChild(s);}catch(e){}})();
+function setBeans(n){var id=activeId();if(!id)return;save("majick-p-"+id+"-beans",Math.max(0,Math.round(n)));}
+function shopGoals(){var id=activeId();return id?(load("majick-p-"+id+"-goals",{})||{}):{};}
+function saveGoals(g){var id=activeId();if(id)save("majick-p-"+id+"-goals",g);}
+function shopClaims(){var id=activeId();return id?(load("majick-p-"+id+"-claims",[])||[]):[];}
+function saveClaims(c){var id=activeId();if(id)save("majick-p-"+id+"-claims",c);}
+function mDefaultCatalog(){return [
+ {id:"t1",cat:"Custom T-Shirts",name:"Design-your-own tee",icon:"👕",cost:400,online:true,url:"",note:"Pick the art — we print it."},
+ {id:"a1",cat:"Art Supplies",name:"Pro marker set",icon:"🖊️",cost:250,online:true,url:"",note:"Example — edit me."},
+ {id:"a2",cat:"Art Supplies",name:"Watercolor pad",icon:"🎨",cost:120,online:true,url:"",note:"Example — edit me."},
+ {id:"b1",cat:"Baking Tools",name:"Cookie cutter set",icon:"🍪",cost:150,online:true,url:"",note:"Example — edit me."},
+ {id:"b2",cat:"Baking Tools",name:"Frosting & piping kit",icon:"🧁",cost:200,online:true,url:"",note:"Example — edit me."},
+ {id:"g1",cat:"Tech & Gadgets",name:"Stylus pen",icon:"🖊️",cost:220,online:true,url:"",note:"For drawing/writing on a tablet."},
+ {id:"g2",cat:"Tech & Gadgets",name:"Earbuds",icon:"🎧",cost:500,online:true,url:"",note:"Example — edit me."},
+ {id:"g3",cat:"Tech & Gadgets",name:"Phone / tablet stand",icon:"📱",cost:140,online:true,url:"",note:"Example — edit me."},
+ {id:"g4",cat:"Tech & Gadgets",name:"Clip-on ring light",icon:"💡",cost:160,online:true,url:"",note:"Example — edit me."},
+ {id:"h1",cat:"Little Treats",name:"Movie night pick",icon:"🎬",cost:80,online:false,url:"",note:"You choose the film."},
+ {id:"h2",cat:"Little Treats",name:"Bakery trip",icon:"🥐",cost:120,online:false,url:"",note:"A treat of your choosing."}
+];}
+function mGetCatalog(){var c=load("majick-shop-catalog",null);if(!c)c=mDefaultCatalog();
+  var v=load("majick-shop-catalog-v",0),have={};c.forEach(function(i){have[i.id]=1;});
+  if(v<1){mDefaultCatalog().forEach(function(di){if(["g1","g2","g3","g4"].indexOf(di.id)>=0&&!have[di.id])c.push(di);});}
+  if(v<2){c.forEach(function(i){if(typeof i.cost==="number")i.cost=i.cost*2;});}
+  if(v<3){c.forEach(function(i){if(typeof i.cost==="number")i.cost=Math.max(1,Math.round(i.cost*0.75));});}
+  save("majick-shop-catalog",c);save("majick-shop-catalog-v",3);return c;}
+function mSetCatalog(c){save("majick-shop-catalog",c);}
+var mShopCat="all";
+function renderMusicShop(){
+  if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){};
+  var cat=mGetCatalog(),cats=["all"].concat(Array.from(new Set(cat.map(function(i){return i.cat;}))));
+  if(cats.indexOf(mShopCat)<0)mShopCat="all";
+  var beans=getBeans();
+  view.innerHTML='<div class="play-top"><button class="back" id="shBack">←</button><span class="ttitle">🫘 The Bean Shop</span></div>'+
+    '<div class="panel mshop"><div class="intro">Save your Beans toward something you want, then <b>claim</b> it — a grown-up makes it real. Your beans are shared with Star’s Heads, so everything you earn there counts here too.</div>'+
+    '<div class="rrow2"><span class="rlab">You have</span><span class="rchip sm sel" style="cursor:default">🫘 '+beans+'</span></div>'+
+    '<div class="cats" id="mCats"></div><div class="items" id="mItems"></div><div id="mTray"></div><div class="guardian" id="mGuard"></div></div>';
+  $("#shBack").onclick=goHome;
+  var cc=$("#mCats");cats.forEach(function(c){var b=document.createElement("button");b.className="cat"+(c===mShopCat?" on":"");b.textContent=c==="all"?"All":c;b.onclick=function(){mShopCat=c;renderMusicShop();};cc.appendChild(b);});
+  var box=$("#mItems"),items=cat.filter(function(i){return mShopCat==="all"||i.cat===mShopCat;});
+  if(!items.length)box.innerHTML='<div class="empty">No items here yet — a grown-up can add some in Star’s Heads.</div>';
+  items.forEach(function(it){box.appendChild(mItemCard(it,beans));});
+  mRenderTray();mRenderGuardian();
+}
+function mItemCard(it,beans){
+  var goals=shopGoals(),saved=goals[it.id]||0,ready=saved>=it.cost,pct=Math.min(100,Math.round(saved/it.cost*100));
+  var el=document.createElement("div");el.className="item"+(ready?" ready":"");
+  el.innerHTML=(it.online?'<span class="it-badge online">Buy online</span>':'<span class="it-badge have">We have it</span>')+
+    '<div class="it-top"><span class="it-ic">'+esc(it.icon||"🎁")+'</span><div><div class="it-name">'+esc(it.name)+'</div>'+(it.note?'<div class="it-note">'+esc(it.note)+'</div>':"")+'</div></div>'+
+    '<div class="it-cost">'+it.cost+' 🫘</div><div class="it-bar"><i style="width:'+pct+'%"></i></div>'+
+    '<div class="it-save">'+saved+' / '+it.cost+' saved</div><div class="it-acts"></div>';
+  var acts=el.querySelector(".it-acts");
+  if(ready){var cl=document.createElement("button");cl.className="ibtn go";cl.textContent="Claim it! 🎉";cl.onclick=function(){mClaim(it);};acts.appendChild(cl);}
+  else{var a10=document.createElement("button");a10.className="ibtn";a10.textContent="+10 🫘";a10.disabled=beans<=0;a10.onclick=function(){mPut(it,Math.min(10,getBeans(),it.cost-saved));};
+    var fa=document.createElement("button");fa.className="ibtn go";fa.textContent="Save all I can";fa.disabled=beans<=0;fa.onclick=function(){mPut(it,Math.min(getBeans(),it.cost-saved));};
+    acts.appendChild(a10);acts.appendChild(fa);}
+  if(saved>0&&!ready){var rf=document.createElement("button");rf.className="ibtn tiny";rf.textContent="↩";rf.title="Take beans back";rf.onclick=function(){mRefund(it);};acts.appendChild(rf);}
+  if(it.online&&it.url){var a=document.createElement("a");a.className="ibtn link";a.href=it.url;a.target="_blank";a.rel="noopener";a.textContent="See it ↗";acts.appendChild(a);}
+  return el;
+}
+function mPut(it,amt){amt=Math.max(0,Math.min(amt,getBeans()));if(amt<=0)return;setBeans(getBeans()-amt);var g=shopGoals();g[it.id]=(g[it.id]||0)+amt;saveGoals(g);beanChip();renderMusicShop();}
+function mRefund(it){var g=shopGoals(),s=g[it.id]||0;if(s<=0)return;setBeans(getBeans()+s);delete g[it.id];saveGoals(g);beanChip();renderMusicShop();}
+function mClaim(it){var g=shopGoals(),saved=g[it.id]||0;if(saved<it.cost)return;delete g[it.id];saveGoals(g);var cl=shopClaims();cl.unshift({id:newId(),itemId:it.id,name:it.name,icon:it.icon,cost:it.cost,online:it.online,url:it.url,ts:Date.now(),status:"pending"});saveClaims(cl);beanChip();renderMusicShop();}
+function mRenderTray(){var t=$("#mTray");if(!t)return;var claims=shopClaims();if(!claims.length){t.innerHTML="";return;}
+  var pending=claims.filter(function(c){return c.status!=="fulfilled";}),won=claims.filter(function(c){return c.status==="fulfilled";}),h="";
+  if(pending.length){h+='<div class="label" style="margin:16px 2px 10px">Your claims</div>';pending.forEach(function(c){h+='<div class="claim"><span class="cl-ic">'+esc(c.icon||"🎁")+'</span><div class="cl-main"><div class="cl-name">'+esc(c.name)+'</div><div class="cl-st pending">Waiting for a grown-up</div></div></div>';});}
+  if(won.length){h+='<div class="label" style="margin:16px 2px 10px">Prizes won 🏆</div>';won.forEach(function(c){var d=c.doneTs?new Date(c.doneTs).toLocaleDateString():"";h+='<div class="claim"><span class="cl-ic">'+esc(c.icon||"🎁")+'</span><div class="cl-main"><div class="cl-name">'+esc(c.name)+'</div><div class="cl-st fulfilled">Given to you ✓'+(d?" · "+esc(d):"")+'</div>'+(c.note?'<div class="cl-got">“'+esc(c.note)+'”</div>':"")+'</div></div>';});}
+  t.innerHTML=h;}
+function mRenderGuardian(){var g=$("#mGuard");if(!g)return;g.innerHTML='<button class="rchip sm" id="mGuardToggle">🔑 Grown-up</button><div id="mGuardBody" hidden></div>';
+  $("#mGuardToggle").onclick=function(){var b=$("#mGuardBody");b.hidden=!b.hidden;if(!b.hidden)mGuardBody();};}
+function mGuardBody(){var b=$("#mGuardBody");if(!b)return;var nm=activeName()||"this player";
+  b.innerHTML='<div class="intro" style="margin-top:10px">Grant beans to <b>'+esc(nm)+'</b> — use this to restore a balance or reward practice. The item list is edited in <b>Star’s Heads</b> and shared here.</div>'+
+    '<div class="rrow2"><span class="rlab">Beans</span><input class="ginput" id="mGrant" inputmode="numeric" placeholder="e.g. 50" style="flex:1;min-width:90px"><button class="rchip sm" id="mGrantGo">＋ Give</button><button class="rchip sm" id="mSetGo">Set to…</button></div>'+
+    '<div id="mClaimsAdmin" style="margin-top:12px"></div>';
+  $("#mGrantGo").onclick=function(){var v=parseInt($("#mGrant").value,10);if(v>0){addBeans(v);$("#mGrant").value="";beanChip();renderMusicShop();}};
+  $("#mSetGo").onclick=function(){var v=parseInt($("#mGrant").value,10);if(v>=0){setBeans(v);var id=activeId(),lk="majick-p-"+id+"-beansLife",life=load(lk,0)||0;if(v>life)save(lk,v);$("#mGrant").value="";beanChip();renderMusicShop();}};
+  var ca=$("#mClaimsAdmin"),claims=shopClaims();if(!claims.length){ca.innerHTML='<div class="site-note">No claims to fulfill yet.</div>';return;}
+  ca.innerHTML='<div class="label" style="margin:6px 2px 8px">Claims to fulfill</div>';
+  claims.forEach(function(c){var row=document.createElement("div");row.className="claim";var d=c.doneTs?" · "+new Date(c.doneTs).toLocaleDateString():"";
+    row.innerHTML='<span class="cl-ic">'+esc(c.icon||"🎁")+'</span><div class="cl-main"><div class="cl-name">'+esc(c.name)+' — '+c.cost+' 🫘</div><div class="cl-st '+(c.status==="fulfilled"?"fulfilled":"pending")+'">'+(c.status==="fulfilled"?"fulfilled"+d:"pending")+'</div>'+(c.online&&c.url?'<div class="site-note"><a href="'+esc(c.url)+'" target="_blank" rel="noopener" style="color:#9bd0ff">open link ↗</a></div>':"")+'</div>';
+    var btn=document.createElement("button");btn.className="rchip sm";btn.textContent=c.status==="fulfilled"?"Undo":"Mark given";
+    btn.onclick=function(){var cl=shopClaims(),x=null;cl.forEach(function(y){if(y.id===c.id)x=y;});if(x){if(x.status==="fulfilled"){x.status="pending";delete x.doneTs;}else{x.status="fulfilled";x.doneTs=Date.now();}saveClaims(cl);mGuardBody();mRenderTray();}};
+    var del=document.createElement("button");del.className="rchip sm";del.textContent="Remove";del.onclick=function(){saveClaims(shopClaims().filter(function(y){return y.id!==c.id;}));mGuardBody();mRenderTray();};
+    row.appendChild(btn);row.appendChild(del);ca.appendChild(row);});}
 /* ===== MAJICK QUEST — shared level/streak/trophies (level derives from lifetime beans) ===== */
 function qLife(id){return load("majick-p-"+id+"-beansLife",0)||0;}
 function qAdd(id,n){save("majick-p-"+id+"-beans",(load("majick-p-"+id+"-beans",0)||0)+n);save("majick-p-"+id+"-beansLife",(load("majick-p-"+id+"-beansLife",0)||0)+n);}
