@@ -2097,6 +2097,10 @@ function idbDel(k){return idb().then(db=>new Promise(res=>{const t=db.transactio
 function sid(){return "k"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);}
 function studioLoad(){return load(mk("studio","song"),null)||{name:"My Song",bpm:90,master:1,sections:["Intro","Verse","Chorus","Bridge","Outro"].map(n=>({id:sid(),name:n,tracks:[]}))};}
 function studioSave(s){save(mk("studio","song"),s);}
+function stuClips(){return load(mk("studio","clips"),[]);}
+function stuSaveClips(l){save(mk("studio","clips"),l);}
+function stuAddClip(blob,meta){return new Promise(function(res){var id=sid();idbPut("clip-"+id,blob).then(function(){var l=stuClips();l.unshift({id:id,name:(meta&&meta.name)||"Clip",bars:(meta&&meta.bars)||1,bpm:(meta&&meta.bpm)||90,dur:(meta&&meta.dur)||0,added:Date.now()});stuSaveClips(l);res(id);}).catch(function(){res(null);});});}
+function dkRenderClip(repeats){repeats=Math.max(1,repeats||1);var bpm=DKSEQ.bpm,sr=44100,stepDur=(60/bpm)/4,N=(DKSEQ.bars||1)*16,barDur=N*stepDur,tail=0.4;var active=DK_ROWS.map(function(r){return r[0];}).filter(function(id){return DKSEQ.grid&&DKSEQ.grid[id]&&DKSEQ.grid[id].some(Boolean);});if(!active.length)return Promise.resolve(null);var total=barDur*repeats,OAC=window.OfflineAudioContext||window.webkitOfflineAudioContext,len=Math.ceil(sr*(total+tail)),oc=new OAC(2,len,sr);for(var r=0;r<repeats;r++){active.forEach(function(id){for(var s=0;s<N;s++){if(DKSEQ.grid[id]&&DKSEQ.grid[id][s]&&DKV[id])DKV[id](oc,oc.destination,r*barDur+s*stepDur+0.01);}});}return oc.startRendering().then(function(buf){return {blob:new Blob([bufferToWav(buf)],{type:"audio/wav"}),dur:total,bars:(DKSEQ.bars||1)*repeats,bpm:bpm};});}
 /* audio engine */
 const STU={master:null,comp:null,revBus:null,delBus:null,sources:[],els:[],playing:false,buf:{}};
 function makeIR(a,dur,decay){const rate=a.sampleRate,len=Math.floor(rate*dur),b=a.createBuffer(2,len,rate);for(let ch=0;ch<2;ch++){const d=b.getChannelData(ch);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,decay);}return b;}
@@ -2440,7 +2444,7 @@ function renderDrumKit(startMode){if(toneRAF)cancelAnimationFrame(toneRAF);home.
       '<div class="rrow2" style="margin-bottom:4px"><span class="rlab">Groove</span><span class="rchips tight" id="dkGrv"></span></div>'+'<div class="rrow2" style="margin-bottom:4px"><span class="rlab">Bars</span><span class="rchips tight" id="dkBars"></span><span class="rlab" style="margin-left:auto">Zoom</span><span class="rchips tight" id="dkZoom"></span></div>'+
       '<div class="seqwrap"><div class="seqgrid" id="dkSeq"></div></div>'+
       '<div class="rrow" style="margin-top:10px"><span class="rlab">Tempo</span><input type="range" id="dkBpm" min="60" max="180" value="'+DKSEQ.bpm+'" style="flex:1"><span class="rbpm" id="dkBpmV" style="min-width:58px;text-align:right">'+DKSEQ.bpm+' bpm</span></div>'+
-      '<div class="actions" style="margin-top:4px"><button class="btn" id="dkPlay">▶ Play</button><button class="rchip sm'+(DKSEQ.click?" sel":"")+'" id="dkClick">🎵 Click</button><button class="rchip sm" id="dkClear">⌫ Clear</button></div>'+'<div class="actions" style="margin-top:6px"><button class="btn ghost" id="dkExport">⬇ Export to DAW (MIDI + stems)</button></div><div class="site-note" id="dkExpStatus" style="margin-top:4px"></div>';
+      '<div class="actions" style="margin-top:4px"><button class="btn" id="dkPlay">▶ Play</button><button class="rchip sm'+(DKSEQ.click?" sel":"")+'" id="dkClick">🎵 Click</button><button class="rchip sm" id="dkClear">⌫ Clear</button></div>'+'<div class="actions" style="margin-top:6px"><button class="btn ghost" id="dkExport">⬇ Export to DAW (MIDI + stems)</button></div><div class="site-note" id="dkExpStatus" style="margin-top:4px"></div>'+'<div class="actions" style="margin-top:6px"><span class="rlab">Send loop</span><span class="rchips tight" id="dkSendReps"></span><button class="btn" id="dkSendStudio">➜ Send to Studio</button></div><div class="site-note" id="dkSendStatus" style="margin-top:4px"></div>';
     }
     h+='</div>';view.innerHTML=h;
     $("#eBack").onclick=goHome;
@@ -2459,6 +2463,7 @@ function renderDrumKit(startMode){if(toneRAF)cancelAnimationFrame(toneRAF);home.
       $("#dkClick").onclick=function(){DKSEQ.click=!DKSEQ.click;$("#dkClick").classList.toggle("sel",DKSEQ.click);};
       $("#dkClear").onclick=function(){DKSEQ.grid=dkBlankGrid();draw();};
       {var ex=$("#dkExport");if(ex)ex.onclick=dkExport;}
+      {var srp=$("#dkSendReps");if(srp){DKSEQ.sendReps=DKSEQ.sendReps||2;[1,2,4].forEach(function(n){var sb=document.createElement("button");sb.className="rchip sm"+(DKSEQ.sendReps===n?" sel":"");sb.textContent="×"+n;sb.onclick=function(){DKSEQ.sendReps=n;srp.querySelectorAll(".rchip").forEach(function(x){x.classList.remove("sel");});sb.classList.add("sel");};srp.appendChild(sb);});}var ss=$("#dkSendStudio");if(ss)ss.onclick=function(){unlockAudio();var st=$("#dkSendStatus");if(st)st.textContent="Rendering loop…";dkRenderClip(DKSEQ.sendReps||2).then(function(c){if(!c){if(st)st.textContent="Add some hits first — the grid is empty.";return;}stuAddClip(c.blob,{name:"Beat ("+c.bars+" bar"+(c.bars>1?"s":"")+")",bars:c.bars,bpm:c.bpm,dur:c.dur}).then(function(){if(st)st.innerHTML="✓ Sent to your Studio clips. <button class=\"rchip sm\" id=\"dkGoStudio\">Open Studio</button>";var g=$("#dkGoStudio");if(g)g.onclick=function(){dkSeqStop();renderStudio();};});});};}
       $("#dkPlay").onclick=function(){if(DKSEQ.on){dkSeqStop();$("#dkPlay").textContent="▶ Play";}else{unlockAudio();DKSEQ.on=true;DKSEQ.step=0;DKSEQ.next=ac().currentTime+0.1;dkSeqSchedule();$("#dkPlay").textContent="⏹ Stop";}};
     }
   }
@@ -2586,8 +2591,24 @@ function renderStudio(){
   if(toneRAF)cancelAnimationFrame(toneRAF);studioStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   const song=studioLoad();if(STU.master)STU.master.gain.value=song.master==null?1:song.master;
   let recState=null; // {sec, rec, chunks, t0, raf, timer}
+  let placing=null;
   teardown=()=>{studioStop();if(recState){try{if(recState.rec&&recState.rec.state!=="inactive")recState.rec.stop();}catch(e){}if(recState.raf)cancelAnimationFrame(recState.raf);}try{stopMic();}catch(e){}};
   function persist(){studioSave(song);}
+  function placeClip(sec){if(!placing)return;var cid=placing;placing=null;var c=stuClips().find(function(x){return x.id===cid;});if(!c){draw();return;}idbGet("clip-"+cid).then(function(blob){if(!blob){draw();return;}var takeId=sid();idbPut(takeId,blob).then(function(){sec.tracks.push({name:c.name,takeId:takeId,dur:c.dur,vol:1,pan:0,mute:false,solo:false,reverb:0,delay:0,tone:0});persist();draw();});});}
+  function drawClips(){var box=$("#stClips");if(!box)return;var clips=stuClips();
+    var h='<div class="stsec" style="border-style:dashed"><div class="stsec-top"><span class="stsec-name" style="border:none;background:none">🎚️ Clips'+(clips.length?" ("+clips.length+")":"")+'</span></div>';
+    if(placing)h+='<div class="site-note" style="color:var(--gold)">Pick the section to drop it into below — or <button class="rchip sm" id="stCancelPlace">Cancel</button></div>';
+    if(!clips.length)h+='<div class="site-note">No clips yet. In the Drum Kit beat sequencer, tap “➜ Send to Studio” and the loop lands here, ready to drop into any section.</div>';
+    h+='<div class="sndgrid" id="stClipGrid"></div></div>';box.innerHTML=h;
+    if(placing){var cp=$("#stCancelPlace");if(cp)cp.onclick=function(){placing=null;draw();};}
+    var g=$("#stClipGrid");clips.forEach(function(c){var d=document.createElement("div");d.className="sndtile"+(placing===c.id?" over":"");d.setAttribute("draggable","true");
+      d.innerHTML='<button class="sndplay">▶</button><div class="sndmeta"><div class="sndname"></div><div class="sndtag">'+c.bars+' bar'+(c.bars>1?'s':'')+' · '+c.bpm+' bpm</div></div><button class="rchip sm" data-a="place">Place ▸</button><button class="sndx" data-a="del">✕</button>';
+      d.querySelector(".sndname").textContent=c.name;
+      d.querySelector(".sndplay").onclick=function(){idbGet("clip-"+c.id).then(function(b){if(b){try{var el=new Audio(URL.createObjectURL(b));el.play().catch(function(){});}catch(e){}}});};
+      d.querySelector('[data-a="place"]').onclick=function(){placing=c.id;draw();};
+      d.querySelector('[data-a="del"]').onclick=function(){if(!confirm("Delete this clip?"))return;idbDel("clip-"+c.id);stuSaveClips(stuClips().filter(function(x){return x.id!==c.id;}));draw();};
+      d.addEventListener("dragstart",function(){placing=c.id;});
+      g.appendChild(d);});}
   function fx(track,key,label,min,max){return '<label class="fxk">'+label+'<input type="range" min="'+min+'" max="'+max+'" step="0.01" value="'+(track[key]==null?(key==="vol"?1:0):track[key])+'" data-k="'+key+'"></label>';}
   function draw(){
     let h='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎛️ Studio</span></div><div class="panel">'+
@@ -2596,6 +2617,7 @@ function renderStudio(){
       '<div class="rrow"><span class="rlab">Tempo</span><input type="range" id="stBpm" min="50" max="160" value="'+song.bpm+'" style="flex:1"><span class="rbpm" id="stBpmV">'+song.bpm+'</span></div>'+
       '<div class="rrow"><span class="rlab">Master</span><input type="range" id="stMaster" min="0" max="1.3" step="0.01" value="'+(song.master==null?1:song.master)+'" style="flex:1"></div>'+
       '<div class="actions"><button class="btn" id="stPlay">▶ Play song</button><button class="btn ghost" id="stStop">■ Stop</button><button class="btn ghost" id="stExport">⬇ Export stems</button></div><div class="site-note" id="stExpStatus" style="margin-top:2px"></div>'+
+      '<div id="stClips"></div>'+
       '<div id="stSections"></div>'+
       '<div class="actions"><button class="btn ghost" id="stAddSec">＋ Add section</button></div>'+
       '</div>';
@@ -2608,10 +2630,12 @@ function renderStudio(){
     $("#stStop").onclick=()=>{studioStop();const b=$("#stPlay");if(b)b.textContent="▶ Play song";};
     $("#stExport").onclick=()=>{unlockAudio();var st=$("#stExpStatus");if(st)st.textContent="Rendering stems…";studioExport(function(m){if(st)st.textContent=m;});};
     $("#stAddSec").onclick=()=>{song.sections.push({id:sid(),name:"Section "+(song.sections.length+1),tracks:[]});persist();draw();};
+    drawClips();
     const sc=$("#stSections");sc.innerHTML="";
     song.sections.forEach((sec,si)=>{const card=document.createElement("div");card.className="stsec";
       card.innerHTML='<div class="stsec-top"><input class="stsec-name" value="'+esc(sec.name)+'"><div class="stsec-btns"><button class="rchip sm" data-a="play">▶</button><button class="rchip sm" data-a="rec">🎙️ Record</button><button class="rchip sm" data-a="del">✕</button></div></div><div class="sttracks"></div><div class="strec" style="display:none"></div>';
       sc.appendChild(card);
+      if(placing){card.addEventListener("dragover",function(e){e.preventDefault();});card.addEventListener("drop",function(e){e.preventDefault();placeClip(sec);});var drop=document.createElement("button");drop.className="btn";drop.style.cssText="margin:0 0 8px;width:100%";drop.textContent="▸ Drop clip into “"+sec.name+"”";drop.onclick=function(){placeClip(sec);};card.insertBefore(drop,card.querySelector(".sttracks"));}
       card.querySelector(".stsec-name").onchange=e=>{sec.name=e.target.value.trim()||("Section "+(si+1));persist();};
       card.querySelector('[data-a="play"]').onclick=()=>{unlockAudio();studioStop();playSection(sec,ac().currentTime+0.08);};
       card.querySelector('[data-a="del"]').onclick=()=>{if(sec.tracks.length&&!confirm("Delete “"+sec.name+"” and its "+sec.tracks.length+" track(s)?"))return;sec.tracks.forEach(t=>idbDel(t.takeId));song.sections.splice(si,1);persist();draw();};
