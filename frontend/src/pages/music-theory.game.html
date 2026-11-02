@@ -443,6 +443,14 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .scstep{min-width:30px;padding:6px 10px;border-radius:8px;background:var(--card2);border:1px solid var(--line);color:var(--gold);font-weight:800;text-align:center;font-size:.85rem}
 .scstep.h{color:#9bd0ff;border-color:#49617a}
 .scstep.a{color:#e7a6ff;border-color:#7a4e8a}
+.ilalign{display:flex;gap:6px;overflow-x:auto;padding:6px 2px;background:var(--bg);border:1px solid var(--line);border-radius:10px}
+.lanote{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:6px 7px;cursor:pointer;min-width:42px}
+.lanote .la-syl{font-size:.8rem;font-weight:700;color:var(--cream);max-width:70px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lanote .la-note{font-size:.72rem;color:var(--gold);font-weight:800}
+.lanote .la-dur{display:flex;flex-direction:column;align-items:center;font-size:.72rem;color:var(--muted)}
+.lanote.sel{border-color:var(--gold);box-shadow:0 0 0 2px rgba(212,165,72,.55)}
+.lanote.playing{background:var(--gold)}
+.lanote.playing .la-syl,.lanote.playing .la-note,.lanote.playing .la-dur{color:#201a10}
 </style>
 
 <canvas id="sky"></canvas>
@@ -2136,42 +2144,102 @@ function renderIdeaLab(){
     ideaUI();
   });
 }
+/* ===== LYRIC LAB helpers: syllable split, melody voices, hook-theory analysis ===== */
+function sylSplit(word){var core=(word||"").toLowerCase().replace(/[^a-z']/g,"");if(!core)return [word];var n=sylCount(core);if(n<=1)return [word];var idxs=[],m,re=/[aeiouy]+/g;while((m=re.exec(core)))idxs.push(m.index+m[0].length);var cuts=idxs.slice(0,Math.min(n-1,idxs.length)),parts=[],prev=0;cuts.forEach(function(c){parts.push(word.slice(prev,c));prev=c;});parts.push(word.slice(prev));return parts.filter(function(x){return x;});}
+function lyricSyllables(text){var out=[];(text||"").replace(/\n/g," ").split(/\s+/).filter(Boolean).forEach(function(w){sylSplit(w).forEach(function(s){out.push(s);});});return out;}
+function noteValGlyph(b){if(b>=3.5)return "𝅝";if(b>=1.75)return "𝅗𝅥";if(b>=0.875)return "♩";if(b>=0.45)return "♪";return "𝅘𝅥𝅮";}
+function noteValName(b){if(b>=3.5)return "whole";if(b>=1.75)return "half";if(b>=0.875)return "quarter";if(b>=0.45)return "eighth";return "16th";}
+function melNote(midi,t,dur,voice){var f=midiToFreq(midi);if(voice==="piano"){playTone(f,t,dur);}else if(voice==="voice"){playSustain(f,t,dur,0.9);}else{try{var a=ac();prVoice(a,pianoMaster(a),a.currentTime+t,midi,dur,voice,100);}catch(e){playTone(f,t,dur);}}}
+function playSeqV(notes,beats,bpm,voice){var spb=60/(bpm||96),t=0;for(var i=0;i<notes.length;i++){var b=(beats&&beats[i])?beats[i]:1;melNote(notes[i],t,Math.max(0.12,b*spb*0.9),voice||"piano");t+=b*spb;}}
+function hookInsights(notes){if(!notes.length)return "";
+  var ms=notes.map(function(n){return n.midi;}),MAJ=[0,2,4,5,7,9,11],MIN=[0,2,3,5,7,8,10];
+  var pcs=[];ms.forEach(function(m){var p=((m%12)+12)%12;if(pcs.indexOf(p)<0)pcs.push(p);});
+  var best={score:-1,root:0,type:"major"};for(var r=0;r<12;r++){[["major",MAJ],["minor",MIN]].forEach(function(p){var c=0;pcs.forEach(function(pc){if(p[1].indexOf(((pc-r)%12+12)%12)>=0)c++;});if(c>best.score)best={score:c,root:r,type:p[0]};});}
+  var root=best.root,NM=["C","C♯","D","E♭","E","F","F♯","G","A♭","A","B♭","B"];
+  var degN={0:"1",1:"♭2",2:"2",3:"♭3",4:"3",5:"4",6:"♯4",7:"5",8:"♭6",9:"6",10:"♭7",11:"7"};
+  var degs=ms.map(function(m){return degN[((m-root)%12+12)%12]||"?";});
+  var hi=Math.max.apply(null,ms),hiIdx=ms.indexOf(hi),last=ms[ms.length-1],lastDeg=((last-root)%12+12)%12;
+  var counts={},topMidi=ms[0],topN=0;ms.forEach(function(m){counts[m]=(counts[m]||0)+1;if(counts[m]>topN){topN=counts[m];topMidi=m;}});
+  var cadence=lastDeg===0?"lands on the <b>tonic (1)</b> — resolved and final":lastDeg===7?"lands on the <b>5th</b> — open, wants to keep going":(lastDeg===4||lastDeg===9)?"lands on the <b>"+degN[lastDeg]+"</b> — soft, gently unresolved":"lands on <b>"+degN[lastDeg]+"</b> — a tension tone, leaves it hanging";
+  var chords=best.type==="major"?("the pop-safe chords are <b>"+NM[root]+"</b> (I), <b>"+NM[(root+5)%12]+"</b> (IV), <b>"+NM[(root+7)%12]+"</b> (V) and <b>"+NM[(root+9)%12]+"m</b> (vi)"):("try <b>"+NM[root]+"m</b> (i), <b>"+NM[(root+5)%12]+"m</b> (iv), <b>"+NM[(root+7)%12]+"m</b> (v), <b>"+NM[(root+8)%12]+"</b> (♭VI) or <b>"+NM[(root+10)%12]+"</b> (♭VII)");
+  var h='<b>Key:</b> '+NM[root]+' '+best.type+'. &nbsp;<b>Scale degrees:</b> '+degs.join(" ")+'.';
+  h+='<br><b>Hook / peak:</b> your highest note is <b>'+noteNameOct(hi)+'</b> ('+(degN[((hi-root)%12+12)%12]||"")+') at note '+(hiIdx+1)+' — that’s the melodic peak, so put your most important word there. The ear settles most on <b>'+noteNameOct(topMidi)+'</b> ('+topN+'×).';
+  h+='<br><b>Cadence:</b> it '+cadence+'.';
+  h+='<br><b>Chords that fit:</b> over '+NM[root]+' '+best.type+', '+chords+'.';
+  return h;
+}
+const LL_PARTS=["Verse","Pre-chorus","Chorus","Hook","Bridge","Intro","Outro"];
+const LL_VOICES=[["piano","🎹 Piano"],["keys","🎵 Keys"],["pluck","🎸 Pluck"],["synth","🎛 Synth"],["voice","🎤 Voice"]];
+const LL_DURS=[0.25,0.5,1,1.5,2,3,4];
 function ideaUI(){
   let notes=[],capRAF=null,capturing=false,capSamples=[],capStart=0,rec=null,recChunks=[],url=null,lyrics="",level=load("mjk-fblevel","kid");
-  teardown=()=>{if(capRAF)cancelAnimationFrame(capRAF);if(url)try{URL.revokeObjectURL(url);}catch(e){}stopMic();};
-  function stopCap(){if(!capturing)return;capturing=false;if(capRAF)cancelAnimationFrame(capRAF);capRAF=null;try{if(rec&&rec.state!=="inactive")rec.stop();}catch(e){}
+  let part=load("mjk-ideapart","Verse"),voice=load("mjk-ideavoice","piano"),bpm=96,selIdx=-1,playTimers=[];
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let srec=null;
+  function clearPlay(){playTimers.forEach(clearTimeout);playTimers=[];const box=$("#ilAlign");if(box)box.querySelectorAll(".lanote.playing").forEach(x=>x.classList.remove("playing"));}
+  teardown=()=>{if(capRAF)cancelAnimationFrame(capRAF);clearPlay();try{if(srec)srec.stop();}catch(e){}if(url)try{URL.revokeObjectURL(url);}catch(e){}stopMic();};
+  function startSR(){if(!SR)return;try{srec=new SR();srec.continuous=true;srec.interimResults=true;srec.lang="en-US";srec.onresult=function(e){var txt="";for(var i=0;i<e.results.length;i++)txt+=e.results[i][0].transcript+" ";lyrics=txt.replace(/\s+/g," ").trim();var ta=document.getElementById("ilLyrics");if(ta)ta.value=lyrics;renderAlign();};srec.onerror=function(){};srec.start();}catch(e){srec=null;}}
+  function stopSR(){try{if(srec)srec.stop();}catch(e){}srec=null;}
+  function stopCap(){if(!capturing)return;capturing=false;if(capRAF)cancelAnimationFrame(capRAF);capRAF=null;try{if(rec&&rec.state!=="inactive")rec.stop();}catch(e){}stopSR();
     const segs=phraseSegment(capSamples);let ref=0.4;if(segs.length){const d=segs.map(s=>s.dur).slice().sort((a,b)=>a-b);ref=d[Math.floor(d.length/2)]||0.4;}
-    notes=segs.map(s=>({midi:Math.round(s.midi),beats:quantizeBeat(s.dur/ref)}));draw();}
-  function startCap(){if(capturing)return;capturing=true;capSamples=[];capStart=ac().currentTime;recChunks=[];rec=null;
+    notes=segs.map(s=>({midi:Math.round(s.midi),beats:quantizeBeat(s.dur/ref)}));selIdx=-1;draw();}
+  function startCap(){if(capturing)return;capturing=true;capSamples=[];capStart=ac().currentTime;recChunks=[];rec=null;lyrics="";selIdx=-1;
     try{rec=new MediaRecorder(micStream);rec.ondataavailable=e=>{if(e.data&&e.data.size)recChunks.push(e.data);};rec.onstop=()=>{if(!recChunks.length)return;if(url)try{URL.revokeObjectURL(url);}catch(e){}url=URL.createObjectURL(new Blob(recChunks,{type:(rec&&rec.mimeType)||"audio/webm"}));draw();};rec.start();}catch(e){rec=null;}
-    draw();const buf=new Float32Array(toneAnalyser.fftSize);
+    startSR();draw();const buf=new Float32Array(toneAnalyser.fftSize);
     (function loop(){const now=ac().currentTime;toneAnalyser.getFloatTimeDomainData(buf);const f=autoCorrelate(buf,ac().sampleRate);let midi=null;if(f>=70&&f<=1100)midi=69+12*Math.log2(f/440);capSamples.push({t:now-capStart,midi});const l=$("#ilStatus");if(l&&midi!=null)l.textContent="🎤 "+midiName(midi)+" …";if(now-capStart>=25){stopCap();return;}capRAF=requestAnimationFrame(loop);})();}
+  function nearDur(b){var bi=0,bd=99;LL_DURS.forEach(function(v,i){if(Math.abs(v-b)<bd){bd=Math.abs(v-b);bi=i;}});return bi;}
+  function renderAlign(){const box=$("#ilAlign");if(!box)return;const sylls=lyricSyllables(lyrics),PXQ=30;
+    box.innerHTML=notes.map(function(n,i){var s=sylls[i]||"·",w=Math.max(44,Math.round((n.beats||1)*PXQ)+16);
+      return '<button class="lanote'+(i===selIdx?" sel":"")+'" data-i="'+i+'" style="width:'+w+'px"><span class="la-syl">'+esc(s)+'</span><span class="la-note">'+noteNameOct(n.midi)+'</span><span class="la-dur">'+noteValGlyph(n.beats)+' '+noteValName(n.beats)+'</span></button>';}).join("");
+    box.querySelectorAll(".lanote").forEach(function(b){b.onclick=function(){var i=+b.dataset.i;selIdx=i;unlockAudio();melNote(notes[i].midi,0,Math.max(0.2,(notes[i].beats||1)*(60/bpm)*0.9),voice);renderAlign();};});
+    renderEdit();
+    const cc=$("#ilCount");if(cc){const ns=notes.length,ss=sylls.length;cc.innerHTML="<b>"+ns+"</b> notes · <b>"+ss+"</b> syllables"+(ss&&ns&&ss!==ns?" — "+(ss>ns?"more words than notes (tighten words or hold notes)":"more notes than words (a word is held over a few notes)"):(ns?" — lined up, one per note ✓":""))+" · tap a note to select, then adjust below.";}
+  }
+  function renderEdit(){const e=$("#ilEdit");if(!e)return;if(selIdx<0||selIdx>=notes.length){e.innerHTML="";return;}const n=notes[selIdx];
+    e.innerHTML='<span class="rlab">Note '+(selIdx+1)+' · <b>'+noteNameOct(n.midi)+'</b> · '+noteValName(n.beats)+'</span><button class="rchip sm" data-a="short">– shorter</button><button class="rchip sm" data-a="long">+ longer</button><button class="rchip sm" data-a="up">♯ up</button><button class="rchip sm" data-a="dn">♭ down</button><button class="rchip sm" data-a="hear">▶</button><button class="rchip sm" data-a="del">✕</button>';
+    e.querySelector('[data-a="short"]').onclick=()=>{var i=nearDur(n.beats);if(i>0)n.beats=LL_DURS[i-1];renderAlign();};
+    e.querySelector('[data-a="long"]').onclick=()=>{var i=nearDur(n.beats);if(i<LL_DURS.length-1)n.beats=LL_DURS[i+1];renderAlign();};
+    e.querySelector('[data-a="up"]').onclick=()=>{n.midi=Math.min(96,n.midi+1);unlockAudio();melNote(n.midi,0,0.4,voice);renderAlign();};
+    e.querySelector('[data-a="dn"]').onclick=()=>{n.midi=Math.max(36,n.midi-1);unlockAudio();melNote(n.midi,0,0.4,voice);renderAlign();};
+    e.querySelector('[data-a="hear"]').onclick=()=>{unlockAudio();melNote(n.midi,0,Math.max(0.2,(n.beats||1)*(60/bpm)*0.9),voice);};
+    e.querySelector('[data-a="del"]').onclick=()=>{notes.splice(selIdx,1);selIdx=-1;draw();};
+  }
+  function playMelody(){unlockAudio();clearPlay();const spb=60/bpm;let t=0;notes.forEach(function(n,i){const b=n.beats||1;melNote(n.midi,t,Math.max(0.12,b*spb*0.9),voice);(function(idx,when){playTimers.push(setTimeout(function(){const box=$("#ilAlign");if(!box)return;box.querySelectorAll(".lanote.playing").forEach(x=>x.classList.remove("playing"));const el=box.querySelector('.lanote[data-i="'+idx+'"]');if(el){el.classList.add("playing");el.scrollIntoView({inline:"center",block:"nearest"});}},when*1000));})(i,t);t+=b*spb;});playTimers.push(setTimeout(clearPlay,t*1000+250));}
   function draw(){
-    const fb=notes.length?feedbackText(analyzeMelody(notes),level):"";
+    const a=notes.length?analyzeMelody(notes):null,fb=a?feedbackText(a,level):"",hook=notes.length?hookInsights(notes):"";
     view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎤 Lyric Lab</span></div>
       <div class="panel">
-        <div class="intro">Sing a melody or verse idea — I'll map it, play it back, and give you feedback. Test hooks and verses, save the keepers, or turn one into a section for your Song Project.</div>
-        <div class="actions"><button class="btn" id="sing">${capturing?"■ Stop":"🎤 Sing an idea"}</button>${notes.length&&!capturing?'<button class="btn ghost" id="pmel">▶ Melody</button>':""}${url&&!capturing?'<button class="btn ghost" id="ptake">▶ My take</button>':""}</div>
-        <div class="feedback" id="ilStatus">${capturing?"🎤 Singing… tap Stop when done":(notes.length?notes.length+" notes mapped":"Tap and sing your idea")}</div>
-        ${notes.length&&!capturing?`<div class="rsay" style="font-size:1rem">${notes.map(n=>midiName(n.midi)).join(" · ")}</div>
+        <div class="intro">Sing a part of your song — I’ll map the <b>notes</b>, print your <b>words</b>, line up each <b>syllable under its note</b>, and let you <b>adjust how long each note is held</b> like a step sequencer. Then play it back on piano or voice, with hook-theory feedback.</div>
+        <div class="rrow2"><span class="rlab">This is a…</span><span class="rchips tight" id="ilPart"></span></div>
+        <div class="actions"><button class="btn" id="sing">${capturing?"■ Stop":"🎤 Sing this part"}</button>${notes.length&&!capturing?'<button class="btn ghost" id="pmel">▶ Play melody</button>':""}${url&&!capturing?'<button class="btn ghost" id="ptake">▶ My take</button>':""}</div>
+        <div class="feedback" id="ilStatus">${capturing?"🎤 Singing… tap Stop when done"+(SR?" (listening for words)":""):(notes.length?notes.length+" notes mapped":"Pick the part, then tap and sing")}</div>
+        ${notes.length&&!capturing?`
+        <div class="rrow2"><span class="rlab">Playback sound</span><span class="rchips tight" id="ilVoice"></span></div>
+        <div class="rlab" style="display:block;margin:10px 0 4px">Your part — syllable · note · length (block width = how long it’s held)</div>
+        <div class="ilalign" id="ilAlign"></div>
+        <div class="rchips tight" id="ilEdit" style="margin:7px 0;flex-wrap:wrap;gap:6px;align-items:center"></div>
+        <div class="site-note" id="ilCount" style="margin:4px 0"></div>
+        <div class="rlab" style="display:block;margin:10px 0 4px">Lyrics ${SR?'<span style="opacity:.7">(auto-filled from what you sang — fix any words)</span>':'<span style="opacity:.7">(type your words)</span>'}</div>
+        <textarea id="ilLyrics" placeholder="your words…" style="width:100%;min-height:60px;background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:9px;font:inherit"></textarea>
         <div class="rrow2"><span class="rlab">Feedback</span><span class="rchips tight"><button class="rchip sm${level==="kid"?" sel":""}" id="lvKid">Kid</button><button class="rchip sm${level==="pro"?" sel":""}" id="lvPro">Songwriter</button></span></div>
         <div class="idea-fb">${fb}</div>
-        <div class="rlab" style="display:block;margin:10px 0 4px">Lyrics / words</div>
-        <textarea id="ilLyrics" placeholder="type your words or idea here…" style="width:100%;min-height:68px;background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:9px;font:inherit"></textarea>
-        <div class="rrow2"><span class="rlab">Name</span><input id="ilName" value="Idea" style="background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit;flex:1"></div>
+        <div class="idea-fb" style="margin-top:8px"><b style="color:#d4a548">🪝 Hook analysis</b><br>${hook}</div>
+        <div class="rrow2"><span class="rlab">Name</span><input id="ilName" value="${esc(part)} idea" style="background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit;flex:1"></div>
         <div class="actions"><button class="btn" id="ilSave">⭐ Save idea</button><button class="btn ghost" id="ilToSec">→ Make a section</button></div>
         <div class="bean-note" id="ilMsg"></div>`:""}
         <div class="label" style="margin:16px 0 6px">Saved ideas</div><div id="ilList"></div>
       </div>`;
     $("#eBack").onclick=goHome;
+    const pc=$("#ilPart");LL_PARTS.forEach(function(p){const b=document.createElement("button");b.className="rchip sm"+(p===part?" sel":"");b.textContent=p;b.onclick=function(){part=p;save("mjk-ideapart",p);draw();};pc.appendChild(b);});
     $("#sing").onclick=()=>{if(capturing)stopCap();else startCap();};
-    const pm=$("#pmel");if(pm)pm.onclick=()=>playSeq(notes.map(n=>n.midi),notes.map(n=>n.beats||1),96);
+    const pm=$("#pmel");if(pm)pm.onclick=playMelody;
     const pt=$("#ptake");if(pt)pt.onclick=()=>{if(url)playClip(url);};
+    const vc=$("#ilVoice");if(vc)LL_VOICES.forEach(function(o){const b=document.createElement("button");b.className="rchip sm"+(o[0]===voice?" sel":"");b.textContent=o[1];b.onclick=function(){voice=o[0];save("mjk-ideavoice",voice);unlockAudio();melNote(notes.length?notes[0].midi:60,0,0.5,voice);vc.querySelectorAll(".rchip").forEach(x=>x.classList.remove("sel"));b.classList.add("sel");};vc.appendChild(b);});
     const lk=$("#lvKid"),lp=$("#lvPro");if(lk)lk.onclick=()=>{level="kid";save("mjk-fblevel",level);draw();};if(lp)lp.onclick=()=>{level="pro";save("mjk-fblevel",level);draw();};
-    const ta=$("#ilLyrics");if(ta){ta.value=lyrics;ta.oninput=()=>{lyrics=ta.value;};}
-    const sv=$("#ilSave");if(sv)sv.onclick=()=>{if(!notes.length)return;IDEAS.unshift({name:($("#ilName").value||"Idea").trim(),notes:notes.map(n=>n.midi),beats:notes.map(n=>n.beats||1),lyrics:lyrics||""});if(IDEAS.length>40)IDEAS.pop();save("mjk-ideas",IDEAS);const m=$("#ilMsg");if(m)m.textContent="Saved ✓";draw();};
-    const ts=$("#ilToSec");if(ts)ts.onclick=()=>{if(!notes.length)return;SONGLIB.push({name:($("#ilName").value||"Idea").trim(),notes:notes.map(n=>n.midi),beats:notes.map(n=>n.beats||1)});save("mjk-songs",SONGLIB);const m=$("#ilMsg");if(m)m.innerHTML="Added to My Songs as a section ⭐";};
-    const list=$("#ilList");if(list){if(!IDEAS.length)list.innerHTML='<div class="site-note">No saved ideas yet.</div>';else{list.innerHTML="";IDEAS.forEach((it,i)=>{const row=document.createElement("div");row.className="kb";row.innerHTML=`<span class="kb-ic">🎤</span><div class="kb-main"><div class="kb-t">${esc(it.name)}</div><div class="kb-s">${it.notes.length} notes${it.lyrics?" · has lyrics":""}</div></div>`;const pb=document.createElement("button");pb.className="kb-btn";pb.textContent="▶";pb.onclick=()=>playSeq(it.notes,it.beats,96);const dl=document.createElement("button");dl.className="kb-btn";dl.style.marginLeft="6px";dl.textContent="✕";dl.onclick=()=>{IDEAS.splice(i,1);save("mjk-ideas",IDEAS);draw();};row.appendChild(pb);row.appendChild(dl);list.appendChild(row);});}}
+    const ta=$("#ilLyrics");if(ta){ta.value=lyrics;ta.oninput=()=>{lyrics=ta.value;renderAlign();};}
+    const sv=$("#ilSave");if(sv)sv.onclick=()=>{if(!notes.length)return;IDEAS.unshift({name:($("#ilName").value||(part+" idea")).trim(),part:part,notes:notes.map(n=>n.midi),beats:notes.map(n=>n.beats||1),lyrics:lyrics||"",voice:voice});if(IDEAS.length>40)IDEAS.pop();save("mjk-ideas",IDEAS);const m=$("#ilMsg");if(m)m.textContent="Saved ✓";draw();};
+    const ts=$("#ilToSec");if(ts)ts.onclick=()=>{if(!notes.length)return;SONGLIB.push({name:($("#ilName").value||(part+" idea")).trim(),notes:notes.map(n=>n.midi),beats:notes.map(n=>n.beats||1)});save("mjk-songs",SONGLIB);const m=$("#ilMsg");if(m)m.innerHTML="Added to My Songs as a section ⭐";};
+    if(notes.length&&!capturing)renderAlign();
+    const list=$("#ilList");if(list){if(!IDEAS.length)list.innerHTML='<div class="site-note">No saved ideas yet.</div>';else{list.innerHTML="";IDEAS.forEach((it,i)=>{const row=document.createElement("div");row.className="kb";row.innerHTML=`<span class="kb-ic">🎤</span><div class="kb-main"><div class="kb-t">${esc(it.name)}</div><div class="kb-s">${it.part?esc(it.part)+" · ":""}${it.notes.length} notes${it.lyrics?" · has lyrics":""}</div></div>`;const pb=document.createElement("button");pb.className="kb-btn";pb.textContent="▶";pb.onclick=()=>{unlockAudio();playSeqV(it.notes,it.beats,96,it.voice||"piano");};const dl=document.createElement("button");dl.className="kb-btn";dl.style.marginLeft="6px";dl.textContent="✕";dl.onclick=()=>{IDEAS.splice(i,1);save("mjk-ideas",IDEAS);draw();};row.appendChild(pb);row.appendChild(dl);list.appendChild(row);});}}
   }
   draw();
 }
