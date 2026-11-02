@@ -3798,6 +3798,7 @@ const SND={cat:"Kicks",seed:null,loading:false};
 function sndList(){return load(mk("sndlib","list"),[]);}
 function sndSaveList(l){save(mk("sndlib","list"),l);}
 function sndKey(id){return "snd-"+id;}
+function sndGuessCat(name){var n=(name||"").toLowerCase().replace(/[_\-]+/g," ");var map=[[/kick|\bbd\b|bassdrum|bass[ _-]?drum/,"Kicks"],[/snare|\bsn\b|\bsd\b/,"Snares"],[/clap|\bcp\b|rim/,"Claps & Rims"],[/hat|\bhh\b|cymbal|crash|\bride\b|\boh\b/,"Hi-Hats"],[/perc|shaker|\btom\b|conga|bongo|tamb|cowbell|clave|snap|woodblock|block/,"Percussion"],[/808|\bsub\b|\bbass\b|reese|wobble/,"808 & Bass"],[/bell|\bkey|piano|pluck|rhodes|synth|lead|stab|\barp\b|chord|epiano/,"Keys & Bells"],[/\bpad\b|strings|choir|\bwarm\b/,"Pads"],[/texture|drone|bowl|atmos|ambient|nature|rain|wind|\bnoise\b|field|space/,"Textures"],[/\bfx\b|riser|sweep|uplift|downer|impact|boom|whoosh|transition|\bhit\b/,"FX & Risers"],[/vocal|\bvox\b|\bvoc\b|ad[ _-]?lib|acapella|acappella/,"Vocals"],[/loop|\d{2,3}[ _-]?bpm|groove/,"Loops"]];for(var i=0;i<map.length;i++)if(map[i][0].test(n))return map[i][1];return null;}
 function sndFmtSize(b){return b>=1048576?(b/1048576).toFixed(1)+" MB":Math.max(1,Math.round(b/1024))+" KB";}
 function sndAddBlob(blob,name,cat){return new Promise(function(res){var id="s"+Date.now().toString(36)+Math.floor(Math.random()*46656).toString(36);
   idbPut(sndKey(id),blob).then(function(){var l=sndList();l.push({id:id,name:(name||("Sound "+(l.length+1))).replace(/\.[a-z0-9]+$/i,""),cat:cat||"Uncategorized",type:blob.type||"audio",size:blob.size||0,added:Date.now()});sndSaveList(l);res(id);}).catch(function(){res(null);});});}
@@ -3847,14 +3848,16 @@ function renderSoundLib(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=t
       '<div class="panel">'+
       '<div class="intro">Your whole sound library in one place. Browse by category, tap ▶ to audition, and <b>drag in your own</b> one-shots, downloaded packs, or loops — they’re saved on this device. Built-in starter sounds are always here to get you going.</div>'+
       '<div class="rchips" id="sndCats" style="margin-bottom:10px"></div>'+
-      '<div id="sndDrop" class="snd-drop"><div class="rrow2" style="justify-content:center;gap:10px;flex-wrap:wrap"><button class="btn" id="sndPick">➕ Add sounds to “<span id="sndCatName"></span>”</button><span class="rlab">drag &amp; drop audio here</span></div><input type="file" id="sndFile" accept="audio/*" multiple style="display:none"></div>'+
+      '<div id="sndDrop" class="snd-drop"><div class="rrow2" style="justify-content:center;gap:10px;flex-wrap:wrap"><button class="btn" id="sndPick"></button><span class="rlab">drag &amp; drop audio here</span></div><div class="rrow2" style="justify-content:center;margin-top:8px"><button class="rchip sm" id="sndAuto"></button></div><input type="file" id="sndFile" accept="audio/*" multiple style="display:none"></div>'+
       '<div id="sndStatus" class="site-note" style="margin:6px 0"></div>'+
       '<div id="sndGrid" class="sndgrid"></div>'+
       '<div class="site-note" style="margin-top:10px">'+c.n+' of your sounds saved · '+sndFmtSize(c.tot)+' on this device'+'</div>'+
       '</div>';
     $("#eBack").onclick=goHome;
     var cc=$("#sndCats");SND_CATS.forEach(function(cat){var b=document.createElement("button");var n=c.by[cat]||0;b.className="rchip sm"+(cat===SND.cat?" sel":"");b.textContent=cat+(n?" ("+n+")":"");b.onclick=function(){SND.cat=cat;draw();};cc.appendChild(b);});
-    $("#sndCatName").textContent=SND.cat;
+    var auto=load(mk("sndlib","auto"),1);
+    $("#sndPick").innerHTML=auto?"➕ Add sounds (auto-filed by name)":"➕ Add sounds to “"+esc(SND.cat)+"”";
+    var ab=$("#sndAuto");if(ab){ab.className="rchip sm"+(auto?" sel":"");ab.textContent=(auto?"✨ Auto-file by name: on":"Auto-file by name: off");ab.onclick=function(){save(mk("sndlib","auto"),auto?0:1);draw();};}
     $("#sndPick").onclick=function(){$("#sndFile").click();};
     $("#sndFile").onchange=function(e){handleFiles(e.target.files);e.target.value="";};
     var dz=$("#sndDrop");
@@ -3865,12 +3868,13 @@ function renderSoundLib(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=t
   }
   function handleFiles(files){files=Array.prototype.slice.call(files||[]).filter(function(f){return /^audio\//.test(f.type)||/\.(wav|mp3|m4a|aac|ogg|flac|aiff?)$/i.test(f.name);});
     if(!files.length){setStatus("Those didn’t look like audio files — try WAV, MP3, M4A, OGG…");return;}
-    setStatus("Adding "+files.length+" sound"+(files.length>1?"s":"")+" to “"+SND.cat+"”…");
-    Promise.all(files.map(function(f){return sndAddBlob(f,f.name,SND.cat);})).then(function(){setStatus("✓ Added "+files.length+" to “"+SND.cat+"”.");draw();});}
+    var auto=load(mk("sndlib","auto"),1),by={};
+    setStatus("Adding "+files.length+" sound"+(files.length>1?"s":"")+"…");
+    Promise.all(files.map(function(f){var cat=auto?(sndGuessCat(f.name)||SND.cat):SND.cat;by[cat]=(by[cat]||0)+1;return sndAddBlob(f,f.name,cat);})).then(function(){var parts=Object.keys(by).sort().map(function(k){return by[k]+" → "+k;});setStatus("✓ Added "+files.length+(auto?(" · "+parts.join(", ")):(" to “"+SND.cat+"”"))+".");draw();});}
   function setStatus(t){var s=$("#sndStatus");if(s)s.textContent=t||"";}
   function drawGrid(){var g=$("#sndGrid");if(!g)return;g.innerHTML="";
-    var seed=(SND.seed||[]).filter(function(x){return x.cat===SND.cat;});
-    var mine=sndList().filter(function(x){return x.cat===SND.cat;});
+    var seed=(SND.seed||[]).filter(function(x){return x.cat===SND.cat;}).sort(function(a,b){return a.name.localeCompare(b.name);});
+    var mine=sndList().filter(function(x){return x.cat===SND.cat;}).sort(function(a,b){return a.name.localeCompare(b.name);});
     if(SND.loading&&!SND.seed)g.innerHTML='<div class="site-note">Loading starter sounds…</div>';
     seed.forEach(function(x){g.appendChild(tile(x.name,"Starter",function(){sndPlayBuf(x.buf);},null,null));});
     mine.forEach(function(x){g.appendChild(tile(x.name,sndFmtSize(x.size),function(){sndPlayId(x.id);},function(){renameSnd(x.id);},function(){delSnd(x.id);}));});
