@@ -436,6 +436,9 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .sc.on.vg{opacity:.5}
 .sc.on.vn{opacity:.78}
 .sc.on.va{opacity:1}
+.sndpick{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;display:flex;align-items:flex-end;justify-content:center}
+.sndpick-box{background:var(--card2);border:1px solid var(--line);border-radius:16px 16px 0 0;width:100%;max-width:640px;max-height:82vh;overflow:auto;padding:16px}
+.sndpick-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
 </style>
 
 <canvas id="sky"></canvas>
@@ -2580,7 +2583,7 @@ function renderSampler(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=tr
       '<div class="intro">Your <b>sound library</b>. Tap a pad to play it; tap again to select it, then <b>record</b>, <b>load</b>, or <b>slice</b> your own sound onto it. Program the grid below to build a beat. <span style="opacity:.75">Starter sounds are built-in; everything else is yours.</span></div>'+
       '<div class="sppads">'+padsH+'</div>'+
       '<div class="rrow2" style="margin-top:8px"><span class="rlab">Pad '+(SAMP.sel+1)+'</span><input id="spName" value="'+esc(p?p.name:"")+'" placeholder="name" style="flex:1;background:rgba(255,255,255,.06);color:inherit;border:1px solid var(--line);border-radius:8px;padding:7px"></div>'+
-      '<div class="actions" style="gap:8px;flex-wrap:wrap;margin:8px 0"><button class="btn ghost" id="spRec">🎤 Record</button><label class="btn ghost" style="cursor:pointer">📁 Load<input type="file" id="spLoad" accept="audio/*,.mp3,.wav,.m4a,.aac,.aif,.aiff,.caf,.flac,.ogg,.opus" style="display:none"></label><button class="btn ghost" id="spTuneD">♭ tune</button><button class="btn ghost" id="spTuneU">♯ tune</button><button class="btn ghost" id="spClr">🔇 Clear</button></div>'+
+      '<div class="actions" style="gap:8px;flex-wrap:wrap;margin:8px 0"><button class="btn ghost" id="spRec">🎤 Record</button><button class="btn ghost" id="spLib">🔊 Library</button><label class="btn ghost" style="cursor:pointer">📁 Load<input type="file" id="spLoad" accept="audio/*,.mp3,.wav,.m4a,.aac,.aif,.aiff,.caf,.flac,.ogg,.opus" style="display:none"></label><button class="btn ghost" id="spTuneD">♭ tune</button><button class="btn ghost" id="spTuneU">♯ tune</button><button class="btn ghost" id="spClr">🔇 Clear</button></div>'+
       '<div class="site-note" id="spMsg"></div>'+
       '<div class="rlab" style="display:block;margin:12px 0 4px">✂️ Slice your own track into pads</div>'+
       '<label class="btn ghost" style="cursor:pointer">Choose a track (your audio)<input type="file" id="spSliceFile" accept="audio/*,.mp3,.wav,.m4a,.aac,.aif,.aiff,.caf,.flac,.ogg,.opus" style="display:none"></label>'+
@@ -2596,6 +2599,7 @@ function renderSampler(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=tr
     document.querySelectorAll(".sppad").forEach(b=>{b.onclick=()=>{const i=+b.dataset.i;unlockAudio();sampTrigger(i);sampFlash(i);if(SAMP.sel!==i){SAMP.sel=i;draw();}};});
     const nm=$("#spName");if(nm)nm.onchange=()=>{if(SAMP.pads[SAMP.sel])SAMP.pads[SAMP.sel].name=nm.value.trim()||SAMP.pads[SAMP.sel].name;draw();};
     $("#spRec").onclick=()=>{msg("● recording 1.5s…");ensureMic().then(ok=>{if(!ok){msg("I need mic access to record.");return;}let chunks=[],mr;try{mr=new MediaRecorder(micStream);}catch(e){msg("Recording isn't supported here.");return;}mr.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data);};mr.onstop=()=>{if(!chunks.length){msg("");return;}new Blob(chunks,{type:mr.mimeType||"audio/webm"}).arrayBuffer().then(ab=>ac().decodeAudioData(ab.slice(0))).then(buf=>{SAMP.pads[SAMP.sel]={name:"Rec "+(SAMP.sel+1),buf,rate:1};msg("Recorded onto pad "+(SAMP.sel+1)+".");draw();}).catch(()=>msg("Couldn't process the recording."));};mr.start();setTimeout(()=>{try{mr.stop();}catch(e){}},1500);});};
+    {var _lb=$("#spLib");if(_lb)_lb.onclick=()=>{sndOpenPicker(function(r){SAMP.pads[SAMP.sel]={name:(r.name||"Sound").slice(0,14),buf:r.buf,rate:1};msg((r.name||"Sound")+" → pad "+(SAMP.sel+1)+".");draw();});};}
     const lf=$("#spLoad");if(lf)lf.onchange=()=>{const f=lf.files&&lf.files[0];if(!f)return;msg("decoding "+f.name+"…");f.arrayBuffer().then(ab=>ac().decodeAudioData(ab.slice(0))).then(buf=>{SAMP.pads[SAMP.sel]={name:f.name.replace(/\.[^.]+$/,"").slice(0,12),buf,rate:1};msg("Loaded onto pad "+(SAMP.sel+1)+".");draw();}).catch(()=>msg("Couldn't read that file — try a WAV or MP3."));};
     $("#spTuneD").onclick=()=>{const p=SAMP.pads[SAMP.sel];if(p){p.rate=Math.max(0.25,(p.rate||1)/Math.pow(2,1/12));sampTrigger(SAMP.sel);}};
     $("#spTuneU").onclick=()=>{const p=SAMP.pads[SAMP.sel];if(p){p.rate=Math.min(4,(p.rate||1)*Math.pow(2,1/12));sampTrigger(SAMP.sel);}};
@@ -3935,6 +3939,22 @@ function sndAddBlob(blob,name,cat){return new Promise(function(res){var id="s"+D
   idbPut(sndKey(id),blob).then(function(){var l=sndList();l.push({id:id,name:(name||("Sound "+(l.length+1))).replace(/\.[a-z0-9]+$/i,""),cat:cat||"Uncategorized",type:blob.type||"audio",size:blob.size||0,added:Date.now()});sndSaveList(l);res(id);}).catch(function(){res(null);});});}
 function sndPlayBuf(buf){try{unlockAudio();var a=ac(),s=a.createBufferSource();s.buffer=buf;var g=a.createGain();g.gain.value=0.9;s.connect(g);g.connect(a.destination);s.start();}catch(e){}}
 function sndPlayId(id){idbGet(sndKey(id)).then(function(b){if(!b)return;try{var el=new Audio(URL.createObjectURL(b));el.volume=0.95;el.play().catch(function(){});}catch(e){}});}
+function sndEnsureSeed(){if(SND.seed)return Promise.resolve();if(SND.loading)return new Promise(function(res){var t=setInterval(function(){if(SND.seed){clearInterval(t);res();}},150);});SND.loading=true;return sndMakeSeed().then(function(s){SND.seed=s;SND.loading=false;}).catch(function(){SND.loading=false;});}
+function sndDecodeId(id){return idbGet(sndKey(id)).then(function(b){if(!b)return null;return b.arrayBuffer().then(function(ab){return ac().decodeAudioData(ab.slice(0));}).catch(function(){return null;});});}
+function sndOpenPicker(onPick){var ov=document.createElement("div");ov.className="sndpick";
+  ov.innerHTML='<div class="sndpick-box"><div class="sndpick-top"><b>Pick a sound from your Library</b><button class="rchip sm" id="spkClose">✕</button></div><div class="rchips" id="spkCats" style="margin:8px 0;flex-wrap:wrap"></div><div id="spkStatus" class="site-note"></div><div class="sndgrid" id="spkGrid"></div></div>';
+  document.body.appendChild(ov);var cat="Kicks";
+  function close(){try{document.body.removeChild(ov);}catch(e){}}
+  ov.querySelector("#spkClose").onclick=close;ov.addEventListener("click",function(e){if(e.target===ov)close();});
+  function drawCats(){var c=ov.querySelector("#spkCats");if(!c)return;c.innerHTML="";var by={};sndList().forEach(function(x){by[x.cat]=(by[x.cat]||0)+1;});(SND.seed||[]).forEach(function(x){by[x.cat]=(by[x.cat]||0)+1;});var first=null;SND_CATS.forEach(function(k){var n=by[k]||0;if(!n)return;if(first===null)first=k;var b=document.createElement("button");b.className="rchip sm"+(k===cat?" sel":"");b.textContent=k+" ("+n+")";b.onclick=function(){cat=k;drawCats();drawGrid();};c.appendChild(b);});if(!(by[cat])&&first)cat=first;}
+  function drawGrid(){var g=ov.querySelector("#spkGrid");if(!g)return;g.innerHTML="";var st=ov.querySelector("#spkStatus");
+    var seed=(SND.seed||[]).filter(function(x){return x.cat===cat;}).sort(function(a,b){return a.name.localeCompare(b.name);});
+    var mine=sndList().filter(function(x){return x.cat===cat;}).sort(function(a,b){return a.name.localeCompare(b.name);});
+    seed.forEach(function(x){var d=document.createElement("div");d.className="sndtile";d.innerHTML='<button class="sndplay">▶</button><div class="sndmeta"><div class="sndname"></div><div class="sndtag">Starter</div></div><button class="rchip sm" data-a="use">Use</button>';d.querySelector(".sndname").textContent=x.name;d.querySelector(".sndplay").onclick=function(){sndPlayBuf(x.buf);};d.querySelector('[data-a="use"]').onclick=function(){onPick({name:x.name,buf:x.buf});close();};g.appendChild(d);});
+    mine.forEach(function(x){var d=document.createElement("div");d.className="sndtile";d.innerHTML='<button class="sndplay">▶</button><div class="sndmeta"><div class="sndname"></div><div class="sndtag">'+sndFmtSize(x.size)+'</div></div><button class="rchip sm" data-a="use">Use</button>';d.querySelector(".sndname").textContent=x.name;d.querySelector(".sndplay").onclick=function(){sndPlayId(x.id);};d.querySelector('[data-a="use"]').onclick=function(){if(st)st.textContent="loading "+x.name+"…";sndDecodeId(x.id).then(function(buf){if(buf){onPick({name:x.name,buf:buf});close();}else if(st)st.textContent="couldn’t load that one — try another.";});};g.appendChild(d);});
+    if(!seed.length&&!mine.length)g.innerHTML='<div class="site-note">Nothing in this category yet.</div>';}
+  var st0=ov.querySelector("#spkStatus");if(st0)st0.textContent="loading starter sounds…";
+  sndEnsureSeed().then(function(){if(st0)st0.textContent="";drawCats();drawGrid();});}
 /* ---- self-contained one-shot voices for the built-in starter seed (100% our own) ---- */
 function sndNoise(a,dur){var n=Math.max(1,Math.floor(a.sampleRate*dur)),b=a.createBuffer(1,n,a.sampleRate),d=b.getChannelData(0);for(var i=0;i<n;i++)d[i]=Math.random()*2-1;return b;}
 function sndNz(a,out,t,dur,freq,lvl,hp){var s=a.createBufferSource();s.buffer=sndNoise(a,dur+0.03);var f=a.createBiquadFilter();f.type=hp?"highpass":"bandpass";f.frequency.value=freq;f.Q.value=0.8;var g=a.createGain();g.gain.setValueAtTime(lvl,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);s.connect(f);f.connect(g);g.connect(out);s.start(t);s.stop(t+dur+0.03);}
