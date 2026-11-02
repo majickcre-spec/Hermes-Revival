@@ -439,6 +439,10 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .sndpick{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;display:flex;align-items:flex-end;justify-content:center}
 .sndpick-box{background:var(--card2);border:1px solid var(--line);border-radius:16px 16px 0 0;width:100%;max-width:640px;max-height:82vh;overflow:auto;padding:16px}
 .sndpick-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.scsteps{display:flex;gap:6px;flex-wrap:wrap}
+.scstep{min-width:30px;padding:6px 10px;border-radius:8px;background:var(--card2);border:1px solid var(--line);color:var(--gold);font-weight:800;text-align:center;font-size:.85rem}
+.scstep.h{color:#9bd0ff;border-color:#49617a}
+.scstep.a{color:#e7a6ff;border-color:#7a4e8a}
 </style>
 
 <canvas id="sky"></canvas>
@@ -496,6 +500,27 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 <script>
 /* ===== CONTENT (standard music theory) ===== */
 const TOPICS=[
+{
+ id:"scales", icon:"🎼", title:"Scales & Modes",
+ blurb:"How scales are built from steps — and the seven modes.",
+ intro:"A <b>scale</b> is a set of notes built from a <b>root</b> by a fixed pattern of <b>whole steps (W = 2 semitones)</b> and <b>half steps (H = 1 semitone)</b>. The <b>major scale</b> is W‑W‑H‑W‑W‑W‑H. Start that same pattern on a different degree and you get a <b>mode</b> — the same seven notes, a new home, a new color. Open the <b>Build</b> tab to make any scale and hear it.",
+ cards:[
+  {t:"Half step & whole step",d:"A half step (semitone) is the closest move — C→C♯, one fret. A whole step is two of them — C→D. Every scale is just a pattern of these."},
+  {t:"Major scale (Ionian)",d:"W‑W‑H‑W‑W‑W‑H. From C: C D E F G A B C. Bright and resolved — the ‘do‑re‑mi’ scale."},
+  {t:"Natural minor (Aeolian)",d:"W‑H‑W‑W‑H‑W‑W. From A: A B C D E F G A. Darker. It is the major scale started on its 6th degree."},
+  {t:"Modes come from the major scale",d:"Play C major starting on each note: C=Ionian, D=Dorian, E=Phrygian, F=Lydian, G=Mixolydian, A=Aeolian, B=Locrian. Same seven notes, seven moods."},
+  {t:"Dorian",d:"W‑H‑W‑W‑W‑H‑W. Minor with a raised 6th — jazzy, hopeful‑sad. (D to D on the white keys.)"},
+  {t:"Phrygian",d:"H‑W‑W‑W‑H‑W‑W. Minor with a ♭2 — Spanish / metal darkness. (E to E.)"},
+  {t:"Lydian",d:"W‑W‑W‑H‑W‑W‑H. Major with a ♯4 — dreamy, floating. (F to F.)"},
+  {t:"Mixolydian",d:"W‑W‑H‑W‑W‑H‑W. Major with a ♭7 — bluesy, rock. (G to G.)"},
+  {t:"Locrian",d:"H‑W‑W‑H‑W‑W‑W. Diminished, unstable — rarely a home. (B to B.)"},
+  {t:"Pentatonic",d:"Five notes. Major pentatonic drops the 4th & 7th (C D E G A); minor pentatonic is its relative (A C D E G). No ‘wrong’ notes — the soloing scale."},
+  {t:"Blues scale",d:"Minor pentatonic + the ♭5 ‘blue note’: A C D E♭ E G. That extra note is the grit."},
+  {t:"Relative vs parallel minor",d:"Relative minor shares the key signature (C major ↔ A minor). Parallel minor keeps the root but changes the notes (C major ↔ C minor)."}
+ ],
+ keyboard:{t:"Build a scale by ear",s:"Start on any key and climb W‑W‑H‑W‑W‑W‑H — you’ll land on the octave and it’ll sound major. Then try W‑H‑W‑W‑H‑W‑W for natural minor."},
+ ear:{label:"Scale Ear Training",go:()=>openEar("scales")}
+},
 {
  id:"intervals", icon:"📏", title:"Intervals",
  blurb:"The distance between two notes, counted in half‑steps (semitones).",
@@ -747,11 +772,49 @@ function goHome(){if(teardown){try{teardown();}catch(e){}teardown=null;}view.hid
 /* ===== topic view ===== */
 let T=null,tab="learn";
 function openTopic(id){T=TOPICS.find(x=>x.id===id);tab="learn";home.hidden=true;view.hidden=false;renderTopic();window.scrollTo(0,0);}
+var MODE_DEFS={
+ major:{name:"Major (Ionian)",iv:[0,2,4,5,7,9,11],char:"Bright and resolved — the default “happy” scale, the one behind most pop and folk."},
+ dorian:{name:"Dorian",iv:[0,2,3,5,7,9,10],char:"Minor with a raised 6th — jazzy and hopeful-sad. Think “Scarborough Fair,” a lot of funk and jazz."},
+ phrygian:{name:"Phrygian",iv:[0,1,3,5,7,8,10],char:"Minor with a ♭2 — Spanish, dark, metal. That half-step above the root is the whole mood."},
+ lydian:{name:"Lydian",iv:[0,2,4,6,7,9,11],char:"Major with a ♯4 — dreamy and floating. The classic film-score “wonder” sound."},
+ mixolydian:{name:"Mixolydian",iv:[0,2,4,5,7,9,10],char:"Major with a ♭7 — bluesy, rock, dominant. Country, Grateful Dead, a lot of riffs."},
+ aeolian:{name:"Natural minor (Aeolian)",iv:[0,2,3,5,7,8,10],char:"The natural minor — darker, pop-sad. It is the major scale started on its 6th degree."},
+ locrian:{name:"Locrian",iv:[0,1,3,5,6,8,10],char:"Diminished and unstable — the root chord isn’t even a normal minor. Rarely a home base."},
+ majpent:{name:"Major pentatonic",iv:[0,2,4,7,9],char:"Five notes, no “wrong” ones — bright, open soloing. Drops the 4th and 7th of the major scale."},
+ minpent:{name:"Minor pentatonic",iv:[0,3,5,7,10],char:"The rock and blues soloing scale — the first scale most lead players learn."},
+ blues:{name:"Blues",iv:[0,3,5,6,7,10],char:"Minor pentatonic plus the ♭5 “blue note” — that extra note is the grit and the growl."},
+ harm:{name:"Harmonic minor",iv:[0,2,3,5,7,8,11],char:"Natural minor with a raised 7th — exotic, classical tension; the big W+H leap near the top is the drama."}
+};
+var SCB={root:0,mode:"major"};
+function scaleStepRow(iv){var full=iv.concat([12]),out=[];for(var i=1;i<full.length;i++){var d=full[i]-full[i-1];out.push(d===1?"H":d===2?"W":d===3?"W+H":(d+"st"));}return out;}
+function scaleDegLabel(s){var m={0:"1",1:"♭2",2:"2",3:"♭3",4:"3",5:"4",6:"♭5",7:"5",8:"♭6",9:"6",10:"♭7",11:"7"};return m[s]||("+"+s);}
+function renderScaleBuild(){var body=document.getElementById("tbody");if(!body)return;var m=MODE_DEFS[SCB.mode]||MODE_DEFS.major,iv=m.iv,rootName=NOTE_NAMES[SCB.root],steps=scaleStepRow(iv);
+  var h='<div class="panel">'+
+    '<div class="intro">Pick a <b>root</b> and a <b>scale or mode</b> — see the notes it makes, the step pattern it’s built from, and hear it. Every scale is just a pattern of <b>whole steps (W)</b> and <b>half steps (H)</b> starting from the root.</div>'+
+    '<div class="rrow2"><span class="rlab">Root</span><span class="rchips tight" id="scbRoot"></span></div>'+
+    '<div class="rrow2"><span class="rlab">Scale / mode</span><span class="rchips tight" id="scbMode"></span></div>'+
+    '<div class="intro" style="margin-top:8px"><b>'+esc(m.name)+' on '+esc(rootName)+'</b> — '+esc(m.char)+'</div>'+
+    '<div class="rlab" style="display:block;margin:10px 0 5px">The notes (tap to hear) · scale degrees below</div>'+
+    '<div class="hpstrip" id="scbNotes"></div>'+
+    '<div class="rlab" style="display:block;margin:10px 0 5px">Built from the root by steps (W = whole = 2 frets, H = half = 1 fret)</div>'+
+    '<div class="scsteps" id="scbSteps"></div>'+
+    '<div class="actions" style="margin-top:10px"><button class="btn" id="scbPlay">▶ Play the scale</button><button class="rchip sm" id="scbDown">▶ up &amp; down</button></div>'+
+    '</div>';
+  body.innerHTML=h;
+  var rc=document.getElementById("scbRoot");for(var r=0;r<12;r++){(function(rr){var b=document.createElement("button");b.className="rchip sm"+(rr===SCB.root?" sel":"");b.textContent=NOTE_NAMES[rr];b.onclick=function(){SCB.root=rr;renderScaleBuild();};rc.appendChild(b);})(r);}
+  var mc=document.getElementById("scbMode");Object.keys(MODE_DEFS).forEach(function(k){var b=document.createElement("button");b.className="rchip sm"+(k===SCB.mode?" sel":"");b.textContent=MODE_DEFS[k].name;b.onclick=function(){SCB.mode=k;renderScaleBuild();};mc.appendChild(b);});
+  var ns=document.getElementById("scbNotes");iv.concat([12]).forEach(function(s,i){var pc=(SCB.root+s)%12,c=document.createElement("span");c.className="hpcell"+(i===0?" ding":"");c.style.cursor="pointer";c.innerHTML=NOTE_NAMES[pc]+'<br><span style="font-size:.68rem;opacity:.7">'+(i<iv.length?scaleDegLabel(s):"8")+'</span>';c.onclick=function(){unlockAudio();playTone(midiToFreq(60+SCB.root+s),0,0.5);};ns.appendChild(c);});
+  var ss=document.getElementById("scbSteps");steps.forEach(function(st){var c=document.createElement("span");c.className="scstep"+(st==="H"?" h":(st==="W+H"?" a":""));c.textContent=st;ss.appendChild(c);});
+  function play(down){unlockAudio();var full=iv.concat([12]),seq=full.slice();if(down)seq=seq.concat(full.slice(0,-1).reverse());seq.forEach(function(s,i){playTone(midiToFreq(60+SCB.root+s),i*0.32,0.3);});}
+  document.getElementById("scbPlay").onclick=function(){play(false);};
+  document.getElementById("scbDown").onclick=function(){play(true);};
+}
 function renderTopic(){
   view.innerHTML=`<div class="play-top"><button class="back" id="tBack" aria-label="Back">←</button><span class="ttitle">${T.icon} ${esc(T.title)}</span></div>
     <div class="tabs">
       <button class="tab ${tab==="learn"?"on":""}" data-t="learn">Learn</button>
       ${T.id==="staff"?`<button class="tab ${tab==="clefs"?"on":""}" data-t="clefs">Clefs</button>`:""}
+      ${T.id==="scales"?`<button class="tab ${tab==="build"?"on":""}" data-t="build">Build</button>`:""}
       <button class="tab ${tab==="quiz"?"on":""}" data-t="quiz">Quiz</button>
       <button class="tab ${tab==="match"?"on":""}" data-t="match">Match</button>
     </div>
@@ -765,7 +828,7 @@ function renderTopic(){
   $("#tBack").onclick=goHome;
   {const eb=$("#tEarBtn");if(eb&&T.ear&&T.ear.go)eb.onclick=T.ear.go;}
   view.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{tab=t.dataset.t;renderTopic();});
-  if(tab==="learn")renderLearn();else if(tab==="clefs")renderClefs();else if(tab==="quiz")renderQuiz();else renderMatch();
+  if(tab==="learn")renderLearn();else if(tab==="clefs")renderClefs();else if(tab==="build")renderScaleBuild();else if(tab==="quiz")renderQuiz();else renderMatch();
   beanChip();window.scrollTo(0,0);
 }
 
