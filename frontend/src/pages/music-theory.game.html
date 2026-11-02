@@ -2261,15 +2261,46 @@ function llRhythmInsights(ns,bpm){
 function llMakeVariations(notes){if(!notes.length)return [];var key=llDetectKey(notes.map(function(n){return n.midi;}));return [llVarClean(notes,key),llVarMelodic(notes,key),llVarHook(notes,key)];}
 function llPlayVar(vn,voice,bpm){var s16=(60/(bpm||96))/4;vn.forEach(function(n){melNote(n.midi,n.step*s16,Math.max(0.12,n.len*s16*0.9),voice);});}
 function llVoicePlan(varNotes,srcNotes,bpm,bufs){var s16=(60/(bpm||96))/4,plan=[];varNotes.forEach(function(v){var src=srcNotes[v.srcI];if(!src||src.t0==null||src.t1==null)return;var buf=(bufs&&bufs.length)?(bufs[src.bufI||0]||bufs[0]):null;if(!buf)return;var sm=(src.srcMidi!=null?src.srcMidi:src.midi),semis=v.midi-sm;while(semis>9)semis-=12;while(semis<-9)semis+=12;plan.push({buf:buf,outStart:v.step*s16,outDur:Math.max(0.08,v.len*s16),srcStart:src.t0,srcDur:Math.max(0,src.t1-src.t0),ratio:Math.pow(2,semis/12)});});return plan;}
-function llGrainRender(plan){var bufs=plan.map(function(p){return p.buf;}).filter(Boolean);if(!bufs.length)return Promise.reject();var sr=bufs[0].sampleRate,OAC=window.OfflineAudioContext||window.webkitOfflineAudioContext,total=0;plan.forEach(function(p){if(p.outStart+p.outDur>total)total=p.outStart+p.outDur;});total+=1.3;if(total<0.3)total=0.3;var oc=new OAC(1,Math.ceil(sr*total),sr);
-  var sum=oc.createGain();sum.gain.value=1;var lp=oc.createBiquadFilter();lp.type="lowpass";lp.frequency.value=7200;lp.Q.value=0.4;var pre=oc.createGain();pre.gain.value=1;sum.connect(lp);lp.connect(pre);
-  var dry=oc.createGain();dry.gain.value=0.9;pre.connect(dry);dry.connect(oc.destination);
-  try{var irLen=Math.floor(sr*1.4),ir=oc.createBuffer(1,irLen,sr),dch=ir.getChannelData(0);for(var i=0;i<irLen;i++)dch[i]=(Math.random()*2-1)*Math.pow(1-i/irLen,2.6);var conv=oc.createConvolver();conv.buffer=ir;var wet=oc.createGain();wet.gain.value=0.16;pre.connect(conv);conv.connect(wet);wet.connect(oc.destination);}catch(e){}
-  var grain=0.12,hop=0.03,WIN=10;
-  plan.forEach(function(p){if(!p.buf||p.srcDur<=0.02)return;var ng=oc.createGain();ng.connect(sum);var fin=0.014,fout=0.022,e0=p.outStart,e1=p.outStart+p.outDur;ng.gain.setValueAtTime(0.0001,e0);ng.gain.linearRampToValueAtTime(1,e0+fin);ng.gain.setValueAtTime(1,Math.max(e0+fin,e1-fout));ng.gain.linearRampToValueAtTime(0.0001,e1);
-    var n=Math.max(1,Math.ceil(p.outDur/hop));for(var k=0;k<=n;k++){var ot=p.outStart+k*hop;if(ot>e1)break;var frac=(p.outDur>0)?Math.min(1,(k*hop)/p.outDur):0;var span=Math.max(0,p.srcDur-grain*p.ratio),sp=p.srcStart+frac*span;if(sp<0)sp=0;var mx=p.buf.duration-grain*p.ratio-0.005;if(sp>mx)sp=Math.max(0,mx);var s=oc.createBufferSource();s.buffer=p.buf;s.playbackRate.value=p.ratio;var g=oc.createGain();for(var w=0;w<=WIN;w++){var tt=ot+grain*(w/WIN),win=0.5-0.5*Math.cos(2*Math.PI*(w/WIN));g.gain.setValueAtTime(Math.max(0.0001,win),tt);}s.connect(g);g.connect(ng);try{s.start(ot,sp,grain*p.ratio+0.02);}catch(e){}}});
-  return oc.startRendering();}
-function llPlayBuffer(buf){try{var a=ac();var s=a.createBufferSource();s.buffer=buf;var g=a.createGain();g.gain.value=1.6;s.connect(g);g.connect(pianoMaster(a));s.start();return s;}catch(e){return null;}}
+function llPsola(seg,outLen,ratio,sr){
+  var N=seg.length,out=new Float32Array(outLen);
+  if(N<64||outLen<8){for(var i0=0;i0<outLen;i0++){var s0i=Math.floor(i0/outLen*N);out[i0]=seg[s0i]||0;}return out;}
+  var win=Math.min(2048,N),st=Math.max(0,Math.floor((N-win)/2)),frame=seg.subarray(st,st+win);
+  var f=-1;try{f=autoCorrelate(frame.slice(0),sr);}catch(e){f=-1;}
+  var voiced=(f>60&&f<700),P=voiced?Math.round(sr/f):Math.round(sr/180);
+  P=Math.max(32,Math.min(P,Math.floor(N/2)));var half=P,Pout=Math.max(6,Math.round(P/ratio)),scale=Pout/P;
+  var marks=[];for(var m=half;m<N-half;m+=P)marks.push(m);if(!marks.length)marks=[Math.floor(N/2)];
+  var ti=0;
+  while(ti<outLen){
+    var srcPos=(ti/outLen)*N,mk=marks[0],bd=1e9;
+    for(var j=0;j<marks.length;j++){var dd=Math.abs(marks[j]-srcPos);if(dd<bd){bd=dd;mk=marks[j];}}
+    for(var k=-half;k<=half;k++){var si=mk+k;if(si<0||si>=N)continue;var oi=ti+k;if(oi<0||oi>=outLen)continue;var wv=0.5-0.5*Math.cos(Math.PI*(k+half)/half);out[oi]+=seg[si]*wv*scale;}
+    ti+=Pout;
+  }
+  return out;
+}
+function llGrainRender(plan){
+  var bufs=plan.map(function(p){return p.buf;}).filter(Boolean);if(!bufs.length)return Promise.reject();
+  var sr=bufs[0].sampleRate,total=0;plan.forEach(function(p){if(p.outStart+p.outDur>total)total=p.outStart+p.outDur;});total+=1.3;if(total<0.3)total=0.3;
+  var outLenAll=Math.ceil(sr*total),dry=new Float32Array(outLenAll);
+  plan.forEach(function(p){
+    if(!p.buf||p.srcDur<=0.02)return;var ch=p.buf.getChannelData(0);
+    var s0=Math.max(0,Math.floor(p.srcStart*sr)),s1=Math.min(ch.length,Math.floor((p.srcStart+p.srcDur)*sr));
+    if(s1-s0<64)return;var seg=ch.slice(s0,s1),outN=Math.max(8,Math.floor(p.outDur*sr)),note=llPsola(seg,outN,p.ratio,sr);
+    var fin=Math.min(Math.floor(0.012*sr),Math.floor(outN/4)),fout=Math.min(Math.floor(0.02*sr),Math.floor(outN/4)),off=Math.floor(p.outStart*sr);
+    for(var i=0;i<outN;i++){var a=1;if(fin>0&&i<fin)a=i/fin;else if(fout>0&&i>outN-fout)a=(outN-i)/fout;var oi=off+i;if(oi>=0&&oi<outLenAll)dry[oi]+=note[i]*a;}
+  });
+  var peak=0;for(var i=0;i<outLenAll;i++){var av=Math.abs(dry[i]);if(av>peak)peak=av;}
+  if(peak>0.98){var gg=0.98/peak;for(var i=0;i<outLenAll;i++)dry[i]*=gg;}
+  var OAC=window.OfflineAudioContext||window.webkitOfflineAudioContext,oc=new OAC(1,outLenAll,sr);
+  var db=oc.createBuffer(1,outLenAll,sr);db.getChannelData(0).set(dry);
+  var src=oc.createBufferSource();src.buffer=db;
+  var lp=oc.createBiquadFilter();lp.type="lowpass";lp.frequency.value=7600;lp.Q.value=0.5;
+  var pre=oc.createGain();pre.gain.value=1;src.connect(lp);lp.connect(pre);
+  var dgain=oc.createGain();dgain.gain.value=0.92;pre.connect(dgain);dgain.connect(oc.destination);
+  try{var irLen=Math.floor(sr*1.3),ir=oc.createBuffer(1,irLen,sr),dd2=ir.getChannelData(0);for(var i2=0;i2<irLen;i2++)dd2[i2]=(Math.random()*2-1)*Math.pow(1-i2/irLen,2.8);var conv=oc.createConvolver();conv.buffer=ir;var wet=oc.createGain();wet.gain.value=0.14;pre.connect(conv);conv.connect(wet);wet.connect(oc.destination);}catch(e){}
+  src.start(0);return oc.startRendering();
+}
+function llPlayBuffer(buf){try{var a=ac();var s=a.createBufferSource();s.buffer=buf;var g=a.createGain();g.gain.value=1.8;s.connect(g);g.connect(pianoMaster(a));s.start();return s;}catch(e){return null;}}
 function llMiniRoll(vn,orig){
   if(!vn||!vn.length)return "";
   var all=vn.concat(orig||[]),ms=all.map(function(n){return n.midi;});
