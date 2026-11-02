@@ -457,6 +457,11 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .idea-fb .fbnote{color:var(--teal,#49b6ff);text-decoration:underline;cursor:pointer;font-weight:700}
 .ll-var{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin:7px 0}
 .ll-var-t{font-size:.9rem;line-height:1.5;color:var(--cream)}
+.homesearch{margin:12px 0 2px}
+#homeSearch{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:12px;padding:12px 14px;font:inherit;font-size:1rem}
+#homeSearch::placeholder{color:var(--muted)}
+#homeSearch:focus{outline:none;border-color:var(--gold)}
+#home.searching>:not(.hero):not(.homesearch):not(#searchResults){display:none}
 .lanote{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:6px 7px;cursor:pointer;min-width:42px}
 .lanote .la-syl{font-size:.8rem;font-weight:700;color:var(--cream);max-width:70px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lanote .la-note{font-size:.72rem;color:var(--gold);font-weight:800}
@@ -486,6 +491,9 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
       <p>Music lives in the head, the ear, and the hands. So we learn it three ways: study the ideas, train your ear with our own games, and play it on the keyboard and instruments — all right here.</p>
       <div class="pillars"><span class="pillar">🎯 <b>Know it</b></span><span class="pillar">👂 <b>Hear it</b></span><span class="pillar">🥁 <b>Feel it</b></span><span class="pillar">🎹 <b>Play it</b></span></div>
     </div>
+
+    <div class="homesearch"><input id="homeSearch" type="search" autocomplete="off" placeholder="Search everything — instruments, lessons, tools…"></div>
+    <div id="searchResults" hidden></div>
 
     <div id="pathHero"></div>
 
@@ -754,6 +762,15 @@ function burst(el,count,kind){const fx=$("#fx");if(!el)return;const r=el.getBoun
 
 /* ===== home ===== */
 function topicDone(t){return load(mk(t.id,"quiz"),false)&&load(mk(t.id,"match"),false);}
+function buildSearchIndex(){var idx=[];
+  try{TOPICS.forEach(function(t){idx.push({ic:t.icon,title:t.title,blurb:t.blurb,sec:"Study",go:function(){openTopic(t.id);}});});}catch(e){}
+  try{EAR_CARDS.forEach(function(c){if(c.soon)return;idx.push({ic:c.ic,title:c.title,blurb:c.blurb,sec:"Ear training",go:(c.go||function(){openEar(c.mode);})});});}catch(e){}
+  function add(arr,sec){try{(arr||[]).forEach(function(c){if(c&&c.go)idx.push({ic:c.ic,title:c.title,blurb:c.blurb,sec:sec,go:c.go});});}catch(e){}}
+  add(typeof RHYTHM_CARDS!=="undefined"?RHYTHM_CARDS:null,"Rhythm");
+  add(typeof INSTRUMENT_CARDS!=="undefined"?INSTRUMENT_CARDS:null,"Instrument");
+  add(typeof MAKE_CARDS!=="undefined"?MAKE_CARDS:null,"Make music");
+  add(typeof BIO_CARDS!=="undefined"?BIO_CARDS:null,"Biofeedback");
+  return idx;}
 function renderHome(){
   beanChip();renderQuest();
   const nm=activeName();if(nm){const h=document.querySelector(".hero h2 .nm");if(h)h.textContent=nm;}
@@ -791,6 +808,18 @@ function renderHome(){
       if(now&&activeId()&&!load(mk(k.id,"kb-paid"),false)){addBeans(KB_BEANS);save(mk(k.id,"kb-paid"),true);burst(btn,4,"bean");}
       renderHome();};
     d.appendChild(btn);kb.appendChild(d);});
+    const si=$("#homeSearch"),sr=$("#searchResults");
+    if(si){var IDX=buildSearchIndex();
+      si.oninput=function(){var q=si.value.trim().toLowerCase();
+        if(!q){home.classList.remove("searching");if(sr){sr.hidden=true;sr.innerHTML="";}return;}
+        var terms=q.split(/\s+/);var hits=IDX.filter(function(e){var hay=((e.title||"")+" "+(e.blurb||"")+" "+(e.sec||"")).toLowerCase();return terms.every(function(t){return hay.indexOf(t)>=0;});});
+        home.classList.add("searching");if(!sr)return;sr.hidden=false;
+        sr.innerHTML='<div class="label" style="margin-top:4px">'+(hits.length?(hits.length+" result"+(hits.length>1?"s":"")):"No matches — try another word")+'</div>';
+        var g=document.createElement("div");g.className="grid";
+        hits.forEach(function(e){var b=document.createElement("button");b.className="card";b.innerHTML='<span class="ic">'+(e.ic||"🎵")+'</span><h3>'+esc(e.title)+'</h3><span class="blurb">'+esc(e.blurb)+'</span><span class="done-pill" style="color:var(--muted);border-color:var(--line);background:transparent">'+esc(e.sec)+'</span>';b.onclick=e.go;g.appendChild(b);});
+        sr.appendChild(g);
+      };
+    }
 }
 let teardown=null;
 function goHome(){if(teardown){try{teardown();}catch(e){}teardown=null;}view.hidden=true;home.hidden=false;renderHome();window.scrollTo(0,0);}
@@ -1079,6 +1108,12 @@ function playNote(root){playTone(midiToFreq(root),0,1.5);}
 /* sustained reference tone for singing — selectable instrument voices, HELD loud, gentle release */
 let toneVoice=load("mjk-tonevoice","piano");
 let SONGLIB=load("mjk-songs",[]);
+let PROJECTS=load("mjk-proj2",[]);
+function projSave(){save("mjk-proj2",PROJECTS);}
+function projFind(id){for(var i=0;i<PROJECTS.length;i++)if(PROJECTS[i].id===id)return PROJECTS[i];return null;}
+function projNew(name){var p={id:sid(),name:((name||"My Song").trim()||"My Song"),sections:[],created:Date.now()};PROJECTS.unshift(p);projSave();return p;}
+function projAddSection(id,sec){var p=projFind(id);if(!p)return null;p.sections.push(sec);projSave();return p;}
+function projSeq(p){var n=[],b=[];((p&&p.sections)||[]).forEach(function(s){n=n.concat(s.notes||[]);var bb=(s.beats&&s.beats.length===(s.notes||[]).length)?s.beats:(s.notes||[]).map(function(){return 1;});b=b.concat(bb);});return {notes:n,beats:b};}
 const VOICE_WAVES={};
 function harmWave(a,key,harm){if(VOICE_WAVES[key])return VOICE_WAVES[key];const n=harm.length+1;const re=new Float32Array(n),im=new Float32Array(n);for(let i=0;i<harm.length;i++)im[i+1]=harm[i];return VOICE_WAVES[key]=a.createPeriodicWave(re,im);}
 const VOICES=[
@@ -1347,8 +1382,15 @@ function renderMySongs(){
       <div class="actions"><button class="btn ghost" id="build">🎼 Song Project (final)</button></div></div>
     <div id="mylist"></div>`;
   $("#eBack").onclick=tonePhraseLevels;$("#imp").onclick=renderSongImport;$("#hum").onclick=renderCompose;$("#build").onclick=renderSongBuilder;
-  const el=$("#mylist");
-  if(!SONGLIB.length){el.innerHTML='<div class="site-note">No songs yet — tap “Import a MIDI”. Download a melody MIDI in your browser, then load it here.</div>';return;}
+  const el=$("#mylist");el.innerHTML="";
+  if(PROJECTS.length){const hd=document.createElement("div");hd.className="label";hd.style.margin="4px 0 6px";hd.textContent="🎼 Songs you\u2019re building";el.appendChild(hd);
+    PROJECTS.forEach(function(pr,pi){const row=document.createElement("div");row.className="kb";row.innerHTML='<span class="kb-ic">🎼</span><div class="kb-main"><div class="kb-t">'+esc(pr.name)+'</div><div class="kb-s">'+pr.sections.length+' section'+(pr.sections.length===1?"":"s")+(pr.sections.length?" · "+pr.sections.map(function(s){return esc(s.part||s.name);}).join(" → "):"")+'</div></div>';
+      const pl=document.createElement("button");pl.className="kb-btn";pl.textContent="▶";pl.onclick=function(){unlockAudio();var a=projSeq(pr);if(a.notes.length)playSeqV(a.notes,a.beats,pr.bpm||96,(pr.sections[0]&&pr.sections[0].voice)||"piano");};
+      const mid=document.createElement("button");mid.className="kb-btn";mid.style.marginLeft="6px";mid.textContent="⬇ MIDI";mid.onclick=function(){var a=projSeq(pr);if(a.notes.length)songExportMidi({name:pr.name,notes:a.notes,beats:a.beats});};
+      const del=document.createElement("button");del.className="kb-btn";del.style.marginLeft="6px";del.textContent="✕";del.onclick=function(){if(del.textContent==="✕"){del.textContent="sure?";setTimeout(function(){if(del)del.textContent="✕";},2500);}else{PROJECTS.splice(pi,1);projSave();renderMySongs();}};
+      row.appendChild(pl);row.appendChild(mid);row.appendChild(del);el.appendChild(row);});
+    const hd2=document.createElement("div");hd2.className="label";hd2.style.margin="14px 0 6px";hd2.textContent="⭐ Sections & imports";el.appendChild(hd2);}
+  if(!SONGLIB.length){const sn=document.createElement("div");sn.className="site-note";sn.textContent="No sections yet — sing a part in the Lyric Lab, or import a MIDI.";el.appendChild(sn);return;}
   SONGLIB.forEach((s,i)=>{const row=document.createElement("div");row.className="kb";
     row.innerHTML=`<span class="kb-ic">🎵</span><div class="kb-main"><div class="kb-t">${esc(s.name)}</div><div class="kb-s">${s.notes.length} notes</div></div>`;
     const sing=document.createElement("button");sing.className="kb-btn";sing.textContent="Sing it";sing.onclick=()=>tonePhraseSing(s,"phrase-custom-"+i,renderMySongs);
@@ -2269,7 +2311,8 @@ function ideaUI(){
         <div class="idea-fb" style="margin-top:8px"><b style="color:#d4a548">🪝 Hook analysis</b><br>${hook}</div>
         ${variations.length?`<div class="rlab" style="display:block;margin:14px 0 4px">🎚 Coach’s cleaner options <span style="opacity:.7">— listen &amp; keep any you like; your take stays as-is</span></div><div id="ilVars"></div>`:""}
         <div class="rrow2"><span class="rlab">Name</span><input id="ilName" value="${esc(part)} idea" style="background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit;flex:1"></div>
-        <div class="actions"><button class="btn" id="ilSave">⭐ Save idea</button><button class="btn ghost" id="ilToSec">→ Make a section</button></div>
+        <div class="actions"><button class="btn" id="ilSave">⭐ Save idea</button><button class="btn ghost" id="ilToSong">➕ Add to a song</button><button class="btn ghost" id="ilToSec">→ Make a section</button></div>
+        <div id="ilSongPanel" hidden style="margin-top:8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px"></div>
         <div class="bean-note" id="ilMsg"></div>`:""}
         <div class="label" style="margin:16px 0 6px">Saved ideas</div><div id="ilList"></div>
       </div>`;
@@ -2285,6 +2328,18 @@ function ideaUI(){
     const vbox=$("#ilVars");if(vbox){vbox.innerHTML="";variations.forEach(function(v){const card=document.createElement("div");card.className="ll-var";card.innerHTML='<div class="ll-var-t"><b>'+esc(v.name)+'</b> — '+esc(v.why)+'</div>';const act=document.createElement("div");act.className="rchips tight";act.style.marginTop="6px";const bp=document.createElement("button");bp.className="rchip sm";bp.textContent="▶ Piano";bp.onclick=function(){unlockAudio();llPlayVar(v.notes,voice,bpm);};act.appendChild(bp);const bv=document.createElement("button");bv.className="rchip sm";bv.textContent="🎤 In your voice";if(!takeBuf){bv.disabled=true;bv.style.opacity=".5";}bv.onclick=function(){if(!takeBuf)return;var orig=bv.textContent;bv.textContent="…";bv.disabled=true;llGrainRender(takeBuf,llVoicePlan(v.notes,notes,bpm)).then(function(buf){bv.textContent=orig;bv.disabled=false;llPlayBuffer(buf);}).catch(function(){bv.textContent=orig;bv.disabled=false;});};act.appendChild(bv);const bk=document.createElement("button");bk.className="rchip sm";bk.textContent="⭐ Keep";bk.onclick=function(){IDEAS.unshift({name:((($("#ilName").value||part)+" — "+v.name)).trim(),part:part,notes:v.notes.map(function(n){return n.midi;}),beats:v.notes.map(function(n){return n.len/4;}),lyrics:lyrics||"",voice:voice});if(IDEAS.length>40)IDEAS.pop();save("mjk-ideas",IDEAS);const m=$("#ilMsg");if(m)m.textContent="Kept “"+v.name+"” as a new idea ✓";draw();};act.appendChild(bk);card.appendChild(act);vbox.appendChild(card);});}
     const sv=$("#ilSave");if(sv)sv.onclick=()=>{if(!notes.length)return;IDEAS.unshift({name:($("#ilName").value||(part+" idea")).trim(),part:part,notes:sortedMidi(),beats:sortedBeats(),lyrics:lyrics||"",voice:voice});if(IDEAS.length>40)IDEAS.pop();save("mjk-ideas",IDEAS);const m=$("#ilMsg");if(m)m.textContent="Saved ✓";draw();};
     const ts=$("#ilToSec");if(ts)ts.onclick=()=>{if(!notes.length)return;SONGLIB.push({name:($("#ilName").value||(part+" idea")).trim(),notes:sortedMidi(),beats:sortedBeats()});save("mjk-songs",SONGLIB);const m=$("#ilMsg");if(m)m.innerHTML="Added to My Songs as a section ⭐";};
+    const tsg=$("#ilToSong");if(tsg)tsg.onclick=function(){const p=$("#ilSongPanel");if(!p)return;if(!p.hidden){p.hidden=true;return;}p.hidden=false;drawSongPanel();};
+    function curSection(){return {name:($("#ilName").value||part).trim(),part:part,notes:sortedMidi(),beats:sortedBeats(),lyrics:lyrics||"",voice:voice};}
+    function drawSongPanel(sel){const p=$("#ilSongPanel");if(!p)return;
+      let h='<div class="rlab" style="display:block;margin-bottom:6px">Add this <b>'+esc(part)+'</b> to a song <span style="opacity:.7">— keep adding parts to build it up</span></div>';
+      h+='<div class="rchips tight" id="llSongChips"></div>';
+      h+='<div id="llSongNew" style="margin-top:7px;display:flex;gap:6px;flex-wrap:wrap"><input id="llSongName" placeholder="name a new song…" style="background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit;flex:1;min-width:140px"><button class="rchip sm" id="llSongCreate">＋ Create &amp; add</button></div>';
+      h+='<div class="bean-note" id="llSongMsg" style="margin-top:7px"></div>';
+      p.innerHTML=h;
+      const chips=$("#llSongChips");if(chips){if(!PROJECTS.length)chips.innerHTML='<span class="site-note">No songs yet — name one below to start.</span>';else PROJECTS.forEach(function(pr){const b=document.createElement("button");b.className="rchip sm";b.textContent=pr.name+" ("+pr.sections.length+")";b.onclick=function(){projAddSection(pr.id,curSection());drawSongPanel(pr.id);};chips.appendChild(b);});}
+      const cr=$("#llSongCreate");if(cr)cr.onclick=function(){const nm=($("#llSongName").value||"My Song").trim();const pr=projNew(nm);projAddSection(pr.id,curSection());drawSongPanel(pr.id);};
+      if(sel){const pr=projFind(sel);if(pr){const msg=$("#llSongMsg");if(msg){msg.innerHTML='Added to <b>'+esc(pr.name)+'</b> — it now has '+pr.sections.length+' section'+(pr.sections.length===1?"":"s")+'. ';const pb=document.createElement("button");pb.className="rchip sm";pb.textContent="▶ Play the whole song";pb.onclick=function(){unlockAudio();const a=projSeq(pr);if(a.notes.length)playSeqV(a.notes,a.beats,bpm,voice);};msg.appendChild(pb);}}}
+    }
     if(notes.length&&!capturing)renderRoll();
     const list=$("#ilList");if(list){if(!IDEAS.length)list.innerHTML='<div class="site-note">No saved ideas yet.</div>';else{list.innerHTML="";IDEAS.forEach((it,i)=>{const row=document.createElement("div");row.className="kb";row.innerHTML=`<span class="kb-ic">🎤</span><div class="kb-main"><div class="kb-t">${esc(it.name)}</div><div class="kb-s">${it.part?esc(it.part)+" · ":""}${it.notes.length} notes${it.lyrics?" · has lyrics":""}</div></div>`;const pb=document.createElement("button");pb.className="kb-btn";pb.textContent="▶";pb.onclick=()=>{unlockAudio();playSeqV(it.notes,it.beats,96,it.voice||"piano");};const dl=document.createElement("button");dl.className="kb-btn";dl.style.marginLeft="6px";dl.textContent="✕";dl.onclick=()=>{IDEAS.splice(i,1);save("mjk-ideas",IDEAS);draw();};row.appendChild(pb);row.appendChild(dl);list.appendChild(row);});}}
   }
@@ -3820,7 +3875,7 @@ const MMU_PATH=[
  ]},
  {t:"Songwriting",sub:"Creativity needs a safe nervous system. Soften the inner critic, then write.",steps:[
    {id:"s1",ic:"🏗️",g:"do",t:"Anatomy of a song",blurb:"Structure, the parts, what each section's job is.",go:renderSongwriting},
-   {id:"s2",ic:"✍️",g:"do",t:"Write a hook",blurb:"In the Lyric Lab — speak your words, count syllables, find rhymes, let the coach tighten it.",go:renderLyricLab},
+   {id:"s2",ic:"✍️",g:"do",t:"Write a hook",blurb:"In the Lyric Lab — speak your words, count syllables, find rhymes, let the coach tighten it.",go:renderIdeaLab},
    {id:"s3",ic:"🌬️",g:"ground",t:"Free the critic",blurb:"A short sit. Creativity flows when you feel safe — soften the judge before you create.",go:renderMedSession},
    {id:"s4",ic:"🔬",g:"do",t:"Study a great lyric",blurb:"Analyze a song's story and words — learn from what already works.",go:renderSongAnalysis}
  ]},
@@ -3832,7 +3887,7 @@ const MMU_PATH=[
  ]},
  {t:"Capstone — Your Song",sub:"Everything comes together. Ground deep, then make something that's yours.",steps:[
    {id:"c1",ic:"🕯️",g:"ground",t:"Sit before you start",blurb:"A longer meditation. Arrive fully — then create from a settled place.",go:renderMedSession},
-   {id:"c2",ic:"✍️",g:"do",t:"Write your words",blurb:"Your lyric, in the Lyric Lab. The one you mean.",go:renderLyricLab},
+   {id:"c2",ic:"✍️",g:"do",t:"Write your words",blurb:"Your lyric, in the Lyric Lab. The one you mean.",go:renderIdeaLab},
    {id:"c3",ic:"🎼",g:"do",t:"Build the song",blurb:"Assemble your sections — intro, verses, chorus, bridge — into a finished song.",go:renderSongBuilder},
    {id:"c4",ic:"🌬️",g:"ground",t:"Close the circle",blurb:"One slow breath cycle to land it. You made something — notice how that feels.",go:renderBreathwork}
  ]}
@@ -5289,7 +5344,7 @@ function renderSongwriting(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
    {ic:"🧩",title:"The Parts",blurb:"What each section does: the verse tells the story, the chorus is the big idea, the bridge is the turn.",go:()=>lessonSong("parts")},
    {ic:"🎯",title:"Rhyme & Schemes",blurb:"Rhyme schemes (ABAB, AABB), perfect vs near/slant rhyme, and how rhyme makes a line feel resolved — with a rhyme finder.",go:()=>lessonSong("rhyme")},
    {ic:"📐",title:"Prosody & Syllables",blurb:"How stresses, syllables and line length shape the melody — and why form should serve the meaning.",go:()=>lessonSong("prosody")},
-   {ic:"✍️",title:"Lyric Lab",blurb:"Write your lyrics section by section with a live syllable counter, rhyme-scheme labels, a rhyme finder, and a coach. Saves for your Song Project.",go:()=>renderLyricLab()},
+   {ic:"✍️",title:"Lyric Lab",blurb:"Write your lyrics section by section with a live syllable counter, rhyme-scheme labels, a rhyme finder, and a coach. Saves for your Song Project.",go:()=>renderIdeaLab()},
    {ic:"🎵",title:"Melody Lab",blurb:"Sing a melody (or pick a saved one) and see the notes, their scale degrees, how long each is held, and the chords that fit — like Hooktheory.",go:()=>renderMelodyLab()},
    {ic:"🥁",title:"Rhythm Transcription",blurb:"Rhythm is the hardest thing to hear — so see it while you hear it. Watch each kick and snare light up, slow it down, solo a part, or hide the grid and tap the beat back for a score.",go:()=>renderRhythmTranscribe()}  ];
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">✍️ Songwriting</span></div><div class="panel">'+
@@ -5331,7 +5386,7 @@ function lessonSong(which){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=
   }[which];
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+L.t+'</span></div><div class="panel">'+L.h+
     '<div class="actions" style="margin-top:16px"><button class="btn" id="toLab">✍️ Open the Lyric Lab</button></div></div>';
-  $("#eBack").onclick=renderSongwriting;$("#toLab").onclick=renderLyricLab;
+  $("#eBack").onclick=renderSongwriting;$("#toLab").onclick=renderIdeaLab;
   if(which==="rhyme"){const go=()=>{const w=$("#rfWord").value,out=$("#rfOut");out.innerHTML="finding rhymes for <b>"+esc(w)+"</b>…";rhymeFind(w,(res,err)=>{if(!res){out.innerHTML=err==="offline"?"The rhyme finder needs a connection — it works on the live site. (The in-app preview can block it.)":"Type a word first.";return;}out.innerHTML='<div><b style="color:#5fd38d">Perfect rhymes</b><div style="margin:4px 0 10px">'+(res.perfect.length?res.perfect.map(esc).join(" · "):"none found")+'</div><b style="color:#e9c46a">Near / slant rhymes</b><div style="margin-top:4px">'+(res.near.length?res.near.map(esc).join(" · "):"none found")+'</div></div>';});};$("#rfGo").onclick=go;$("#rfWord").onkeydown=e=>{if(e.key==="Enter")go();};}
 }
 function lyricLoad(){return load(mk("lyrics","draft"),{title:"",sections:[{tag:"Verse 1",text:""},{tag:"Chorus",text:""}]});}
