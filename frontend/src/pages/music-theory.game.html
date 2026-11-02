@@ -471,18 +471,23 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
     <div id="questBox"></div>
 
     <div class="label">Know it — study & memorize</div>
+    <div class="site-note">The ideas behind the music — intervals, keys, the circle of fifths, and how scales & modes are built. Flip-cards, quizzes, and interactive builders.</div>
     <div class="grid" id="topicGrid"></div>
 
     <div class="label">Hear it — train your ear right here</div>
+    <div class="site-note">Ear-training games — hear a note, chord, interval or scale and learn to name it by sound.</div>
     <div class="grid" id="earTrainGrid"></div>
 
     <div class="label">Feel it — rhythm &amp; breath</div>
+    <div class="site-note">Find your timing — watch a groove, tap it back, and play rhythm on the djembe. Settles the body, too.</div>
     <div class="grid" id="rhythmGrid"></div>
 
     <div class="label">Play an instrument</div>
+    <div class="site-note">Guitar, bass, ukulele, piano, drums and handpan — tuners, fretboards, chords, scales, strumming and play-alongs.</div>
     <div class="grid" id="instrumentGrid"></div>
 
     <div class="label">Make your own music</div>
+    <div class="site-note">Write, record, make beats, sample, arrange and mix — build a whole song and export it (audio + MIDI) to your DAW.</div>
     <div class="grid" id="makeGrid"></div>
 
     <div class="label">Measure it — brain &amp; heart <span class="beta">beta</span></div>
@@ -2124,10 +2129,10 @@ function feedbackText(a,level){
 }
 function renderIdeaLab(){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎤 Idea Lab</span></div><div class="panel" style="text-align:center"><div class="q">Turning on your microphone…</div></div>`;
+  view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎤 Lyric Lab</span></div><div class="panel" style="text-align:center"><div class="q">Turning on your microphone…</div></div>`;
   $("#eBack").onclick=goHome;
   ensureMic().then(ok=>{
-    if(!ok){view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎤 Idea Lab</span></div><div class="panel" style="text-align:center"><div style="font-size:2rem">🎤</div><div class="q" style="margin-top:6px">I need the mic to hear your ideas</div><div class="actions"><button class="btn" id="retry">Try again</button><button class="btn ghost" id="back2">Back</button></div></div>`;$("#eBack").onclick=goHome;$("#back2").onclick=goHome;$("#retry").onclick=renderIdeaLab;return;}
+    if(!ok){view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎤 Lyric Lab</span></div><div class="panel" style="text-align:center"><div style="font-size:2rem">🎤</div><div class="q" style="margin-top:6px">I need the mic to hear your ideas</div><div class="actions"><button class="btn" id="retry">Try again</button><button class="btn ghost" id="back2">Back</button></div></div>`;$("#eBack").onclick=goHome;$("#back2").onclick=goHome;$("#retry").onclick=renderIdeaLab;return;}
     ideaUI();
   });
 }
@@ -2143,7 +2148,7 @@ function ideaUI(){
     (function loop(){const now=ac().currentTime;toneAnalyser.getFloatTimeDomainData(buf);const f=autoCorrelate(buf,ac().sampleRate);let midi=null;if(f>=70&&f<=1100)midi=69+12*Math.log2(f/440);capSamples.push({t:now-capStart,midi});const l=$("#ilStatus");if(l&&midi!=null)l.textContent="🎤 "+midiName(midi)+" …";if(now-capStart>=25){stopCap();return;}capRAF=requestAnimationFrame(loop);})();}
   function draw(){
     const fb=notes.length?feedbackText(analyzeMelody(notes),level):"";
-    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎤 Idea Lab</span></div>
+    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎤 Lyric Lab</span></div>
       <div class="panel">
         <div class="intro">Sing a melody or verse idea — I'll map it, play it back, and give you feedback. Test hooks and verses, save the keepers, or turn one into a section for your Song Project.</div>
         <div class="actions"><button class="btn" id="sing">${capturing?"■ Stop":"🎤 Sing an idea"}</button>${notes.length&&!capturing?'<button class="btn ghost" id="pmel">▶ Melody</button>':""}${url&&!capturing?'<button class="btn ghost" id="ptake">▶ My take</button>':""}</div>
@@ -3767,7 +3772,7 @@ const COURSES=[
   outcomes:["Play single notes on the Fretboard or Piano","Form and cleanly hold three open chords (C, G, Em)","Strum a 4-chord progression in time","Keep a daily ground-then-practice habit"],
   expect:"20 minutes a day on a real or on-screen instrument. Two minutes of breath before you practice — always.",
   midterm:"On the Fretboard, form C, G, and Em and lock each shape (hold ~3s until it turns green).",
-  final:"Play a 4-chord progression through twice in time, and record a 30-second clip in the Idea Lab."},
+  final:"Play a 4-chord progression through twice in time, and record a 30-second clip in the Lyric Lab."},
  {code:"RHY 120",title:"Rhythm & Groove",credits:3,
   goal:"Develop the internal clock — the ability to hear, feel, and build rhythm — using the body as the instrument and the breath as the first metronome.",
   outcomes:["See and hear a groove and name where the hits land","Transcribe a beat by ear","Play the three djembe strokes (bass, tone, slap)","Program an original beat"],
@@ -4108,7 +4113,7 @@ function renderSoundLib(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=t
 const MAKE_CARDS=[
  {ic:"🎙️",title:"Sing a Song",blurb:"Sing or hum your own tune — it maps the notes and rhythm onto a staff. Fix them, then save it as a section or a whole song.",go:()=>renderCompose()},
  {ic:"⭐",title:"My Songs",blurb:"Your saved melodies and imported songs — sing them back, or import a MIDI.",go:()=>renderMySongs()},
- {ic:"🎤",title:"Idea Lab",blurb:"Sing a song idea — melody, rhythm, words — and get feedback (kid or songwriter level). Listen back, save keepers, or turn one into a section.",go:()=>renderIdeaLab()},
+ {ic:"🎤",title:"Lyric Lab",blurb:"Sing a song idea — melody, rhythm, words — and get feedback (kid or songwriter level). Listen back, save keepers, or turn one into a section.",go:()=>renderIdeaLab()},
  {ic:"🎛️",title:"Studio",blurb:"Multi-track recorder — lay down each real instrument and voice, stack them in sections, then mix with volume, pan, mute/solo and effects.",go:()=>renderStudio()},
  {ic:"🧩",title:"Beat Maker",blurb:"Build layered beats & motifs on a grid — djembe and handpan together. Play the instrument live into the sequencer, loop, save, and get feedback.",go:()=>renderBeat()},
  {ic:"🎛️",title:"Sampler",blurb:"Your own sound library. Tap pads to play, then record, upload, or slice your own sounds onto them — tune each pad, program a 16-step beat, and save your kits. Starter sounds built in.",go:()=>renderSampler()},
