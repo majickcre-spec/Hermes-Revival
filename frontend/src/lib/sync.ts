@@ -8,7 +8,7 @@
 const API = import.meta.env.VITE_API_URL || '';
 const TOKEN_KEY = 'mjk-auth-token';
 const USER_KEY = 'mjk-auth-user';
-const SYNCED = /^(majick|music-|mjk)/;
+const SYNCED = /^(majick|music-|mjk|hermetic-|heads-|learning-)/;
 const SKIP = new Set([TOKEN_KEY, USER_KEY]);
 
 export function syncEnabled(): boolean { return !!API; }
