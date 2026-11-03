@@ -147,6 +147,7 @@ footer .hz{font-family:"Fraunces",serif;font-style:italic;font-size:17px;color:v
     <button class="play" id="play">&#9654;&nbsp; Play this day</button>
     <div class="note">Headphones recommended &mdash; essential for Binaural (the 7.83 Hz lives between your ears).</div>
   </section>
+  <section class="card" id="mjCard"><div id="mjWrap"></div></section>
 </main>
 
 <footer>
@@ -492,7 +493,7 @@ function syncInt(){$('#int').value=cur();$('#intV').textContent=cur();}
 $('#int').oninput=function(){override=+this.value;$('#intV').textContent=override;if(!liveData){var kp=override/100*9;arch[selDate]={kp:kp,intensity:override,label:efKpLabel(kp)};drawReading();}efApply();};
 $('#vol').value=vol;$('#volV').textContent=vol.toFixed(2);
 $('#vol').oninput=function(){vol=+this.value;$('#volV').textContent=vol.toFixed(2);if(efAudioEl)try{efAudioEl.volume=vol;}catch(e){}efApply();};
-$('#play').onclick=function(){efAudioInit();if(efPlaying){efStopBg();}else if(efRendering){return;}else{try{var p=efAudioEl.play();if(p&&p.catch)p.catch(function(){});}catch(e){}efPlayBg();}};
+$('#play').onclick=function(){try{mjStop();}catch(e){}efAudioInit();if(efPlaying){efStopBg();}else if(efRendering){return;}else{try{var p=efAudioEl.play();if(p&&p.catch)p.catch(function(){});}catch(e){}efPlayBg();}};
 
 /* ===== A message from Gayle — fed from a Google Sheet she controls ===== */
 /* GO LIVE: Gayle makes a Google Sheet with columns:  date | title | message | media
@@ -507,7 +508,71 @@ function gayleToday(){var d=new Date();var y=d.getFullYear(),m=d.getMonth()+1,da
 function gayleMedia(url){if(!url)return '';url=url.trim();var dr=url.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);if(dr)return '<iframe class="gmedia" src="https://drive.google.com/file/d/'+dr[1]+'/preview" allow="autoplay" loading="lazy"></iframe>';var yt=url.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=|youtube\.com\/embed\/)([A-Za-z0-9_-]{6,})/);if(yt)return '<iframe class="gmedia" src="https://www.youtube.com/embed/'+yt[1]+'" allow="autoplay" loading="lazy" frameborder="0"></iframe>';if(/\.(mp3|m4a|wav|aac|ogg)(\?|$)/i.test(url))return '<audio controls preload="none" src="'+esc(url)+'" style="width:100%;margin-top:12px"></audio>';if(/\.(mp4|webm|mov)(\?|$)/i.test(url))return '<video controls preload="none" src="'+esc(url)+'" style="width:100%;margin-top:12px;border-radius:12px"></video>';return '<a class="glink" href="'+esc(url)+'" target="_blank" rel="noopener">▶ Listen / watch</a>';}
 function renderGayle(e,isSample){var body=$('#gayleBody'),note=$('#gayleNote');if(!body)return;var paras=(e.message||'').split(/\n+/).filter(function(s){return s.trim();}).map(function(p){return '<p>'+esc(p)+'</p>';}).join('');body.innerHTML=(e.title?'<h3 class="gtitle">'+esc(e.title)+'</h3>':'')+paras+gayleMedia(e.media);note.innerHTML=isSample?'✨ <i>Sample — this is where your words live, Gayle. Type a short message into a simple Google Sheet whenever you like (add a voice note or video if you want) and it appears right here, beside the day’s live reading. No code, ever.</i>':'';}
 function loadGayle(){if(!GAYLE_SHEET_CSV){renderGayle(GAYLE_SAMPLE,true);return;}try{fetch(GAYLE_SHEET_CSV,{cache:'no-store'}).then(function(r){return r.text();}).then(function(txt){var rows=csvParse(txt),keys=gayleToday(),row=null;for(var i=0;i<rows.length;i++){if(keys.indexOf((rows[i].date||'').trim())>=0){row=rows[i];break;}}if(row&&(row.message||row.title))renderGayle({title:row.title,message:row.message,media:row.media||row.link||row.audio||row.video||''},false);else renderGayle(GAYLE_SAMPLE,true);}).catch(function(){renderGayle(GAYLE_SAMPLE,true);});}catch(e){renderGayle(GAYLE_SAMPLE,true);}}
-efAudioInit();drawFeel();drawGenre();drawCarrier();drawModeNote();drawDays();syncInt();drawReading();loadGayle();updPlayBtn();
+/* ===== MEDITATION JOURNEY MAKER — gliding binaural beat across brainwave states ===== */
+var MJ_BANDS=[{name:"Gamma",hz:30,note:"peak / hyper"},{name:"Beta",hz:18,note:"awake, alert"},{name:"Alpha",hz:10,note:"relaxed focus"},{name:"Theta",hz:6,note:"deep meditation"},{name:"Delta",hz:2.5,note:"deepest rest"}];
+var MJ_PRESETS={descend:{name:"Descend · Go Deep",stages:[{hz:18,min:2},{hz:10,min:4},{hz:6,min:6},{hz:2.5,min:8}]},ascend:{name:"Ascend · Come Up",stages:[{hz:2.5,min:2},{hz:6,min:5},{hz:10,min:5},{hz:16,min:3}]},quick:{name:"Quick Calm",stages:[{hz:14,min:1},{hz:9,min:3},{hz:6,min:4}]}};
+var MJ={stages:MJ_PRESETS.descend.stages.map(function(s){return {hz:s.hz,min:s.min};}),carrierHi:false,vol:load('schumann-jvol',0.5),playing:false,nodes:null,startedAt:0,totalSec:0,raf:null};
+var MJSAVE=load('schumann-journeys',[]);
+function mjTotalSec(){var s=0;MJ.stages.forEach(function(st){s+=Math.max(0.25,st.min)*60;});return s;}
+function mjFmt(s){s=Math.max(0,Math.round(s));var m=Math.floor(s/60),ss=s%60;return m+":"+(ss<10?"0":"")+ss;}
+function mjBandName(hz){var best=MJ_BANDS[0],bd=1e9;MJ_BANDS.forEach(function(b){var d=Math.abs(b.hz-hz);if(d<bd){bd=d;best=b;}});return best.name;}
+function mjBeatAt(el){var t=0;for(var i=0;i<MJ.stages.length;i++){var dur=Math.max(0.25,MJ.stages[i].min)*60,from=(i===0?MJ.stages[0].hz:MJ.stages[i-1].hz),to=MJ.stages[i].hz;if(el<=t+dur){var f=dur>0?(el-t)/dur:1;return from+(to-from)*Math.max(0,Math.min(1,f));}t+=dur;}return MJ.stages.length?MJ.stages[MJ.stages.length-1].hz:10;}
+function mjStopNodes(){if(MJ.nodes){var a=ac(),n=MJ.nodes;try{n.master.gain.cancelScheduledValues(a.currentTime);n.master.gain.setValueAtTime(Math.max(0.0002,n.master.gain.value||0.0002),a.currentTime);n.master.gain.exponentialRampToValueAtTime(0.0002,a.currentTime+0.4);}catch(e){}setTimeout(function(){try{n.oscL.stop();}catch(e){}try{n.oscR.stop();}catch(e){}try{n.sub.stop();}catch(e){}},450);MJ.nodes=null;}if(MJ.raf){cancelAnimationFrame(MJ.raf);MJ.raf=null;}}
+function mjStop(){MJ.playing=false;mjStopNodes();mjSyncUI();}
+function mjPlay(){unlockAudio();try{efStop();}catch(e){}mjStopNodes();var a=ac(),carrier=MJ.carrierHi?285:160,peak=Math.max(0.03,MJ.vol),total=mjTotalSec();
+  var master=a.createGain();master.gain.value=0.0002;master.connect(a.destination);
+  var oscL=a.createOscillator();oscL.type="sine";oscL.frequency.value=carrier;
+  var oscR=a.createOscillator();oscR.type="sine";
+  var gL=a.createGain();gL.gain.value=0.5;var gR=a.createGain();gR.gain.value=0.5;
+  var pL=a.createStereoPanner?a.createStereoPanner():null,pR=a.createStereoPanner?a.createStereoPanner():null;
+  oscL.connect(gL);if(pL){pL.pan.value=-1;gL.connect(pL);pL.connect(master);}else gL.connect(master);
+  oscR.connect(gR);if(pR){pR.pan.value=1;gR.connect(pR);pR.connect(master);}else gR.connect(master);
+  var sub=a.createOscillator();sub.type="sine";sub.frequency.value=carrier/2;var sg=a.createGain();sg.gain.value=0.05;sub.connect(sg);sg.connect(master);
+  var t0=a.currentTime+0.06,t=t0;
+  oscR.frequency.setValueAtTime(carrier+(MJ.stages[0]?MJ.stages[0].hz:10),t0);
+  MJ.stages.forEach(function(st){var dur=Math.max(0.25,st.min)*60;t+=dur;oscR.frequency.linearRampToValueAtTime(carrier+st.hz,t);});
+  master.gain.setValueAtTime(0.0002,t0);master.gain.exponentialRampToValueAtTime(peak,t0+4);master.gain.setValueAtTime(peak,t0+Math.max(5,total-8));master.gain.exponentialRampToValueAtTime(0.0002,t0+total);
+  oscL.start(t0);oscR.start(t0);sub.start(t0);var stopAt=t0+total+0.25;oscL.stop(stopAt);oscR.stop(stopAt);sub.stop(stopAt);
+  oscR.onended=function(){if(MJ.playing){MJ.playing=false;mjSyncUI();}};
+  MJ.nodes={master:master,oscL:oscL,oscR:oscR,sub:sub};MJ.playing=true;MJ.startedAt=a.currentTime;MJ.totalSec=total;
+  mjTick();mjSyncUI();}
+function mjTick(){var a=ac();(function f(){if(!MJ.playing)return;var el=a.currentTime-MJ.startedAt;if(el>=MJ.totalSec){MJ.playing=false;mjSyncUI();return;}var bar=$('#mjBar');if(bar)bar.style.width=Math.min(100,el/MJ.totalSec*100).toFixed(1)+"%";var hz=mjBeatAt(el),lab=$('#mjNow');if(lab)lab.innerHTML="<b>"+mjBandName(hz)+"</b> &middot; "+hz.toFixed(1)+" Hz &middot; "+mjFmt(el)+" / "+mjFmt(MJ.totalSec);MJ.raf=requestAnimationFrame(f);})();}
+function mjSyncUI(){var b=$('#mjPlay');if(b)b.innerHTML=MJ.playing?"&#9632;&nbsp; Stop journey":"&#9654;&nbsp; Begin journey ("+mjFmt(mjTotalSec())+")";if(!MJ.playing){var bar=$('#mjBar');if(bar)bar.style.width="0";var lab=$('#mjNow');if(lab&&!MJ.playing)lab.innerHTML="";}}
+function mjUpdatePlayLabel(){var b=$('#mjPlay');if(b&&!MJ.playing)b.innerHTML="&#9654;&nbsp; Begin journey ("+mjFmt(mjTotalSec())+")";}
+function mjRenderStages(){var w=$('#mjStages');if(!w)return;w.innerHTML="";MJ.stages.forEach(function(st,i){var row=document.createElement('div');row.className='srow';row.style.cssText='gap:6px;align-items:center';
+  var num=document.createElement('span');num.style.cssText='min-width:16px;opacity:.55;font-size:12px';num.textContent=(i+1)+".";
+  var sel=document.createElement('select');sel.style.cssText='flex:1;min-width:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);color:inherit;border-radius:9px;padding:6px 8px;font:inherit';
+  MJ_BANDS.forEach(function(b){var o=document.createElement('option');o.value=b.hz;o.textContent=b.name+" · "+b.hz+" Hz";if(Math.abs(b.hz-st.hz)<0.3)o.selected=true;sel.appendChild(o);});
+  sel.onchange=function(){st.hz=+sel.value;mjUpdatePlayLabel();};
+  var minus=document.createElement('button');minus.className='chip';minus.textContent="−";minus.onclick=function(){st.min=Math.max(0.5,Math.round((st.min-0.5)*2)/2);mjRenderStages();mjUpdatePlayLabel();};
+  var mlab=document.createElement('span');mlab.className='sval';mlab.style.minWidth='52px';mlab.textContent=st.min+" min";
+  var plus=document.createElement('button');plus.className='chip';plus.textContent="＋";plus.onclick=function(){st.min=Math.min(60,st.min+0.5);mjRenderStages();mjUpdatePlayLabel();};
+  var del=document.createElement('button');del.className='chip';del.textContent="✕";del.onclick=function(){MJ.stages.splice(i,1);if(!MJ.stages.length)MJ.stages.push({hz:10,min:3});drawJourney();};
+  row.appendChild(num);row.appendChild(sel);row.appendChild(minus);row.appendChild(mlab);row.appendChild(plus);row.appendChild(del);w.appendChild(row);});}
+function mjRenderList(){var w=$('#mjList');if(!w)return;if(!MJSAVE.length){w.innerHTML="";return;}w.innerHTML='<div class="k" style="margin-bottom:4px">Saved journeys</div>';MJSAVE.forEach(function(j,i){var row=document.createElement('div');row.className='srow';row.style.cssText='gap:6px';var nm=document.createElement('span');nm.style.flex='1';nm.innerHTML="<b>"+esc(j.name)+"</b> <span style=\"opacity:.6\">· "+mjFmt((j.stages||[]).reduce(function(a,s){return a+s.min*60;},0))+"</span>";var op=document.createElement('button');op.className='chip';op.textContent="Open";op.onclick=function(){MJ.stages=j.stages.map(function(s){return{hz:s.hz,min:s.min};});MJ.carrierHi=!!j.carrierHi;MJ.vol=j.vol!=null?j.vol:0.5;drawJourney();};var del=document.createElement('button');del.className='chip';del.textContent="✕";del.onclick=function(){MJSAVE.splice(i,1);save('schumann-journeys',MJSAVE);mjRenderList();};row.appendChild(nm);row.appendChild(op);row.appendChild(del);w.appendChild(row);});}
+function drawJourney(){var w=$('#mjWrap');if(!w)return;var total=mjTotalSec();
+  var h='<div class="lab">🧭 Meditation Journey</div>';
+  h+='<div class="note" style="margin-top:0">A binaural beat that <b>glides between brainwave states</b> — start hyper and sink down to go deep, or rise up to wake. 🎧 Headphones essential.</div>';
+  h+='<div class="chips" id="mjPresets" style="margin:10px 0 6px"></div>';
+  h+='<div id="mjStages" style="margin:6px 0"></div>';
+  h+='<button class="chip" id="mjAdd" style="margin-top:4px">＋ Add stage</button>';
+  h+='<div class="srow" style="margin-top:10px"><span class="k">Carrier</span><span class="chips" id="mjCarrier"></span></div>';
+  h+='<div class="srow"><span class="k">Volume</span><input type="range" id="mjVol" min="0" max="1" step="0.01" value="'+MJ.vol+'"><span class="sval" id="mjVolV">'+Math.round(MJ.vol*100)+'</span></div>';
+  h+='<div class="note" id="mjNow" style="margin:8px 0 4px"></div>';
+  h+='<div style="height:8px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden;margin-bottom:10px"><div id="mjBar" style="height:100%;width:0;background:linear-gradient(90deg,#7ad0ff,#b58cff);transition:width .2s"></div></div>';
+  h+='<button class="play" id="mjPlay">'+(MJ.playing?"&#9632;&nbsp; Stop journey":"&#9654;&nbsp; Begin journey ("+mjFmt(total)+")")+'</button>';
+  h+='<div class="srow" style="margin-top:10px;gap:8px"><span class="k">Save as</span><input id="mjName" placeholder="name…" style="flex:1;min-width:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);color:inherit;border-radius:9px;padding:7px 9px;font:inherit"><button class="chip" id="mjSave">💾</button></div>';
+  h+='<div id="mjList" style="margin-top:8px"></div>';
+  w.innerHTML=h;
+  var pc=$('#mjPresets');Object.keys(MJ_PRESETS).forEach(function(k){var b=document.createElement('button');b.className='chip';b.textContent=MJ_PRESETS[k].name;b.onclick=function(){MJ.stages=MJ_PRESETS[k].stages.map(function(s){return {hz:s.hz,min:s.min};});drawJourney();};pc.appendChild(b);});
+  mjRenderStages();
+  var cc=$('#mjCarrier');[["🌍 Low",false],["✨ High",true]].forEach(function(o){var b=document.createElement('button');b.className='chip'+((MJ.carrierHi===o[1])?' sel':'');b.textContent=o[0];b.onclick=function(){MJ.carrierHi=o[1];drawJourney();};cc.appendChild(b);});
+  $('#mjAdd').onclick=function(){MJ.stages.push({hz:6,min:3});drawJourney();};
+  $('#mjVol').oninput=function(){MJ.vol=+this.value;var v=$('#mjVolV');if(v)v.textContent=Math.round(MJ.vol*100);};
+  $('#mjPlay').onclick=function(){if(MJ.playing)mjStop();else{save('schumann-jvol',MJ.vol);mjPlay();}};
+  $('#mjSave').onclick=function(){var nm=($('#mjName').value||"My journey").trim();MJSAVE.unshift({id:"j"+Date.now().toString(36),name:nm,stages:MJ.stages.map(function(s){return{hz:s.hz,min:s.min};}),carrierHi:MJ.carrierHi,vol:MJ.vol});if(MJSAVE.length>30)MJSAVE.pop();save('schumann-journeys',MJSAVE);drawJourney();};
+  mjRenderList();}
+efAudioInit();drawFeel();drawGenre();drawCarrier();drawModeNote();drawDays();syncInt();drawReading();loadGayle();updPlayBtn();drawJourney();
 try{drPreload();sfsLoad("piano");sfsLoad("bass");}catch(e){}
 try{efFetchHistory(function(a,ok){if(ok&&a&&Object.keys(a).length){arch=a;liveData=true;if(arch[efDayUTC(0)])selDate=efDayUTC(0);}override=null;syncInt();drawDays();drawReading();drawModeNote();drawCarrier();});}catch(e){}
 </script>
