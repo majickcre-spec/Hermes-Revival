@@ -26,13 +26,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Navigation */}
       <nav className="sticky top-0 z-50 w-full border-b border-white/10 bg-background/80 backdrop-blur-md">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/hermes" className="flex items-center gap-3 group">
+          <Link href="/hermes" className="flex items-center gap-3 group min-w-0">
             <img 
               src={logo} 
               alt="Hermetic Seal" 
               className="h-10 w-10 object-contain transition-transform group-hover:rotate-180 duration-700"
             />
-            <span className="font-serif text-xl font-semibold tracking-wider text-primary">
+            <span className="font-serif text-xl font-semibold tracking-wider text-primary truncate">
               THE HERMETIC WAY
             </span>
           </Link>
@@ -59,7 +59,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Mobile: menu */}
-          <div className="flex items-center gap-2 md:hidden">
+          <div className="flex items-center gap-2 md:hidden mr-[84px] shrink-0">
             <button
               className="text-muted-foreground hover:text-primary"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
