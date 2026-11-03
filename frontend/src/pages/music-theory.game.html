@@ -3036,7 +3036,7 @@ function renderProgEar(){earGame({key:"prog",title:"🎹 Progression Ear",intro:
 function renderCadenceEar(){earGame({key:"cadence",title:"🔚 Cadence Ear",intro:"Hear how a phrase ends — the grammar of resolution.",defs:CAD_DEFS,levels:CAD_LEVELS,play:playProg});}
 /* ===== SAMPLER — your own sound library: pads, record/upload/slice, sequence ===== */
 const SAMP={pads:new Array(8).fill(null),grid:Array.from({length:8},()=>new Array(16).fill(false)),
-  bpm:90,sel:0,melodic:false,playing:false,cur:0,nextTime:0,schID:null,raf:null,visQ:[],starterLoaded:false,slices:[],srcName:""};
+  bpm:90,sel:0,melodic:false,playing:false,cur:0,nextTime:0,schID:null,raf:null,visQ:[],starterLoaded:false,slices:[],srcName:"",mute:new Array(8).fill(false)};
 const PAD_KEYS=["1","2","3","4","q","w","e","r"];
 (function(){try{var s=document.createElement("style");s.textContent=
 ".sppads{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0 2px}"+
@@ -3045,7 +3045,7 @@ const PAD_KEYS=["1","2","3","4","q","w","e","r"];
 ".sppad.hit{border-color:var(--violet);background:rgba(52,224,198,.22)}"+
 ".sppad .spn{font-size:.82rem;font-weight:700}.sppad .spk{font-size:.62rem;color:var(--muted)}.sppad.empty .spn{color:var(--muted);font-weight:500;opacity:.6}"+
 "#spGrid{display:flex;flex-direction:column;gap:3px;margin:8px 0}"+
-".sprow{display:flex;align-items:center;gap:5px}.sprow .spl{width:46px;font-size:11px;color:var(--muted);text-align:right;flex:none;overflow:hidden;white-space:nowrap}"+
+".sprow{display:flex;align-items:center;gap:5px}.sprow .spl{width:46px;font-size:11px;color:var(--muted);text-align:right;flex:none;overflow:hidden;white-space:nowrap}"+".spmute{flex:none;width:22px;height:20px;border-radius:5px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--muted);font-size:10px;font-weight:800;cursor:pointer;padding:0}.spmute.on{background:#e2554f;border-color:#e2554f;color:#fff}.sprow.muted .spl,.sprow.muted .spcells{opacity:.32}"+
 ".sprow .spcells{display:flex;gap:2px;flex:1}.spcell{flex:1;height:18px;border-radius:4px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.06);cursor:pointer}"+
 ".spcell.q{background:rgba(255,255,255,.09)}.spcell.on{background:var(--gold)}.spcell.ph{outline:2px solid #fff;outline-offset:-1px}"+
 ".spslice{display:inline-flex;align-items:center;gap:4px;margin:3px 4px 0 0;padding:4px 8px;border-radius:999px;border:1px solid var(--line);background:var(--card2);font-size:.78rem}";
@@ -3069,7 +3069,7 @@ function detectSlices(buf,maxN){const d=buf.getChannelData(0),sr=buf.sampleRate,
   const sl=[];for(let k=0;k<on.length&&sl.length<maxN;k++){const start=on[k],end=Math.min(on[k+1]||d.length,start+Math.floor(sr*1.2)),len=end-start;if(len<sr*0.03)continue;const nb=ac().createBuffer(1,len,sr);nb.getChannelData(0).set(d.subarray(start,end));sl.push({name:"Slice "+(sl.length+1),buf:nb});}
   return sl;}
 function sampStop(){SAMP.playing=false;if(SAMP.schID){clearInterval(SAMP.schID);SAMP.schID=null;}if(SAMP.raf){cancelAnimationFrame(SAMP.raf);SAMP.raf=null;}const b=$("#spPlay");if(b)b.textContent="▶ Play";}
-function sampSchedule(){const a=ac(),ahead=0.12,stepDur=(60/SAMP.bpm)/4;while(SAMP.nextTime<a.currentTime+ahead){const cell=SAMP.cur;for(let p=0;p<8;p++)if(SAMP.grid[p][cell])sampTrigger(p,SAMP.nextTime);SAMP.visQ.push({t:SAMP.nextTime,cell});SAMP.nextTime+=stepDur;SAMP.cur=(SAMP.cur+1)%16;}}
+function sampSchedule(){const a=ac(),ahead=0.12,stepDur=(60/SAMP.bpm)/4;while(SAMP.nextTime<a.currentTime+ahead){const cell=SAMP.cur;for(let p=0;p<8;p++)if(SAMP.grid[p][cell]&&!(SAMP.mute&&SAMP.mute[p]))sampTrigger(p,SAMP.nextTime);SAMP.visQ.push({t:SAMP.nextTime,cell});SAMP.nextTime+=stepDur;SAMP.cur=(SAMP.cur+1)%16;}}
 function sampLight(cell){document.querySelectorAll('#spGrid .spcell').forEach(c=>{c.classList.toggle('ph',+c.dataset.step===cell);});}
 function sampFrame(){const a=ac();while(SAMP.visQ.length&&SAMP.visQ[0].t<=a.currentTime){const e=SAMP.visQ.shift();sampLight(e.cell);}if(SAMP.playing)SAMP.raf=requestAnimationFrame(sampFrame);}
 function sampStart(){unlockAudio();if(SAMP.playing){sampStop();return;}SAMP.playing=true;SAMP.cur=0;SAMP.nextTime=ac().currentTime+0.1;SAMP.visQ=[];const b=$("#spPlay");if(b)b.textContent="⏸ Stop";SAMP.schID=setInterval(sampSchedule,25);sampFrame();}
@@ -3089,7 +3089,7 @@ function renderSampler(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=tr
   function draw(){
     const p=SAMP.pads[SAMP.sel]||null;
     let padsH="";for(let i=0;i<8;i++){const pd=SAMP.pads[i];padsH+='<button class="sppad'+(i===SAMP.sel?" sel":"")+(pd?"":" empty")+'" data-i="'+i+'"><span class="spn">'+esc(pd?pd.name:"empty")+'</span><span class="spk">'+esc((PAD_KEYS[i]||"").toUpperCase())+'</span></button>';}
-    let gridH="";for(let r=0;r<8;r++){const pd=SAMP.pads[r];gridH+='<div class="sprow"><span class="spl">'+esc(pd?pd.name:"—")+'</span><span class="spcells">';for(let st=0;st<16;st++)gridH+='<span class="spcell'+(st%4===0?" q":"")+(SAMP.grid[r][st]?" on":"")+'" data-p="'+r+'" data-step="'+st+'"></span>';gridH+='</span></div>';}
+    let gridH="";for(let r=0;r<8;r++){const pd=SAMP.pads[r];gridH+='<div class="sprow'+(SAMP.mute[r]?" muted":"")+'"><button class="spmute'+(SAMP.mute[r]?" on":"")+'" data-mute="'+r+'" title="Mute this sound">M</button><span class="spl">'+esc(pd?pd.name:"—")+'</span><span class="spcells">';for(let st=0;st<16;st++)gridH+='<span class="spcell'+(st%4===0?" q":"")+(SAMP.grid[r][st]?" on":"")+'" data-p="'+r+'" data-step="'+st+'"></span>';gridH+='</span></div>';}
     let slicesH="";if(SAMP.slices.length){slicesH='<div class="rlab" style="display:block;margin:10px 0 4px">Slices from '+esc(SAMP.srcName)+' <span style="color:var(--muted)">(tap to preview, → to put on the selected pad)</span></div><div>'+SAMP.slices.map((s,i)=>'<span class="spslice"><button class="rchip sm spSlPlay" data-i="'+i+'">▶ '+esc(s.name)+'</button><button class="rchip sm spSlTo" data-i="'+i+'">→ pad</button></span>').join("")+'</div><div class="actions" style="margin-top:8px"><button class="btn ghost" id="spFill">Fill all pads with these slices</button></div>';}
     const kits=sampKits();
     let kitsH=kits.length?('<div class="rlab" style="display:block;margin:12px 0 4px">Your saved kits</div>'+kits.map(k=>'<span class="spslice"><button class="rchip sm spKitLoad" data-n="'+esc(k.name)+'">📂 '+esc(k.name)+'</button><button class="rchip sm spKitDel" data-n="'+esc(k.name)+'">✕</button></span>').join("")):"";
@@ -3123,6 +3123,7 @@ function renderSampler(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=tr
     document.querySelectorAll(".spSlTo").forEach(b=>{b.onclick=()=>{const s=SAMP.slices[+b.dataset.i];if(s){SAMP.pads[SAMP.sel]={name:s.name,buf:s.buf,rate:1};msg(s.name+" → pad "+(SAMP.sel+1)+".");draw();}};});
     {const fb=$("#spFill");if(fb)fb.onclick=()=>{SAMP.slices.slice(0,8).forEach((s,i)=>{SAMP.pads[i]={name:s.name,buf:s.buf,rate:1};});msg("Filled pads with your slices.");draw();};}
     document.querySelectorAll("#spGrid .spcell").forEach(c=>{c.onclick=()=>{const r=+c.dataset.p,st=+c.dataset.step;SAMP.grid[r][st]=!SAMP.grid[r][st];c.classList.toggle("on",SAMP.grid[r][st]);if(SAMP.grid[r][st])sampTrigger(r);};});
+    document.querySelectorAll("#spGrid .spmute").forEach(b=>{b.onclick=(e)=>{e.stopPropagation();const r=+b.dataset.mute;SAMP.mute[r]=!SAMP.mute[r];b.classList.toggle("on",SAMP.mute[r]);const row=b.closest(".sprow");if(row)row.classList.toggle("muted",SAMP.mute[r]);};});
     const bp=$("#spBpm");if(bp)bp.oninput=()=>{SAMP.bpm=+bp.value;$("#spBpmV").textContent=SAMP.bpm+" bpm";};
     $("#spPlay").onclick=sampStart;
     $("#spClrGrid").onclick=()=>{SAMP.grid=Array.from({length:8},()=>new Array(16).fill(false));draw();};
