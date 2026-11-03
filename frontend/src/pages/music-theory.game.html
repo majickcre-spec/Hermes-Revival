@@ -2425,6 +2425,31 @@ function llRhythmInsights(ns,bpm){
   return h;
 }
 function llMakeVariations(notes){if(!notes.length)return [];var key=llDetectKey(notes.map(function(n){return n.midi;}));return [llVarClean(notes,key),llVarMelodic(notes,key),llVarHook(notes,key)];}
+function llSylList(text){var out=[];(text||"").split(/\n/).forEach(function(ln){var t=ln.replace(/\[[^\]]*\]/g," ");if(!t.trim())return;lyricSyllables(t).forEach(function(s){out.push(s);});});return out;}
+function llMelodyFromLyrics(text,bpm,seed){
+  var lines=[];(text||"").split(/\n/).forEach(function(ln){var tt=ln.replace(/\[[^\]]*\]/g," ");if(!tt.trim())return;var sy=lyricSyllables(tt);if(sy.length)lines.push(sy.length);});
+  if(!lines.length)return [];
+  var phrases=[];lines.forEach(function(n){if(n<=9)phrases.push(n);else for(var i=0;i<n;i+=7)phrases.push(Math.min(7,n-i));});
+  var SC=[0,2,4,5,7,9,11],root=60,CAP=96;
+  function pitchOf(si){var oct=Math.floor(si/7),d=((si%7)+7)%7;return root+SC[d]+12*oct;}
+  var s=(((seed||1)>>>0)*2654435761)>>>0;function rng(){s=(s*1664525+1013904223)>>>0;return s/4294967296;}
+  function ri(a,b){return a+Math.floor(rng()*(b-a+1));}
+  var stable=[0,2,4],notes=[],cursor=0,cur=ri(0,4),made=0;
+  for(var p=0;p<phrases.length&&made<CAP;p++){
+    var n=phrases[p],isLast=(p===phrases.length-1),peak=Math.max(1,Math.round(n*(0.45+rng()*0.25)));
+    var lens=[];for(var k=0;k<n;k++)lens.push((k===n-1)?(isLast?6:4):2);
+    for(var k2=1;k2<n-1;k2++){if(lens[k2]===2&&lens[k2+1]===2&&lens[k2-1]!==3&&rng()<0.16){lens[k2]=3;lens[k2+1]=1;}}
+    for(var k3=0;k3<n&&made<CAP;k3++){
+      var last=(k3===n-1);
+      if(last){var tgt=isLast?0:stable[ri(0,stable.length-1)];cur=tgt+7*Math.round((cur-tgt)/7);}
+      else{var dir=(k3<peak)?1:-1,mag=(rng()<0.28)?2:1;if(rng()<0.12)dir=-dir;cur+=dir*mag;}
+      if(cur>9)cur-=7;if(cur<-2)cur+=7;
+      notes.push({midi:pitchOf(cur),step:cursor,len:lens[k3]});cursor+=lens[k3];made++;
+    }
+    cursor=Math.ceil(cursor/4)*4+4;
+  }
+  return notes;
+}
 function llPlayVar(vn,voice,bpm){var s16=(60/(bpm||96))/4;vn.forEach(function(n){melNote(n.midi,n.step*s16,Math.max(0.12,n.len*s16*0.9),voice);});}
 function llVoicePlan(varNotes,srcNotes,bpm,bufs){var s16=(60/(bpm||96))/4,plan=[];varNotes.forEach(function(v){var src=srcNotes[v.srcI];if(!src||src.t0==null||src.t1==null)return;var buf=(bufs&&bufs.length)?(bufs[src.bufI||0]||bufs[0]):null;if(!buf)return;var sm=(src.srcMidi!=null?src.srcMidi:src.midi),semis=v.midi-sm;while(semis>9)semis-=12;while(semis<-9)semis+=12;plan.push({buf:buf,outStart:v.step*s16,outDur:Math.max(0.08,v.len*s16),srcStart:src.t0,srcDur:Math.max(0,src.t1-src.t0),ratio:Math.pow(2,semis/12)});});return plan;}
 function llPsola(seg,outLen,ratio,sr){
@@ -2485,7 +2510,7 @@ const LL_PARTS=["Verse","Pre-chorus","Chorus","Hook","Bridge","Intro","Outro"];
 const LL_VOICES=[["piano","🎹 Piano"],["keys","🎵 Keys"],["pluck","🎸 Pluck"],["synth","🎛 Synth"],["voice","🎤 Voice"]];
 function ideaUI(){
   let notes=[],capRAF=null,capturing=false,capSamples=[],capStart=0,rec=null,recChunks=[],url=null,takeBufs=[],lyricsTyped=false,visTimer=null,lyrics="",level=load("mjk-fblevel","kid");
-  let part=load("mjk-ideapart","Verse"),voice=load("mjk-ideavoice","piano"),bpm=load("mjk-ideabpm",96),selIdx=-1,playTimers=[];
+  let part=load("mjk-ideapart","Verse"),voice=load("mjk-ideavoice","piano"),bpm=load("mjk-ideabpm",96),selIdx=-1,playTimers=[],genSeed=1;
   let clickOn=load("mjk-ideaclick",true),metroTimer=null,capMode="new",capBufI=0,lyricsBase="",_counting=false;
   function setBpm(v){bpm=Math.max(50,Math.min(180,Math.round(v)));save("mjk-ideabpm",bpm);}
   function metroClick(t,accent){try{var a=ac(),o=a.createOscillator(),g=a.createGain();o.type="square";o.frequency.value=accent?1800:1200;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(accent?0.55:0.32,t+0.002);g.gain.exponentialRampToValueAtTime(0.0001,t+0.05);o.connect(g);g.connect(pianoMaster(a));o.start(t);o.stop(t+0.06);}catch(e){}}
@@ -2510,8 +2535,8 @@ function ideaUI(){
   function ordered(){return notes.map(function(n,i){return {n:n,i:i};}).sort(function(a,b){return a.n.step-b.n.step||a.i-b.i;});}
   function span(){var mx=16;notes.forEach(function(n){if(n.step+n.len>mx)mx=n.step+n.len;});return mx+2;}
   function prange(){if(!notes.length)return {lo:59,rows:13};var ms=notes.map(n=>n.midi),lo=Math.min.apply(null,ms)-2,hi=Math.max.apply(null,ms)+2,rows=Math.min(26,Math.max(10,hi-lo+1));return {lo:lo,rows:rows};}
-  function renderRoll(){const box=$("#ilAlign");if(!box)return;if(!notes.length){box.innerHTML='<div class="site-note" style="padding:8px">Sing a part to see it here.</div>';return;}
-    const sp=span(),pr=prange(),top=pr.lo+pr.rows-1,CW=30,RH=28,G=44,W=sp*CW,H=pr.rows*RH,sylls=lyricSyllables(lyrics);
+  function renderRoll(){const box=$("#ilAlign");if(!box)return;if(!notes.length){box.innerHTML='<div class="site-note" style="padding:8px">Write words and tap <b>Make a melody</b>, or sing a part — it shows up here.</div>';return;}
+    const sp=span(),pr=prange(),top=pr.lo+pr.rows-1,CW=30,RH=28,G=44,W=sp*CW,H=pr.rows*RH,sylls=llSylList(lyrics);
     let h='<div class="prroll" style="width:'+(W+G)+'px;height:'+H+'px">';
     for(let r=0;r<pr.rows;r++){const m=top-r,pc=((m%12)+12)%12,isB=[1,3,6,8,10].indexOf(pc)>=0;
       h+='<div class="prrow'+(isB?" blk":"")+'" style="top:'+(r*RH)+'px;width:'+(W+G)+'px;height:'+RH+'px"></div>';
@@ -2550,15 +2575,17 @@ function ideaUI(){
     const variations=(notes.length&&!capturing)?llMakeVariations(notes):[];
     view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎤 Lyric Lab</span></div>
       <div class="panel">
-        <div class="intro">Write your words, then sing the part — I map it to <b>notes on the grid</b> with your <b>words on each note</b>. Tap a note to move or retune it.</div>
+        <div class="intro">Write your words, then tap Make a melody below (or sing it) — I map it to <b>notes on the grid</b> with your <b>words on each note</b>. Tap a note to move or retune it.</div>
         <div class="rrow2"><span class="rlab">This is a…</span><span class="rchips tight" id="ilPart"></span></div>
         <div class="rrow2"><span class="rlab">Tempo</span><span class="rchips tight" id="ilTempo"></span></div>
-        <div class="actions"><button class="btn" id="sing">${capturing?"■ Stop":"🎤 Sing this part"}</button>${notes.length&&!capturing?'<button class="btn" id="singmore">🎤 Sing more</button>':""}${notes.length&&!capturing?'<button class="btn ghost" id="pmel">▶ Play melody</button>':""}${url&&!capturing?'<button class="btn ghost" id="ptake">▶ My take</button>':""}${notes.length&&!capturing?'<button class="btn ghost" id="ilClear">↺ Start over</button>':""}</div>
+        <div class="actions"><button class="btn" id="sing">${capturing?"■ Stop":"🎤 Sing this part"}</button>${notes.length&&!capturing?'<button class="btn" id="singmore">🎤 Sing more</button>':""}${notes.length&&!capturing?'<button class="btn ghost" id="pmel">▶ Play melody</button>':""}${url&&!capturing?'<button class="btn ghost" id="ptake">▶ My take</button>':""}</div>
         <div class="feedback" id="ilStatus">${capturing?((capMode==="more"?"🎤 Singing the next part — it adds on after your first half":"🎤 Singing… tap Stop when done")+(SR?" (listening for words)":"")):(notes.length?notes.length+" notes mapped at "+Math.round(bpm)+" BPM":"Pick the part, set the tempo, then tap and sing")}</div>
         ${capturing?'<div style="text-align:center;margin:8px 0"><span id="ilBeat" class="ilbeat"></span><div class="site-note" style="margin-top:4px">keep the beat 👆</div></div>':""}
         <div class="rlab" style="display:block;margin:10px 0 4px">Words <span style="opacity:.7">— write them first, or sing and I’ll catch them</span></div>
         <div class="rchips tight" id="ilForms" style="margin:2px 0 6px"></div>
         <textarea id="ilLyrics" placeholder="your words…" style="width:100%;min-height:54px;background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:9px;font:inherit"></textarea>
+        <div class="actions" style="margin:8px 0 2px"><button class="btn" id="ilGen">${notes.length?'🎲 Another melody':'🎹 Make a melody'}</button>${(notes.length||(lyrics&&lyrics.trim()))?'<button class="btn ghost" id="ilClear">↺ Clear</button>':""}</div>
+        <div class="site-note" id="ilGenHint" style="margin:0 0 6px">${notes.length?'Not quite? Tap <b>Another melody</b> for a new tune, drag notes to tweak, or ▶ Play melody to hear it.':'Type or paste your words above, then tap <b>Make a melody</b> — I’ll put a singable tune under them, one note per syllable.'}</div>
         <div class="rrow2" style="margin-top:6px"><span class="rlab">Rhymes</span><input id="ilRhymeW" placeholder="a word…" style="flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:6px 9px;font:inherit"><button class="rchip sm" id="ilRhymeGo">Find</button></div>
         <div class="site-note" id="ilRhymeOut" style="margin-top:4px"></div>
         ${notes.length&&!capturing?`
@@ -2579,7 +2606,8 @@ function ideaUI(){
     const pc=$("#ilPart");LL_PARTS.forEach(function(p){const b=document.createElement("button");b.className="rchip sm"+(p===part?" sel":"");b.textContent=p;b.onclick=function(){part=p;save("mjk-ideapart",p);draw();};pc.appendChild(b);});
     $("#sing").onclick=()=>{if(capturing)stopCap();else beginCapture("new");};
     const smb=$("#singmore");if(smb)smb.onclick=()=>{if(!capturing)beginCapture("more");};
-    {const clr=$("#ilClear");if(clr)clr.onclick=function(){if(clr.dataset.sure){notes=[];lyrics="";lyricsTyped=false;takeBufs=[];if(url){try{URL.revokeObjectURL(url);}catch(e){}}url=null;selIdx=-1;draw();}else{clr.dataset.sure="1";clr.textContent="Tap again to clear";setTimeout(function(){if(clr&&clr.dataset){clr.dataset.sure="";clr.textContent="↺ Start over";}},2500);}};}
+    {const clr=$("#ilClear");if(clr)clr.onclick=function(){if(clr.dataset.sure){notes=[];lyrics="";lyricsTyped=false;takeBufs=[];if(url){try{URL.revokeObjectURL(url);}catch(e){}}url=null;selIdx=-1;draw();}else{clr.dataset.sure="1";clr.textContent="Tap again to clear";setTimeout(function(){if(clr&&clr.dataset){clr.dataset.sure="";clr.textContent="↺ Clear";}},2500);}};}
+    {const gb=$("#ilGen");if(gb){gb.onclick=function(){unlockAudio();var _t=(($("#ilLyrics")&&$("#ilLyrics").value)||lyrics||"").trim();var hn=$("#ilGenHint");if(!_t){if(hn)hn.innerHTML="↑ Type or paste some words first, then tap <b>Make a melody</b>.";var _ta=$("#ilLyrics");if(_ta)_ta.focus();return;}lyrics=_t;lyricsTyped=true;genSeed++;var gen=llMelodyFromLyrics(lyrics,bpm,genSeed);if(!gen.length){if(hn)hn.textContent="I couldn’t find syllables in that — try a line of words.";return;}notes=gen;selIdx=-1;draw();var pm2=$("#pmel");if(pm2)pm2.scrollIntoView({block:"center",behavior:"smooth"});};}}
     (function(){const tb=$("#ilTempo");if(!tb)return;function mk(txt,fn,sel){const b=document.createElement("button");b.className="rchip sm"+(sel?" sel":"");b.textContent=txt;if(fn)b.onclick=fn;else b.style.cursor="default";tb.appendChild(b);return b;}
       mk("– slower",function(){setBpm(bpm-4);draw();});mk(Math.round(bpm)+" BPM",null,true);mk("faster +",function(){setBpm(bpm+4);draw();});
       mk("▶ count",function(){unlockAudio();var spb=60/bpm;for(var i=0;i<4;i++)metroClick(ac().currentTime+0.05+i*spb,i===0);});
