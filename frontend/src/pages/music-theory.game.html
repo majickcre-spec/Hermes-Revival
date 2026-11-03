@@ -4813,7 +4813,7 @@ const STRING_INSTR={
 const CHORDS={
  guitar:{C:[-1,3,2,0,1,0],G:[3,2,0,0,0,3],D:[-1,-1,0,2,3,2],A:[-1,0,2,2,2,0],E:[0,2,2,1,0,0],
    Am:[-1,0,2,2,1,0],Em:[0,2,2,0,0,0],Dm:[-1,-1,0,2,3,1],F:[1,3,3,2,1,1],Bm:[-1,2,4,4,3,2],
-   G7:[3,2,0,0,0,1],C7:[-1,3,2,3,1,0],D7:[-1,-1,0,2,1,2]},
+   G7:[3,2,0,0,0,1],C7:[-1,3,2,3,1,0],D7:[-1,-1,0,2,1,2],Fmaj7:[-1,-1,3,2,1,0],Bm7:[-1,2,0,2,0,2]},
  ukulele:{C:[0,0,0,3],F:[2,0,1,0],G:[0,2,3,2],Am:[2,0,0,0],Dm:[2,2,1,0],Em:[0,4,3,2],
    A:[2,1,0,0],D:[2,2,2,0],E:[4,4,4,2],Bm:[4,2,2,2],G7:[0,2,1,2],C7:[0,0,0,1],D7:[2,2,2,3]}
 };
@@ -4822,7 +4822,7 @@ const HARD={guitar:{F:1,Bm:1,E:0},ukulele:{E:1,Bm:1}};
 const FINGERS={
  guitar:{C:[0,3,2,0,1,0],G:[2,1,0,0,0,3],D:[0,0,0,1,3,2],A:[0,0,1,2,3,0],E:[0,2,3,1,0,0],
    Am:[0,0,2,3,1,0],Em:[0,2,3,0,0,0],Dm:[0,0,0,2,3,1],F:[1,3,4,2,1,1],Bm:[0,1,3,4,2,1],
-   G7:[3,2,0,0,0,1],C7:[0,3,2,4,1,0],D7:[0,0,0,2,1,3]},
+   G7:[3,2,0,0,0,1],C7:[0,3,2,4,1,0],D7:[0,0,0,2,1,3],Fmaj7:[0,0,3,2,1,0],Bm7:[0,1,0,2,0,3]},
  ukulele:{C:[0,0,0,3],F:[2,0,1,0],G:[0,1,3,2],Am:[2,0,0,0],Dm:[2,3,1,0],Em:[0,3,2,1],
    A:[2,1,0,0],D:[1,2,3,0],E:[2,3,4,1],Bm:[3,1,1,1],G7:[0,2,1,3],C7:[0,0,0,1],D7:[1,1,1,3]}
 };
@@ -4844,8 +4844,8 @@ function pluck(midi,time,dur,peak){sfLoadInst("guitar");if(sfInstReady("guitar")
   const g=a.createGain();g.gain.setValueAtTime(0.0001,time);g.gain.exponentialRampToValueAtTime(peak||0.22,time+0.005);g.gain.exponentialRampToValueAtTime(0.0001,time+dur);
   o.connect(lp);lp.connect(g);g.connect(out);o.start(time);o.stop(time+dur+0.05);}
 function strum(inst,frets,time,down){const notes=chordNotes(inst,frets),order=down?notes:notes.slice().reverse();order.forEach((m,i)=>pluck(m,time+i*0.03,1.5,0.24));}
-function chordDiagram(inst,frets,name){const NS="http://www.w3.org/2000/svg",nS=STRING_INSTR[inst].strings.length,nF=5,x0=26,y0=30,dx=28,dy=28,W=x0+(nS-1)*dx+18,H=y0+nF*dy+10;
-  const fingers=(name&&FINGERS[inst]&&FINGERS[inst][name])||null;
+function chordDiagram(inst,frets,name,fgArg){const NS="http://www.w3.org/2000/svg",nS=STRING_INSTR[inst].strings.length,nF=5,x0=26,y0=30,dx=28,dy=28,W=x0+(nS-1)*dx+18,H=y0+nF*dy+10;
+  const fingers=fgArg||((name&&FINGERS[inst]&&FINGERS[inst][name])||null);
   const svg=document.createElementNS(NS,"svg");svg.setAttribute("viewBox","0 0 "+W+" "+H);svg.setAttribute("width",W);
   const mk=(t,a)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
   for(let r=0;r<=nF;r++){const y=y0+r*dy;svg.appendChild(mk("line",{x1:x0,x2:x0+(nS-1)*dx,y1:y,y2:y,stroke:r===0?"#e8e4d9":"rgba(255,255,255,.28)","stroke-width":r===0?3.5:1.1}));
@@ -5211,6 +5211,7 @@ function renderStrings(inst){try{sfLoadInst("guitar");}catch(e){}
     {t:"Strumming",ic:"👋",b:"Strum patterns for different song styles, play-along, and call-and-response that listens and grades your timing.",go:()=>renderStrumming(inst)},
     {t:"Bring a Song",ic:"🎼",b:"Paste a chord sheet, snap a photo of one, or build a progression — then play along with loop, tempo and transpose.",go:()=>renderLearnSong()}];
   if(inst==="guitar"||inst==="ukulele")cards.unshift({t:(inst==="guitar"?"Guitar":"Ukulele")+" Method",ic:"📘",b:"A step-by-step beginner course — read music and play it, one string at a time. Lessons unlock as you go.",go:()=>renderMethod(inst)});
+  if(inst==="guitar")cards.splice(2,0,{t:"Tricky Chords",ic:"💪",b:"Stuck on F or Bm? Easy versions, a step-by-step barre build-up, and fixes for buzzing and muting.",go:()=>strBarre(inst)});
   const g=$("#strGrid");cards.forEach(c=>{const b=document.createElement("button");b.className="card";b.innerHTML=`<span class="ic">${c.ic}</span><h3>${c.t}</h3><span class="blurb">${c.b}</span>`;b.onclick=c.go;g.appendChild(b);});
 }
 function strChords(inst){
@@ -5233,6 +5234,52 @@ function strChords(inst){
       const mark=document.createElement("button");mark.className="rchip sm"+(done?" sel":"");mark.textContent=done?"✓ learned":"I can play it";
       mark.onclick=()=>{const L=strLearned(inst),i=L.indexOf(name);if(i>=0){L.splice(i,1);}else{L.push(name);if(activeId()&&!load(mk("str",inst+"-chord-"+name+"-paid"),false)){addBeans(5);save(mk("str",inst+"-chord-"+name+"-paid"),true);beanChip();}}save(mk("str",inst+"-learned"),L);draw();};
       row.appendChild(hear);row.appendChild(mark);card.appendChild(row);cg.appendChild(card);});
+  }
+  draw();
+}
+const BARRE_HELP={
+ F:{label:"F major",steps:[
+   {name:"Fmaj7",fr:[-1,-1,3,2,1,0],fg:[0,0,3,2,1,0],tip:"The easy F — no barre at all. It subs for F in loads of songs."},
+   {name:"Mini F",fr:[-1,-1,3,2,1,1],fg:[0,0,3,2,1,1],tip:"Now a tiny barre: your index lays flat across just the top two strings."},
+   {name:"Full F",fr:[1,3,3,2,1,1],fg:[1,3,4,2,1,1],tip:"The goal — index barres all six strings at fret 1."}
+ ]},
+ Bm:{label:"B minor",steps:[
+   {name:"Bm7",fr:[-1,2,0,2,0,2],fg:[0,1,0,2,0,3],tip:"Easy Bm — open strings ring, no barre needed."},
+   {name:"Mini Bm",fr:[-1,-1,4,4,3,2],fg:[0,0,3,4,2,1],tip:"Top four strings only — no full barre yet."},
+   {name:"Full Bm",fr:[-1,2,4,4,3,2],fg:[0,1,3,4,2,1],tip:"Index barres strings 1–5 at fret 2."}
+ ]}
+};
+var BARRE_TIPS=[
+ "Press just <b>behind</b> the fret, not on top of it — you need far less force than you think.",
+ "Roll your index onto its <b>bony outer edge</b> so the strings sit beside your knuckle, not in the soft crease.",
+ "<b>Thumb behind the neck</b>, roughly under your middle finger — not wrapped over the top. That lets the barre press straight down.",
+ "Drop your <b>wrist forward</b> so your fingertips come down more vertically.",
+ "Buzzing? Move the barre <b>closer to the fret</b>, and check your other fingers aren’t leaning on the open strings.",
+ "Too hard at fret 1? Play the shape <b>up at fret 5–7</b> first (the frets are closer), get it ringing, then slide it down.",
+ "Build strength in <b>short bursts</b> — 30 seconds on, rest, repeat. Barre strength shows up in a week or two of daily reps."
+];
+function strBarre(inst){
+  if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){};
+  var sel="F";
+  function draw(){
+    var B=BARRE_HELP[sel];
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">💪 Tricky Chords</span></div>'+
+      '<div class="panel"><div class="intro">Barre chords are the big wall. Climb the ladder: start on the <b>easy version</b>, grow into the <b>mini barre</b>, then the <b>full</b> chord. Use the easy one in real songs today — it still sounds right.</div>'+
+      '<div class="rrow2"><span class="rlab">Chord</span><span class="rchips tight" id="bChips"></span></div>'+
+      '<div id="bLegend"></div><div class="chordgrid" id="bStages"></div>'+
+      '<div class="rlab" style="display:block;margin:14px 0 6px">Build it up — hold the full shape</div>'+
+      '<div class="idea-fb"><div style="margin-bottom:8px">Fret the <b>full '+B.label+'</b>, then press and <b>hold</b> for 3 seconds to lock it into muscle memory.</div><div style="background:rgba(255,255,255,.08);border-radius:8px;height:10px;overflow:hidden"><div id="bBar" style="height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--teal))"></div></div><div class="actions" style="margin-top:8px"><button class="btn" id="bHold">⏱ Hold 3s</button><button class="btn ghost" id="bHear">▶ Hear it</button></div><div class="bean-note" id="bMsg"></div></div>'+
+      '<div class="rlab" style="display:block;margin:14px 0 6px">When it buzzes or mutes — the fixes</div>'+
+      BARRE_TIPS.map(function(t){return '<div class="idea-fb" style="margin:6px 0">'+t+'</div>';}).join("")+
+      '</div>';
+    $("#eBack").onclick=function(){renderStrings(inst);};
+    var bc=$("#bChips");Object.keys(BARRE_HELP).forEach(function(k){var b=document.createElement("button");b.className="rchip sm"+(k===sel?" sel":"");b.textContent=BARRE_HELP[k].label;b.onclick=function(){sel=k;draw();};bc.appendChild(b);});
+    var lg=$("#bLegend");if(lg)lg.appendChild(fingerLegend());
+    var sg=$("#bStages");B.steps.forEach(function(st,i){var card=document.createElement("div");card.className="chordcard";var h=document.createElement("h4");h.innerHTML=(i+1)+". "+esc(st.name);card.appendChild(h);card.appendChild(chordDiagram(inst,st.fr,st.name,st.fg));var tip=document.createElement("div");tip.className="site-note";tip.style.margin="4px 0";tip.innerHTML=st.tip;card.appendChild(tip);var hear=document.createElement("button");hear.className="rchip sm";hear.textContent="▶ hear";hear.onclick=function(){unlockAudio();strum(inst,st.fr,ac().currentTime+0.02,true);};card.appendChild(hear);sg.appendChild(card);});
+    var full=B.steps[B.steps.length-1],hb=$("#bHold"),bar=$("#bBar"),msg=$("#bMsg"),raf=null,t0=0;
+    function stop(){if(raf)cancelAnimationFrame(raf);raf=null;if(bar)bar.style.width="0";}
+    if(hb){var hold=function(e){if(e&&e.preventDefault)e.preventDefault();t0=performance.now();(function loop(){var held=(performance.now()-t0)/1000;if(bar)bar.style.width=Math.min(100,held/3*100)+"%";if(held>=3){stop();unlockAudio();strum(inst,full.fr,ac().currentTime+0.02,true);if(msg)msg.textContent="🔒 Locked in — nice. Do that a few times a day.";if(activeId()&&!load(mk("str",inst+"-barre-"+sel),false)){save(mk("str",inst+"-barre-"+sel),true);addBeans(6);beanChip();}return;}raf=requestAnimationFrame(loop);})();};hb.addEventListener("pointerdown",hold);hb.addEventListener("pointerup",stop);hb.addEventListener("pointerleave",stop);}
+    var he=$("#bHear");if(he)he.onclick=function(){unlockAudio();strum(inst,full.fr,ac().currentTime+0.02,true);};
   }
   draw();
 }
