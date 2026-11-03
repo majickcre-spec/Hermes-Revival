@@ -15,7 +15,7 @@
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-html,body{margin:0;overflow-x:hidden;overscroll-behavior:none}
+html,body{margin:0;overflow-x:hidden;overflow-x:clip;overscroll-behavior:none;width:100%}
 .hp-field,.dpad,.pad{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 body{background:
     radial-gradient(900px 520px at 50% -10%, rgba(52,224,198,.14), transparent 62%),
@@ -23,7 +23,7 @@ body{background:
     radial-gradient(680px 420px at 6% 18%, rgba(52,224,198,.08), transparent 60%),
     var(--bg);
   color:var(--cream);font-family:"Hanken Grotesk",system-ui,-apple-system,sans-serif;
-  font-weight:600;line-height:1.5;min-height:100%;position:relative;overflow-x:hidden}
+  font-weight:600;line-height:1.5;min-height:100%;position:relative;overflow-x:hidden;overflow-x:clip;max-width:100%}
 #sky{position:fixed;inset:0;z-index:0;pointer-events:none}
 #fx{position:fixed;inset:0;z-index:40;pointer-events:none;overflow:hidden}
 .wrap{position:relative;z-index:1;max-width:var(--maxw);margin:0 auto;
@@ -444,7 +444,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .scstep{min-width:30px;padding:6px 10px;border-radius:8px;background:var(--card2);border:1px solid var(--line);color:var(--gold);font-weight:800;text-align:center;font-size:.85rem}
 .scstep.h{color:#9bd0ff;border-color:#49617a}
 .scstep.a{color:#e7a6ff;border-color:#7a4e8a}
-.ilalign{overflow:auto;max-height:440px;padding:6px;background:var(--bg);border:1px solid var(--line);border-radius:10px}
+.ilalign{overflow:auto;overscroll-behavior:contain;touch-action:pan-x pan-y;max-height:440px;padding:6px;background:var(--bg);border:1px solid var(--line);border-radius:10px}
 .prroll{position:relative}
 .prrow{position:absolute;left:0}
 .prrow.blk{background:rgba(255,255,255,.04)}
