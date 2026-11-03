@@ -493,6 +493,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
     <div class="score">
       <button class="chip who" id="switchProfile" title="Switch player">🎧 <span id="profileName">—</span></button>
       <span class="chip" id="beanChipM" hidden>🫘 <span id="beanNumM">0</span></span>
+      <span class="chip" id="sessChipM" hidden>⏱ <span id="sessTime">0:00</span></span>
     </div>
   </div>
 
@@ -853,7 +854,8 @@ const MUSIC_BADGES=[
  {name:"In the Pocket",ic:"🥁",has:()=>TAP_PATTERNS.some(p=>load(mk("tap",p.id+"-paid"),false))},
  {name:"Call & Response",ic:"🔁",has:()=>{for(let i=0;i<DJEMBE_PATTERNS.length;i++)for(const m of[1,2,4])if(load(mk("cr","cr-"+i+"-"+m),false))return true;return false;}},
  {name:"Songwriter",ic:"🎓",has:()=>load(mk("proj","final-done"),false)},
- {name:"AABA Class",ic:"🏆",has:()=>load(mk("mod1","done"),false)}
+ {name:"AABA Class",ic:"🏆",has:()=>load(mk("mod1","done"),false)},
+ {name:"Dedicated · 5 sessions",ic:"⏱",has:()=>load(mk("sess","count"),0)>=5}
 ];
 function renderQuest(){const box=$("#questBox");if(!box)return;const id=activeId();if(!id){box.innerHTML="";return;}
   questDaily(id);const q=load("majick-p-"+id+"-quest",{});
@@ -900,7 +902,7 @@ function buildSearchIndex(){var idx=[];
   add(typeof INSTRUMENT_CARDS!=="undefined"?INSTRUMENT_CARDS:null,"Instrument");
   add(typeof MAKE_CARDS!=="undefined"?MAKE_CARDS:null,"Make music");
   add(typeof BIO_CARDS!=="undefined"?BIO_CARDS:null,"Meditation");
-  var _lyr={"Lyric Lab":1,"Write + Beat Lab":1,"Songwriting":1,"AABA Class":1};idx.forEach(function(e){if(_lyr[e.title])e.sec="Lyrics";});
+  var _lyr={"Lyric Lab":1,"Write + Beat Lab":1,"Songwriting":1,"AABA Class":1,"Practice Sessions":1};idx.forEach(function(e){if(_lyr[e.title])e.sec="Lyrics";});
   return idx;}
 function renderHome(){
   beanChip();renderQuest();
@@ -2554,7 +2556,10 @@ function ideaUI(){
         <div class="feedback" id="ilStatus">${capturing?((capMode==="more"?"🎤 Singing the next part — it adds on after your first half":"🎤 Singing… tap Stop when done")+(SR?" (listening for words)":"")):(notes.length?notes.length+" notes mapped at "+Math.round(bpm)+" BPM":"Pick the part, set the tempo, then tap and sing")}</div>
         ${capturing?'<div style="text-align:center;margin:8px 0"><span id="ilBeat" class="ilbeat"></span><div class="site-note" style="margin-top:4px">keep the beat 👆</div></div>':""}
         <div class="rlab" style="display:block;margin:10px 0 4px">Words <span style="opacity:.7">— write them first, or sing and I’ll catch them</span></div>
+        <div class="rchips tight" id="ilForms" style="margin:2px 0 6px"></div>
         <textarea id="ilLyrics" placeholder="your words…" style="width:100%;min-height:54px;background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:9px;font:inherit"></textarea>
+        <div class="rrow2" style="margin-top:6px"><span class="rlab">Rhymes</span><input id="ilRhymeW" placeholder="a word…" style="flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:6px 9px;font:inherit"><button class="rchip sm" id="ilRhymeGo">Find</button></div>
+        <div class="site-note" id="ilRhymeOut" style="margin-top:4px"></div>
         ${notes.length&&!capturing?`
         <div class="rrow2"><span class="rlab">Playback sound</span><span class="rchips tight" id="ilVoice"></span></div>
         <div class="rlab" style="display:block;margin:10px 0 4px">Your melody — tap a note to move or retune it</div>
@@ -2583,6 +2588,7 @@ function ideaUI(){
     const vc=$("#ilVoice");if(vc)LL_VOICES.forEach(function(o){const b=document.createElement("button");b.className="rchip sm"+(o[0]===voice?" sel":"");b.textContent=o[1];b.onclick=function(){voice=o[0];save("mjk-ideavoice",voice);unlockAudio();melNote(notes.length?notes[0].midi:60,0,0.5,voice);vc.querySelectorAll(".rchip").forEach(x=>x.classList.remove("sel"));b.classList.add("sel");};vc.appendChild(b);});
     const lk=$("#lvKid"),lp=$("#lvPro");if(lk)lk.onclick=()=>{level="kid";save("mjk-fblevel",level);draw();};if(lp)lp.onclick=()=>{level="pro";save("mjk-fblevel",level);draw();};
     const ta=$("#ilLyrics");if(ta){ta.value=lyrics;ta.oninput=()=>{lyrics=ta.value;lyricsTyped=true;renderRoll();};}
+    (function(){var ff=$("#ilForms");if(ff){ff.innerHTML="";SONG_FORMS.forEach(function(fm){var b=document.createElement("button");b.className="rchip sm";b.textContent=fm.name;b.title=fm.hint;b.onclick=function(){var txt=fm.parts.map(function(p){return "["+p+"]";}).join("\n\n");lyrics=(lyrics&&lyrics.trim())?(lyrics.replace(/\s+$/,"")+"\n\n"+txt):txt;lyricsTyped=true;var _t=$("#ilLyrics");if(_t){_t.value=lyrics;_t.focus();}renderRoll();};ff.appendChild(b);});}var rg=$("#ilRhymeGo"),rw=$("#ilRhymeW");function _rr(){var out=$("#ilRhymeOut");if(!out||!rw)return;var word=(rw.value||"").trim();if(!word){out.textContent="Type a word.";return;}out.textContent="finding rhymes…";if(typeof rhymeFind!=="function"){out.textContent="";return;}rhymeFind(word,function(res,err){if(!res){out.textContent=(err==="offline")?"Rhyme finder needs a connection.":"No rhymes found.";return;}var pp=(res.perfect||[]).slice(0,8),nn=(res.near||[]).slice(0,6);out.innerHTML=(pp.length?'<b style="color:#7fd7c4">Perfect:</b> '+pp.map(esc).join(", "):"")+(nn.length?((pp.length?"<br>":"")+'<b style="color:#e9c46a">Near:</b> '+nn.map(esc).join(", ")):"");});}if(rg)rg.onclick=_rr;if(rw)rw.onkeydown=function(e){if(e.key==="Enter"){e.preventDefault();_rr();}};})();
     view.querySelectorAll('.idea-fb .fbnote').forEach(function(el){el.onclick=function(){var idx=+el.dataset.note;if(idx<0||idx>=notes.length)return;selIdx=idx;renderRoll();const box=$("#ilAlign"),b=box&&box.querySelector('.prnote[data-i="'+idx+'"]');if(b)b.scrollIntoView({inline:"center",block:"nearest"});const n=notes[idx];if(n){unlockAudio();melNote(n.midi,0,Math.max(0.2,n.len*(60/bpm)/4*0.9),voice);}};});
     const vbox=$("#ilVars");if(vbox){vbox.innerHTML="";variations.forEach(function(v){const card=document.createElement("div");card.className="ll-var";card.innerHTML='<div class="ll-var-t"><b>'+esc(v.name)+'</b> — '+esc(v.why)+'</div>'+llMiniRoll(v.notes,notes);const act=document.createElement("div");act.className="rchips tight";act.style.marginTop="6px";const bp=document.createElement("button");bp.className="rchip sm";bp.textContent="▶ Piano";bp.onclick=function(){unlockAudio();llPlayVar(v.notes,voice,bpm);};act.appendChild(bp);const bv=document.createElement("button");bv.className="rchip sm";bv.textContent="🎤 In your voice";if(!takeBufs.length){bv.disabled=true;bv.style.opacity=".5";}bv.onclick=function(){if(!takeBufs.length)return;var orig=bv.textContent;bv.textContent="…";bv.disabled=true;llGrainRender(llVoicePlan(v.notes,notes,bpm,takeBufs)).then(function(buf){bv.textContent=orig;bv.disabled=false;llPlayBuffer(buf);}).catch(function(){bv.textContent=orig;bv.disabled=false;});};act.appendChild(bv);const bk=document.createElement("button");bk.className="rchip sm";bk.textContent="⭐ Keep";bk.onclick=function(){IDEAS.unshift({name:((($("#ilName").value||part)+" — "+v.name)).trim(),part:part,notes:v.notes.map(function(n){return n.midi;}),beats:v.notes.map(function(n){return n.len/4;}),lyrics:lyrics||"",voice:voice});if(IDEAS.length>40)IDEAS.pop();save("mjk-ideas",IDEAS);const m=$("#ilMsg");if(m)m.textContent="Kept “"+v.name+"” as a new idea ✓";draw();};act.appendChild(bk);card.appendChild(act);vbox.appendChild(card);});}
     const sv=$("#ilSave");if(sv)sv.onclick=()=>{if(!notes.length)return;IDEAS.unshift({name:($("#ilName").value||(part+" idea")).trim(),part:part,notes:sortedMidi(),beats:sortedBeats(),lyrics:lyrics||"",voice:voice});if(IDEAS.length>40)IDEAS.pop();save("mjk-ideas",IDEAS);const m=$("#ilMsg");if(m)m.textContent="Saved ✓";draw();};
@@ -4718,7 +4724,7 @@ function renderModule1(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=tr
     h+='</div>';
     view.innerHTML=h;
     $("#eBack").onclick=goHome;
-    var lab=$("#m1lab");if(lab)lab.onclick=function(){renderBeatLab();};
+    var lab=$("#m1lab");if(lab)lab.onclick=function(){renderIdeaLab();};
     var bw=$("#m1w");if(bw)bw.onclick=function(){sv("write");draw();};
     var bp=$("#m1p");if(bp)bp.onclick=function(){sv("perfect");draw();};
     var bf=$("#m1fin");if(bf)bf.onclick=finish;
@@ -4726,6 +4732,55 @@ function renderModule1(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=tr
   }
   draw();
 }
+/* ===== PRACTICE SESSIONS — timed 5/15/45-min practice; the timer follows you across screens ===== */
+var SESSIONS=[
+ {id:"sw5",len:5,icon:"⚡",title:"Quick Hook",focus:"Songwriting",goal:"Write two rhyming lines, or sing a short 4-note hook. Just get one idea down.",go:function(){renderIdeaLab();}},
+ {id:"sw15",len:15,icon:"🔥",title:"Mini Session",focus:"Songwriting",goal:"Write a short section (a verse or a chorus), tighten the rhymes and syllable counts, then sing the melody.",go:function(){renderIdeaLab();}},
+ {id:"sw45",len:45,icon:"🏆",title:"Full Session · AABA",focus:"Songwriting",goal:"Write, perfect and understand a whole AABA section — the full class.",go:function(){renderModule1();}}
+];
+function sessGet(){return load("mjk-session",null);}
+function sessSet(s){save("mjk-session",s);}
+function sessClear(){save("mjk-session",null);}
+function sessDef(id){for(var i=0;i<SESSIONS.length;i++){if(SESSIONS[i].id===id)return SESSIONS[i];}return null;}
+function sessFmt(sec){sec=Math.max(0,Math.round(sec));var m=Math.floor(sec/60),s=sec%60;return m+":"+(s<10?"0":"")+s;}
+function sessRemain(st){if(!st)return 0;return st.len*60-(Date.now()-st.startedAt)/1000;}
+function sessChip(){var c=document.getElementById("sessChipM");if(!c)return;var st=sessGet();if(!st){c.hidden=true;return;}c.hidden=false;var rem=sessRemain(st),t=document.getElementById("sessTime");if(rem>0){c.classList.remove("done");if(t)t.textContent=sessFmt(rem);}else{c.classList.add("done");if(t)t.textContent="Time!";}c.onclick=function(){sessPanel();};}
+var _sessIv=null;
+function sessStartTicker(){if(_sessIv)clearInterval(_sessIv);_sessIv=setInterval(sessChip,1000);sessChip();}
+function startSession(id){var d=sessDef(id);if(!d)return;sessSet({id:d.id,len:d.len,focus:d.focus,title:d.title,startedAt:Date.now()});sessChip();try{d.go();}catch(e){}}
+function finishSession(ok){var st=sessGet();sessClear();sessChip();if(ok&&st){var c=load(mk("sess","count"),0)+1;save(mk("sess","count"),c);if(!isAdult()&&activeId()){var bn=st.len>=45?40:(st.len>=15?20:10);addBeans(bn);try{beanChip();}catch(e){}}}}
+function sessPanel(){var st=sessGet();if(!st){renderSessions();return;}var over=sessRemain(st)<=0;home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){};
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">⏱ '+esc(st.title)+'</span></div><div class="panel">'+
+    '<div class="intro"><b>'+esc(st.focus)+' · '+st.len+' min</b><br>'+(over?'⏰ Time’s up — nice work! Finish to log it.':'Time left: <b>'+sessFmt(sessRemain(st))+'</b>. Keep going — the timer follows you into the tools.')+'</div>'+
+    '<div class="actions"><button class="btn" id="sessTool">▶ Back to practice</button><button class="btn ghost" id="sessDone">✓ Finish &amp; log</button></div>'+
+    '<div class="actions"><button class="btn ghost" id="sessCancel">✕ Stop (don’t log)</button></div></div>';
+  $("#eBack").onclick=goHome;
+  var d=sessDef(st.id);
+  $("#sessTool").onclick=function(){if(d)try{d.go();}catch(e){}};
+  $("#sessDone").onclick=function(){finishSession(true);renderSessionsDone(st);};
+  $("#sessCancel").onclick=function(){finishSession(false);goHome();};
+}
+function renderSessionsDone(st){home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){};
+  var kid=!isAdult()&&activeId();
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">✓ Session logged</span></div><div class="panel" style="text-align:center">'+
+    '<div class="q">Nice — '+esc(st.title)+' done! 🎉</div>'+(kid?'<div class="bean-note">+'+(st.len>=45?40:(st.len>=15?20:10))+' 🫠</div>':'<div class="site-note" style="margin-top:6px">Logged to your progress.</div>')+
+    '<div class="actions" style="justify-content:center"><button class="btn" id="sessMore">More sessions</button><button class="btn ghost" id="sessHome">Home</button></div></div>';
+  $("#eBack").onclick=goHome;$("#sessMore").onclick=renderSessions;$("#sessHome").onclick=goHome;
+}
+function renderSessions(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){};
+  var st=sessGet();
+  var h='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">⏱ Practice Sessions</span></div><div class="panel">';
+  h+='<div class="intro">Pick how long you’ve got. The timer follows you into the Lyric Lab and back, so you can just practice. '+(!isAdult()?'Finish a session to earn beans 🫠.':'Finish to log it to your progress.')+'</div>';
+  if(st){h+='<div class="idea-fb" style="margin-bottom:8px"><b>In progress:</b> '+esc(st.title)+' · '+(sessRemain(st)>0?sessFmt(sessRemain(st))+' left':'time’s up')+' <button class="rchip sm" id="sessOpen" style="margin-left:6px">Open</button></div>';}
+  h+='<div class="grid">';
+  SESSIONS.forEach(function(s){h+='<button class="card" data-s="'+s.id+'"><span class="ic">'+s.icon+'</span><h3>'+esc(s.title)+' · '+s.len+' min</h3><span class="blurb">'+esc(s.goal)+'</span><span class="done-pill" style="color:var(--muted);border-color:var(--line);background:transparent">'+esc(s.focus)+'</span></button>';});
+  h+='</div></div>';
+  view.innerHTML=h;
+  $("#eBack").onclick=goHome;
+  var so=$("#sessOpen");if(so)so.onclick=sessPanel;
+  view.querySelectorAll("[data-s]").forEach(function(b){b.onclick=function(){startSession(b.getAttribute("data-s"));};});
+}
+(function(){try{var s=document.createElement("style");s.textContent="#sessChipM.done{background:#e2554f;color:#fff;border-color:#e2554f}";document.head.appendChild(s);}catch(e){}})();
 const MAKE_CARDS=[
  {ic:"🎙️",title:"Sing a Song",blurb:"Sing or hum your own tune — it maps the notes and rhythm onto a staff. Fix them, then save it as a section or a whole song.",go:()=>renderCompose()},
  {ic:"⭐",title:"My Songs",blurb:"Your saved melodies and imported songs — sing them back, or import a MIDI.",go:()=>renderMySongs()},
@@ -4738,6 +4793,7 @@ const MAKE_CARDS=[
  {ic:"🎼",title:"Learn a Song",blurb:"Bring in a song you're practicing — paste a chord sheet or build it — and get a play-along chord chart with loop, tempo, and transpose.",go:()=>renderLearnSong()},
  {ic:"✍️",title:"Songwriting",blurb:"Learn to write songs that work — structure, the parts, rhyme schemes and prosody — then write your lyrics in the Lyric Lab with a syllable counter, a rhyme finder, and a coach that tightens them. This is where your midterm & final lyrics come from.",go:()=>renderSongwriting()},
  {ic:"🎓",title:"AABA Class",blurb:"A ~45-minute class: write a song section in AABA form, perfect it, and understand why it works. Earn beans (kids) and a trophy.",go:()=>renderModule1()},
+ {ic:"⏱",title:"Practice Sessions",blurb:"Short on time? Pick a 5, 15 or 45-minute practice session — the timer follows you while you work. Earn beans + a trophy.",go:()=>renderSessions()},
  {ic:"🎼",title:"Song Project (final)",blurb:"The big one — assemble your sections into a full song: intro, verses, choruses, bridge, outro. Finish it to earn Songwriter.",go:()=>renderSongBuilder()},
  {ic:"🎚️",title:"Mixing Station",blurb:"Real in-app mixing — load a track and process it with a channel strip (mono sub, saturator, sheen, pump, bus comp, limiter), A/B against the original, watch LUFS/peak/width meters, then bounce a processed WAV to finish in Ableton. Devices pre-set from your mix report.",go:()=>renderMixStation()},
  {ic:"🎓",title:"The Instructor",blurb:"Your mix teacher. Drop in a track (or a section you bounced) and get a real mix report — gain staging, tonal balance, low end, dynamics, stereo — graded for YOUR genre. Save it as a track project and track your progress version to version. Add a reference to hear why yours sounds older.",go:()=>renderInstructor()},
@@ -7148,4 +7204,5 @@ $("#switchProfile").onclick=()=>{save("majick-active",null);renderGate();window.
   b.onclick=()=>{try{window.parent.postMessage({mjk:"home"},"*");}catch(e){}};})();
 
 renderGate();
+try{sessStartTicker();}catch(e){}
 </script>
