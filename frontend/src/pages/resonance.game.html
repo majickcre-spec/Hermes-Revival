@@ -175,7 +175,7 @@ var DRPCM={ready:false,loading:false,pcm:{},sr:44100,base:"/sounds/acoustic/",fi
 function drOn(){return load("schumann-realdrums",1)?true:false;}
 function drPreload(){if(DRPCM.loading||DRPCM.ready||!drOn())return;DRPCM.loading=true;var a=ac();
   var jobs=DRPCM.files.map(function(id){return fetch(DRPCM.base+id+".mp3").then(function(r){return r.ok?r.arrayBuffer():Promise.reject();}).then(function(ab){return a.decodeAudioData(ab);}).then(function(b){DRPCM.pcm[id]=b.getChannelData(0).slice(0);DRPCM.sr=b.sampleRate;}).catch(function(){});});
-  (Promise.allSettled?Promise.allSettled(jobs):Promise.all(jobs.map(function(p){return p.catch(function(){});}))).then(function(){DRPCM.ready=Object.keys(DRPCM.pcm).length>0;DRPCM.loading=false;try{if(DRPCM.ready&&typeof efApply==="function"&&efPlaying)efApply();}catch(e){}});}
+  (Promise.allSettled?Promise.allSettled(jobs):Promise.all(jobs.map(function(p){return p.catch(function(){});}))).then(function(){DRPCM.ready=Object.keys(DRPCM.pcm).length>0;DRPCM.loading=false;try{if(DRPCM.ready)efSamplesChanged();}catch(e){}});}
 function drBuf(a,id){if(!DRPCM.pcm[id])return null;if(!a.__drb)a.__drb={};if(a.__drb[id])return a.__drb[id];var p=DRPCM.pcm[id],b=a.createBuffer(1,p.length,DRPCM.sr);b.getChannelData(0).set(p);a.__drb[id]=b;return b;}
 function drHit(a,out,t,id,gain){var b=drBuf(a,id);if(!b)return false;try{var s=a.createBufferSource();s.buffer=b;var g=a.createGain();g.gain.value=(gain==null?1:gain);s.connect(g);g.connect(out);s.start(t);return true;}catch(e){return false;}}
 /* ===== Real sampled bass + piano for the Earth songs (CDN multisample, cached PCM, offline-render safe) ===== */
@@ -187,7 +187,7 @@ function sfsOn(){return load("schumann-realsong",1)?true:false;}
 function sfsLoad(key){if(!SFS.folder[key]||SFS.loading[key]||SFS.ready[key]||!sfsOn())return;SFS.loading[key]=true;SFS.pcm[key]={};SFS.anchors[key]=[];
   var a=ac(),base=SFS.base+SFS.folder[key]+"/",rg=SFS.range[key],want=[];for(var m=rg[0];m<=rg[1];m+=3)want.push(m);
   var jobs=want.map(function(m){return fetch(base+sfsFile(m)+".mp3").then(function(r){return r.ok?r.arrayBuffer():Promise.reject();}).then(function(ab){return a.decodeAudioData(ab);}).then(function(b){SFS.pcm[key][m]=b.getChannelData(0).slice(0);SFS.sr=b.sampleRate;SFS.anchors[key].push(m);}).catch(function(){});});
-  (Promise.allSettled?Promise.allSettled(jobs):Promise.all(jobs.map(function(p){return p.catch(function(){});}))).then(function(){SFS.anchors[key].sort(function(x,y){return x-y;});SFS.ready[key]=SFS.anchors[key].length>0;SFS.loading[key]=false;try{if(typeof efApply==="function"&&efPlaying)efApply();}catch(e){}});}
+  (Promise.allSettled?Promise.allSettled(jobs):Promise.all(jobs.map(function(p){return p.catch(function(){});}))).then(function(){SFS.anchors[key].sort(function(x,y){return x-y;});SFS.ready[key]=SFS.anchors[key].length>0;SFS.loading[key]=false;try{if(SFS.ready[key])efSamplesChanged();}catch(e){}});}
 function sfsNear(key,m){var an=SFS.anchors[key]||[];if(!an.length)return null;var best=an[0],bd=999;for(var i=0;i<an.length;i++){var d=Math.abs(an[i]-m);if(d<bd){bd=d;best=an[i];}}return best;}
 function sfsBuf(a,key,anc){var id=key+anc;if(!a.__sfsb)a.__sfsb={};if(a.__sfsb[id])return a.__sfsb[id];var p=SFS.pcm[key]&&SFS.pcm[key][anc];if(!p)return null;var b=a.createBuffer(1,p.length,SFS.sr);b.getChannelData(0).set(p);a.__sfsb[id]=b;return b;}
 function sfsPlay(a,out,t,key,freq,dur,gain){if(!sfsOn()||!SFS.ready[key])return false;var m=Math.round(69+12*Math.log2(freq/440)),anc=sfsNear(key,m);if(anc==null)return false;var b=sfsBuf(a,key,anc);if(!b)return false;
@@ -450,7 +450,7 @@ function efBuilderFor(oc,total){var V=Math.max(0.0001,Math.min(1,vol));
   if(arr==='song')return function(){efSong(cur(),V,genre,genre==='bass'?bassvar:null,{ctx:oc,dur:total});};
   if(arr==='binaural'){var sig=efDaySignature(selDate,arch);if(override!=null){sig.e=Math.max(0,Math.min(1,override/100));sig.bright=1200+2600*sig.e;}return function(){efBinaural(sig,V,carrierHi(),{ctx:oc,dur:total});};}
   return function(){efStart(cur(),'iso',V,voice,{ctx:oc,dur:total});};}
-function efRenderCurrent(){var dur=(arr==='song')?efSongLoopSec():30,sr=44100,XF=2.0,total=dur+XF,OC=(window.OfflineAudioContext||window.webkitOfflineAudioContext),oc=new OC(2,Math.ceil(total*sr),sr);
+function efRenderCurrent(){var dur=(arr==='song')?efSongLoopSec():18,sr=44100,XF=2.0,total=dur+XF,OC=(window.OfflineAudioContext||window.webkitOfflineAudioContext),oc=new OC(2,Math.ceil(total*sr),sr);
   efBuilderFor(oc,total)();
   return oc.startRendering().then(function(b){return URL.createObjectURL(efLoopWav(b,dur,XF,sr));});}
 function efSessionTitle(){var m=arr==='song'?('Song · '+((EF_GENRES[genre]||{}).name||'')):arr==='binaural'?'Binaural':'Meditation';var s=arch[selDate];return m+' · '+efDateLabel(selDate)+(s?(' · Kp '+s.kp.toFixed(1)):'');}
@@ -464,10 +464,11 @@ function efSetMediaSession(){if(!('mediaSession'in navigator))return;try{
 function updPlayBtn(){var b=$('#play');if(!b)return;b.innerHTML=efPlaying?'■&nbsp; Stop':efRendering?'…&nbsp; tuning':'▶&nbsp; Play this day';}
 function efSilentUrl(){var sr=8000,n=Math.floor(sr*0.15),s=new Float32Array(n);return URL.createObjectURL(efEncodeWav([s,s],sr));}
 function efAudioInit(){if(efAudioEl)return;efAudioEl=document.createElement('audio');efAudioEl.loop=true;efAudioEl.setAttribute('playsinline','');efAudioEl.setAttribute('preload','auto');try{efAudioEl.src=efSilentUrl();}catch(e){}document.body.appendChild(efAudioEl);}
-function efPlayBg(){if(efRendering)return;efAudioInit();try{drPreload();sfsLoad("piano");sfsLoad("bass");}catch(e){}efRendering=true;updPlayBtn();try{efStop();}catch(e){}
+function efPlayBg(){if(efRendering)return;efAudioInit();try{drPreload();sfsLoad("piano");sfsLoad("bass");}catch(e){}efRendering=true;updPlayBtn();try{efStop();}catch(e){}setTimeout(function(){if(efRendering){efRendering=false;updPlayBtn();}},12000);
   return efRenderCurrent().then(function(url){if(efBlobUrl)try{URL.revokeObjectURL(efBlobUrl);}catch(e){}efBlobUrl=url;efAudioEl.src=url;efAudioEl.loop=true;try{efAudioEl.volume=1;}catch(e){}var pr=efAudioEl.play();if(pr&&pr.catch)pr.catch(function(){});efPlaying=true;efRendering=false;updPlayBtn();efSetMediaSession();}).catch(function(e){efRendering=false;efPlaying=false;updPlayBtn();});}
 function efStopBg(){efPlaying=false;efRendering=false;clearTimeout(efRerenderT);try{efAudioEl&&efAudioEl.pause();}catch(e){}try{if('mediaSession'in navigator)navigator.mediaSession.playbackState='paused';}catch(e){}updPlayBtn();}
 function efApply(){if(!efPlaying&&!efRendering)return;clearTimeout(efRerenderT);efRerenderT=setTimeout(efPlayBg,400);}
+var efSamplesT=null;function efSamplesChanged(){if(!efPlaying)return;clearTimeout(efSamplesT);efSamplesT=setTimeout(function(){if(efPlaying&&!efRendering)efPlayBg();},1600);}
 function go(){if(arr==='song')efSong(cur(),vol,genre,genre==='bass'?bassvar:null);else if(arr==='binaural'){var sig=efDaySignature(selDate,arch);if(override!=null){sig.e=Math.max(0,Math.min(1,override/100));sig.bright=1200+2600*sig.e;}efBinaural(sig,vol,carrierHi());}else efStart(cur(),'iso',vol,voice);}
 
 function drawDays(){var days=Object.keys(arch).sort().reverse().slice(0,7),w=$('#days');w.innerHTML='';
@@ -490,7 +491,7 @@ function syncInt(){$('#int').value=cur();$('#intV').textContent=cur();}
 $('#int').oninput=function(){override=+this.value;$('#intV').textContent=override;if(!liveData){var kp=override/100*9;arch[selDate]={kp:kp,intensity:override,label:efKpLabel(kp)};drawReading();}efApply();};
 $('#vol').value=vol;$('#volV').textContent=vol.toFixed(2);
 $('#vol').oninput=function(){vol=+this.value;$('#volV').textContent=vol.toFixed(2);if(efAudioEl)try{efAudioEl.volume=vol;}catch(e){}efApply();};
-$('#play').onclick=function(){efAudioInit();if(efPlaying||efRendering){efStopBg();}else{try{var p=efAudioEl.play();if(p&&p.catch)p.catch(function(){});}catch(e){}efPlayBg();}};
+$('#play').onclick=function(){efAudioInit();if(efPlaying){efStopBg();}else if(efRendering){return;}else{try{var p=efAudioEl.play();if(p&&p.catch)p.catch(function(){});}catch(e){}efPlayBg();}};
 
 /* ===== A message from Gayle — fed from a Google Sheet she controls ===== */
 /* GO LIVE: Gayle makes a Google Sheet with columns:  date | title | message | media
@@ -506,6 +507,7 @@ function gayleMedia(url){if(!url)return '';url=url.trim();var dr=url.match(/driv
 function renderGayle(e,isSample){var body=$('#gayleBody'),note=$('#gayleNote');if(!body)return;var paras=(e.message||'').split(/\n+/).filter(function(s){return s.trim();}).map(function(p){return '<p>'+esc(p)+'</p>';}).join('');body.innerHTML=(e.title?'<h3 class="gtitle">'+esc(e.title)+'</h3>':'')+paras+gayleMedia(e.media);note.innerHTML=isSample?'✨ <i>Sample — this is where your words live, Gayle. Type a short message into a simple Google Sheet whenever you like (add a voice note or video if you want) and it appears right here, beside the day’s live reading. No code, ever.</i>':'';}
 function loadGayle(){if(!GAYLE_SHEET_CSV){renderGayle(GAYLE_SAMPLE,true);return;}try{fetch(GAYLE_SHEET_CSV,{cache:'no-store'}).then(function(r){return r.text();}).then(function(txt){var rows=csvParse(txt),keys=gayleToday(),row=null;for(var i=0;i<rows.length;i++){if(keys.indexOf((rows[i].date||'').trim())>=0){row=rows[i];break;}}if(row&&(row.message||row.title))renderGayle({title:row.title,message:row.message,media:row.media||row.link||row.audio||row.video||''},false);else renderGayle(GAYLE_SAMPLE,true);}).catch(function(){renderGayle(GAYLE_SAMPLE,true);});}catch(e){renderGayle(GAYLE_SAMPLE,true);}}
 efAudioInit();drawFeel();drawGenre();drawCarrier();drawModeNote();drawDays();syncInt();drawReading();loadGayle();updPlayBtn();
+try{drPreload();sfsLoad("piano");sfsLoad("bass");}catch(e){}
 try{efFetchHistory(function(a,ok){if(ok&&a&&Object.keys(a).length){arch=a;liveData=true;if(arch[efDayUTC(0)])selDate=efDayUTC(0);}override=null;syncInt();drawDays();drawReading();drawModeNote();drawCarrier();});}catch(e){}
 </script>
 </body>
