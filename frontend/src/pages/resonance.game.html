@@ -187,8 +187,10 @@ function efFetchHistory(cb){const arch=efArch();
   }).catch(()=>cb(arch,false));}catch(e){cb(arch,false);}}
 function efStart(intensity,mode,vol,voiceId,opt){var off=opt&&opt.ctx;if(!off){efStop();unlockAudio();}const a=off?opt.ctx:ac(),I=Math.max(0,Math.min(1,(intensity||0)/100)),root=7.83*32,oscs=[];
   const V=EF_VOICES.find(v=>v.id===voiceId)||EF_VOICES[0],lvlf=(V.t==="sine")?1:0.5;
-  const master=a.createGain();master.connect(a.destination);if(off){master.gain.value=(vol==null?0.9:vol);}else{master.gain.value=0.0001;master.gain.setTargetAtTime((vol==null?0.6:vol),a.currentTime,0.6);}
+  const master=a.createGain();var _cmp=a.createDynamicsCompressor();_cmp.threshold.value=-8;_cmp.knee.value=20;_cmp.ratio.value=3;_cmp.attack.value=0.01;_cmp.release.value=0.25;master.connect(_cmp);_cmp.connect(a.destination);if(off){master.gain.value=(vol==null?0.9:vol);}else{master.gain.value=0.0001;master.gain.setTargetAtTime((vol==null?0.6:vol),a.currentTime,0.6);}
   const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=380+I*2000;lp.connect(master);
+  var rev=a.createConvolver();rev.buffer=makeIR(a,3.2,2.2);var rvg=a.createGain();rvg.gain.value=0.45;rev.connect(rvg);rvg.connect(master);var rsnd=a.createGain();rsnd.gain.value=0.18;lp.connect(rsnd);rsnd.connect(rev);
+  (function(){var sub=a.createOscillator();sub.type="sine";sub.frequency.value=root/2;var sg=a.createGain();sg.gain.value=0.09;sub.connect(sg);sg.connect(master);sub.start();oscs.push(sub);[6,12].forEach(function(m){var o=a.createOscillator();o.type="sine";o.frequency.value=root*m;var ag=a.createGain();ag.gain.value=0.009;var tr=a.createOscillator();tr.type="sine";tr.frequency.value=0.05+0.02*m/6;var tg=a.createGain();tg.gain.value=0.006;tr.connect(tg);tg.connect(ag.gain);tr.start();oscs.push(tr);o.connect(ag);ag.connect(master);o.start();oscs.push(o);});})();
   function voice1(freq,level,pan){const o=a.createOscillator();o.type=V.t;o.frequency.value=freq;const g=a.createGain();g.gain.value=level*lvlf;if(pan!=null&&a.createStereoPanner){const p=a.createStereoPanner();p.pan.value=pan;g.connect(p);p.connect(lp);}else g.connect(lp);o.connect(g);o.start();oscs.push(o);
     if(V.det){const o2=a.createOscillator();o2.type=V.t;o2.frequency.value=freq;o2.detune.value=V.det;const g2=a.createGain();g2.gain.value=level*lvlf*0.8;o2.connect(g2);g2.connect(lp);o2.start();oscs.push(o2);}}
   if(mode==="binaural"){voice1(root,0.2,-1);voice1(root+7.83,0.2,1);}
@@ -317,8 +319,12 @@ function efWhyBeat(day,arch){var g=efDaySignature(day,arch);
   return why;}
 function efBinaural(sig,vol,carrierHi,opt){var off=opt&&opt.ctx;if(!off){efStop();unlockAudio();}const a=off?opt.ctx:ac();sig=sig||{w1:0.6,w2:0.28,w3:0.12,breath:0.06,pulse:0.03,bright:1800,e:0.4};
   const I=Math.max(0,Math.min(1,sig.e!=null?sig.e:0.4)),base=7.83*(carrierHi?40:16),oscs=[],SCH=[7.83,14.3,20.8],W=[sig.w1,sig.w2,sig.w3];
-  const master=a.createGain();master.connect(a.destination);if(off){master.gain.value=(vol==null?0.9:vol);}else{master.gain.value=0.0001;master.gain.setTargetAtTime(vol==null?0.55:vol,a.currentTime,0.8);}
+  const master=a.createGain();var _cmp=a.createDynamicsCompressor();_cmp.threshold.value=-8;_cmp.knee.value=20;_cmp.ratio.value=3;_cmp.attack.value=0.01;_cmp.release.value=0.25;master.connect(_cmp);_cmp.connect(a.destination);if(off){master.gain.value=(vol==null?0.9:vol);}else{master.gain.value=0.0001;master.gain.setTargetAtTime(vol==null?0.55:vol,a.currentTime,0.8);}
   const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=sig.bright||1800;lp.connect(master);
+  var rev=a.createConvolver();rev.buffer=makeIR(a,3.8,2.1);var rvg=a.createGain();rvg.gain.value=0.5;rev.connect(rvg);rvg.connect(master);var rsnd=a.createGain();rsnd.gain.value=0.2;lp.connect(rsnd);rsnd.connect(rev);
+  (function(){var sub=a.createOscillator();sub.type="sine";sub.frequency.value=base/2;var sg=a.createGain();sg.gain.value=0.1;sub.connect(sg);sg.connect(master);sub.start();oscs.push(sub);})();
+  [[2.5,27.3,0.06],[3,33.8,0.045]].forEach(function(p){var car=base*p[0],det=p[1]/2;[[-1,-det],[1,det]].forEach(function(q){var o=a.createOscillator();o.type="sine";o.frequency.value=car+q[1];var pan=a.createStereoPanner?a.createStereoPanner():null;if(pan)pan.pan.value=q[0];var g=a.createGain();g.gain.value=p[2];o.connect(pan||g);if(pan)pan.connect(g);g.connect(lp);o.start();oscs.push(o);});});
+  [8,16].forEach(function(m){var o=a.createOscillator();o.type="sine";o.frequency.value=base*m;var g=a.createGain();g.gain.value=0.012;var tr=a.createOscillator();tr.type="sine";tr.frequency.value=0.05+0.015*m/8;var tg=a.createGain();tg.gain.value=0.008;tr.connect(tg);tg.connect(g.gain);tr.start();oscs.push(tr);o.connect(g);g.connect(master);o.start();oscs.push(o);});
   const carriers=[base,base*1.5,base*2];
   carriers.forEach((car,i)=>{const beat=SCH[i],detune=beat/2,amp=0.2*W[i];
     [[-1,-detune],[1,detune]].forEach(([panv,off])=>{
