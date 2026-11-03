@@ -4437,6 +4437,95 @@ function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.
   }
   draw();
 }
+/* ===== WRITE + BEAT LAB — write lyrics over a backing beat, record vocals in sync ===== */
+var BL={backing:null,name:"",bpm:90,bars:2,playing:false,src:null,voice:null,voiceSrc:null,nudge:0,beatVol:0.9,voiceVol:1.0,clickVol:0.5,clickOn:false,lyrics:"",rec:null,recChunks:[],recording:false,master:null,bGain:null,vGain:null,cGain:null,clickTimer:null,raf:null,_ctx:null,_cn:0,ref:null};
+var BLSESS=load("mjk-beatlab",[]);
+var blDraw=null,blSylUpdate=null,blRenderList=null;
+function blClickSound(t,accent){var a=ac();var o=a.createOscillator();o.type="square";o.frequency.value=accent?1600:1100;var g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(Math.max(0.05,(BL.clickVol||0.5))*(accent?0.9:0.55),t+0.002);g.gain.exponentialRampToValueAtTime(0.0001,t+0.05);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+0.06);}
+function blMsg(t){var el=document.getElementById("blStatus");if(el)el.innerHTML=t;}
+function blStopAudio(){BL.playing=false;try{if(BL.src)BL.src.stop();}catch(e){}BL.src=null;try{if(BL.voiceSrc)BL.voiceSrc.stop();}catch(e){}BL.voiceSrc=null;if(BL.clickTimer){clearTimeout(BL.clickTimer);BL.clickTimer=null;}if(BL.raf){cancelAnimationFrame(BL.raf);BL.raf=null;}}
+function blGraph(){var a=ac();if(BL.master&&BL._ctx===a){BL.bGain.gain.value=BL.beatVol;BL.vGain.gain.value=BL.voiceVol;return;}BL._ctx=a;var m=a.createGain();m.gain.value=1;m.connect(a.destination);var bg=a.createGain();bg.gain.value=BL.beatVol;bg.connect(m);var vg=a.createGain();vg.gain.value=BL.voiceVol;vg.connect(m);BL.master=m;BL.bGain=bg;BL.vGain=vg;}
+function blLoopLen(){return BL.backing?BL.backing.duration:Math.max(1,(BL.bars||2))*4*(60/BL.bpm);}
+function blStartClick(at){if(!BL.clickOn)return;var spb=60/BL.bpm;BL._cn=0;(function sch(){if(!BL.playing)return;var a=ac();while(at+BL._cn*spb<a.currentTime+0.25){blClickSound(at+BL._cn*spb,(BL._cn%4)===0);BL._cn++;}BL.clickTimer=setTimeout(sch,50);})();}
+function blTick(startC){var a=ac(),barLen=(60/BL.bpm)*4,ll=blLoopLen();(function f(){if(!BL.playing)return;var el=a.currentTime-startC,within=ll>0?(el%ll):0,bar=Math.floor(within/barLen)+1,tot=Math.max(1,Math.round(ll/barLen));var r=document.getElementById("blBar");if(r)r.textContent="bar "+bar+" / "+tot;BL.raf=requestAnimationFrame(f);})();}
+function blPlay(){unlockAudio();blGraph();blStopAudio();var a=ac();BL.playing=true;var at=a.currentTime+0.12;
+  if(BL.backing){var s=a.createBufferSource();s.buffer=BL.backing;s.loop=true;s.connect(BL.bGain);s.start(at);BL.src=s;}
+  if(BL.voice){var v=a.createBufferSource();v.buffer=BL.voice;v.connect(BL.vGain);var vt=at+BL.nudge/1000;if(vt<a.currentTime+0.01)vt=a.currentTime+0.01;v.start(vt);BL.voiceSrc=v;}
+  blStartClick(at);blTick(at);blSyncPlayBtn();}
+function blStop(){blStopAudio();blSyncPlayBtn();var r=document.getElementById("blBar");if(r)r.textContent="";}
+function blSyncPlayBtn(){var b=document.getElementById("blPlay");if(b)b.innerHTML=BL.playing?"■ Stop":"▶ Play";}
+function blSetBacking(buf,name,bpm,ref){BL.backing=buf;BL.name=name||"Track";if(bpm)BL.bpm=Math.max(40,Math.min(200,Math.round(bpm)));BL.ref=ref||null;blDraw();}
+function blLoadClip(id){blMsg("Loading beat…");idbGet("clip-"+id).then(function(blob){if(!blob){blMsg("That beat couldn't be found.");return;}return blob.arrayBuffer();}).then(function(ab){if(!ab)return;return ac().decodeAudioData(ab.slice(0));}).then(function(buf){if(!buf)return;var c=stuClips().find(function(x){return x.id===id;});blSetBacking(buf,(c&&c.name)||"Beat",(c&&c.bpm)||null,{type:"clip",id:id});blMsg("Loaded “"+((c&&c.name)||"Beat")+"” — press ▶ to hear it.");}).catch(function(){blMsg("Couldn't load that beat.");});}
+function blImportFile(file){if(!file)return;blMsg("Importing “"+esc(file.name)+"”…");file.arrayBuffer().then(function(ab){return ac().decodeAudioData(ab.slice(0));}).then(function(buf){blSetBacking(buf,file.name.replace(/\.[^.]+$/,""),null,{type:"file",name:file.name});blMsg("Imported “"+esc(file.name)+"” — press ▶ to hear it. Set the tempo to match if you'll record.");}).catch(function(){blMsg("Couldn't read that audio file — try an mp3, m4a or wav.");});}
+function blRecord(){if(BL.recording){blStopRec();return;}unlockAudio();blMsg("Turning on the mic…");ensureMic().then(function(ok){if(!ok){blMsg("I need mic access to record. Tip: put earbuds in so the mic only hears you.");return;}blGraph();var spb=60/BL.bpm,i=0;(function tick(){if(i<4){blClickSound(ac().currentTime+0.05,i===0);blMsg("Count-in to "+Math.round(BL.bpm)+" BPM… "+(4-i));i++;setTimeout(tick,spb*1000);}else blBeginRec();})();});}
+function blBeginRec(){var a=ac();blStopAudio();BL.playing=true;var at=a.currentTime+0.08;if(BL.backing){var s=a.createBufferSource();s.buffer=BL.backing;s.loop=true;s.connect(BL.bGain);s.start(at);BL.src=s;}blStartClick(at);blTick(at);BL.recChunks=[];
+  try{BL.rec=new MediaRecorder(micStream);BL.rec.ondataavailable=function(e){if(e.data&&e.data.size)BL.recChunks.push(e.data);};
+    BL.rec.onstop=function(){if(!BL.recChunks.length){blDraw();return;}new Blob(BL.recChunks,{type:(BL.rec&&BL.rec.mimeType)||"audio/webm"}).arrayBuffer().then(function(ab){return ac().decodeAudioData(ab.slice(0));}).then(function(buf){BL.voice=buf;BL.nudge=0;blDraw();blMsg("Take captured ✓ — press ▶ to hear it over the beat, then nudge to line it up.");}).catch(function(){blMsg("Couldn't process the take.");});};
+    BL.rec.start();BL.recording=true;blSyncPlayBtn();blMsg("● Recording — sing or rap over the beat (earbuds in). Tap ■ to stop.");blDraw();}
+  catch(e){BL.rec=null;blMsg("Recording isn't supported in this browser.");}}
+function blStopRec(){BL.recording=false;try{if(BL.rec&&BL.rec.state!=="inactive")BL.rec.stop();}catch(e){}blStopAudio();blSyncPlayBtn();blDraw();}
+function blHearTake(){if(!BL.voice)return;unlockAudio();blGraph();try{if(BL.voiceSrc)BL.voiceSrc.stop();}catch(e){}var a=ac(),v=a.createBufferSource();v.buffer=BL.voice;v.connect(BL.vGain);v.start(a.currentTime+0.03);BL.voiceSrc=v;}
+function blSaveSession(nm){var ref=BL.ref,sess={id:"b"+Date.now().toString(36),name:(nm||"Session").trim(),lyrics:BL.lyrics||"",bpm:BL.bpm,backing:ref&&ref.type==="clip"?ref:(ref&&ref.type==="file"?{type:"file",name:ref.name}:null),added:Date.now()};BLSESS.unshift(sess);if(BLSESS.length>30)BLSESS.pop();save("mjk-beatlab",BLSESS);blMsg("Saved “"+esc(sess.name)+"” ✓ (lyrics + tempo + which beat; re-import your own track or re-record the take).");blDraw();}
+function blSyll(){var lines=(BL.lyrics||"").split(/\n/);return lines.map(function(ln){var t=ln.replace(/^\s*\[[^\]]*\]\s*/,"");return t.trim()?lyricSyllables(t).length:0;});}
+function renderBeatLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  teardown=function(){blStopAudio();BL.recording=false;try{if(BL.rec&&BL.rec.state!=="inactive")BL.rec.stop();}catch(e){}stopMic();};
+  blDraw=function(){var clips=stuClips(),syl=blSyll(),totSyl=syl.reduce(function(a,b){return a+b;},0);
+    var h='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎙️ Write + Beat Lab</span></div><div class="panel">';
+    h+='<div class="intro">Write your words over a beat and record vocals in time. Load a beat you made, drop in your own track, or just use the click. <b>Earbuds in</b> so the mic only hears you.</div>';
+    // backing
+    h+='<div class="rlab" style="display:block;margin:4px 0 4px">Backing track</div>';
+    h+='<div class="feedback" id="blNow" style="margin-bottom:6px">'+(BL.backing?("🎵 <b>"+esc(BL.name)+"</b> · "+Math.round(BL.bpm)+" BPM"):"No track yet — load a beat, import your own, or use the metronome.")+'</div>';
+    h+='<div class="rchips tight" style="gap:6px;flex-wrap:wrap"><button class="rchip sm" id="blPick">➕ Load a beat</button><label class="rchip sm" style="cursor:pointer">⬆ Import track<input id="blFile" type="file" accept="audio/*" style="display:none"></label><button class="rchip sm'+(BL.backing?"":" sel")+'" id="blMetro">🎚️ Metronome only</button></div>';
+    h+='<div id="blPickPanel" hidden style="margin-top:8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px"></div>';
+    // transport
+    h+='<div class="actions" style="margin-top:12px;align-items:center;gap:8px"><button class="btn" id="blPlay">'+(BL.playing?"■ Stop":"▶ Play")+'</button><span class="rbpm" id="blBar" style="min-width:76px;text-align:center;font-size:13px"></span></div>';
+    // tempo
+    h+='<div class="rrow2" style="margin-top:6px"><span class="rlab">Tempo</span><input type="range" id="blBpm" min="60" max="180" value="'+Math.round(BL.bpm)+'" style="flex:1"><span class="rbpm" id="blBpmV">'+Math.round(BL.bpm)+'</span></div>';
+    // mixer
+    h+='<div class="rlab" style="display:block;margin:12px 0 4px">Mix</div>';
+    h+='<div class="rrow2"><span class="rlab" style="min-width:52px">Beat</span><input type="range" id="blBeatV" min="0" max="100" value="'+Math.round(BL.beatVol*100)+'" style="flex:1"></div>';
+    h+='<div class="rrow2"><span class="rlab" style="min-width:52px">Click</span><button class="rchip sm'+(BL.clickOn?" sel":"")+'" id="blClick">'+(BL.clickOn?"on":"off")+'</button><input type="range" id="blClickV" min="0" max="100" value="'+Math.round(BL.clickVol*100)+'" style="flex:1"></div>';
+    if(BL.voice)h+='<div class="rrow2"><span class="rlab" style="min-width:52px">Voice</span><input type="range" id="blVoiceV" min="0" max="100" value="'+Math.round(BL.voiceVol*100)+'" style="flex:1"></div>';
+    // record
+    h+='<div class="rlab" style="display:block;margin:12px 0 4px">Record vocals</div>';
+    h+='<div class="actions"><button class="btn" id="blRec">'+(BL.recording?"■ Stop":"🎤 Record over the beat")+'</button>'+(BL.voice&&!BL.recording?'<button class="btn ghost" id="blHear">▶ Hear take</button>':"")+'</div>';
+    if(BL.voice&&!BL.recording){h+='<div class="rrow2" style="margin-top:6px"><span class="rlab">Nudge</span><input type="range" id="blNudge" min="-300" max="300" value="'+BL.nudge+'" style="flex:1"><span class="rbpm" id="blNudgeV" style="min-width:66px;text-align:right;font-size:12px">'+(BL.nudge>0?"+":"")+BL.nudge+" ms</span></div>";
+      h+='<div class="rchips tight" style="margin-top:4px"><button class="rchip sm" id="blClearTake">✕ Clear take</button></div>';}
+    h+='<div class="feedback" id="blStatus" style="min-height:22px;margin-top:8px"></div>';
+    // lyrics
+    h+='<div class="rlab" style="display:block;margin:12px 0 4px">Lyrics <span style="opacity:.7">— tap a tag to label a section</span></div>';
+    h+='<div class="rchips tight" style="margin-bottom:6px"><button class="rchip sm" data-tag="Verse">+ Verse</button><button class="rchip sm" data-tag="Chorus">+ Chorus</button><button class="rchip sm" data-tag="Hook">+ Hook</button><button class="rchip sm" data-tag="Bridge">+ Bridge</button></div>';
+    h+='<textarea id="blLyrics" placeholder="your words…" style="width:100%;min-height:150px;background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:10px;font:inherit;line-height:1.7">'+esc(BL.lyrics||"")+'</textarea>';
+    h+='<div class="site-note" id="blSyl" style="margin-top:4px"></div>';
+    // save
+    h+='<div class="rrow2" style="margin-top:12px"><span class="rlab">Name</span><input id="blName" placeholder="name this session…" style="background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit;flex:1"></div>';
+    h+='<div class="actions"><button class="btn" id="blSave">💾 Save session</button></div>';
+    h+='<div class="label" style="margin:16px 0 6px">Saved sessions</div><div id="blList"></div>';
+    h+='</div>';
+    view.innerHTML=h;
+    document.getElementById("eBack").onclick=goHome;
+    document.getElementById("blPlay").onclick=function(){if(BL.playing)blStop();else blPlay();};
+    document.getElementById("blMetro").onclick=function(){blStopAudio();BL.backing=null;BL.name="";BL.ref=null;blDraw();blMsg("Metronome only — set the tempo and record.");};
+    var pick=document.getElementById("blPick");pick.onclick=function(){var p=document.getElementById("blPickPanel");if(!p)return;if(!p.hidden){p.hidden=true;return;}p.hidden=false;var cl=stuClips();if(!cl.length){p.innerHTML='<div class="site-note">No saved beats yet. Make one in the <b>Drum Kit</b> beat sequencer and tap “➜ Send to Studio,” or import your own track above.</div>';return;}var ph='<div class="rlab" style="display:block;margin-bottom:6px">Your beats</div><div class="rchips tight" style="flex-wrap:wrap;gap:6px">';cl.forEach(function(c){ph+='<button class="rchip sm" data-clip="'+c.id+'">🥁 '+esc(c.name||"Beat")+" · "+Math.round(c.bpm||90)+'</button>';});ph+='</div>';p.innerHTML=ph;p.querySelectorAll("[data-clip]").forEach(function(b){b.onclick=function(){blLoadClip(b.getAttribute("data-clip"));p.hidden=true;};});};
+    var fi=document.getElementById("blFile");if(fi)fi.onchange=function(){if(fi.files&&fi.files[0])blImportFile(fi.files[0]);};
+    var bp=document.getElementById("blBpm");if(bp)bp.oninput=function(){BL.bpm=+bp.value;var v=document.getElementById("blBpmV");if(v)v.textContent=bp.value;};
+    document.getElementById("blBeatV").oninput=function(){BL.beatVol=this.value/100;if(BL.bGain)BL.bGain.gain.value=BL.beatVol;};
+    var cb=document.getElementById("blClick");if(cb)cb.onclick=function(){BL.clickOn=!BL.clickOn;blDraw();};
+    var cv=document.getElementById("blClickV");if(cv)cv.oninput=function(){BL.clickVol=this.value/100;};
+    var vv=document.getElementById("blVoiceV");if(vv)vv.oninput=function(){BL.voiceVol=this.value/100;if(BL.vGain)BL.vGain.gain.value=BL.voiceVol;};
+    document.getElementById("blRec").onclick=blRecord;
+    var hb=document.getElementById("blHear");if(hb)hb.onclick=blHearTake;
+    var nd=document.getElementById("blNudge");if(nd)nd.oninput=function(){BL.nudge=+nd.value;var v=document.getElementById("blNudgeV");if(v)v.textContent=(BL.nudge>0?"+":"")+BL.nudge+" ms";};
+    var ct=document.getElementById("blClearTake");if(ct)ct.onclick=function(){BL.voice=null;BL.nudge=0;blDraw();blMsg("Take cleared.");};
+    var ta=document.getElementById("blLyrics");if(ta){ta.oninput=function(){BL.lyrics=ta.value;blSylUpdate();};}
+    view.querySelectorAll("[data-tag]").forEach(function(b){b.onclick=function(){var tag=b.getAttribute("data-tag"),t=document.getElementById("blLyrics");if(!t)return;var ins=(t.value&&!/\n$/.test(t.value)?"\n":"")+"["+tag+"]\n";var p=t.selectionStart!=null?t.selectionStart:t.value.length;t.value=t.value.slice(0,p)+ins+t.value.slice(p);BL.lyrics=t.value;t.focus();t.selectionStart=t.selectionEnd=p+ins.length;blSylUpdate();};});
+    document.getElementById("blSave").onclick=function(){blSaveSession(document.getElementById("blName").value||"Session");};
+    blRenderList();blSylUpdate();
+  };
+  blSylUpdate=function(){var el=document.getElementById("blSyl");if(!el)return;var syl=blSyll(),lines=(BL.lyrics||"").split(/\n/),parts=[],tot=0;lines.forEach(function(ln,i){var s=syl[i]||0;tot+=s;if(ln.replace(/^\s*\[[^\]]*\]\s*/,"").trim())parts.push(s);});el.innerHTML="<b>"+tot+"</b> syllables"+(parts.length?" · lines: "+parts.join(", "):"")+" — keep lines you want to rhyme close in count.";};
+  blRenderList=function(){var el=document.getElementById("blList");if(!el)return;if(!BLSESS.length){el.innerHTML='<div class="site-note">No saved sessions yet.</div>';return;}el.innerHTML="";BLSESS.forEach(function(s,i){var row=document.createElement("div");row.className="kb";row.style.cssText="display:flex;align-items:center;gap:8px;padding:8px 10px;margin:4px 0;background:var(--bg);border:1px solid var(--line);border-radius:10px";row.innerHTML='<span style="flex:1"><b>'+esc(s.name)+'</b> <span style="opacity:.6;font-size:.8rem">· '+Math.round(s.bpm||90)+" BPM</span></span>";var op=document.createElement("button");op.className="rchip sm";op.textContent="Open";op.onclick=function(){BL.lyrics=s.lyrics||"";BL.bpm=s.bpm||90;BL.voice=null;BL.nudge=0;if(s.backing&&s.backing.type==="clip")blLoadClip(s.backing.id);else{BL.backing=null;BL.ref=null;}blDraw();};var del=document.createElement("button");del.className="rchip sm";del.textContent="✕";del.onclick=function(){if(del.textContent==="✕"){del.textContent="sure?";setTimeout(function(){if(del)del.textContent="✕";},2500);}else{BLSESS.splice(i,1);save("mjk-beatlab",BLSESS);blRenderList();}};row.appendChild(op);row.appendChild(del);el.appendChild(row);});};
+  blDraw();
+}
 const INSTRUMENT_CARDS=[
  {ic:"🎹",title:"Piano",blurb:"Play a real keyboard — tap or use your computer keys, shift octaves, and see the note names. The heart of music theory.",go:()=>renderPiano()},
  {ic:"🎛️",title:"Wavetable Synth",blurb:"An original morphing-wavetable synth — sweep the wavetable, stack detuned voices, and shape the filter, LFO and envelope. Modern textures you can play, with presets.",go:()=>renderSynth()},
@@ -4568,6 +4657,7 @@ const MAKE_CARDS=[
  {ic:"🎙️",title:"Sing a Song",blurb:"Sing or hum your own tune — it maps the notes and rhythm onto a staff. Fix them, then save it as a section or a whole song.",go:()=>renderCompose()},
  {ic:"⭐",title:"My Songs",blurb:"Your saved melodies and imported songs — sing them back, or import a MIDI.",go:()=>renderMySongs()},
  {ic:"🎤",title:"Lyric Lab",blurb:"Sing a song idea — melody, rhythm, words — and get feedback (kid or songwriter level). Listen back, save keepers, or turn one into a section.",go:()=>renderIdeaLab()},
+ {ic:"🧪",title:"Write + Beat Lab",blurb:"Write lyrics over a beat and record vocals in time. Load a beat you made, drop in your own track, or use the click — with a syllable counter, mix faders, and a nudge slider to line up your take.",go:()=>renderBeatLab()},
  {ic:"🎛️",title:"Studio",blurb:"Multi-track recorder — lay down each real instrument and voice, stack them in sections, then mix with volume, pan, mute/solo and effects.",go:()=>renderStudio()},
  {ic:"🧩",title:"Beat Maker",blurb:"Build layered beats & motifs on a grid — djembe and handpan together. Play the instrument live into the sequencer, loop, save, and get feedback.",go:()=>renderBeat()},
  {ic:"🎛️",title:"Sampler",blurb:"Your own sound library. Tap pads to play, then record, upload, or slice your own sounds onto them — tune each pad, program a 16-step beat, and save your kits. Starter sounds built in.",go:()=>renderSampler()},
