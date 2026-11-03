@@ -1172,7 +1172,7 @@ let AC=null,PIANO_WAVE=null,PIANO_MASTER=null,_audioUnlocked=false;
 function ac(){if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();return AC;}
 function unlockAudio(){const a=ac();try{a.resume();}catch(e){}if(_audioUnlocked)return;_audioUnlocked=true;
   try{const b=a.createBuffer(1,1,22050),s=a.createBufferSource();s.buffer=b;s.connect(a.destination);s.start(0);}catch(e){}
-  try{sfLoad();}catch(e){}}
+  try{sfLoadInst("piano");}catch(e){}}
 document.addEventListener("pointerdown",unlockAudio,true);
 document.addEventListener("touchend",unlockAudio,true);
 function midiToFreq(m){return 440*Math.pow(2,(m-69)/12);}
@@ -1195,24 +1195,28 @@ function pianoMaster(a){
   return PIANO_MASTER;
 }
 /* one struck-piano note: fast hammer attack, exponential decay, timbre mellows as it rings */
-/* ===== Real sampled instruments — loaded from a sound library in the browser; silent fallback to the built-in engine ===== */
-var SF={ready:false,loading:false,buf:{},anchors:[],base:"https://cdn.jsdelivr.net/gh/gleitz/midi-js-soundfonts@gh-pages/MusyngKite/acoustic_grand_piano-mp3/"};
+/* ===== Real sampled instruments — multi-instrument, loaded in the browser; silent fallback to the built-in engine ===== */
+var SF={ready:{},loading:{},buf:{},anchors:{},base:"https://cdn.jsdelivr.net/gh/gleitz/midi-js-soundfonts@gh-pages/MusyngKite/",
+  folder:{piano:"acoustic_grand_piano-mp3",guitar:"acoustic_guitar_nylon-mp3",bass:"electric_bass_finger-mp3"},
+  range:{piano:[33,96],guitar:[40,86],bass:[28,67]}};
 var SF_NN=["C","Cs","D","Ds","E","F","Fs","G","Gs","A","As","B"];
 function sfFile(midi){return SF_NN[((midi%12)+12)%12]+(Math.floor(midi/12)-1);}
-function sfReady(){return SF.ready&&(load("mjk-realsound",1)?true:false);}
-function sfLoad(){if(SF.loading||SF.ready)return;SF.loading=true;
-  var want=[];for(var m=33;m<=96;m+=3)want.push(m);var a=ac();
-  var jobs=want.map(function(m){return fetch(SF.base+sfFile(m)+".mp3").then(function(r){return r.ok?r.arrayBuffer():Promise.reject();}).then(function(ab){return a.decodeAudioData(ab);}).then(function(b){SF.buf[m]=b;SF.anchors.push(m);}).catch(function(){});});
-  function done(){SF.anchors.sort(function(x,y){return x-y;});SF.ready=SF.anchors.length>0;SF.loading=false;}
+function sfOn(){return load("mjk-realsound",1)?true:false;}
+function sfInstReady(key){return !!SF.ready[key]&&sfOn();}
+function sfLoadInst(key){if(!SF.folder[key]||SF.loading[key]||SF.ready[key]||!sfOn())return;SF.loading[key]=true;SF.buf[key]=SF.buf[key]||{};SF.anchors[key]=SF.anchors[key]||[];
+  var a=ac(),base=SF.base+SF.folder[key]+"/",rg=SF.range[key]||[33,96],want=[];for(var m=rg[0];m<=rg[1];m+=3)want.push(m);
+  var jobs=want.map(function(m){return fetch(base+sfFile(m)+".mp3").then(function(r){return r.ok?r.arrayBuffer():Promise.reject();}).then(function(ab){return a.decodeAudioData(ab);}).then(function(b){SF.buf[key][m]=b;SF.anchors[key].push(m);}).catch(function(){});});
+  function done(){SF.anchors[key].sort(function(x,y){return x-y;});SF.ready[key]=SF.anchors[key].length>0;SF.loading[key]=false;}
   (Promise.allSettled?Promise.allSettled(jobs):Promise.all(jobs.map(function(p){return p.catch(function(){});}))).then(done,done);
 }
-function sfNearest(midi){if(!SF.anchors.length)return null;var best=SF.anchors[0],bd=999;for(var i=0;i<SF.anchors.length;i++){var d=Math.abs(SF.anchors[i]-midi);if(d<bd){bd=d;best=SF.anchors[i];}}return best;}
-function sfPlayFreq(freq,start,dur){try{var midi=Math.round(69+12*Math.log2(freq/440));var anc=sfNearest(midi);if(anc==null||!SF.buf[anc])return false;
-  var a=ac(),t0=a.currentTime+(start||0)+0.001,out=pianoMaster(a),s=a.createBufferSource();s.buffer=SF.buf[anc];s.playbackRate.value=Math.pow(2,(midi-anc)/12);
-  var g=a.createGain(),peak=0.92,rel=Math.max(0.2,(dur||0.5));g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(peak,t0+0.005);g.gain.setValueAtTime(peak,t0+Math.max(0.03,rel-0.14));g.gain.exponentialRampToValueAtTime(0.0008,t0+rel+0.14);
+function sfNearest(key,midi){var an=SF.anchors[key]||[];if(!an.length)return null;var best=an[0],bd=999;for(var i=0;i<an.length;i++){var d=Math.abs(an[i]-midi);if(d<bd){bd=d;best=an[i];}}return best;}
+function sfPlayKey(key,midi,start,dur,gain){try{if(!sfInstReady(key))return false;var anc=sfNearest(key,midi);if(anc==null||!SF.buf[key][anc])return false;
+  var a=ac(),t0=a.currentTime+(start||0)+0.001,out=pianoMaster(a),s=a.createBufferSource();s.buffer=SF.buf[key][anc];s.playbackRate.value=Math.pow(2,(midi-anc)/12);
+  var g=a.createGain(),peak=Math.max(0.05,Math.min(1.1,gain==null?0.9:gain)),rel=Math.max(0.2,(dur||0.5));
+  g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(peak,t0+0.005);g.gain.setValueAtTime(peak,t0+Math.max(0.03,rel-0.14));g.gain.exponentialRampToValueAtTime(0.0008,t0+rel+0.14);
   s.connect(g);g.connect(out);s.start(t0);s.stop(t0+rel+0.4);return true;}catch(e){return false;}}
 function playTone(freq,start,dur){
-  if(sfReady()&&sfPlayFreq(freq,start,dur))return;
+  if(sfInstReady("piano")&&sfPlayKey("piano",Math.round(69+12*Math.log2(freq/440)),start,dur,0.92))return;
   const a=ac(),t0=a.currentTime+start+0.001,out=pianoMaster(a);
   const peak=Math.max(0.12,0.34-Math.log2(freq/261.6)*0.03); // quieter up high
   function partial(mult,level,detune){
@@ -1265,6 +1269,7 @@ function voiceDef(){return VOICES.find(v=>v.id===toneVoice)||VOICES[0];}
 function envGain(a,t0,dur,peak,atk,rel){const g=a.createGain();g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(peak,t0+atk);g.gain.setValueAtTime(peak,t0+Math.max(atk+0.05,dur-rel));g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);return g;}
 function addVibrato(a,osc,t0,dur,cents,rate){if(!cents)return;const lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=rate||5;const lg=a.createGain();lg.gain.value=cents;lfo.connect(lg);lg.connect(osc.detune);lfo.start(t0);lfo.stop(t0+dur+0.08);}
 function playSustain(freq,start,dur,peak){
+  if(voiceDef().id==="piano"&&sfInstReady("piano")&&sfPlayKey("piano",Math.round(69+12*Math.log2(freq/440)),start,dur,Math.min(1.05,(peak||0.55)+0.3)))return;
   const a=ac(),t0=a.currentTime+start+0.001,out=pianoMaster(a),v=voiceDef();peak=peak||0.55;
   const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=Math.min(11000,freq*v.lp);lp.connect(out);
   function mk(type,wave,mul,det){const o=a.createOscillator();if(wave)o.setPeriodicWave(wave);else o.type=type;o.frequency.value=freq*mul;if(det)o.detune.value=det;return o;}
@@ -3089,6 +3094,7 @@ function sampTrigger_buf(buf){if(!buf)return;const a=ac(),out=pianoMaster(a),s=a
 /* ===== PIANO ROLL — melodic clip editor with per-note velocity; renders to a Studio clip and exports MIDI ===== */
 var PR={notes:[],bars:1,bpm:100,voice:"keys",vel:90,lo:55,rows:25,stepLen:2,id:null,name:"Melody clip",playing:false,raf:null,t0:0,stopTimer:null};
 function prVoice(a,out,t,midi,dur,vid,vel){var f=440*Math.pow(2,(midi-69)/12),A=Math.max(0.25,Math.min(1.25,(vel||90)/100));
+  if(a===ac()&&(vid==="keys"||vid==="pluck")){var _k=vid==="pluck"?"guitar":"piano";sfLoadInst(_k);if(sfInstReady(_k)&&sfPlayKey(_k,midi,t-ac().currentTime,dur,(vid==="pluck"?0.8:0.6)*A))return;}
   if(vid==="pluck"){var o=a.createOscillator();o.type="sawtooth";o.frequency.value=f;var lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.setValueAtTime(3600,t);lp.frequency.exponentialRampToValueAtTime(600,t+Math.min(dur,0.5));var g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.26*A,t+0.006);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(lp);lp.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.05);}
   else if(vid==="keys"){[[1,0.15],[2,0.05]].forEach(function(p){var o=a.createOscillator();o.type="sine";o.frequency.value=f*p[0];var g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(p[1]*A,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.05);});var tr=a.createOscillator();tr.type="triangle";tr.frequency.value=f;var tg=a.createGain();tg.gain.setValueAtTime(0.0001,t);tg.gain.exponentialRampToValueAtTime(0.06*A,t+0.01);tg.gain.exponentialRampToValueAtTime(0.0001,t+dur);tr.connect(tg);tg.connect(out);tr.start(t);tr.stop(t+dur+0.05);}
   else {var o=a.createOscillator();o.type="triangle";o.frequency.value=f;var o2=a.createOscillator();o2.type="sawtooth";o2.frequency.value=f;o2.detune.value=6;var lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=2300;var g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.18*A,t+0.01);g.gain.setValueAtTime(0.16*A,t+Math.max(0.05,dur*0.7));g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(lp);o2.connect(lp);lp.connect(g);g.connect(out);o.start(t);o2.start(t);o.stop(t+dur+0.05);o2.stop(t+dur+0.05);}}
@@ -4799,7 +4805,7 @@ const PROGS=[
  {name:"Pop (G) I–V–vi–IV",chords:["G","D","Em","C"]}
 ];
 function chordNotes(inst,frets){const o=STRING_INSTR[inst].strings,n=[];frets.forEach((fr,i)=>{if(fr>=0)n.push(o[i]+fr);});return n;}
-function pluck(midi,time,dur,peak){const a=ac(),out=pianoMaster(a),f=midiToFreq(midi);
+function pluck(midi,time,dur,peak){sfLoadInst("guitar");if(sfInstReady("guitar")&&sfPlayKey("guitar",midi,time,dur,Math.min(1,(peak||0.24)*3)))return;const a=ac(),out=pianoMaster(a),f=midiToFreq(midi);
   const o=a.createOscillator();o.type="sawtooth";o.frequency.value=f;
   const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.setValueAtTime(Math.min(6000,f*6),time);lp.frequency.exponentialRampToValueAtTime(Math.max(600,f*2),time+dur*0.6);
   const g=a.createGain();g.gain.setValueAtTime(0.0001,time);g.gain.exponentialRampToValueAtTime(peak||0.22,time+0.005);g.gain.exponentialRampToValueAtTime(0.0001,time+dur);
@@ -5154,7 +5160,7 @@ function renderMethod(inst){inst=inst||"guitar";var C=METHOD[inst];if(!C)return;
   list();
 }
 function renderGuitarMethod(){return renderMethod("guitar");}
-function renderStrings(inst){
+function renderStrings(inst){try{sfLoadInst("guitar");}catch(e){}
   if(toneRAF)cancelAnimationFrame(toneRAF);prgStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{prgStop();};
   const I=STRING_INSTR[inst],total=Object.keys(CHORDS[inst]).length,learned=strLearned(inst).length;
   view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">${inst==="guitar"?"🎸":"🪕"} ${I.name}</span></div>
@@ -5334,7 +5340,7 @@ function strProg(inst){
 
 /* ===== BASS GUITAR — fretboard, basslines, follow-the-glow, play-it-back critique ===== */
 const BG={tuning:[28,33,38,43],frets:7,lineIdx:0,bpm:90,running:false,i:0,nextTime:0,schID:null,raf:null,visQ:[]};
-function bassVoice(midi,time,dur,peak){const a=ac(),out=pianoMaster(a),f=midiToFreq(midi);
+function bassVoice(midi,time,dur,peak){sfLoadInst("bass");if(sfInstReady("bass")&&sfPlayKey("bass",midi,time,dur,Math.min(1,(peak||0.5)*1.6)))return;var a=ac(),out=pianoMaster(a),f=midiToFreq(midi);
   const o=a.createOscillator();o.type="triangle";o.frequency.value=f;
   const o2=a.createOscillator();o2.type="sawtooth";o2.frequency.value=f;
   const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.setValueAtTime(Math.min(2400,f*9),time);lp.frequency.exponentialRampToValueAtTime(Math.max(170,f*2.2),time+Math.min(0.5,dur*0.7));
@@ -5381,7 +5387,7 @@ function bgCrit(timingPct,notePct,hit,N,errMs,level){
   const enc= timingPct>=80?"🔥 Great pocket!":timingPct>=55?"👍 Nice — getting there!":"🎸 Keep at it!";
   const tip= timingPct<55?"Try playing right with the click — count 1-2-3-4.":errMs>90?"A little steadier on the beat next time.":"Try a faster tempo or a new line!";
   return enc+" You caught <b>"+hit+" of "+N+"</b> notes in time.<br>"+tip;}
-function renderBass(){
+function renderBass(){try{sfLoadInst("bass");}catch(e){}
   if(toneRAF)cancelAnimationFrame(toneRAF);bgStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   BG.mode=BG.mode||"lines";BG.chord=BG.chord||"C";
   let recRAF=null,recording=false,samples=[],recStart=0,expected=[],crit="";
