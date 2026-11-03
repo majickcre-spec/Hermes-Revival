@@ -15,7 +15,8 @@
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-html,body{margin:0}
+html,body{margin:0;overflow-x:hidden;overscroll-behavior:none}
+.hp-field,.dpad,.pad{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 body{background:
     radial-gradient(900px 520px at 50% -10%, rgba(52,224,198,.14), transparent 62%),
     radial-gradient(760px 420px at 92% 6%, rgba(244,183,64,.10), transparent 60%),
@@ -2884,8 +2885,9 @@ var DRS={ready:false,loading:false,buf:{},base:"/sounds/acoustic/",files:["kick"
 function drsOn(){return load("mjk-realsound",1)?true:false;}
 function drumKit(){return load("mjk-drumkit","acoustic");}
 function setDrumKit(k){save("mjk-drumkit",k);}
+function sndBase(){var o="";try{o=(window.parent&&window.parent!==window)?window.parent.location.origin:"";}catch(e){o="";}if(!o||o.indexOf("http")!==0){try{o=location.origin;}catch(e){}}return (o&&o.indexOf("http")===0)?(o+"/sounds/acoustic/"):"/sounds/acoustic/";}
 function drsLoad(){if(DRS.loading||DRS.ready||!drsOn())return;DRS.loading=true;var a=ac();
-  var jobs=DRS.files.map(function(id){return fetch(DRS.base+id+".mp3").then(function(r){return r.ok?r.arrayBuffer():Promise.reject();}).then(function(ab){return a.decodeAudioData(ab);}).then(function(b){DRS.buf[id]=b;}).catch(function(){});});
+  var jobs=DRS.files.map(function(id){return fetch(sndBase()+id+".mp3").then(function(r){return r.ok?r.arrayBuffer():Promise.reject();}).then(function(ab){return a.decodeAudioData(ab);}).then(function(b){DRS.buf[id]=b;}).catch(function(){});});
   (Promise.allSettled?Promise.allSettled(jobs):Promise.all(jobs.map(function(p){return p.catch(function(){});}))).then(function(){DRS.ready=Object.keys(DRS.buf).length>0;DRS.loading=false;});}
 function drsPlay(a,out,t,id,rate,gain){var b=DRS.buf[id];if(!b)return false;try{var s=a.createBufferSource();s.buffer=b;if(rate&&rate!==1)s.playbackRate.value=rate;var g=a.createGain();g.gain.value=(gain==null?1:gain);s.connect(g);g.connect(out);s.start(t);return true;}catch(e){return false;}}
 function _noise(a,dur){var n=Math.floor(a.sampleRate*(dur||0.4)),b=a.createBuffer(1,n,a.sampleRate),d=b.getChannelData(0);for(var i=0;i<n;i++)d[i]=Math.random()*2-1;return b;}

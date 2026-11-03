@@ -21,7 +21,7 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box}
-html,body{margin:0}
+html,body{margin:0;overscroll-behavior:none}
 body{
   background:
     radial-gradient(760px 520px at 50% -8%, rgba(189,111,147,.22), transparent 60%),
@@ -173,8 +173,9 @@ function djNoise(a,time,dur,freq,lvl,out,hp){const s=a.createBufferSource();s.bu
 /* ===== Real drum samples for the Earth songs (bundled, same-origin; cached PCM, works in offline render) ===== */
 var DRPCM={ready:false,loading:false,pcm:{},sr:44100,base:"/sounds/acoustic/",files:["kick","snare","hhc","hho","crash","tom1","tom2"]};
 function drOn(){return load("schumann-realdrums",1)?true:false;}
+function sndBase(){var o="";try{o=(window.parent&&window.parent!==window)?window.parent.location.origin:"";}catch(e){o="";}if(!o||o.indexOf("http")!==0){try{o=location.origin;}catch(e){}}return (o&&o.indexOf("http")===0)?(o+"/sounds/acoustic/"):"/sounds/acoustic/";}
 function drPreload(){if(DRPCM.loading||DRPCM.ready||!drOn())return;DRPCM.loading=true;var a=ac();
-  var jobs=DRPCM.files.map(function(id){return fetch(DRPCM.base+id+".mp3").then(function(r){return r.ok?r.arrayBuffer():Promise.reject();}).then(function(ab){return a.decodeAudioData(ab);}).then(function(b){DRPCM.pcm[id]=b.getChannelData(0).slice(0);DRPCM.sr=b.sampleRate;}).catch(function(){});});
+  var jobs=DRPCM.files.map(function(id){return fetch(sndBase()+id+".mp3").then(function(r){return r.ok?r.arrayBuffer():Promise.reject();}).then(function(ab){return a.decodeAudioData(ab);}).then(function(b){DRPCM.pcm[id]=b.getChannelData(0).slice(0);DRPCM.sr=b.sampleRate;}).catch(function(){});});
   (Promise.allSettled?Promise.allSettled(jobs):Promise.all(jobs.map(function(p){return p.catch(function(){});}))).then(function(){DRPCM.ready=Object.keys(DRPCM.pcm).length>0;DRPCM.loading=false;try{if(DRPCM.ready)efSamplesChanged();}catch(e){}});}
 function drBuf(a,id){if(!DRPCM.pcm[id])return null;if(!a.__drb)a.__drb={};if(a.__drb[id])return a.__drb[id];var p=DRPCM.pcm[id],b=a.createBuffer(1,p.length,DRPCM.sr);b.getChannelData(0).set(p);a.__drb[id]=b;return b;}
 function drHit(a,out,t,id,gain){var b=drBuf(a,id);if(!b)return false;try{var s=a.createBufferSource();s.buffer=b;var g=a.createGain();g.gain.value=(gain==null?1:gain);s.connect(g);g.connect(out);s.start(t);return true;}catch(e){return false;}}
