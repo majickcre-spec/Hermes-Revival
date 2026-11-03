@@ -6155,7 +6155,7 @@ function efBinaural(intensity,vol){efStop();unlockAudio();const a=ac(),I=Math.ma
   const sho=a.createOscillator();sho.type="sine";sho.frequency.value=base*2;const shg=a.createGain();shg.gain.value=0.0;const shlfo=a.createOscillator();shlfo.type="sine";shlfo.frequency.value=7.83;const shlg=a.createGain();shlg.gain.value=0.03*(0.5+I*0.6);shlfo.connect(shlg);shlg.connect(shg.gain);shlfo.start();oscs.push(shlfo);sho.connect(shg);shg.connect(lp);sho.start();oscs.push(sho);
   EF={master,oscs,beatTimer:null};}
 function efKpLabel(kp){return kp<2?"Quiet":kp<4?"Unsettled":kp<5?"Active":kp<6?"Minor storm (G1)":kp<7?"Storm (G2)":"Strong storm";}
-function efDayReading(day,arch){const s=arch[day];if(!s)return "No reading for this day yet — tune in daily and the week fills in.";
+function efDayReading(day,arch){var s=arch[day];if(!s){var _ok=(typeof override!=="undefined"&&override!=null);var _kp=_ok?override/100*9:4;s={kp:_kp,intensity:_ok?override:44,label:efKpLabel(_kp)};}
   const kp=s.kp,days=Object.keys(arch).sort(),idx=days.indexOf(day),prev=idx>0?arch[days[idx-1]]:null,dkp=prev?kp-prev.kp:0;
   const band=kp<2?"quiet":kp<4?"unsettled":kp<5?"active":"storm";
   const trend=!prev?"":dkp>0.8?(" It&rsquo;s risen from Kp "+prev.kp.toFixed(1)+" the day before — the field is quickening."):dkp<-0.8?(" It&rsquo;s eased from Kp "+prev.kp.toFixed(1)+" the day before — the field is settling."):" Holding near where it was the day before.";

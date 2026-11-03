@@ -395,7 +395,7 @@ function efDeepAnalysis(day,arch){
   if(extrap)H+='<div style="margin-bottom:7px"><b style="color:#d4a548">Where it&rsquo;s heading.</b> '+extrap+'</div>';
   return H;
 }
-function efDayReading(day,arch){const s=arch[day];if(!s)return "No reading for this day yet — tune in daily and the week fills in.";
+function efDayReading(day,arch){var s=arch[day];if(!s){var _ok=(typeof override!=="undefined"&&override!=null);var _kp=_ok?override/100*9:4;s={kp:_kp,intensity:_ok?override:44,label:efKpLabel(_kp)};}
   const kp=s.kp,band=kp<2?"quiet":kp<4?"unsettled":kp<5?"active":"storm";
   const body=band==="quiet"?"In this frequency work, calm days tend to feel settling for the nervous system — steadier focus, deeper sleep, a grounded and open-hearted clarity. A good day to create, meditate, and receive.":
     band==="unsettled"?"Sensitive people often notice a subtle restlessness on days like this — thoughts a touch busier, emotions nearer the surface, an energy that wants somewhere to go.":
