@@ -1171,7 +1171,8 @@ const SONGS={
 let AC=null,PIANO_WAVE=null,PIANO_MASTER=null,_audioUnlocked=false;
 function ac(){if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();return AC;}
 function unlockAudio(){const a=ac();try{a.resume();}catch(e){}if(_audioUnlocked)return;_audioUnlocked=true;
-  try{const b=a.createBuffer(1,1,22050),s=a.createBufferSource();s.buffer=b;s.connect(a.destination);s.start(0);}catch(e){}}
+  try{const b=a.createBuffer(1,1,22050),s=a.createBufferSource();s.buffer=b;s.connect(a.destination);s.start(0);}catch(e){}
+  try{sfLoad();}catch(e){}}
 document.addEventListener("pointerdown",unlockAudio,true);
 document.addEventListener("touchend",unlockAudio,true);
 function midiToFreq(m){return 440*Math.pow(2,(m-69)/12);}
@@ -1194,7 +1195,24 @@ function pianoMaster(a){
   return PIANO_MASTER;
 }
 /* one struck-piano note: fast hammer attack, exponential decay, timbre mellows as it rings */
+/* ===== Real sampled instruments — loaded from a sound library in the browser; silent fallback to the built-in engine ===== */
+var SF={ready:false,loading:false,buf:{},anchors:[],base:"https://cdn.jsdelivr.net/gh/gleitz/midi-js-soundfonts@gh-pages/MusyngKite/acoustic_grand_piano-mp3/"};
+var SF_NN=["C","Cs","D","Ds","E","F","Fs","G","Gs","A","As","B"];
+function sfFile(midi){return SF_NN[((midi%12)+12)%12]+(Math.floor(midi/12)-1);}
+function sfReady(){return SF.ready&&(load("mjk-realsound",1)?true:false);}
+function sfLoad(){if(SF.loading||SF.ready)return;SF.loading=true;
+  var want=[];for(var m=33;m<=96;m+=3)want.push(m);var a=ac();
+  var jobs=want.map(function(m){return fetch(SF.base+sfFile(m)+".mp3").then(function(r){return r.ok?r.arrayBuffer():Promise.reject();}).then(function(ab){return a.decodeAudioData(ab);}).then(function(b){SF.buf[m]=b;SF.anchors.push(m);}).catch(function(){});});
+  function done(){SF.anchors.sort(function(x,y){return x-y;});SF.ready=SF.anchors.length>0;SF.loading=false;}
+  (Promise.allSettled?Promise.allSettled(jobs):Promise.all(jobs.map(function(p){return p.catch(function(){});}))).then(done,done);
+}
+function sfNearest(midi){if(!SF.anchors.length)return null;var best=SF.anchors[0],bd=999;for(var i=0;i<SF.anchors.length;i++){var d=Math.abs(SF.anchors[i]-midi);if(d<bd){bd=d;best=SF.anchors[i];}}return best;}
+function sfPlayFreq(freq,start,dur){try{var midi=Math.round(69+12*Math.log2(freq/440));var anc=sfNearest(midi);if(anc==null||!SF.buf[anc])return false;
+  var a=ac(),t0=a.currentTime+(start||0)+0.001,out=pianoMaster(a),s=a.createBufferSource();s.buffer=SF.buf[anc];s.playbackRate.value=Math.pow(2,(midi-anc)/12);
+  var g=a.createGain(),peak=0.92,rel=Math.max(0.2,(dur||0.5));g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(peak,t0+0.005);g.gain.setValueAtTime(peak,t0+Math.max(0.03,rel-0.14));g.gain.exponentialRampToValueAtTime(0.0008,t0+rel+0.14);
+  s.connect(g);g.connect(out);s.start(t0);s.stop(t0+rel+0.4);return true;}catch(e){return false;}}
 function playTone(freq,start,dur){
+  if(sfReady()&&sfPlayFreq(freq,start,dur))return;
   const a=ac(),t0=a.currentTime+start+0.001,out=pianoMaster(a);
   const peak=Math.max(0.12,0.34-Math.log2(freq/261.6)*0.03); // quieter up high
   function partial(mult,level,detune){
