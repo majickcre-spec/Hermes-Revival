@@ -511,6 +511,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
     <div id="searchResults" hidden></div>
 
     <div id="pathHero"></div>
+    <div id="medBanner"></div>
 
     <div id="questBox"></div>
 
@@ -907,7 +908,7 @@ function buildSearchIndex(){var idx=[];
 function renderHome(){
   beanChip();renderQuest();
   const nm=activeName();if(nm){const h=document.querySelector(".hero h2 .nm");if(h)h.textContent=nm;}
-  renderPathHero();
+  renderPathHero();try{medRemBanner();}catch(e){}
   const tg=$("#topicGrid");tg.innerHTML="";
   TOPICS.forEach(t=>{const b=document.createElement("button");b.className="card";
     b.innerHTML=`<span class="ic">${t.icon}</span><h3>${esc(t.title)}</h3><span class="blurb">${esc(t.blurb)}</span>
@@ -4746,7 +4747,7 @@ function sessFmt(sec){sec=Math.max(0,Math.round(sec));var m=Math.floor(sec/60),s
 function sessRemain(st){if(!st)return 0;return st.len*60-(Date.now()-st.startedAt)/1000;}
 function sessChip(){var c=document.getElementById("sessChipM");if(!c)return;var st=sessGet();if(!st){c.hidden=true;return;}c.hidden=false;var rem=sessRemain(st),t=document.getElementById("sessTime");if(rem>0){c.classList.remove("done");if(t)t.textContent=sessFmt(rem);}else{c.classList.add("done");if(t)t.textContent="Time!";}c.onclick=function(){sessPanel();};}
 var _sessIv=null;
-function sessStartTicker(){if(_sessIv)clearInterval(_sessIv);_sessIv=setInterval(sessChip,1000);sessChip();}
+function sessStartTicker(){if(_sessIv)clearInterval(_sessIv);_sessIv=setInterval(function(){sessChip();try{medRemTick();}catch(e){}},1000);sessChip();try{medRemTick();}catch(e){}}
 function startSession(id){var d=sessDef(id);if(!d)return;sessSet({id:d.id,len:d.len,focus:d.focus,title:d.title,startedAt:Date.now()});sessChip();try{d.go();}catch(e){}}
 function finishSession(ok){var st=sessGet();sessClear();sessChip();if(ok&&st){var c=load(mk("sess","count"),0)+1;save(mk("sess","count"),c);if(!isAdult()&&activeId()){var bn=st.len>=45?40:(st.len>=15?20:10);addBeans(bn);try{beanChip();}catch(e){}}}}
 function sessPanel(){var st=sessGet();if(!st){renderSessions();return;}var over=sessRemain(st)<=0;home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){};
@@ -6054,7 +6055,7 @@ function renderMelodyLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=
 /* ===== MEDITATION — binaural brainwaves, breathwork + HRV, rhythm mind, sessions ===== */
 let MED={master:null,oscs:[],timer:null};
 function medStop(){if(MED.timer){clearInterval(MED.timer);MED.timer=null;}if(!MED.master)return;const a=ac(),m=MED.master,os=MED.oscs;MED.master=null;MED.oscs=[];try{m.gain.cancelScheduledValues(a.currentTime);m.gain.setTargetAtTime(0.0001,a.currentTime,0.3);}catch(e){}setTimeout(()=>{os.forEach(o=>{try{o.stop();}catch(e){}});},800);}
-function medBinaural(beatHz,carrier,vol,shimmer){medStop();unlockAudio();const a=ac(),oscs=[];
+function medBinaural(beatHz,carrier,vol,shimmer){try{medMarkDone();}catch(e){}medStop();unlockAudio();const a=ac(),oscs=[];
   const master=a.createGain();master.gain.value=0.0001;master.connect(a.destination);master.gain.setTargetAtTime(vol==null?0.5:vol,a.currentTime,0.9);
   const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=2200;lp.connect(master);
   [[-1,0],[1,beatHz]].forEach(([pan,off])=>{const o=a.createOscillator();o.type="sine";o.frequency.value=carrier+off;const pn=a.createStereoPanner?a.createStereoPanner():null;if(pn)pn.pan.value=pan;const g=a.createGain();g.gain.value=0.17;o.connect(pn||g);if(pn)pn.connect(g);g.connect(lp);o.start();oscs.push(o);});
@@ -6082,6 +6083,24 @@ function hrv(){const rr=HR.rr;if(rr.length<6)return null;let s=0,n=0;for(let i=1
 async function hrConnect(onState){try{const dev=await navigator.bluetooth.requestDevice({filters:[{services:["heart_rate"]}]});HR.dev=dev;dev.addEventListener("gattserverdisconnected",()=>{HR.connected=false;if(onState)onState();});const srv=await dev.gatt.connect();const svc=await srv.getPrimaryService("heart_rate");const ch=await svc.getCharacteristic("heart_rate_measurement");HR.ch=ch;await ch.startNotifications();ch.addEventListener("characteristicvaluechanged",hrParse);HR.connected=true;HR.rr=[];if(onState)onState();return true;}catch(e){HR.connected=false;if(onState)onState(e);return false;}}
 function hrDisconnect(){try{if(HR.ch)HR.ch.stopNotifications();if(HR.dev&&HR.dev.gatt.connected)HR.dev.gatt.disconnect();}catch(e){}HR.connected=false;}
 
+/* ===== DAILY MEDITATION REMINDER ===== */
+function medRemGet(){var r=load("mjk-medrem",null);return r||{on:false,time:"08:00"};}
+function medRemSet(r){save("mjk-medrem",r);}
+function medToday(){var d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();}
+function medDidToday(){return load("mjk-medlast","")===medToday();}
+function medDismissed(){return load("mjk-meddismiss","")===medToday();}
+function medMarkDone(){try{save("mjk-medlast",medToday());var bn=document.getElementById("medBanner");if(bn)bn.innerHTML="";}catch(e){}}
+function medRemDue(){var r=medRemGet();if(!r.on||medDidToday()||medDismissed())return false;var now=new Date(),hm=(r.time||"08:00").split(":"),ti=new Date();ti.setHours(+hm[0]||0,+hm[1]||0,0,0);return now>=ti;}
+function medRemBanner(){var bn=document.getElementById("medBanner");if(!bn)return;if(!medRemDue()){bn.innerHTML="";return;}
+  bn.innerHTML='<div class="idea-fb" style="border:1px solid var(--gold);margin:10px 0"><b style="color:#d4a548">\ud83e\uddd8 Your daily meditation</b><br>A few minutes to drop in \u2014 pick a binaural (\ud83c\udfa7 headphones):<div class="rchips tight" style="margin-top:8px" id="medBanPick"></div></div>';
+  var pc=document.getElementById("medBanPick");
+  [["earth","\ud83c\udf0d Ground"],["alpha","\ud83c\udf0a Calm"],["theta","\ud83c\udf19 Deep"]].forEach(function(p){var b=document.createElement("button");b.className="rchip sm";b.textContent=p[1];b.onclick=function(){renderBrainwave(p[0]);};pc.appendChild(b);});
+  var ch=document.createElement("button");ch.className="rchip sm";ch.textContent="Choose\u2026";ch.onclick=function(){renderMeditation();};pc.appendChild(ch);
+  var sk=document.createElement("button");sk.className="rchip sm";sk.textContent="Later";sk.onclick=function(){save("mjk-meddismiss",medToday());bn.innerHTML="";};pc.appendChild(sk);
+}
+var _medNotified="";
+function medRemTick(){var r=medRemGet();if(r.on&&!medDidToday()&&!medDismissed()){var now=new Date(),hm=(r.time||"08:00").split(":");if(now.getHours()===(+hm[0]||0)&&now.getMinutes()===(+hm[1]||0)){var key=medToday()+" "+r.time;if(_medNotified!==key){_medNotified=key;try{if(window.Notification&&Notification.permission==="granted")new Notification("\ud83e\uddd8 Time to meditate",{body:"Take a few minutes to drop in."});}catch(e){}}}}
+  try{var bn=document.getElementById("medBanner");if(bn&&typeof home!=="undefined"&&home&&!home.hidden)medRemBanner();}catch(e){}}
 function renderMeditation(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{medStop();};
   const MODS=[
    {ic:"🌀",title:"Brainwave Binaural",blurb:"Pick an intention — sleep, meditate, flow, focus, insight — and ride the matching brainwave as a binaural beat. Headphones on.",go:renderBrainwave},
@@ -6091,12 +6110,13 @@ function renderMeditation(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();h
   ];
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🧘 Meditation</span></div><div class="panel">'+
     '<div class="intro">Train the mind and the nervous system. Ride a <b>brainwave</b> with binaural beats, follow guided <b>breathwork</b> (with live heart-rate variability if you have a monitor), sharpen your inner <b>rhythm</b>, or just sit in a timed <b>session</b>. Headphones recommended throughout.</div>'+
-    '<div class="grid" id="medCards"></div></div>';
+    '<div class="grid" id="medCards"></div>'+'<div class="rlab" style="display:block;margin:16px 0 6px">\ud83d\udd14 Daily reminder</div><div class="rrow2"><span class="rlab">Remind me</span><span class="rchips tight"><button class="rchip sm" id="medRemOn">On</button><button class="rchip sm" id="medRemOff">Off</button></span><input type="time" id="medRemTime" style="background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:6px 9px;font:inherit;margin-left:8px"></div><div class="site-note" id="medRemNote" style="margin-top:4px"></div></div>';
   $("#eBack").onclick=goHome;
   const cc=$("#medCards");MODS.forEach(c=>{const b=document.createElement("button");b.className="card";b.innerHTML=`<span class="ic">${c.ic}</span><h3>${esc(c.title)}</h3><span class="blurb">${esc(c.blurb)}</span>`;b.onclick=c.go;cc.appendChild(b);});
+  (function(){var r=medRemGet();var on=$("#medRemOn"),off=$("#medRemOff"),tm=$("#medRemTime"),note=$("#medRemNote");if(tm)tm.value=r.time||"08:00";function upd(){if(on)on.classList.toggle("sel",r.on);if(off)off.classList.toggle("sel",!r.on);if(note)note.textContent=r.on?("Reminder on at "+(r.time||"08:00")+((window.Notification&&Notification.permission==="granted")?" \u00b7 alerts on":"")):"Reminder off.";}if(on)on.onclick=function(){r.on=true;medRemSet(r);if(window.Notification&&Notification.permission==="default"){try{Notification.requestPermission().then(upd);}catch(e){}}upd();};if(off)off.onclick=function(){r.on=false;medRemSet(r);upd();};if(tm)tm.onchange=function(){r.time=tm.value||"08:00";medRemSet(r);upd();};upd();})();
 }
-function renderBrainwave(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{medStop();};
-  let wi=2,carrier=200,vol=0.5,shimmer=true,playing=false;
+function renderBrainwave(startId){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{medStop();};
+  let wi=2,carrier=200,vol=0.5,shimmer=true,playing=false;if(startId){for(var _bi=0;_bi<BRAINWAVES.length;_bi++){if(BRAINWAVES[_bi].id===startId)wi=_bi;}}
   function draw(){const w=BRAINWAVES[wi];
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌀 Brainwave Binaural</span></div><div class="panel">'+
       '<div class="intro">A <b>binaural beat</b> plays a slightly different tone in each ear; your brain hears the <b>difference</b> as a pulse and tends to settle toward it. Pick what you want, put on <b>headphones</b>, and relax — nothing to do but listen.</div>'+
