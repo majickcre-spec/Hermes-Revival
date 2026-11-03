@@ -1197,8 +1197,9 @@ function pianoMaster(a){
 /* one struck-piano note: fast hammer attack, exponential decay, timbre mellows as it rings */
 /* ===== Real sampled instruments — multi-instrument, loaded in the browser; silent fallback to the built-in engine ===== */
 var SF={ready:{},loading:{},buf:{},anchors:{},base:"https://cdn.jsdelivr.net/gh/gleitz/midi-js-soundfonts@gh-pages/MusyngKite/",
-  folder:{piano:"acoustic_grand_piano-mp3",guitar:"acoustic_guitar_nylon-mp3",bass:"electric_bass_finger-mp3"},
-  range:{piano:[33,96],guitar:[40,86],bass:[28,67]}};
+  folder:{piano:"acoustic_grand_piano-mp3",guitar:"acoustic_guitar_nylon-mp3",bass:"electric_bass_finger-mp3",handpan:"steel_drums-mp3"},
+  range:{piano:[33,96],guitar:[40,86],bass:[28,67],handpan:[48,84]},
+  ring:{piano:1.3,guitar:0.9,bass:1.0,handpan:2.8}};
 var SF_NN=["C","Cs","D","Ds","E","F","Fs","G","Gs","A","As","B"];
 function sfFile(midi){return SF_NN[((midi%12)+12)%12]+(Math.floor(midi/12)-1);}
 function sfOn(){return load("mjk-realsound",1)?true:false;}
@@ -1212,9 +1213,9 @@ function sfLoadInst(key){if(!SF.folder[key]||SF.loading[key]||SF.ready[key]||!sf
 function sfNearest(key,midi){var an=SF.anchors[key]||[];if(!an.length)return null;var best=an[0],bd=999;for(var i=0;i<an.length;i++){var d=Math.abs(an[i]-midi);if(d<bd){bd=d;best=an[i];}}return best;}
 function sfPlayKey(key,midi,start,dur,gain){try{if(!sfInstReady(key))return false;var anc=sfNearest(key,midi);if(anc==null||!SF.buf[key][anc])return false;
   var a=ac(),t0=a.currentTime+(start||0)+0.001,out=pianoMaster(a),s=a.createBufferSource();s.buffer=SF.buf[key][anc];s.playbackRate.value=Math.pow(2,(midi-anc)/12);
-  var g=a.createGain(),peak=Math.max(0.05,Math.min(1.1,gain==null?0.9:gain)),rel=Math.max(0.2,(dur||0.5));
-  g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(peak,t0+0.005);g.gain.setValueAtTime(peak,t0+Math.max(0.03,rel-0.14));g.gain.exponentialRampToValueAtTime(0.0008,t0+rel+0.14);
-  s.connect(g);g.connect(out);s.start(t0);s.stop(t0+rel+0.4);return true;}catch(e){return false;}}
+  var g=a.createGain(),peak=Math.max(0.05,Math.min(1.1,gain==null?0.9:gain)),rel=Math.max(0.08,(dur||0.5)),tail=(SF.ring&&SF.ring[key])||0.6;
+  g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(peak,t0+0.006);g.gain.setValueAtTime(peak,t0+rel);g.gain.exponentialRampToValueAtTime(0.0008,t0+rel+tail);
+  s.connect(g);g.connect(out);s.start(t0);s.stop(t0+rel+tail+0.12);return true;}catch(e){return false;}}
 function playTone(freq,start,dur){
   if(sfInstReady("piano")&&sfPlayKey("piano",Math.round(69+12*Math.log2(freq/440)),start,dur,0.92))return;
   const a=ac(),t0=a.currentTime+start+0.001,out=pianoMaster(a);
@@ -3555,7 +3556,7 @@ function blobDownload(bytes,filename,mime){try{const blob=new Blob([bytes],{type
 function downloadBytes(bytes,filename,mime){
   try{if(window.claude&&window.claude.use){window.claude.use("downloads").then(d=>{if(d&&d.save)d.save({filename,data:new Blob([bytes],{type:mime||"application/octet-stream"})}).catch(()=>blobDownload(bytes,filename,mime));else blobDownload(bytes,filename,mime);}).catch(()=>blobDownload(bytes,filename,mime));return;}}catch(e){}
   blobDownload(bytes,filename,mime);}
-function renderBeat(focus){
+function renderBeat(focus){try{sfLoadInst("handpan");}catch(e){}
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   let bpm=load(mk("beat","bpm"),92),steps=load(mk("beat","steps"),16),swing=load(mk("beat","swing"),0);
   let rows=beatRowsAll(),grid=rows.map(()=>new Array(steps).fill(0));
@@ -4532,7 +4533,7 @@ const MAKE_CARDS=[
  {ic:"🔬",title:"Song Analysis",blurb:"Learn to make songs by taking apart songs you love — one layer a week: structure, low end, groove, harmony, melody, lyrics, arrangement, the mix. Guided listening prompts + a worksheet that saves.",go:()=>renderSongAnalysis()}
 ];
 /* handpan voice — mellow metallic bell with octave + twelfth overtones, long decay */
-function handpan(time,midi){const a=ac(),out=pianoMaster(a),f=midiToFreq(midi);
+function handpan(time,midi){sfLoadInst("handpan");if(sfInstReady("handpan")&&sfPlayKey("handpan",Math.round(midi),Math.max(0,time-ac().currentTime),1.6,0.9))return;var a=ac(),out=pianoMaster(a),f=midiToFreq(midi);
   [[1,0.9,0],[2,0.5,2],[3.01,0.22,-3],[4.02,0.1,5]].forEach(([mul,lvl,det])=>{const o=a.createOscillator();o.type="sine";o.frequency.value=f*mul;o.detune.value=det;
     const g=a.createGain(),dur=1.9;g.gain.setValueAtTime(0.0001,time);g.gain.exponentialRampToValueAtTime(lvl,time+0.008);g.gain.exponentialRampToValueAtTime(0.0001,time+dur);
     o.connect(g);g.connect(out);o.start(time);o.stop(time+dur+0.05);});
@@ -4581,7 +4582,7 @@ function hpLightStrip(step){const all=document.querySelectorAll(".hpcell");if(!a
 function hpLightNext(step,idx){document.querySelectorAll(".hpcell.next").forEach(e=>e.classList.remove("next"));const box=document.getElementById("handpan");if(box)box.querySelectorAll(".hp-field.next").forEach(e=>e.classList.remove("next"));if(!leadOn())return;const s=document.getElementById("hpS"+step);if(s)s.classList.add("next");const f=document.getElementById("hpF"+idx);if(f)f.classList.add("next");}
 function hpFrame(){const now=ac().currentTime;while(HP.visQ.length&&HP.visQ[0].t<=now){const e=HP.visQ.shift();hpLight(e.idx);hpLightStrip(e.step);hpLightNext(e.nextStep,e.nextIdx);}HP.raf=requestAnimationFrame(hpFrame);}
 function hpStart(){unlockAudio();if(HP.running)return;const a=ac();HP.running=true;HP.i=0;HP.nextTime=a.currentTime+0.2;HP.visQ=[];HP.schID=setInterval(hpSchedule,30);HP.raf=requestAnimationFrame(hpFrame);const b=$("#hpStart");if(b)b.textContent="⏸ Stop";}
-function renderHandpan(){
+function renderHandpan(){try{sfLoadInst("handpan");}catch(e){}
   if(toneRAF)cancelAnimationFrame(toneRAF);hpStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   HP.mode=HP.mode||"play";
   let tRAF=null,tbuf=null,last=null;
