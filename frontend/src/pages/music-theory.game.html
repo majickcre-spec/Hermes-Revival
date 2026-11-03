@@ -3011,7 +3011,7 @@ function renderDrumKit(startMode){if(toneRAF)cancelAnimationFrame(toneRAF);home.
 }
 /* ===== EAR TRAINING — progressions & cadences ===== */
 function playChordAt(rootMidi,q,start){const iv=(CHORD_DEFS[q]||CHORD_DEFS.maj).iv;iv.forEach(s=>playTone(midiToFreq(rootMidi+s),start,1.0));}
-function playProg(root,seq){seq.forEach((ch,i)=>playChordAt(root+ch[0],ch[1],i*0.62));}
+function playProg(root,seq){if(typeof earStop==="function")earStop();seq.forEach(function(ch,i){var iv=(CHORD_DEFS[ch[1]]||CHORD_DEFS.maj).iv;iv.forEach(function(s){if(typeof earTone==="function")earTone(root+ch[0]+s,i*620,0.9,0.16);});});}
 const PROG_DEFS={
  "1546":{iv:[[0,"maj"],[7,"maj"],[9,"min"],[5,"maj"]],name:"I–V–vi–IV (pop)"},
  "1451":{iv:[[0,"maj"],[5,"maj"],[7,"maj"],[0,"maj"]],name:"I–IV–V–I"},
@@ -4066,8 +4066,11 @@ const CHORD_DEFS={maj:{iv:[0,4,7],name:"Major",desc:"bright, happy, resolved —
 const CHORD_LEVELS=[["maj","min"],["maj","min","dim","aug"],["maj","min","dom7","maj7","min7"]];
 const SCALE_DEFS={major:{iv:[0,2,4,5,7,9,11,12],name:"Major"},minor:{iv:[0,2,3,5,7,8,10,12],name:"Natural minor"},dorian:{iv:[0,2,3,5,7,9,10,12],name:"Dorian"},majpent:{iv:[0,2,4,7,9,12],name:"Major pentatonic"},blues:{iv:[0,3,5,6,7,10,12],name:"Blues"},harm:{iv:[0,2,3,5,7,8,11,12],name:"Harmonic minor"}};
 const SCALE_LEVELS=[["major","minor"],["major","minor","dorian","majpent"],["major","minor","dorian","majpent","blues","harm"]];
-function playChordEar(root,iv){iv.forEach(s=>playTone(midiToFreq(root+s),0,2.2));}
-function playScaleEar(root,iv){iv.forEach((s,i)=>playTone(midiToFreq(root+s),i*0.32,0.5));}
+function playChordEar(root,iv){earStop();iv.forEach(function(s){earTone(root+s,0,2.0,0.16);});}
+var EAR_T=[],EAR_O=[];
+function earStop(){EAR_T.forEach(clearTimeout);EAR_T=[];try{var a=ac();EAR_O.forEach(function(n){try{n.g.gain.cancelScheduledValues(a.currentTime);n.g.gain.setTargetAtTime(0.0001,a.currentTime,0.03);n.o.stop(a.currentTime+0.12);}catch(e){}});}catch(e){}EAR_O=[];}
+function earTone(midi,delayMs,dur,gain){EAR_T.push(setTimeout(function(){try{var a=ac(),o=a.createOscillator(),g=a.createGain(),t=a.currentTime,pk=gain||0.24;o.type="triangle";o.frequency.value=midiToFreq(midi);g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(pk,t+0.012);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(pianoMaster(a));o.start(t);o.stop(t+dur+0.12);EAR_O.push({o:o,g:g});}catch(e){}},Math.max(0,delayMs)));}
+function playScaleEar(root,iv){earStop();iv.forEach(function(s,i){earTone(root+s,i*320,0.55,0.26);});}
 function earGame(cfg){
   home.hidden=true;view.hidden=false;window.scrollTo(0,0);let level=load(mk("ear",cfg.key+"-lvl"),0);
   function back(){goHome();}
