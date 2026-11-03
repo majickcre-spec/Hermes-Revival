@@ -462,6 +462,10 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 #homeSearch::placeholder{color:var(--muted)}
 #homeSearch:focus{outline:none;border-color:var(--gold)}
 #home.searching>:not(.hero):not(.homesearch):not(#searchResults){display:none}
+.azbar{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.azbar button{min-width:30px;padding:6px 0;flex:1 1 30px;font:inherit;font-weight:700;font-size:.82rem;background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:7px;cursor:pointer}
+.azbar button:hover{border-color:var(--gold)}
+.azbar button.sel{background:var(--gold);color:#241800;border-color:var(--gold)}
 .prpickup{position:absolute;top:0;width:0;border-left:2px dashed var(--gold);z-index:3;pointer-events:none}
 .prpicklab{position:absolute;top:1px;font-size:9px;color:var(--gold);background:var(--bg);padding:0 2px;border-radius:3px;z-index:4;pointer-events:none;white-space:nowrap}
 .lanote{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:6px 7px;cursor:pointer;min-width:42px}
@@ -494,7 +498,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
       <div class="pillars"><span class="pillar">🎯 <b>Know it</b></span><span class="pillar">👂 <b>Hear it</b></span><span class="pillar">🥁 <b>Feel it</b></span><span class="pillar">🎹 <b>Play it</b></span></div>
     </div>
 
-    <div class="homesearch"><input id="homeSearch" type="search" autocomplete="off" placeholder="Search everything — instruments, lessons, tools…"></div>
+    <div class="homesearch"><input id="homeSearch" type="search" autocomplete="off" placeholder="Search, or tap a letter below…"><div id="azBar" class="azbar"></div></div>
     <div id="searchResults" hidden></div>
 
     <div id="pathHero"></div>
@@ -925,18 +929,17 @@ function renderHome(){
       if(now&&activeId()&&!load(mk(k.id,"kb-paid"),false)){addBeans(KB_BEANS);save(mk(k.id,"kb-paid"),true);burst(btn,4,"bean");}
       renderHome();};
     d.appendChild(btn);kb.appendChild(d);});
-    const si=$("#homeSearch"),sr=$("#searchResults");
-    if(si){var IDX=buildSearchIndex();
-      si.oninput=function(){var q=si.value.trim().toLowerCase();
-        if(!q){home.classList.remove("searching");if(sr){sr.hidden=true;sr.innerHTML="";}return;}
-        var terms=q.split(/\s+/);var hits=IDX.filter(function(e){var hay=((e.title||"")+" "+(e.blurb||"")+" "+(e.sec||"")).toLowerCase();return terms.every(function(t){return hay.indexOf(t)>=0;});});
-        home.classList.add("searching");if(!sr)return;sr.hidden=false;
-        sr.innerHTML='<div class="label" style="margin-top:4px">'+(hits.length?(hits.length+" result"+(hits.length>1?"s":"")):"No matches — try another word")+'</div>';
-        var g=document.createElement("div");g.className="grid";
-        hits.forEach(function(e){var b=document.createElement("button");b.className="card";b.innerHTML='<span class="ic">'+(e.ic||"🎵")+'</span><h3>'+esc(e.title)+'</h3><span class="blurb">'+esc(e.blurb)+'</span><span class="done-pill" style="color:var(--muted);border-color:var(--line);background:transparent">'+esc(e.sec)+'</span>';b.onclick=e.go;g.appendChild(b);});
-        sr.appendChild(g);
-      };
-    }
+    const si=$("#homeSearch"),sr=$("#searchResults"),az=$("#azBar");
+    var IDX=buildSearchIndex();
+    function _card(e){var b=document.createElement("button");b.className="card";b.innerHTML='<span class="ic">'+(e.ic||"🎵")+'</span><h3>'+esc(e.title)+'</h3><span class="blurb">'+esc(e.blurb)+'</span><span class="done-pill" style="color:var(--muted);border-color:var(--line);background:transparent">'+esc(e.sec)+'</span>';b.onclick=e.go;return b;}
+    function _clear(){home.classList.remove("searching");if(sr){sr.hidden=true;sr.innerHTML="";}if(az)az.querySelectorAll("button").forEach(function(x){x.classList.remove("sel");});}
+    function _show(list,heading){if(!sr)return;home.classList.add("searching");sr.hidden=false;sr.innerHTML='<div class="label" style="margin-top:4px">'+heading+'</div>';var g=document.createElement("div");g.className="grid";list.sort(function(a,b){return (a.title||"").localeCompare(b.title||"");}).forEach(function(e){g.appendChild(_card(e));});sr.appendChild(g);}
+    if(si){si.oninput=function(){var q=si.value.trim().toLowerCase();if(az)az.querySelectorAll("button").forEach(function(x){x.classList.remove("sel");});
+      if(!q){_clear();return;}
+      var terms=q.split(/\s+/),hits=IDX.filter(function(e){var hay=((e.title||"")+" "+(e.blurb||"")+" "+(e.sec||"")).toLowerCase();return terms.every(function(t){return hay.indexOf(t)>=0;});});
+      _show(hits,hits.length?(hits.length+" result"+(hits.length>1?"s":"")):"No matches — try another word");};}
+    if(az){var letters=[];IDX.forEach(function(e){var L=(e.title||"#").charAt(0).toUpperCase();if(/[A-Z]/.test(L)&&letters.indexOf(L)<0)letters.push(L);});letters.sort();
+      letters.forEach(function(L){var b=document.createElement("button");b.textContent=L;b.onclick=function(){if(b.classList.contains("sel")){_clear();return;}if(si)si.value="";az.querySelectorAll("button").forEach(function(x){x.classList.remove("sel");});b.classList.add("sel");var hits=IDX.filter(function(e){return (e.title||"").charAt(0).toUpperCase()===L;});_show(hits,L+" — "+hits.length+" item"+(hits.length>1?"s":"")+" (tap "+L+" again to close)");};az.appendChild(b);});}
 }
 let teardown=null;
 function goHome(){if(teardown){try{teardown();}catch(e){}teardown=null;}view.hidden=true;home.hidden=false;renderHome();window.scrollTo(0,0);}
