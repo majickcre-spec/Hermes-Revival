@@ -4393,7 +4393,7 @@ function fbPaint(){var box=document.getElementById("fbBox");if(box)box.innerHTML
     else{fbStopHold();if(st&&!/Locked/.test(st.textContent))st.textContent=sh?"Place a finger on each glowing dot — hold 3s to lock it in.":"No shapes for bass here — use Play mode.";}}}
 function fbPlayScale(){unlockAudio();var set=fbScaleSet(),strings=fbStrings(),N=strings.length,win1=(FB.win===1),notes=[];for(var s=0;s<N;s++){for(var f=(win1?0:FB.win);f<FB.win+4;f++){var m=strings[s]+f;if((((m%12)+12)%12) in set)notes.push(m);}}notes=notes.filter(function(v,i,a){return a.indexOf(v)===i;}).sort(function(a,b){return a-b;});if(!notes.length)return;var seq=notes.concat(notes.slice(0,-1).reverse());var t=ac().currentTime+0.05;seq.forEach(function(m){pluck(m,t,0.5,0.3);t+=0.26;});}
 function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.mode=startMode;if(FB.inst==="bass"&&FB.mode==="chord")FB.mode="play";if(FB.mode==="chord"&&!fbShapeFor(FB.chord))FB.chord=(CHORDS[FB.inst]?Object.keys(CHORDS[FB.inst])[0]:"C");
-  if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);try{sfLoadInst("guitar");}catch(e){}
   document.removeEventListener("pointerup",fbUpPt);document.removeEventListener("pointercancel",fbUpPt);
   document.addEventListener("pointerup",fbUpPt);document.addEventListener("pointercancel",fbUpPt);
   teardown=function(){fbStopHold();FB.active.clear();document.removeEventListener("pointerup",fbUpPt);document.removeEventListener("pointercancel",fbUpPt);};
@@ -4407,7 +4407,7 @@ function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.
       '<span class="rchips tight" style="margin-left:auto"><button class="rchip sm'+(FB.mode==="play"?" sel":"")+'" id="fbMp">🎵 Play</button><button class="rchip sm'+(FB.mode==="chord"?" sel":"")+'" id="fbMc">✋ Chords</button><button class="rchip sm'+(FB.mode==="scale"?" sel":"")+'" id="fbMs">🎼 Scales</button></span></div>'+
       (FB.mode==="chord"?'<div class="rrow2"><span class="rlab">Chord</span><span class="rchips tight" id="fbChips"></span></div>'+(FB_ADV[FB.inst]?'<div class="rrow2" style="margin-top:2px"><button class="rchip sm'+(FB.adv?" sel":"")+'" id="fbAdv">'+(FB.adv?"★ Showing advanced shapes":"➕ More / advanced shapes")+'</button></div>':''):'')+
       (FB.mode==="scale"?'<div class="rrow2"><span class="rlab">Root</span><span class="rchips tight" id="fbRoot"></span></div><div class="rrow2" style="margin-top:2px"><span class="rlab">Scale</span><span class="rchips tight" id="fbScale"></span></div><div class="actions" style="margin:6px 0 0"><button class="btn ghost" id="fbPlayScale">▶ Play the scale (up &amp; down)</button></div>':'')+
-      '<div class="actions" style="justify-content:space-between;align-items:center;margin:8px 0 4px"><button class="btn ghost" id="fbUp">▲ lower frets</button><span class="rbpm" id="fbWinLbl" style="min-width:120px;text-align:center;font-size:13px">'+winLabel+'</span><button class="btn ghost" id="fbDn">higher frets ▼</button></div>'+
+      '<div class="actions" style="justify-content:space-between;align-items:center;gap:6px;flex-wrap:nowrap;margin:8px 0 4px"><button class="btn ghost" id="fbUp" style="flex:1 1 0;min-width:0;padding:12px 6px;font-size:.9rem;letter-spacing:0">▲ Lower</button><span class="rbpm" id="fbWinLbl" style="flex:0 0 auto;min-width:84px;text-align:center;font-size:12px">'+winLabel+'</span><button class="btn ghost" id="fbDn" style="flex:1 1 0;min-width:0;padding:12px 6px;font-size:.9rem;letter-spacing:0">Higher ▼</button></div>'+
       '<div id="fbBox">'+fbSVG()+'</div>'+
       (FB.mode==="chord"?'<div id="fbHold"><div id="fbHoldBar"></div></div>':'')+
       '<div class="actions" style="justify-content:center;margin-top:10px"><button class="btn" id="fbStrum">🎸 Strum</button><button class="rchip sm'+(FB.showNotes?" sel":"")+'" id="fbNotes">🏷️ Note names</button></div>'+
@@ -4850,7 +4850,7 @@ const PROGS=[
  {name:"ii–V–I · C (jazz turnaround)",chords:["Dm","G","C","C"]}
 ];
 function chordNotes(inst,frets){const o=STRING_INSTR[inst].strings,n=[];frets.forEach((fr,i)=>{if(fr>=0)n.push(o[i]+fr);});return n;}
-function pluck(midi,time,dur,peak){sfLoadInst("guitar");if(sfInstReady("guitar")&&sfPlayKey("guitar",midi,time,dur,Math.min(1,(peak||0.24)*3)))return;const a=ac(),out=pianoMaster(a),f=midiToFreq(midi);
+function pluck(midi,time,dur,peak){sfLoadInst("guitar");if(sfInstReady("guitar")&&sfPlayKey("guitar",midi,(time-ac().currentTime),dur,Math.min(1,(peak||0.24)*3)))return;const a=ac(),out=pianoMaster(a),f=midiToFreq(midi);
   const o=a.createOscillator();o.type="sawtooth";o.frequency.value=f;
   const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.setValueAtTime(Math.min(6000,f*6),time);lp.frequency.exponentialRampToValueAtTime(Math.max(600,f*2),time+dur*0.6);
   const g=a.createGain();g.gain.setValueAtTime(0.0001,time);g.gain.exponentialRampToValueAtTime(peak||0.22,time+0.005);g.gain.exponentialRampToValueAtTime(0.0001,time+dur);
