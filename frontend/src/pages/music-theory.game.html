@@ -896,7 +896,8 @@ function buildSearchIndex(){var idx=[];
   add(typeof RHYTHM_CARDS!=="undefined"?RHYTHM_CARDS:null,"Rhythm");
   add(typeof INSTRUMENT_CARDS!=="undefined"?INSTRUMENT_CARDS:null,"Instrument");
   add(typeof MAKE_CARDS!=="undefined"?MAKE_CARDS:null,"Make music");
-  add(typeof BIO_CARDS!=="undefined"?BIO_CARDS:null,"Biofeedback");
+  add(typeof BIO_CARDS!=="undefined"?BIO_CARDS:null,"Meditation");
+  var _lyr={"Lyric Lab":1,"Write + Beat Lab":1,"Songwriting":1};idx.forEach(function(e){if(_lyr[e.title])e.sec="Lyrics";});
   return idx;}
 function renderHome(){
   beanChip();renderQuest();
@@ -4453,6 +4454,15 @@ function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.
   }
   draw();
 }
+var SONG_FORMS=[
+ {id:"verse-chorus",name:"Verse – Chorus",parts:["Verse","Chorus","Verse","Chorus","Bridge","Chorus"],hint:"The modern default — verses carry the story, the chorus is the big repeated idea."},
+ {id:"vpc",name:"Verse – Pre – Chorus",parts:["Verse","Pre-Chorus","Chorus","Verse","Pre-Chorus","Chorus"],hint:"Pop's workhorse — the pre-chorus builds tension and launches the hook."},
+ {id:"aaba",name:"AABA (32-bar)",parts:["A","A","B","A"],hint:"The classic standard — the A's share a melody; B (the bridge) lifts and contrasts before the last A."},
+ {id:"aaa",name:"Strophic (AAA)",parts:["Verse","Verse","Verse"],hint:"One melody, new words each verse — no chorus. Story-driven; folk and ballads."},
+ {id:"blues",name:"12-bar Blues",parts:["Verse","Verse","Verse"],hint:"AAB lyric feel — state a line, repeat it, then answer it."}
+];
+function blApplyForm(id){var fm=null;for(var i=0;i<SONG_FORMS.length;i++){if(SONG_FORMS[i].id===id)fm=SONG_FORMS[i];}if(!fm)return;var txt=fm.parts.map(function(p){return "["+p+"]\n";}).join("\n");var cur=(BL.lyrics||"").replace(/\s+$/,"");BL.lyrics=cur?(cur+"\n\n"+txt):txt;if(typeof blDraw==="function")blDraw();var ta=document.getElementById("blLyrics");if(ta)ta.focus();}
+function blRhymeShow(word){var out=document.getElementById("blRhymeOut");if(!out)return;word=(word||"").trim();if(!word){out.textContent="Type a word to rhyme.";return;}out.textContent="finding rhymes…";if(typeof rhymeFind!=="function"){out.textContent="Rhyme finder unavailable.";return;}rhymeFind(word,function(res,err){if(!res){out.textContent=(err==="offline")?"Rhyme finder needs a connection.":"No rhymes found — try another word.";return;}var p=(res.perfect||[]).slice(0,10),n=(res.near||[]).slice(0,8);var html=(p.length?'<b style="color:#7fd7c4">Perfect:</b> '+p.map(esc).join(", "):"")+(n.length?((p.length?"<br>":"")+'<b style="color:#e9c46a">Near:</b> '+n.map(esc).join(", ")):"");out.innerHTML=html||"No rhymes found — try another word.";});}
 /* ===== WRITE + BEAT LAB — write lyrics over a backing beat, record vocals in sync ===== */
 var BL={backing:null,name:"",bpm:90,bars:2,playing:false,src:null,voice:null,voiceSrc:null,nudge:0,beatVol:0.9,voiceVol:1.0,clickVol:0.5,clickOn:false,lyrics:"",rec:null,recChunks:[],recording:false,master:null,bGain:null,vGain:null,cGain:null,clickTimer:null,raf:null,_ctx:null,_cn:0,ref:null};
 var BLSESS=load("mjk-beatlab",[]);
@@ -4509,10 +4519,14 @@ function renderBeatLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=tr
       h+='<div class="rchips tight" style="margin-top:4px"><button class="rchip sm" id="blClearTake">✕ Clear take</button></div>';}
     h+='<div class="feedback" id="blStatus" style="min-height:22px;margin-top:8px"></div>';
     // lyrics
+    h+='<div class="rlab" style="display:block;margin:12px 0 4px">Song form <span style="opacity:.7">— pick a structure to lay out the sections</span> <button class="rchip sm" id="blFormInfo" style="padding:2px 9px;margin-left:4px">ⓘ learn forms</button></div>';
+    h+='<div class="rchips tight" id="blForms" style="margin-bottom:10px;flex-wrap:wrap;gap:6px"></div>';
     h+='<div class="rlab" style="display:block;margin:12px 0 4px">Lyrics <span style="opacity:.7">— tap a tag to label a section</span></div>';
     h+='<div class="rchips tight" style="margin-bottom:6px"><button class="rchip sm" data-tag="Verse">+ Verse</button><button class="rchip sm" data-tag="Chorus">+ Chorus</button><button class="rchip sm" data-tag="Hook">+ Hook</button><button class="rchip sm" data-tag="Bridge">+ Bridge</button></div>';
     h+='<textarea id="blLyrics" placeholder="your words…" style="width:100%;min-height:150px;background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:10px;font:inherit;line-height:1.7">'+esc(BL.lyrics||"")+'</textarea>';
     h+='<div class="site-note" id="blSyl" style="margin-top:4px"></div>';
+    h+='<div class="rrow2" style="margin-top:8px"><span class="rlab">Rhymes</span><input id="blRhymeW" placeholder="a word to rhyme…" style="flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:6px 9px;font:inherit"><button class="rchip sm" id="blRhymeGo">Find</button></div>';
+    h+='<div class="site-note" id="blRhymeOut" style="margin-top:4px"></div>';
     // save
     h+='<div class="rrow2" style="margin-top:12px"><span class="rlab">Name</span><input id="blName" placeholder="name this session…" style="background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:7px 9px;font:inherit;flex:1"></div>';
     h+='<div class="actions"><button class="btn" id="blSave">💾 Save session</button></div>';
@@ -4535,6 +4549,8 @@ function renderBeatLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=tr
     var ct=document.getElementById("blClearTake");if(ct)ct.onclick=function(){BL.voice=null;BL.nudge=0;blDraw();blMsg("Take cleared.");};
     var ta=document.getElementById("blLyrics");if(ta){ta.oninput=function(){BL.lyrics=ta.value;blSylUpdate();};}
     view.querySelectorAll("[data-tag]").forEach(function(b){b.onclick=function(){var tag=b.getAttribute("data-tag"),t=document.getElementById("blLyrics");if(!t)return;var ins=(t.value&&!/\n$/.test(t.value)?"\n":"")+"["+tag+"]\n";var p=t.selectionStart!=null?t.selectionStart:t.value.length;t.value=t.value.slice(0,p)+ins+t.value.slice(p);BL.lyrics=t.value;t.focus();t.selectionStart=t.selectionEnd=p+ins.length;blSylUpdate();};});
+    (function(){var fb=document.getElementById("blForms");if(fb){fb.innerHTML="";SONG_FORMS.forEach(function(fm){var b=document.createElement("button");b.className="rchip sm";b.textContent=fm.name;b.title=fm.hint;b.onclick=function(){blApplyForm(fm.id);};fb.appendChild(b);});}var fi=document.getElementById("blFormInfo");if(fi)fi.onclick=function(){if(typeof lessonSong==="function")lessonSong("structure");};})();
+    (function(){var go=document.getElementById("blRhymeGo"),w=document.getElementById("blRhymeW");function run(){if(w)blRhymeShow(w.value);}if(go)go.onclick=run;if(w)w.onkeydown=function(e){if(e.key==="Enter"){e.preventDefault();run();}};})();
     document.getElementById("blSave").onclick=function(){blSaveSession(document.getElementById("blName").value||"Session");};
     blRenderList();blSylUpdate();
   };
