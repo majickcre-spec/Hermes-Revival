@@ -4565,11 +4565,11 @@ const MAKE_CARDS=[
  {ic:"🔬",title:"Song Analysis",blurb:"Learn to make songs by taking apart songs you love — one layer a week: structure, low end, groove, harmony, melody, lyrics, arrangement, the mix. Guided listening prompts + a worksheet that saves.",go:()=>renderSongAnalysis()}
 ];
 /* handpan voice — mellow metallic bell with octave + twelfth overtones, long decay */
-function handpan(time,midi){sfLoadInst("handpan");if(sfInstReady("handpan")&&sfPlayKey("handpan",Math.round(midi),Math.max(0,time-ac().currentTime),1.6,0.9))return;var a=ac(),out=pianoMaster(a),f=midiToFreq(midi);
-  [[1,0.9,0],[2,0.5,2],[3.01,0.22,-3],[4.02,0.1,5]].forEach(([mul,lvl,det])=>{const o=a.createOscillator();o.type="sine";o.frequency.value=f*mul;o.detune.value=det;
-    const g=a.createGain(),dur=1.9;g.gain.setValueAtTime(0.0001,time);g.gain.exponentialRampToValueAtTime(lvl,time+0.008);g.gain.exponentialRampToValueAtTime(0.0001,time+dur);
-    o.connect(g);g.connect(out);o.start(time);o.stop(time+dur+0.05);});
-  djNoise(a,time,0.03,2200,0.07,out,true);}
+function handpan(time,midi){var a=ac(),out=pianoMaster(a),f=midiToFreq(midi),t=time;
+  [[1,0.52,0,3.6],[2,0.34,4,3.0],[3.01,0.2,-5,2.5],[4.02,0.08,7,1.9],[6.0,0.03,10,1.4]].forEach(function(p){var o=a.createOscillator();o.type="sine";o.frequency.value=f*p[0];o.detune.value=p[2]||0;var g=a.createGain(),dur=p[3];g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(p[1],t+0.009);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    if(p[0]>=2){var lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=4+p[0]*0.6;var lg=a.createGain();lg.gain.value=p[1]*0.2;lfo.connect(lg);lg.connect(g.gain);lfo.start(t);lfo.stop(t+dur);}
+    o.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.1);});
+  djNoise(a,t,0.03,2400,0.045,out,true);}
 const HP_SCALES=[
  {name:"D Kurd (classic)",notes:[50,57,58,60,62,64,65,67,69]},
  {name:"D Celtic Minor",notes:[50,57,60,62,64,65,67,69,72]},
@@ -4831,11 +4831,11 @@ const KEY_CHORDS={
  G:{chords:["G","Am","Bm","C","D","Em"],rn:["I","ii","iii","IV","V","vi"]}
 };
 const PROGS=[
- {name:"I–IV–V in C",chords:["C","F","G","C"]},
- {name:"Pop (C) I–V–vi–IV",chords:["C","G","Am","F"]},
- {name:"50s (C) I–vi–IV–V",chords:["C","Am","F","G"]},
- {name:"I–IV–V in G",chords:["G","C","D","G"]},
- {name:"Pop (G) I–V–vi–IV",chords:["G","D","Em","C"]}
+ {name:"I–V–vi–IV · G (the 4-chord song)",chords:["G","D","Em","C"]},
+ {name:"I–IV–V · G (rock & blues)",chords:["G","C","D","G"]},
+ {name:"vi–IV–I–V · G (pop ballad)",chords:["Em","C","G","D"]},
+ {name:"I–vi–IV–V · C (50s doo-wop)",chords:["C","Am","F","G"]},
+ {name:"ii–V–I · C (jazz turnaround)",chords:["Dm","G","C","C"]}
 ];
 function chordNotes(inst,frets){const o=STRING_INSTR[inst].strings,n=[];frets.forEach((fr,i)=>{if(fr>=0)n.push(o[i]+fr);});return n;}
 function pluck(midi,time,dur,peak){sfLoadInst("guitar");if(sfInstReady("guitar")&&sfPlayKey("guitar",midi,time,dur,Math.min(1,(peak||0.24)*3)))return;const a=ac(),out=pianoMaster(a),f=midiToFreq(midi);
