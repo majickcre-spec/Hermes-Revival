@@ -1214,7 +1214,7 @@ function pianoMaster(a){
 var SF={ready:{},loading:{},buf:{},anchors:{},base:"https://cdn.jsdelivr.net/gh/gleitz/midi-js-soundfonts@gh-pages/MusyngKite/",
   folder:{piano:"acoustic_grand_piano-mp3",guitar:"acoustic_guitar_nylon-mp3",bass:"electric_bass_finger-mp3",handpan:"steel_drums-mp3"},
   range:{piano:[33,96],guitar:[40,86],bass:[28,67],handpan:[48,84]},
-  ring:{piano:1.3,guitar:0.9,bass:1.0,handpan:2.8}};
+  ring:{piano:1.3,guitar:0.9,bass:1.0,handpan:1.5}};
 var SF_NN=["C","Cs","D","Ds","E","F","Fs","G","Gs","A","As","B"];
 function sfFile(midi){return SF_NN[((midi%12)+12)%12]+(Math.floor(midi/12)-1);}
 function sfOn(){return load("mjk-realsound",1)?true:false;}
@@ -4686,7 +4686,7 @@ const MAKE_CARDS=[
 ];
 /* handpan voice — mellow metallic bell with octave + twelfth overtones, long decay */
 function handpan(time,midi){var a=ac(),out=pianoMaster(a),f=midiToFreq(midi),t=time;
-  [[1,0.52,0,3.6],[2,0.34,4,3.0],[3.01,0.2,-5,2.5],[4.02,0.08,7,1.9],[6.0,0.03,10,1.4]].forEach(function(p){var o=a.createOscillator();o.type="sine";o.frequency.value=f*p[0];o.detune.value=p[2]||0;var g=a.createGain(),dur=p[3];g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(p[1],t+0.009);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  [[1,0.52,0,1.9],[2,0.34,4,1.6],[3.01,0.2,-5,1.3],[4.02,0.08,7,1.0],[6.0,0.03,10,0.75]].forEach(function(p){var o=a.createOscillator();o.type="sine";o.frequency.value=f*p[0];o.detune.value=p[2]||0;var g=a.createGain(),dur=p[3];g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(p[1],t+0.009);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
     if(p[0]>=2){var lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=4+p[0]*0.6;var lg=a.createGain();lg.gain.value=p[1]*0.2;lfo.connect(lg);lg.connect(g.gain);lfo.start(t);lfo.stop(t+dur);}
     o.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.1);});
   djNoise(a,t,0.03,2400,0.045,out,true);}
