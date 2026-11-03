@@ -4073,7 +4073,10 @@ const SCALE_LEVELS=[["major","minor"],["major","minor","dorian","majpent"],["maj
 function playChordEar(root,iv){earStop();iv.forEach(function(s){earTone(root+s,0,2.0,0.16);});}
 var EAR_T=[],EAR_O=[];
 function earStop(){EAR_T.forEach(clearTimeout);EAR_T=[];try{var a=ac();EAR_O.forEach(function(n){try{n.g.gain.cancelScheduledValues(a.currentTime);n.g.gain.setTargetAtTime(0.0001,a.currentTime,0.03);n.o.stop(a.currentTime+0.12);}catch(e){}});}catch(e){}EAR_O=[];}
-function earTone(midi,delayMs,dur,gain){EAR_T.push(setTimeout(function(){try{var a=ac(),o=a.createOscillator(),g=a.createGain(),t=a.currentTime,pk=gain||0.24;o.type="triangle";o.frequency.value=midiToFreq(midi);g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(pk,t+0.012);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(pianoMaster(a));o.start(t);o.stop(t+dur+0.12);EAR_O.push({o:o,g:g});}catch(e){}},Math.max(0,delayMs)));}
+function earTone(midi,delayMs,dur,gain){try{if(typeof sfLoadInst==="function")sfLoadInst("piano");}catch(e){}EAR_T.push(setTimeout(function(){try{var a=ac(),t=a.currentTime,pk=gain||0.24;
+  if(typeof sfInstReady==="function"&&sfInstReady("piano")){var anc=sfNearest("piano",midi);if(anc!=null&&SF.buf.piano&&SF.buf.piano[anc]){var s=a.createBufferSource();s.buffer=SF.buf.piano[anc];s.playbackRate.value=Math.pow(2,(midi-anc)/12);var pg=a.createGain(),rel=Math.max(0.12,dur),tail=0.35,peak=Math.min(0.6,pk*2.4);pg.gain.setValueAtTime(0.0001,t);pg.gain.exponentialRampToValueAtTime(peak,t+0.006);pg.gain.setValueAtTime(peak,t+rel);pg.gain.exponentialRampToValueAtTime(0.0008,t+rel+tail);s.connect(pg);pg.connect(pianoMaster(a));s.start(t);s.stop(t+rel+tail+0.12);EAR_O.push({o:s,g:pg});return;}}
+  var o=a.createOscillator(),g=a.createGain();o.type="triangle";o.frequency.value=midiToFreq(midi);g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(pk,t+0.012);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(pianoMaster(a));o.start(t);o.stop(t+dur+0.12);EAR_O.push({o:o,g:g});
+}catch(e){}},Math.max(0,delayMs)));}
 function playScaleEar(root,iv){earStop();iv.forEach(function(s,i){earTone(root+s,i*320,0.55,0.26);});}
 function earGame(cfg){
   home.hidden=true;view.hidden=false;window.scrollTo(0,0);let level=load(mk("ear",cfg.key+"-lvl"),0);
