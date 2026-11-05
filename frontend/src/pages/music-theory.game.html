@@ -4582,7 +4582,7 @@ function fbPlayScale(){unlockAudio();fbScaleStop();var set=fbScaleSet(),strings=
     FB._scT.push(setTimeout(function(){if(!document.getElementById("fbSvgWrap"))return;FB.hl={s:p.s,f:p.f};fbPaint();if(typeof fbZoneVib==="function")fbZoneVib(p.s);},Math.max(0,(t-a.currentTime)*1000)));});
   FB._scT.push(setTimeout(function(){FB.hl=null;if(document.getElementById("fbSvgWrap"))fbPaint();},Math.max(0,(t0+seq.length*step-a.currentTime)*1000)));}
 /* ===== NECK TRAINER — learn, train, quiz, game (all on the real neck) ===== */
-FB.tr={kind:null,timers:[]};FB.trPref={hints:true,lvl:"open"};FB._fxId=0;
+FB.tr={kind:null,timers:[]};FB.trPref={hints:true,lvl:"open",fx:load("mjk-neckfx",false)};FB._fxId=0;
 function trBeans(n){if(activeId()){addBeans(n);try{beanChip();}catch(e){}}}
 function trBest(){return load(mk("neck","best"),{});}
 function trSaveBest(k,v){var b=trBest();if(b[k]==null||v>b[k]){b[k]=v;save(mk("neck","best"),b);return true;}return false;}
@@ -4597,7 +4597,7 @@ function trT(fn,ms){var h=setTimeout(fn,ms);FB.tr.timers.push(h);return h;}
 function trWinLbl(){var l=document.getElementById("fbWinLbl");if(l)l.textContent="Frets "+FB.win+"–"+(FB.win+3)+(FB.win===1?" (open position)":"");}
 function trSeeFret(f){if(f===0)FB.win=1;else if(f<FB.win||f>FB.win+3)FB.win=Math.min(FB_MAXFRET-3,1+4*Math.floor((f-1)/4));trWinLbl();}
 function trFx(s,f,ok){var id=++FB._fxId;if(f==null)FB.fxStr={s:s,ok:ok};else FB.fx={s:s,f:f,ok:ok};fbPaint();trT(function(){if(FB._fxId===id){FB.fx=null;FB.fxStr=null;fbPaint();}},520);}
-function trDing(ok){return;try{var a=ac(),o=a.createOscillator(),g=a.createGain(),t=a.currentTime+(ok?0.12:0.02);o.type=ok?"sine":"triangle";o.frequency.value=ok?1320:196;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(ok?0.14:0.12,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+(ok?0.22:0.3));o.connect(g);g.connect(pianoMaster(a));o.start(t);o.stop(t+0.35);}catch(e){}}
+function trDing(ok){if(!FB.trPref.fx)return;try{var a=ac(),o=a.createOscillator(),g=a.createGain(),t=a.currentTime+(ok?0.12:0.02);o.type=ok?"sine":"triangle";o.frequency.value=ok?1320:196;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(ok?0.14:0.12,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+(ok?0.22:0.3));o.connect(g);g.connect(pianoMaster(a));o.start(t);o.stop(t+0.35);}catch(e){}}
 /* shell */
 function trShellHTML(){var u=FB.tr.ui;return '<div style="display:flex;align-items:center;gap:8px;margin:2px 0 4px"><button class="rchip sm" id="trQuit">← Trainer</button><b style="flex:1;text-align:center;font-size:.95rem">'+u.title+'</b><span id="trScore" style="font-weight:800;color:#5fe0a8;font-size:.85rem;white-space:nowrap">'+u.sc+'</span></div>'+
   '<div id="trTimeBar" style="height:9px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;margin:4px 0;display:'+(u.bar?"block":"none")+'"><div id="trTimeF" style="height:100%;width:100%;background:linear-gradient(90deg,#ff7a59,#ffd166);transition:width .1s linear"></div></div>'+
@@ -4620,9 +4620,9 @@ function trMenu(){trReset();fbPaint();var el=document.getElementById("fbTr");if(
     ["nf","🎯","Quiz: note finder","Find the note on the string. 10 questions.",b["nf-"+I]!=null?"best "+b["nf-"+I]+"/10":""],
     ["rush","🔥","Game: Fret Rush","60 seconds. Find notes fast, build streaks, beat your record.",b["rush-"+I]!=null?"record "+b["rush-"+I]:""]];
   var done=items.filter(function(it){return it[4];}).length;
-  var h='<div style="display:flex;align-items:center;justify-content:space-between;margin:2px 0 6px"><b>🎓 Neck Trainer</b><span style="font-size:.8rem;color:#5fe0a8;font-weight:800">'+done+'/5 '+(done===5?"🏆 Neck Master":"")+'</span></div>';
+  var h='<div style="display:flex;align-items:center;justify-content:space-between;margin:2px 0 6px"><b>🎓 Neck Trainer</b><span style="display:flex;align-items:center;gap:8px"><button class="rchip sm'+(FB.trPref.fx?" sel":"")+'" id="trFx">'+(FB.trPref.fx?"🔔 Sounds: On":"🔕 Sounds: Off")+'</button><span style="font-size:.8rem;color:#5fe0a8;font-weight:800">'+done+'/5 '+(done===5?"🏆 Neck Master":"")+'</span></span></div>';
   items.forEach(function(it){h+='<button data-tr="'+it[0]+'" style="width:100%;text-align:left;display:flex;align-items:center;gap:10px;margin:5px 0;padding:10px 12px;background:var(--card2);border:1px solid var(--line);border-radius:12px;color:var(--cream);font:inherit;cursor:pointer"><span style="font-size:1.4rem">'+it[1]+'</span><span style="flex:1"><b>'+it[2]+'</b><br><span style="opacity:.75;font-size:.84rem">'+it[3]+'</span></span>'+(it[4]?'<span style="color:#5fe0a8;font-weight:800;font-size:.78rem;white-space:nowrap">'+it[4]+'</span>':'')+'</button>';});
-  el.innerHTML=h;el.querySelectorAll("[data-tr]").forEach(function(btn){btn.onclick=function(){unlockAudio();var k=btn.getAttribute("data-tr");if(k==="learn")trLearn();else if(k==="walk")trWalk(0);else if(k==="sq")trSQ();else if(k==="nf")trNF();else trRush();};});}
+  el.innerHTML=h;{var fxb=document.getElementById("trFx");if(fxb)fxb.onclick=function(){FB.trPref.fx=!FB.trPref.fx;save("mjk-neckfx",FB.trPref.fx);if(FB.trPref.fx){unlockAudio();trDing(true);}trMenu();};}el.querySelectorAll("[data-tr]").forEach(function(btn){btn.onclick=function(){unlockAudio();var k=btn.getAttribute("data-tr");if(k==="learn")trLearn();else if(k==="walk")trWalk(0);else if(k==="sq")trSQ();else if(k==="nf")trNF();else trRush();};});}
 /* 1) LEARN: meet the strings */
 function trLearn(){trReset();var N=fbStrings().length,seq=[],i;for(i=0;i<N;i++)seq.push({s:i,ph:1});for(i=N-1;i>=0;i--)seq.push({s:i,ph:2});
   FB.tr.kind="learn";FB.tr.inst=FB.inst;FB.tr.seq=seq;FB.tr.i=0;FB.win=1;trWinLbl();trShell("📘 Learn the strings");
