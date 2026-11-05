@@ -4468,8 +4468,8 @@ function fbSVG(){var g=fbGeo(),N=g.N,shape=fbCurShape(),fingers=(FB.mode==="chor
       s.push('<text x="'+ox.toFixed(1)+'" y="'+(oy-10).toFixed(1)+'" font-size="15" font-weight="800" fill="#cfc6ea" text-anchor="middle" font-family="system-ui">'+fbLabel(sl)+'</text>'+mk);
       if(!shape)s.push('<circle class="fbhit" data-pos="'+sl+':0" cx="'+ox.toFixed(1)+'" cy="'+oy.toFixed(1)+'" r="16" fill="transparent"/>');}}
   // finger target dots (chord mode)
-  if(shape){for(var cs=0;cs<N;cs++){var cf=shape[cs];if(cf>0&&cf>=FB.win&&cf<FB.win+4){var dx=g.sx(cs,g.fy(cf)),dy=g.fy(cf);var got=false;FB.active.forEach(function(v){if(v.s===cs&&v.f===cf)got=true;});var lab=(fingers&&fingers[cs])?fingers[cs]:(FB.showNotes?fbNote(cs,cf):"");
-    s.push('<circle cx="'+dx.toFixed(1)+'" cy="'+dy.toFixed(1)+'" r="21" fill="'+(got?"url(#fbgot)":"url(#fbdot)")+'" stroke="'+(got?"#3fcf7a":"#7ff0d6")+'" stroke-width="2.5"/>'+(lab!==""?'<text x="'+dx.toFixed(1)+'" y="'+(dy+7).toFixed(1)+'" font-size="19" font-weight="800" fill="#06281d" text-anchor="middle" font-family="system-ui">'+lab+'</text>':''));}}}
+  if(shape){for(var cs=0;cs<N;cs++){var cf=shape[cs];if(cf>0&&cf>=FB.win&&cf<FB.win+4){var dx=g.sx(cs,g.fy(cf)),dy=g.fy(cf);var got=false;FB.active.forEach(function(v){if(v.s===cs&&v.f===cf)got=true;});var fn=(fingers&&fingers[cs])?String(fingers[cs]):"";var lab=FB.showNotes?fbNote(cs,cf):fn;
+    s.push('<circle cx="'+dx.toFixed(1)+'" cy="'+dy.toFixed(1)+'" r="21" fill="'+(got?"url(#fbgot)":"url(#fbdot)")+'" stroke="'+(got?"#3fcf7a":"#7ff0d6")+'" stroke-width="2.5"/>'+(lab!==""?'<text x="'+dx.toFixed(1)+'" y="'+(dy+7).toFixed(1)+'" font-size="'+(lab.length>1?16:19)+'" font-weight="800" fill="#06281d" text-anchor="middle" font-family="system-ui">'+lab+'</text>':'')+(FB.showNotes&&fn?'<circle cx="'+(dx+17).toFixed(1)+'" cy="'+(dy-17).toFixed(1)+'" r="10" fill="#1a1430" stroke="#7ff0d6" stroke-width="1.5"/><text x="'+(dx+17).toFixed(1)+'" y="'+(dy-13).toFixed(1)+'" font-size="12" font-weight="800" fill="#7ff0d6" text-anchor="middle" font-family="system-ui">'+fn+'</text>':''));}}}
   // scale notes (scale mode)
   if(FB.mode==="scale"){var sset=fbScaleSet();
     var drawSc=function(cs,cf,x,y){var pc=(((fbStrings()[cs]+cf)%12)+12)%12;if(!(pc in sset))return;var isRoot=(pc===FB.scaleRoot);var lab=FB.showNotes?fbNote(cs,cf):String(sset[pc]);
@@ -4705,10 +4705,10 @@ function renderBeatLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=tr
   blDraw();
 }
 const INSTRUMENT_CARDS=[
+ {ic:"🎸",title:"Guitar",blurb:"Learn chords with diagrams, the chord family of a key, and strum along to progressions — leveling up as you go.",go:()=>renderStrings("guitar")},
  {ic:"🎹",title:"Piano",blurb:"Play a real keyboard — tap or use your computer keys, shift octaves, and see the note names. The heart of music theory.",go:()=>renderPiano()},
  {ic:"🎛️",title:"Wavetable Synth",blurb:"An original morphing-wavetable synth — sweep the wavetable, stack detuned voices, and shape the filter, LFO and envelope. Modern textures you can play, with presets.",go:()=>renderSynth()},
  {ic:"🛸",title:"Handpan",blurb:"Play a handpan — tap the notes, pick a scale, and follow the glow to learn gentle patterns.",go:()=>renderHandpan()},
- {ic:"🎸",title:"Guitar",blurb:"Learn chords with diagrams, the chord family of a key, and strum along to progressions — leveling up as you go.",go:()=>renderStrings("guitar")},
  {ic:"🪕",title:"Ukulele",blurb:"Learn ukulele chords, major-scale chord families, and play along to progressions.",go:()=>renderStrings("ukulele")},
  {ic:"🎸",title:"Bass Guitar",blurb:"Hold down the low end — tap the fretboard, learn bass chord shapes and basslines, follow the glow, record your real bass, and play it back for scoring.",go:()=>renderBass()},
  {ic:"🎸",title:"Fretboard",blurb:"A playable, full-screen fretboard — play guitar, bass or ukulele by fretting real strings, and practice chord shapes by putting your fingers on the glowing spots and holding them to build muscle memory.",go:()=>renderFretboard("guitar")},
