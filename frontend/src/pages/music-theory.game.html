@@ -4488,7 +4488,7 @@ FBD.bpm=70;try{FBD.bpm=Math.max(30,Math.min(200,+(localStorage.getItem("mjk-demo
 function fbDemoSetBpm(v){FBD.bpm=Math.max(30,Math.min(200,Math.round(v)));FBD.sp=FBD.bpm*0.42/60;try{localStorage.setItem("mjk-demo-bpm",String(FBD.bpm));}catch(e){}var a=document.getElementById("fbBpmV");if(a)a.textContent=FBD.bpm;var r=document.getElementById("fbBpmR");if(r&&+r.value!==FBD.bpm)r.value=FBD.bpm;fbDemoSum();}
 function fbDemoPref(k,v){FBD[k]=v;try{localStorage.setItem("mjk-demo-"+k,typeof v==="boolean"?(v?"1":"0"):String(v));}catch(e){}}
 FBD.sp=FBD.bpm*0.42/60;try{FBD.optOpen=localStorage.getItem("mjk-demo-open")==="1";}catch(e){}
-function fbDemoReset(){FBD.tok++;FBD.on=false;FBD.cam=null;FB.demoShow=null;FB.pvHeld=false;FB.hl=null;FB.tgtStr=null;}
+function fbDemoReset(){FB.ghost=null;FBD.tok++;FBD.on=false;FBD.cam=null;FB.demoShow=null;FB.pvHeld=false;FB.hl=null;FB.tgtStr=null;}
 function fbDemoSay(h){var el=document.getElementById("fbDemoSay");if(!el)return;el.style.display=h?"block":"none";el.innerHTML=h||"";}
 function fbDemoUI(){var b=document.getElementById("fbDemo");if(b){b.textContent=FBD.on?"■ Stop demo":"▶ Watch it played";b.classList.toggle("ghost",FBD.on);}
   var z=document.getElementById("fbDemoZoom");if(z)z.classList.toggle("sel",FBD.zoom);var l=document.getElementById("fbDemoLoop");if(l)l.classList.toggle("sel",FBD.loop);fbDemoSum();}
@@ -4643,6 +4643,9 @@ function fbSVG(){var g=fbGeo(),N=g.N,shape=fbCurShape(),fingers=(FB.mode==="chor
     if(win1){var mk="";if(shape){if(shape[sl]===0)mk='<circle cx="'+ox.toFixed(1)+'" cy="'+oy.toFixed(1)+'" r="9" fill="none" stroke="#5fe0a8" stroke-width="2.5"/>';else if(shape[sl]<0)mk='<text x="'+ox.toFixed(1)+'" y="'+(oy+6).toFixed(1)+'" font-size="19" font-weight="800" fill="#ff8f8c" text-anchor="middle" font-family="system-ui">✕</text>';}
       s.push('<text x="'+ox.toFixed(1)+'" y="'+(oy-10).toFixed(1)+'" font-size="15" font-weight="800" fill="#cfc6ea" text-anchor="middle" font-family="system-ui">'+(FB.hideLbl?"?":fbLabel(sl))+'</text>'+mk);
       if(!shape)s.push('<circle class="fbhit" data-pos="'+sl+':0" cx="'+ox.toFixed(1)+'" cy="'+oy.toFixed(1)+'" r="16" fill="transparent"/>');}}
+  // lead: next chord as faint blue ghost dots
+  if(FB.ghost){for(var gs=0;gs<N&&gs<FB.ghost.length;gs++){var gf=FB.ghost[gs];if(gf>0&&gf>=FB.win&&gf<FB.win+4){var gx=g.sx(gs,g.fy(gf)),gy=g.fy(gf),gfn=FB.ghostF&&FB.ghostF[gs]?String(FB.ghostF[gs]):"";
+    s.push('<circle cx="'+gx.toFixed(1)+'" cy="'+gy.toFixed(1)+'" r="21" fill="rgba(80,150,255,.28)" stroke="#5aa0ff" stroke-width="2.5" stroke-dasharray="5 4"/>'+(gfn?'<text x="'+gx.toFixed(1)+'" y="'+(gy+6).toFixed(1)+'" font-size="17" font-weight="800" fill="#9cc4ff" text-anchor="middle" font-family="system-ui">'+gfn+'</text>':''));}}}
   // finger target dots (chord mode)
   if(shape){for(var cs=0;cs<N;cs++){var cf=shape[cs];if(cf>0&&cf>=FB.win&&cf<FB.win+4&&!(FB.demoShow&&!FB.demoShow[cs])){var dx=g.sx(cs,g.fy(cf)),dy=g.fy(cf);var got=false;FB.active.forEach(function(v){if(v.s===cs&&v.f===cf)got=true;});if(FB.pvHeld)got=true;var fn=(fingers&&fingers[cs])?String(fingers[cs]):"";var lab=FB.showNotes?fbNote(cs,cf):fn;
     s.push('<circle cx="'+dx.toFixed(1)+'" cy="'+dy.toFixed(1)+'" r="21" fill="'+(got?"url(#fbgot)":"url(#fbdot)")+'" stroke="'+(got?"#3fcf7a":"#7ff0d6")+'" stroke-width="2.5"/>'+(lab!==""?'<text x="'+dx.toFixed(1)+'" y="'+(dy+7).toFixed(1)+'" font-size="'+(lab.length>1?16:19)+'" font-weight="800" fill="#06281d" text-anchor="middle" font-family="system-ui">'+lab+'</text>':'')+(FB.showNotes&&fn?'<circle cx="'+(dx+17).toFixed(1)+'" cy="'+(dy-17).toFixed(1)+'" r="10" fill="#1a1430" stroke="#7ff0d6" stroke-width="1.5"/><text x="'+(dx+17).toFixed(1)+'" y="'+(dy-13).toFixed(1)+'" font-size="12" font-weight="800" fill="#7ff0d6" text-anchor="middle" font-family="system-ui">'+fn+'</text>':''));}}}
@@ -5918,7 +5921,7 @@ const SPATS=[
  {id:"funk",name:"Funk 16ths",genre:"Funk",ts:"4/4",div:4,beats:4,pat:"DudU-UduDudU-UDu",bpm:80},
  {id:"punk",name:"Pop-punk downs",genre:"Pop-punk",ts:"4/4",div:2,beats:4,pat:"DDDDDDDD",bpm:150}
 ];
-const ST={pi:2,chord:"G",mode:"watch",bpm:null,bpmFor:null,inst:"guitar",running:false,schID:null,raf:null,visQ:[],exp:[],click:load("mjk-stclick",true)};
+const ST={pi:2,chord:"G",mode:"watch",bpm:null,bpmFor:null,inst:"guitar",running:false,schID:null,raf:null,visQ:[],exp:[],click:load("mjk-stclick",true),clickVol:load("mjk-stclickvol",load("mjk-stclick",true)?0.35:0)};
 (function(){try{var s=document.createElement("style");s.textContent=
 ".stlane{display:flex;gap:3px;margin:6px 0 4px}"+
 ".stc{flex:1;min-width:0;border-radius:8px;background:var(--card2);border:1px solid var(--line);text-align:center;padding:7px 0 4px;transition:background .06s}"+
@@ -5947,9 +5950,9 @@ function stViz(ch,slot){var z=document.getElementById("fbZone"),fr=stFrets();if(
   var sw=document.createElement("div");sw.className="pvsweep"+(down?"":" up");z.appendChild(sw);setTimeout(function(){try{sw.remove();}catch(e){}},300);}
 function stSchedule(){if(ST.schedDone)return;var a=ac(),P=stP(),bd=60/ST.bpm,n=P.pat.length,ahead=0.1;
   while(true){
-    if(ST.cnt>0){var tc=ST.next;if(tc>a.currentTime+ahead)break;var num=P.beats-ST.cnt+1;if(ST.click)click(tc,num===1?"accent":"beat");ST.visQ.push({t:tc,count:num});ST.cnt--;ST.next+=bd;if(ST.cnt===0){ST.barStart=ST.next;ST.slot=0;}continue;}
+    if(ST.cnt>0){var tc=ST.next;if(tc>a.currentTime+ahead)break;var num=P.beats-ST.cnt+1;click(tc,num===1?"accent":"beat",ST.clickVol);ST.visQ.push({t:tc,count:num});ST.cnt--;ST.next+=bd;if(ST.cnt===0){ST.barStart=ST.next;ST.slot=0;}continue;}
     var t=stSlotT(P,ST.barStart,ST.slot,bd);if(t>a.currentTime+ahead)break;var ch=P.pat[ST.slot];
-    if(ST.click&&ST.slot%P.div===0)click(t,ST.slot===0?"accent":"beat");
+    if(ST.slot%P.div===0)click(t,ST.slot===0?"accent":"beat",ST.clickVol);
     if(ST.mode==="watch"&&ch!=="-")stPlay(ch,t,P,ST.slot);
     if(ST.mode==="play"&&ch!=="-")ST.exp.push({t:t,ch:ch,slot:ST.slot,bar:ST.bar,done:false});
     ST.visQ.push({t:t,slot:ST.slot,bar:ST.bar,ch:ch});
@@ -6007,7 +6010,7 @@ function renderStrumTrainer(inst){inst=inst||"guitar";if(toneRAF)cancelAnimation
       '<div id="stNeck" style="width:80%;margin:6px auto 0"><div id="fbSvgWrap"></div><div id="fbZone" style="touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;margin-top:-4.6%;position:relative;overflow:hidden;filter:drop-shadow(0 10px 20px rgba(0,0,0,.45))"></div></div>'+
       '<div class="rrow2" style="margin-top:10px"><span class="rlab">Chord</span><span class="rchips tight" id="stChords"></span></div>'+
       '<div class="rrow"><span class="rlab">Tempo</span><input type="range" id="stBpm" min="40" max="180" value="'+ST.bpm+'" style="flex:1"><span class="rbpm" id="stBpmV">'+ST.bpm+'</span></div>'+
-      '<div class="rrow2"><span class="rlab">Options</span><span class="rchips tight">'+leadChip()+'<button class="rchip sm'+(ST.click?" sel":"")+'" id="stClick">'+(ST.click?"🔊 Click on":"🔇 Click off")+'</button></span></div>'+volSlider("stVol")+
+      '<div class="rrow2"><span class="rlab">Options</span><span class="rchips tight">'+leadChip()+'</span></div>'+clickVolRow("stClickV",ST.clickVol)+volSlider("stVol")+
       '</div>';
     $("#eBack").onclick=function(){stStop();FB.onSwipe=null;FB.onStringTap=null;fbRestore();renderStrings(ST.inst);};
     var pc=$("#stPats");SPATS.forEach(function(p,i){var b=document.createElement("button");b.className="rchip sm"+(i===ST.pi?" sel":"");b.textContent=p.name;b.onclick=function(){ST.pi=i;draw();};pc.appendChild(b);});
@@ -6015,7 +6018,7 @@ function renderStrumTrainer(inst){inst=inst||"guitar";if(toneRAF)cancelAnimation
     stNeckRender();var z=document.getElementById("fbZone");z.innerHTML=fbZoneSVG();fbBindZone(z);
     var cc=$("#stChords");["G","C","D","Em","Am","E","A","Dm","F"].filter(function(c){return CHORDS[ST.inst][c];}).forEach(function(c){var b=document.createElement("button");b.className="rchip sm"+(c===ST.chord?" sel":"");b.textContent=c;b.onclick=function(){ST.chord=c;cc.querySelectorAll(".rchip").forEach(function(x){x.classList.toggle("sel",x===b);});stNeckRender();};cc.appendChild(b);});
     var bp=$("#stBpm");bp.oninput=function(){ST.bpm=+bp.value;$("#stBpmV").textContent=ST.bpm;};
-    var ck=$("#stClick");ck.onclick=function(){ST.click=!ST.click;save("mjk-stclick",ST.click);ck.classList.toggle("sel",ST.click);ck.textContent=ST.click?"🔊 Click on":"🔇 Click off";};
+    bindClickVol("stClickV",function(v){ST.clickVol=v;save("mjk-stclickvol",v);});
     wireLead(draw);bindVol("stVol");
     $("#stGo").onclick=function(){if(ST.running)stStop(true);else stStart();};}
   draw();}
@@ -6153,12 +6156,14 @@ function strKey(inst){
   }
   draw();
 }
-(function(){try{var s=document.createElement("style");s.textContent="#prgDia.prgdia{display:grid!important;grid-template-columns:1fr 1fr;gap:8px}#prgDia.prgdia .chordcard{min-width:0;padding:6px}#prgDia.prgdia .chordcard svg{width:100%;height:auto}#kg .chordcard,#prgDia .chordcard{transition:transform .15s,box-shadow .15s}#kg .chordcard.kgon,#prgDia .chordcard.kgon{transform:scale(1.06);box-shadow:0 0 0 2px var(--gold),0 8px 22px rgba(243,193,74,.35)}";document.head.appendChild(s);}catch(e){}})();
+(function(){try{var s=document.createElement("style");s.textContent="#prgDia.prgdia{display:grid!important;grid-template-columns:1fr 1fr;gap:8px}#prgDia.prgdia .chordcard{min-width:0;padding:6px}#prgDia.prgdia .chordcard svg{width:100%;height:auto}#kg .chordcard,#prgDia .chordcard{transition:transform .15s,box-shadow .15s}#kg .chordcard.kgon,#prgDia .chordcard.kgnext{box-shadow:0 0 0 2px #5aa0ff}#prgDia .chordcard.kgon{transform:scale(1.06);box-shadow:0 0 0 2px var(--gold),0 8px 22px rgba(243,193,74,.35)}";document.head.appendChild(s);}catch(e){}})();
 const PRG={chords:[],names:[],idx:0,bpm:90,running:false,schID:null,raf:null,nextTime:0,inst:"guitar",loops:0,paid:false,onName:"",visQ:[],beat:0,cnt:0,clickOn:load("mjk-prgclick",true),view:load("mjk-prgview","neck"),clickVol:load("mjk-prgclickvol",null),zoom:load("mjk-prgzoom",false),optOpen:load("mjk-prgopen",false)};
 if(PRG.clickVol==null)PRG.clickVol=PRG.clickOn?0.35:0;
 function prgCam(){if(PRG.view!=="neck"||!PRG.zoom){var st=document.getElementById("fbStage"),sc=document.getElementById("fbScaler");if(sc)sc.style.transform="";if(st)st.style.height="";return;}var z=FBD.zoom;FBD.zoom=true;try{fbDemoCam("chord");}catch(e){}FBD.zoom=z;}
 (function(){try{var s=document.createElement("style");s.textContent=".pvsweep{position:absolute;top:0;bottom:0;width:20%;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(255,240,200,.5),transparent);animation:pvsw .2s linear forwards}.pvsweep.up{animation-name:pvswu}@keyframes pvsw{from{left:-20%}to{left:100%}}@keyframes pvswu{from{left:100%}to{left:-20%}}";document.head.appendChild(s);}catch(e){}})();
-function prgStop(){PRG.running=false;if(PRG.schID){clearInterval(PRG.schID);PRG.schID=null;}if(PRG.raf){cancelAnimationFrame(PRG.raf);PRG.raf=null;}PRG.visQ=[];PRG.cnt=0;const b=$("#prgStart");if(b)b.textContent="▶ Play along";const st=$("#prgStatus");if(st&&/^(Get ready|Count-in)/.test(st.textContent))st.textContent="";const nw=$("#prgNow");if(nw&&/^[1-4]$/.test(nw.textContent)&&PRG.chords.length)nw.textContent=PRG.chords[PRG.idx]||PRG.chords[0];}
+function clickVolRow(id,vol){return '<div class="rrow" style="margin:4px 0"><span class="rlab">\ud83e\udd41 Click</span><input type="range" id="'+id+'" min="0" max="100" value="'+Math.round(vol*100)+'" style="flex:1;accent-color:var(--gold)"><span class="rbpm" id="'+id+'V" style="min-width:52px;text-align:right">'+(vol>0?Math.round(vol*100)+"%":"\ud83d\udd07 off")+'</span></div>';}
+function bindClickVol(id,set){var r=document.getElementById(id);if(!r)return;r.oninput=function(){var v=(+r.value)/100;set(v);var l=document.getElementById(id+"V");if(l)l.textContent=v>0?Math.round(v*100)+"%":"\ud83d\udd07 off";};}
+function prgStop(){PRG.running=false;if(PRG.schID){clearInterval(PRG.schID);PRG.schID=null;}if(PRG.raf){cancelAnimationFrame(PRG.raf);PRG.raf=null;}PRG.visQ=[];PRG.cnt=0;const b=$("#prgStart");if(b)b.textContent="▶ Watch & play along";const st=$("#prgStatus");if(st&&/^(Get ready|Count-in)/.test(st.textContent))st.textContent="";const nw=$("#prgNow");if(nw&&/^[1-4]$/.test(nw.textContent)&&PRG.chords.length)nw.textContent=PRG.chords[PRG.idx]||PRG.chords[0];}
 function prgSchedule(){const a=ac(),ahead=0.1,spb=60/PRG.bpm;
   while(PRG.nextTime<a.currentTime+ahead){
     if(PRG.cnt>0){const n=5-PRG.cnt;click(PRG.nextTime,n===1?"accent":"beat",PRG.clickVol);PRG.visQ.push({t:PRG.nextTime,count:n});PRG.cnt--;PRG.nextTime+=spb;continue;}
@@ -6170,7 +6175,8 @@ function prgSchedule(){const a=ac(),ahead=0.1,spb=60/PRG.bpm;
 function prgNeckShow(name){const w=document.getElementById("fbSvgWrap");if(!w||PRG.view!=="neck")return;FB.inst=PRG.inst;FB.mode="chord";FB.adv=false;FB.chord=name;const sh=fbShapeFor(name);FB.win=sh?fbWinFor(sh):1;const sn=FB.showNotes;FB.showNotes=false;FB.pvHeld=true;w.innerHTML=fbSVG();FB.pvHeld=false;FB.showNotes=sn;}
 function prgNeckMount(box,name){box.style.display="block";box.innerHTML='<div id="fbStage" style="overflow:hidden;border-radius:14px;padding-bottom:14px"><div id="fbScaler" style="transform-origin:0 0;transition:transform .6s ease"><div id="fbBox" style="position:relative"><div id="fbSvgWrap"></div></div><div id="fbZone" style="touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;margin-top:-4.6%;position:relative;overflow:hidden;filter:drop-shadow(0 10px 20px rgba(0,0,0,.45))"></div></div></div>';FB.inst=PRG.inst;prgNeckShow(name);setTimeout(prgCam,50);const z=document.getElementById("fbZone");z.innerHTML=fbZoneSVG();fbBindZone(z);}
 function prgStrumViz(down,frets){if(PRG.view!=="neck")return;const z=document.getElementById("fbZone");if(!z)return;const N=frets.length,ord=[];for(let i=0;i<N;i++)ord.push(down?i:N-1-i);let k=0;ord.forEach(function(s){if(frets[s]<0)return;const d=k*30;k++;setTimeout(function(){fbZoneVib(s);},d);});const sw=document.createElement("div");sw.className="pvsweep"+(down?"":" up");z.appendChild(sw);setTimeout(function(){try{sw.remove();}catch(e){}},300);}
-function prgShow(idx){const now=$("#prgNow");if(now)now.textContent=PRG.chords[idx];
+function prgGhost(idx){const n=PRG.chords.length;if(!leadOn()||n<2){FB.ghost=null;FB.ghostF=null;return;}const nx=PRG.chords[(idx+1)%n];if(nx===PRG.chords[idx]){FB.ghost=null;return;}FB.ghost=keyShape(PRG.inst,nx);FB.ghostF=keyFing(PRG.inst,nx);}
+function prgShow(idx){const now=$("#prgNow");if(now)now.textContent=PRG.chords[idx];prgGhost(idx);document.querySelectorAll("#prgDia .chordcard").forEach((c,i)=>c.classList.toggle("kgnext",leadOn()&&PRG.chords.length>1&&i===(idx+1)%PRG.chords.length));
   if(PRG.view==="neck"){prgNeckShow(PRG.chords[idx]);prgCam();}else{document.querySelectorAll("#prgDia .chordcard").forEach((c,i)=>c.classList.toggle("kgon",i===idx));}
   document.querySelectorAll("#prgChordRow .pchip").forEach((el,i)=>el.classList.toggle("on",i===idx));
   document.querySelectorAll("#prgChordRow .pchip.next").forEach(e=>e.classList.remove("next"));if(leadOn()){const nx=document.querySelectorAll("#prgChordRow .pchip")[(idx+1)%PRG.chords.length];if(nx)nx.classList.add("next");}}
@@ -6184,7 +6190,7 @@ function prgStart(){unlockAudio();if(PRG.running)return;const a=ac();PRG.running
 function strProg(inst){
   if(toneRAF)cancelAnimationFrame(toneRAF);prgStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   let pi=0,crRaf=null;PRG.inst=inst;
-  const fbSave={mode:FB.mode,chord:FB.chord,inst:FB.inst,win:FB.win,adv:FB.adv};const fbRestore=()=>{FB.mode=fbSave.mode;FB.chord=fbSave.chord;FB.inst=fbSave.inst;FB.win=fbSave.win;FB.adv=fbSave.adv;};teardown=()=>{prgStop();fbRestore();};
+  const fbSave={mode:FB.mode,chord:FB.chord,inst:FB.inst,win:FB.win,adv:FB.adv};const fbRestore=()=>{FB.ghost=null;FB.mode=fbSave.mode;FB.chord=fbSave.chord;FB.inst=fbSave.inst;FB.win=fbSave.win;FB.adv=fbSave.adv;};teardown=()=>{prgStop();fbRestore();};
   function prgHL(i){prgShow(i);const fr=keyShape(inst,PRG.chords[i]);if(fr)prgStrumViz(true,fr);}
   function prgCR(){
     prgStop();if(crRaf)cancelAnimationFrame(crRaf);const st=$("#prgStatus");if(st)st.textContent="turning on mic…";const fb=$("#prgFb");if(fb)fb.style.display="none";
@@ -6262,12 +6268,12 @@ function strProg(inst){
         <div class="rchips tight" id="prgView" style="justify-content:center;margin:6px 0"></div>
         <div class="${PRG.view==="neck"?"":"chordgrid prgdia"}" id="prgDia" style="justify-content:center"></div>
         <div style="display:flex;align-items:center;gap:8px;margin:10px 0 4px"><button class="rchip sm" id="prgBpmDn" style="min-width:40px;justify-content:center;font-weight:900">−</button><span style="flex:0 0 auto;text-align:center;font:900 1.05rem system-ui,sans-serif;min-width:82px">♩ <span id="prgBpmV">${PRG.bpm}</span> <span style="font-size:.75rem;color:var(--muted)">BPM</span></span><button class="rchip sm" id="prgBpmUp" style="min-width:40px;justify-content:center;font-weight:900">+</button><input type="range" id="prgBpm" min="40" max="200" value="${PRG.bpm}" style="flex:1 1 auto;min-width:60px;accent-color:var(--gold)"></div>
-        <div class="actions" style="flex-wrap:wrap"><button class="btn" id="prgStart" style="flex:1 1 100%">▶ Play along</button><button class="btn ghost" id="prgCR" style="flex:1 1 40%;min-width:0">🎤 Strum it back</button><button class="btn ghost" id="prgPick" style="flex:1 1 40%;min-width:0">🎯 Pick it back</button></div>
+        ${clickVolRow("prgClickV",PRG.clickVol)}
+        <div class="actions" style="flex-wrap:wrap"><button class="btn" id="prgStart" style="flex:1 1 100%">▶ Watch &amp; play along</button><button class="btn ghost" id="prgCR" style="flex:1 1 40%;min-width:0">🎤 Strum it back</button><button class="btn ghost" id="prgPick" style="flex:1 1 40%;min-width:0">🎯 Pick it back</button></div>
         <div class="feedback" id="prgStatus"></div>
         <div class="idea-fb" id="prgFb" style="display:none"></div>
         <div class="bean-note" id="prgNote"></div>
         <details id="prgOpt"${PRG.optOpen?" open":""} style="margin-top:6px"><summary style="cursor:pointer;list-style:none;-webkit-user-select:none;user-select:none;padding:8px 4px;font:800 .85rem system-ui,sans-serif;color:var(--muted);display:flex;gap:6px;align-items:center"><span style="white-space:nowrap">⚙️ Settings</span><span id="prgOptSum" style="font-weight:600;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span><span id="prgOptArr">${PRG.optOpen?"▴":"▾"}</span></summary>
-          <div class="rrow"><span class="rlab">🥁 Click</span><input type="range" id="prgClickV" min="0" max="100" value="${Math.round(PRG.clickVol*100)}" style="flex:1;accent-color:var(--gold)"><span class="rbpm" id="prgClickVV" style="min-width:48px;text-align:right"></span></div>
           ${volSlider("prgVol")}
           <div class="rrow2"><span class="rlab">Options</span><span class="rchips tight">${leadChip()}<button class="rchip sm${PRG.zoom?" sel":""}" id="prgZoom">🔍 Close-up (neck)</button></span></div>
         </details>
@@ -6275,11 +6281,11 @@ function strProg(inst){
     $("#eBack").onclick=()=>{prgStop();if(crRaf)cancelAnimationFrame(crRaf);try{stopMic();}catch(e){}fbRestore();renderStrings(inst);};
     const pl=$("#prgList");PROGS.forEach((p,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===pi?" sel":"");b.textContent=p.name;b.onclick=()=>{prgStop();if(crRaf)cancelAnimationFrame(crRaf);pi=i;draw();};pl.appendChild(b);});
     const row=$("#prgChordRow");P.chords.forEach((c,i)=>{const s=document.createElement("span");s.className="pchip"+(i===0?" on":"");s.textContent=c;row.appendChild(s);});if(leadOn()){const nx=row.children[1];if(nx)nx.classList.add("next");}
-    const dia=$("#prgDia");if(PRG.view==="neck")prgNeckMount(dia,P.chords[0]);else{P.chords.forEach((c,i)=>{const card=document.createElement("div");card.className="chordcard"+(i===0?" kgon":"");const h=document.createElement("h4");h.textContent=c;card.appendChild(h);const f=keyShape(inst,c);if(f)card.appendChild(chordDiagram(inst,f,c,keyFing(inst,c)));dia.appendChild(card);});}
+    const dia=$("#prgDia");prgGhost(0);if(PRG.view==="neck")prgNeckMount(dia,P.chords[0]);else{P.chords.forEach((c,i)=>{const card=document.createElement("div");card.className="chordcard"+(i===0?" kgon":"");const h=document.createElement("h4");h.textContent=c;card.appendChild(h);const f=keyShape(inst,c);if(f)card.appendChild(chordDiagram(inst,f,c,keyFing(inst,c)));dia.appendChild(card);});}
     const bp=$("#prgBpm");const setBpm=v=>{PRG.bpm=Math.max(40,Math.min(200,Math.round(v)));bp.value=PRG.bpm;$("#prgBpmV").textContent=PRG.bpm;prgSum();};bp.oninput=()=>setBpm(+bp.value);$("#prgBpmDn").onclick=()=>setBpm(PRG.bpm-5);$("#prgBpmUp").onclick=()=>setBpm(PRG.bpm+5);
-    function prgSum(){const s=$("#prgOptSum");if(s)s.textContent="Click "+(PRG.clickVol>0?Math.round(PRG.clickVol*100)+"%":"off")+(PRG.zoom?" \u00b7 Close-up":"");const v=$("#prgClickVV");if(v)v.textContent=PRG.clickVol>0?Math.round(PRG.clickVol*100)+"%":"\ud83d\udd07 off";}
+    function prgSum(){const s=$("#prgOptSum");if(s)s.textContent="Click "+(PRG.clickVol>0?Math.round(PRG.clickVol*100)+"%":"off")+(PRG.zoom?" \u00b7 Close-up":"");}
     prgSum();
-    $("#prgClickV").oninput=function(){PRG.clickVol=(+this.value)/100;save("mjk-prgclickvol",PRG.clickVol);prgSum();};
+    bindClickVol("prgClickV",v=>{PRG.clickVol=v;save("mjk-prgclickvol",v);prgSum();});
     $("#prgZoom").onclick=function(){PRG.zoom=!PRG.zoom;save("mjk-prgzoom",PRG.zoom);this.classList.toggle("sel",PRG.zoom);prgSum();prgCam();};
     {const od=$("#prgOpt");od.addEventListener("toggle",()=>{PRG.optOpen=od.open;save("mjk-prgopen",od.open);$("#prgOptArr").textContent=od.open?"\u25b4":"\u25be";});}
     $("#prgStart").onclick=()=>{if(PRG.running)prgStop();else prgStart();};
