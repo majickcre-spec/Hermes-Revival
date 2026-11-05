@@ -1606,7 +1606,7 @@ function parseMidi(buf){
   const u32=()=>{const v=d.getUint32(pos);pos+=4;return v;},u16=()=>{const v=d.getUint16(pos);pos+=2;return v;},u8=()=>d.getUint8(pos++);
   const str=n=>{let s="";for(let i=0;i<n;i++)s+=String.fromCharCode(u8());return s;};
   if(str(4)!=="MThd")throw new Error("not a MIDI file");
-  u32();u16();const ntrk=u16();u16();
+  u32();u16();const ntrk=u16();const div=u16();
   const tracks=[];
   for(let t=0;t<ntrk;t++){
     if(str(4)!=="MTrk"){const len=u32();pos+=len;continue;}
@@ -1625,7 +1625,7 @@ function parseMidi(buf){
     }
     notes.sort((a,b)=>a.t-b.t);tracks.push({name:name||("Track "+(t+1)),notes});pos=end;
   }
-  return {tracks};
+  return {tracks,div};
 }
 function trackMelody(tr){const byT={};tr.notes.forEach(x=>{if(byT[x.t]==null||x.n>byT[x.t])byT[x.t]=x.n;});
   return Object.keys(byT).map(Number).sort((a,b)=>a-b).map(t=>byT[t]);}
@@ -6038,6 +6038,7 @@ function renderStrings(inst){try{sfLoadInst("guitar");}catch(e){}
     {t:"Learn Chords",ic:"🎵",b:"Chord diagrams you can hear — mark the ones you can play.",go:()=>strChords(inst)},
     {t:"Chords in a Key",ic:"🔑",b:"The chord family of a major key (I ii iii IV V vi).",go:()=>strKey(inst)},
     {t:"Progressions",ic:"🔁",b:"Strum along to common progressions, on tempo.",go:()=>strProg(inst)},
+    {t:"Melodies",ic:"🎼",b:"Play real melodies on a scrolling highway \u2014 classics and cool originals across genres. Watch it, tap the neck, or play your own "+I.name.toLowerCase()+" and get scored.",go:()=>renderMelody(inst)},
     {t:"Strum Patterns",ic:"🥁",b:"13 strumming patterns on the real neck — watch them, then swipe the guitar body in time and get scored.",go:()=>renderStrumTrainer(inst)},
     {t:"Scales on the Neck",ic:"🎶",b:"See and play scales across the neck — major, pentatonic, blues — with the root and degrees labeled.",go:()=>renderFretboard(inst,"scale")},
     {t:"Strumming",ic:"👋",b:"Strum patterns for different song styles, play-along, and call-and-response that listens and grades your timing.",go:()=>renderStrumming(inst)},
@@ -6249,6 +6250,160 @@ function prgFrame(){const now=ac().currentTime;while(PRG.visQ.length&&PRG.visQ[0
   if(PRG.loops>=1&&!PRG.paid){PRG.paid=true;if(activeId()&&!load(mk("str",PRG.inst+"-prog-"+PRG.onName),false)){addBeans(8);save(mk("str",PRG.inst+"-prog-"+PRG.onName),true);beanChip();const n=$("#prgNote");if(n)n.textContent="+8 🫘 — you played it through!";}}
   PRG.raf=requestAnimationFrame(prgFrame);}
 function prgStart(){unlockAudio();if(PRG.running)return;const a=ac();PRG.running=true;PRG.idx=0;PRG.beat=0;PRG.cnt=4;PRG.loops=0;PRG.paid=false;PRG.nextTime=a.currentTime+0.15;PRG.visQ=[];PRG.schID=setInterval(prgSchedule,25);PRG.raf=requestAnimationFrame(prgFrame);const b=$("#prgStart");if(b)b.textContent="⏸ Stop";const st=$("#prgStatus");if(st)st.textContent="Get ready…";const hv=document.getElementById("hwyCv");if(hv)try{hv.scrollIntoView({block:"start"});}catch(e){}}
+/* ===== MELODIES — single-note highway: watch it, tap the neck, or play your own instrument ===== */
+const MEL_LIB=[
+ {id:"mtnking",name:"In the Hall of the Mountain King",by:"Grieg · 1875",g:"Classical",tag:"pd",bpm:120,beats:4,n:"B3:.5 C#4:.5 D4:.5 E4:.5 F#4:.5 D4:.5 F#4:1 F4:.5 C#4:.5 F4:1 E4:.5 C4:.5 E4:1 B3:.5 C#4:.5 D4:.5 E4:.5 F#4:.5 D4:.5 F#4:.5 B4:.5 A4:.5 F#4:.5 D4:.5 F#4:.5 A4:2"},
+ {id:"toccata",name:"Toccata in D minor (opening)",by:"Bach · c.1704",g:"Classical",tag:"pd",bpm:66,beats:4,n:"A4:.25 G4:.25 A4:2 r:.5 G4:.25 F4:.25 E4:.25 D4:.25 C#4:1 D4:2 r:1 A3:.25 G3:.25 A3:2 r:.5 E3:.5 F3:.5 C#3:.5 D3:2"},
+ {id:"elise",name:"Für Elise (opening)",by:"Beethoven · 1810",g:"Classical",tag:"pd",bpm:70,beats:3,n:"E5:.5 D#5:.5 E5:.5 D#5:.5 E5:.5 B4:.5 D5:.5 C5:.5 A4:1.5 C4:.5 E4:.5 A4:.5 B4:1.5 E4:.5 G#4:.5 B4:.5 C5:1.5 E4:.5 E5:.5 D#5:.5 E5:.5 D#5:.5 E5:.5 B4:.5 D5:.5 C5:.5 A4:1.5 C4:.5 E4:.5 A4:.5 B4:1.5 E4:.5 C5:.5 B4:.5 A4:2"},
+ {id:"ode",name:"Ode to Joy",by:"Beethoven · 1824",g:"Classical",tag:"pd",bpm:100,beats:4,n:"E4:1 E4:1 F4:1 G4:1 G4:1 F4:1 E4:1 D4:1 C4:1 C4:1 D4:1 E4:1 E4:1.5 D4:.5 D4:2 E4:1 E4:1 F4:1 G4:1 G4:1 F4:1 E4:1 D4:1 C4:1 C4:1 D4:1 E4:1 D4:1.5 C4:.5 C4:2"},
+ {id:"habanera",name:"Habanera (Carmen)",by:"Bizet · 1875",g:"Classical",tag:"pd",bpm:72,beats:4,n:"D5:1.5 C#5:.5 C5:1 C5:.5 B4:.5 Bb4:1.5 A4:.5 Ab4:1 G4:1 F4:1 G4:.5 F4:.5 E4:1 E4:1"},
+ {id:"canonbass",name:"Canon in D — bass line",by:"Pachelbel · c.1680",g:"Classical",tag:"pd",bpm:70,beats:4,n:"D3:2 A2:2 B2:2 F#2:2 G2:2 D2:2 G2:2 A2:2 D3:2 A2:2 B2:2 F#2:2 G2:2 D2:2 G2:2 A2:2"},
+ {id:"canonmel",name:"Canon in D — melody",by:"Pachelbel · c.1680",g:"Classical",tag:"pd",bpm:70,beats:4,n:"F#5:2 E5:2 D5:2 C#5:2 B4:2 A4:2 B4:2 C#5:2 D5:1 C#5:1 B4:1 A4:1 G4:1 F#4:1 G4:1 E4:1 D4:1 F#4:1 A4:1 G4:1 F#4:1 D4:1 F#4:1 E4:1"},
+ {id:"greens",name:"Greensleeves",by:"Traditional · 1500s",g:"Folk & Traditional",tag:"pd",bpm:96,beats:3,n:"A4:1 C5:2 D5:1 E5:1.5 F5:.5 E5:1 D5:2 B4:1 G4:1.5 A4:.5 B4:1 C5:2 A4:1 A4:1.5 G#4:.5 A4:1 B4:2 G#4:1 E4:2 A4:1 C5:2 D5:1 E5:1.5 F5:.5 E5:1 D5:2 B4:1 G4:1.5 A4:.5 B4:1 C5:1.5 B4:.5 A4:1 G#4:1.5 F#4:.5 G#4:1 A4:3"},
+ {id:"scarb",name:"Scarborough Fair",by:"Traditional",g:"Folk & Traditional",tag:"pd",bpm:100,beats:3,n:"D4:2 D4:1 A4:2 A4:1 E4:1.5 F4:.5 E4:1 D4:3 r:1 A4:1 C5:1 D5:2 C5:1 A4:1 B4:1 G4:1 A4:3 D5:2 D5:1 D5:2 C5:1 A4:2 A4:1 G4:1 F4:1 E4:1 C4:3 D4:2 A4:1 G4:2 F4:1 E4:1 D4:1 C4:1 D4:3"},
+ {id:"grace",name:"Amazing Grace",by:"Traditional · 1779",g:"Folk & Traditional",tag:"pd",bpm:84,beats:3,n:"D4:1 G4:2 B4:.5 G4:.5 B4:2 A4:1 G4:2 E4:1 D4:2 D4:1 G4:2 B4:.5 G4:.5 B4:2 A4:1 D5:3 D5:2 B4:1 D5:1.5 B4:.5 D5:.5 B4:.5 G4:2 D4:1 E4:1.5 G4:.5 G4:.5 E4:.5 D4:2 D4:1 G4:2 B4:.5 G4:.5 B4:2 A4:1 G4:3"},
+ {id:"saints",name:"When the Saints Go Marching In",by:"Traditional",g:"Folk & Traditional",tag:"pd",bpm:120,beats:4,n:"r:1 C4:1 E4:1 F4:1 G4:4 r:1 C4:1 E4:1 F4:1 G4:4 r:1 C4:1 E4:1 F4:1 G4:2 E4:2 C4:2 E4:2 D4:4 r:1 E4:1 E4:1 D4:1 C4:3 C4:1 E4:2 G4:2 G4:1 F4:3 r:1 E4:1 F4:1 G4:1 E4:2 C4:2 D4:2 C4:4"},
+ {id:"sailor",name:"Drunken Sailor (shanty-punk)",by:"Traditional",g:"Folk & Traditional",tag:"pd",bpm:150,beats:4,n:"A4:1 A4:.5 A4:.5 A4:1 A4:.5 A4:.5 A4:1 D4:1 F4:1 A4:1 G4:1 G4:.5 G4:.5 G4:1 G4:.5 G4:.5 G4:1 C4:1 E4:1 G4:1 A4:1 A4:.5 A4:.5 A4:1 A4:.5 A4:.5 A4:1 B4:1 C5:1 D5:1 C5:1 A4:1 G4:1 E4:1 D4:2 D4:2"},
+ {id:"gallop",name:"Iron Gallop",by:"MMU original",g:"Metal & Hard Rock",tag:"orig",bpm:150,beats:4,n:"E2:.5 E2:.25 E2:.25 E2:.5 E2:.25 E2:.25 E2:.5 E2:.25 E2:.25 E2:.5 E2:.25 E2:.25 G2:.5 E2:.25 E2:.25 A2:.5 E2:.25 E2:.25 Bb2:.5 A2:.5 G2:1 E2:.5 E2:.25 E2:.25 E2:.5 E2:.25 E2:.25 E2:.5 E2:.25 E2:.25 E2:.5 E2:.25 E2:.25 D3:.5 C3:.5 B2:.5 A2:.5 G2:.5 F#2:.5 E2:1"},
+ {id:"arena",name:"Arena Climb",by:"MMU original",g:"Metal & Hard Rock",tag:"orig",bpm:116,beats:4,n:"D4:1 F#4:1 A4:1.5 G4:.5 F#4:1 E4:1 D4:2 B3:1 D4:1 G4:1.5 F#4:.5 E4:1 D4:1 E4:2 D4:1 F#4:1 A4:1 B4:1 D5:1.5 C#5:.5 B4:1 A4:1 G4:1 F#4:1 E4:1 A3:1 D4:4"},
+ {id:"grunge",name:"Grunge Drop",by:"MMU original",g:"Alt & Indie",tag:"orig",bpm:92,beats:4,n:"E2:1 G2:.5 E2:.5 A2:.5 G2:.5 E2:1 Bb2:.5 A2:.5 G2:.5 E2:.5 G2:1 r:1 E2:1 G2:.5 E2:.5 A2:.5 G2:.5 E2:1 C3:.5 B2:.5 Bb2:.5 A2:.5 E2:2"},
+ {id:"rainglass",name:"Rain on Glass",by:"MMU original",g:"Alt & Indie",tag:"orig",bpm:80,beats:4,n:"A2:.5 E3:.5 B3:.5 C4:.5 E4:.5 C4:.5 B3:.5 E3:.5 F2:.5 C3:.5 G3:.5 A3:.5 C4:.5 A3:.5 G3:.5 C3:.5 C3:.5 G3:.5 D4:.5 E4:.5 G4:.5 E4:.5 D4:.5 G3:.5 G2:.5 D3:.5 A3:.5 B3:.5 D4:.5 B3:.5 A3:.5 D3:.5"},
+ {id:"sprint",name:"Three-Chord Sprint",by:"MMU original",g:"Punk",tag:"orig",bpm:170,beats:4,n:"B3:.5 B3:.5 A3:.5 B3:1 D4:.5 B3:.5 A3:.5 G3:.5 G3:.5 F#3:.5 G3:1 B3:.5 G3:.5 F#3:.5 E3:.5 E3:.5 D3:.5 E3:1 G3:.5 E3:.5 D3:.5 F#3:1 G3:1 A3:1 B3:1"},
+ {id:"shuffle",name:"Midnight Shuffle",by:"MMU original",g:"Blues & Funk",tag:"orig",bpm:88,beats:4,n:"A3:.67 C4:.33 D4:.67 D#4:.33 E4:1 G4:.67 E4:.33 D4:.67 C4:.33 A3:2 r:1 C4:.67 D4:.33 C4:.67 A3:.33 G3:1 A3:1 E4:1 D4:.67 C4:.33 A3:2"},
+ {id:"strut",name:"Sixteenth Strut",by:"MMU original",g:"Blues & Funk",tag:"orig",bpm:96,beats:4,n:"E3:.25 r:.25 E3:.25 G3:.25 A3:.5 r:.25 E3:.25 D4:.25 r:.25 B3:.25 A3:.25 G3:.5 E3:.5 E3:.25 r:.25 E3:.25 G3:.25 A3:.5 B3:.25 C#4:.25 D4:.5 C#4:.25 B3:.25 A3:.5 G3:.25 E3:.25"},
+ {id:"surf",name:"Tremolo Wave",by:"MMU original",g:"Surf",tag:"orig",bpm:150,beats:4,n:"E4:.5 F4:.5 G#4:.5 A4:.5 B4:1 A4:.5 G#4:.5 F4:.5 E4:.5 D4:.5 E4:.5 F4:2 E4:.5 F4:.5 G#4:.5 A4:.5 B4:.5 C5:.5 B4:.5 A4:.5 G#4:1 F4:1 E4:2"},
+ {id:"skank",name:"Skank Line (bass)",by:"MMU original",g:"Reggae",tag:"orig",bpm:76,beats:4,n:"A2:1 r:.5 A2:.5 C3:.5 E3:.5 r:.5 D3:.5 C3:1 r:.5 C3:.5 B2:.5 A2:.5 G2:1 F2:1 r:.5 F2:.5 A2:.5 C3:.5 r:.5 C3:.5 E2:1 r:.5 E2:.5 G#2:.5 B2:.5 E3:1"}
+];
+const MEL_GENRE_IC={"Metal & Hard Rock":"🤘","Alt & Indie":"🌧️","Punk":"⚡","Blues & Funk":"🎷","Surf":"🌊","Reggae":"🌴","Classical":"🎻","Folk & Traditional":"🪕","My melodies":"⭐"};
+const MEL={inst:"guitar",song:null,notes:[],w:1,bpm:100,mode:load("mjk-melmode","watch"),running:false,t0:0,schID:null,raf:null,clickVol:load("mjk-melclick",0.3),guide:load("mjk-melguide",false),loop:load("mjk-melloop",false),
+  score:0,streak:0,top:0,hits:0,perf:0,miss:0,fx:[],nextKey:"",clickB:0,micBuf:null,lastPitchT:0,done:false};
+function melUser(){return load("mjk-mel-user",[]);}
+function melAll(){return MEL_LIB.concat(melUser().map(u=>Object.assign({g:"My melodies",tag:"mine"},u)));}
+function melMidiOf(tok){const m=tok.match(/^([A-G])(#|b)?(-?\d)$/);if(!m)return null;let pc={C:0,D:2,E:4,F:5,G:7,A:9,B:11}[m[1]];if(m[2]==="#")pc++;if(m[2]==="b")pc--;return 12*(+m[3]+1)+pc;}
+function melParse(str){const out=[];let b=0;String(str).trim().split(/\s+/).forEach(tok=>{const p=tok.split(":"),d=parseFloat(p[1]||"1")||1;if(p[0]!=="r"){const m=melMidiOf(p[0]);if(m!=null)out.push({b:b,dur:d,m:m});}b+=d;});return {notes:out,len:b};}
+function melMap(song,inst){const strings=fbStrings(),N=strings.length,P=melParse(song.n),top=inst==="bass"?14:15;let best=null;
+  [0,-12,12,-24,24].forEach(sh=>{for(let w=1;w<=12;w++){let ok=0;P.notes.forEach(n=>{const m=n.m+sh;for(let s=0;s<N;s++){const f=m-strings[s];if((f>=w&&f<=w+4)||(f===0&&w<=2)){ok++;break;}}});
+    const sc=ok*100-w-Math.abs(sh)/12*6;if(!best||sc>best.sc)best={sc:sc,sh:sh,w:w};}});
+  let ps=-1,pf=best.w;const notes=[];
+  P.notes.forEach(n=>{let m=n.m+best.sh;const lo=Math.min.apply(null,strings),hi=Math.max.apply(null,strings)+top;while(m<lo)m+=12;while(m>hi)m-=12;let c=null,cc=1e9;for(let s=0;s<N;s++){const f=m-strings[s];if(f<0||f>top)continue;const inWin=(f>=best.w&&f<=best.w+4)||(f===0&&best.w<=2);const cost=(inWin?0:30+Math.abs(f-(best.w+1.5)))+Math.abs(f-pf)*1+(ps<0?0:Math.abs(s-ps)*0.6);if(cost<cc){cc=cost;c={s:s,f:f};}}
+    if(!c)return;notes.push({b:n.b,dur:n.dur,m:m,s:c.s,f:c.f});ps=c.s;pf=c.f||pf;});
+  return {notes:notes,len:P.len,w:best.w,shift:best.sh};}
+function melLoad(song){MEL.song=song;FB.inst=MEL.inst;const r=melMap(song,MEL.inst);MEL.notes=r.notes;MEL.len=Math.ceil(r.len/song.beats)*song.beats;MEL.w=r.w;MEL.bpm=song.bpm;FB.win=Math.min(13,Math.max(1,r.w));MEL.nextKey="";}
+function melSpb(){return 60/MEL.bpm;}
+function melT(b){return MEL.t0+b*melSpb();}
+function melReset(){MEL.score=0;MEL.streak=0;MEL.top=0;MEL.hits=0;MEL.perf=0;MEL.miss=0;MEL.fx=[];MEL.done=false;MEL.notes.forEach(n=>{n.j=null;n.sch=false;});}
+function melStop(silent){MEL.running=false;if(MEL.schID){clearInterval(MEL.schID);MEL.schID=null;}FB.onTap=null;try{if(MEL.mode==="mic")stopMic();}catch(e){}const b=document.getElementById("melGo");if(b)b.textContent=MEL.mode==="watch"?"▶ Watch it":"▶ Start";}
+function melStart(){unlockAudio();melStop(true);melReset();const go=()=>{const a=ac(),cnt=MEL.song.beats;MEL.t0=a.currentTime+0.25+cnt*melSpb();MEL.clickB=-cnt;MEL.running=true;
+    MEL.schID=setInterval(melSched,25);const b=document.getElementById("melGo");if(b)b.textContent="⏸ Stop";
+    FB.onTap=MEL.mode==="tap"?melTap:null;const cv=document.getElementById("melCv");if(cv)try{cv.scrollIntoView({block:"start"});}catch(e){}melHud();};
+  if(MEL.mode==="mic"){const st=document.getElementById("melHud");if(st)st.textContent="Turning on the mic…";ensureMic().then(ok=>{if(!ok){if(st)st.textContent="🎤 I need the mic to hear you — or pick 👆 Tap the neck.";return;}go();});}else go();}
+function melSched(){if(!MEL.running)return;const a=ac(),now=a.currentTime,ahead=0.12,spb=melSpb();
+  while(melT(MEL.clickB)<now+ahead&&MEL.clickB<MEL.len){const tb=melT(MEL.clickB);if(tb>now-0.05)click(tb,(((MEL.clickB%MEL.song.beats)+MEL.song.beats)%MEL.song.beats)===0?"accent":"beat",MEL.clickB<0?Math.max(0.25,MEL.clickVol):MEL.clickVol);MEL.clickB++;}
+  MEL.notes.forEach(n=>{if(n.sch)return;const t=melT(n.b);if(t<now+ahead){n.sch=true;if(t>now-0.05&&(MEL.mode==="watch"||MEL.guide))pluck(n.m,t,Math.min(2.4,n.dur*spb*0.95+0.25),MEL.mode==="watch"?0.5:0.22);}});}
+function melJudge(n,dt,now){const ad=Math.abs(dt);let k;if(ad<=0.09)k="perfect";else if(ad<=0.2)k="good";else return false;n.j=k;MEL.hits++;if(k==="perfect")MEL.perf++;MEL.streak++;MEL.top=Math.max(MEL.top,MEL.streak);
+  MEL.score+=(k==="perfect"?100:50)*Math.min(4,1+Math.floor(MEL.streak/8));MEL.fx.push({t:now,s:n.s,k:k});melHud();return true;}
+function melTap(s,f){if(!MEL.running||MEL.mode!=="tap")return;const now=ac().currentTime,m=fbStrings()[s]+f;let best=null,bd=1e9;
+  MEL.notes.forEach(n=>{if(n.j)return;const dt=now-melT(n.b);if(Math.abs(dt)<0.3&&n.m===m&&Math.abs(dt)<bd){bd=Math.abs(dt);best=n;}});
+  if(best)melJudge(best,now-melT(best.b),now);else{MEL.streak=0;MEL.fx.push({t:now,s:s,k:"oops"});melHud();}}
+function melMicFrame(now){if(MEL.mode!=="mic"||!toneAnalyser)return;if(!MEL.micBuf||MEL.micBuf.length!==toneAnalyser.fftSize)MEL.micBuf=new Float32Array(toneAnalyser.fftSize);toneAnalyser.getFloatTimeDomainData(MEL.micBuf);
+  const hz=autoCorrelate(MEL.micBuf,ac().sampleRate);if(hz<=0)return;const mm=69+12*Math.log2(hz/440),near=Math.round(mm);if(Math.abs(mm-near)>0.45)return;
+  MEL.notes.forEach(n=>{if(n.j)return;const dt=now-0.05-melT(n.b);if(dt<-0.2||dt>0.25)return;if(((near-n.m)%12+12)%12===0)melJudge(n,dt,now);});}
+function melHud(){const h=document.getElementById("melHud");if(!h)return;if(MEL.mode==="watch"){h.innerHTML=MEL.running?'<span style="color:var(--muted)">Watching — '+esc(MEL.song.name)+'</span>':"";return;}
+  const judged=MEL.notes.filter(n=>n.j).length,acc=judged?Math.round(100*MEL.hits/judged):100;
+  h.innerHTML='<b style="font-size:1.15rem">'+MEL.score+'</b> pts · 🔥 '+MEL.streak+(MEL.streak>=8?' <b style="color:var(--gold)">×'+Math.min(4,1+Math.floor(MEL.streak/8))+'</b>':'')+' · 🎯 '+acc+'%';}
+function melFinish(){melStop();const r=document.getElementById("melRes");if(!r)return;if(MEL.mode==="watch"){r.innerHTML='<div class="feedback">That’s <b>'+esc(MEL.song.name)+'</b>. Now try <b>👆 Tap the neck</b> or <b>🎸 My instrument</b> to play it yourself.</div>';return;}
+  const N=MEL.notes.length,acc=N?Math.round(100*MEL.hits/N):0,stars=acc>=90?3:acc>=75?2:acc>=50?1:0,key=mk("mel",MEL.song.id+"-"+MEL.inst+"-"+MEL.mode),bestOld=load(key,0),rec=MEL.score>bestOld;if(rec)save(key,MEL.score);
+  if(stars>=2&&activeId()&&!isAdult()){addBeans(stars*2);beanChip();}
+  r.innerHTML='<div class="panel" style="text-align:center;margin-top:8px"><div style="font-size:1.6rem">'+("★".repeat(stars)+"☆".repeat(3-stars))+'</div><div style="font:900 1.3rem system-ui">'+MEL.score+' pts'+(rec?' <span style="color:var(--gold);font-size:.85rem">NEW BEST</span>':'')+'</div><div style="color:var(--muted)">'+MEL.hits+'/'+N+' notes · '+MEL.perf+' perfect · best streak '+MEL.top+' · '+acc+'%</div><div style="margin-top:4px;color:var(--muted)">'+(acc>=90?"Locked in. Bump the BPM up 5.":acc>=60?"Nice — loop it a few times, then speed up.":"Slow it down 10–20 BPM and turn on 🔈 Guide notes.")+'</div></div>';}
+function melNeckHint(now){let nx=null,nx2=null;for(let i=0;i<MEL.notes.length;i++){const n=MEL.notes[i];if(n.j&&n.j!=="miss")continue;if(melT(n.b)>=now-0.12){if(!nx)nx=n;else{nx2=n;break;}}}
+  const key=nx?(nx.s+":"+nx.f+":"+(nx2?nx2.s+":"+nx2.f:"")):"";if(key===MEL.nextKey)return;MEL.nextKey=key;
+  if(nx){const f=nx.f;if(f===0){if(FB.win!==1)FB.win=1;}else if(f<FB.win||f>FB.win+3)FB.win=Math.max(1,Math.min(13,f<FB.win?f:f-3));FB.hl={s:nx.s,f:nx.f};}else FB.hl=null;
+  if(nx2&&leadOn()){const gh=new Array(fbStrings().length).fill(-1);gh[nx2.s]=nx2.f;FB.ghost=nx2.f>0?gh:null;FB.ghostF=null;}else FB.ghost=null;fbPaint();}
+function melFrame(){MEL.raf=requestAnimationFrame(melFrame);const cv=document.getElementById("melCv");if(!cv)return;const now=ac().currentTime;
+  if(MEL.running){melMicFrame(now);MEL.notes.forEach(n=>{if(n.j)return;const t=melT(n.b);if(MEL.mode==="watch"){if(now>=t){n.j="auto";MEL.fx.push({t:now,s:n.s,k:"auto"});}}else if(now>t+0.25){n.j="miss";MEL.miss++;MEL.streak=0;MEL.fx.push({t:now,s:n.s,k:"miss"});melHud();}});
+    if(now>melT(MEL.len)+0.3){if(MEL.loop){const old=MEL.mode;MEL.t0=melT(MEL.len);MEL.clickB=0;MEL.notes.forEach(n=>{n.j=null;n.sch=false;});}else{melFinish();}}}
+  melNeckHint(now);try{melDraw(cv,now);}catch(e){}}
+function melDraw(cv,now){const dpr=Math.min(2.5,window.devicePixelRatio||1),W=cv.clientWidth,H=cv.clientHeight;if(!W)return;if(cv.width!==Math.round(W*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
+  const c=cv.getContext("2d");c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);const g=fbGeo(),N=g.N,sc=W/g.VBW,lane=[];for(let s=0;s<N;s++)lane.push(g.sx(s,g.nutY)*sc);
+  const cx=(lane[0]+lane[N-1])/2,hitY=H-16,topY=10,spb=melSpb(),L=Math.max(1.6,Math.min(3.4,4*spb));
+  const proj=(x,d,w)=>cx+(x-cx)*(1-0.5*d)+(w||0),yOf=d=>hitY-(hitY-topY)*(1-Math.pow(1-d,1.5)),wave=d=>Math.sin(d*5.5-now*2.2)*5*d;
+  for(let s=0;s<N;s++){c.beginPath();for(let i=0;i<=24;i++){const d=i/24,x=proj(lane[s],d,wave(d)),y=yOf(d);if(i)c.lineTo(x,y);else c.moveTo(x,y);}c.strokeStyle=HWY_COL[(N-1-s)%6]+"55";c.lineWidth=1.6;c.stroke();}
+  if(!MEL.running&&!MEL.t0){}
+  const t0=MEL.running?MEL.t0:now+spb*0.75+(MEL.song?MEL.song.beats:4)*0;const T=b=>(MEL.running?melT(b):t0+b*spb);
+  // beat lines + count-in
+  const b0=Math.floor((now-0.5-T(0))/spb),b1=Math.ceil((now+L-T(0))/spb);for(let b=b0;b<=b1;b++){const d=(T(b)-now)/L;if(d<0||d>1)continue;const y=yOf(d),w=wave(d),bar=((b%MEL.song.beats)+MEL.song.beats)%MEL.song.beats===0;
+    if(b<0&&MEL.running){c.fillStyle="#f3c14a";c.font="900 "+Math.round(36*(1-0.5*d))+"px system-ui";c.textAlign="center";c.fillText(String(MEL.song.beats+b+1),cx+w,y+10);continue;}if(b>MEL.len)continue;
+    c.beginPath();c.moveTo(proj(lane[0]-14,d,w),y);c.lineTo(proj(lane[N-1]+14,d,w),y);c.strokeStyle=bar?"rgba(255,255,255,.3)":"rgba(255,255,255,.08)";c.lineWidth=bar?2:1;c.stroke();}
+  let flash=0;MEL.fx.forEach(f=>{const a=now-f.t;if(a<0.18&&f.k!=="miss"&&f.k!=="oops")flash=Math.max(flash,1-a/0.18);});
+  c.beginPath();c.moveTo(lane[0]-18,hitY);c.lineTo(lane[N-1]+18,hitY);c.strokeStyle="rgba(243,193,74,"+(0.55+0.45*flash)+")";c.lineWidth=3+5*flash;c.shadowColor="#f3c14a";c.shadowBlur=10+24*flash;c.stroke();c.shadowBlur=0;
+  // notes (with sustain tails)
+  for(let i=MEL.notes.length-1;i>=0;i--){const n=MEL.notes[i],t=T(n.b),d=(t-now)/L;if(d>1.05)continue;const de=(t+n.dur*spb-now)/L;if(de<-0.05)continue;if(n.j&&n.j!=="miss"&&d<0)continue;
+    const dd=Math.max(0,d),y=yOf(dd),w=wave(dd),k=1-0.5*dd,x=proj(lane[n.s],dd,w),col=HWY_COL[(N-1-n.s)%6];
+    if(n.dur*spb>0.45){const d2=Math.min(1,de),y2=yOf(Math.max(0,d2)),x2=proj(lane[n.s],Math.max(0,d2),wave(Math.max(0,d2)));c.strokeStyle=col+"99";c.lineWidth=7*k;c.lineCap="round";c.beginPath();c.moveTo(x,y);c.lineTo(x2,y2);c.stroke();}
+    if(d<-0.02&&n.j==="miss"){c.globalAlpha=Math.max(0,1+d*6);}
+    const r=14*k;c.fillStyle=n.j==="miss"?"#ff5d6c":col;c.beginPath();if(c.roundRect)c.roundRect(x-r,y-r,2*r,2*r,6*k);else c.rect(x-r,y-r,2*r,2*r);c.fill();c.lineWidth=2;c.strokeStyle="rgba(255,255,255,.65)";c.stroke();
+    c.fillStyle="#140f22";c.font="900 "+Math.round(16*k)+"px system-ui";c.textAlign="center";c.fillText(FB.showNotes?NOTE_NAMES[((n.m%12)+12)%12]:String(n.f),x,y+6*k);c.globalAlpha=1;}
+  // hit sparks + words
+  MEL.fx=MEL.fx.filter(f=>now-f.t<0.7);MEL.fx.forEach(f=>{const a=(now-f.t)/0.7,x=lane[Math.min(N-1,f.s)];c.globalAlpha=1-a;
+    if(f.k!=="miss"&&f.k!=="oops"){c.strokeStyle=f.k==="good"?"#7ff0d6":"#ffe27a";c.lineWidth=3;c.beginPath();c.arc(x,hitY,10+30*a,0,Math.PI*2);c.stroke();}
+    if(f.k!=="auto"){c.fillStyle=f.k==="perfect"?"#ffe27a":f.k==="good"?"#7ff0d6":"#ff5d6c";c.font="900 15px system-ui";c.textAlign="center";c.fillText(f.k==="perfect"?"PERFECT":f.k==="good"?"GOOD":f.k==="miss"?"MISS":"✗",x,hitY-26-26*a);}c.globalAlpha=1;});
+  // bouncing ball between notes
+  if(MEL.running){let t1=null,t2=null;for(let i=0;i<MEL.notes.length;i++){const t=T(MEL.notes[i].b);if(t<=now)t1=t;else{t2=t;break;}}
+    if(t2!=null){if(t1==null||t1<now-4)t1=Math.min(now,t2-spb);const ph=Math.min(1,Math.max(0,(now-t1)/Math.max(0.05,t2-t1))),arc=Math.min(60,18+(t2-t1)*40);let nx=null;for(const n of MEL.notes){if(T(n.b)>now){nx=n;break;}}
+      const bx=nx?lane[nx.s]:cx;c.fillStyle="#fff";c.shadowColor="#fff";c.shadowBlur=12;c.beginPath();c.arc(bx,hitY-9-Math.sin(Math.PI*ph)*arc,6.5,0,Math.PI*2);c.fill();c.shadowBlur=0;}}}
+function melImport(file,done){const fr=new FileReader();fr.onload=()=>{try{const mid=parseMidi(fr.result),div=mid.div||480;let tr=null;mid.tracks.forEach(t=>{if(t.notes.length&&(!tr||t.notes.length>tr.notes.length))tr=t;});if(!tr)throw new Error("no notes found");
+    const byT={};tr.notes.forEach(x=>{if(byT[x.t]==null||x.n>byT[x.t])byT[x.t]=x.n;});const ts=Object.keys(byT).map(Number).sort((a,b)=>a-b).slice(0,400);const q=v=>Math.max(0.25,Math.round(v*4)/4);const t0=ts[0];let toks=[],last=0;
+    ts.forEach((t,i)=>{const b=Math.round((t-t0)/div*4)/4,nb=i<ts.length-1?Math.round((ts[i+1]-t0)/div*4)/4:b+1;if(b>last)toks.push("r:"+(b-last));const m=byT[t],nm=NOTE_NAMES[m%12].replace("♯","#")+(Math.floor(m/12)-1);toks.push(nm+":"+q(nb-b));last=nb;});
+    const u=melUser(),id="u"+Date.now();u.push({id:id,name:file.name.replace(/\.midi?$/i,""),by:"Your import",bpm:100,beats:4,n:toks.join(" ")});save("mjk-mel-user",u);done(id);}catch(err){done(null,err);}};fr.readAsArrayBuffer(file);}
+function renderMelody(inst){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  if(inst==="bass"||inst==="guitar"||inst==="ukulele")MEL.inst=inst;
+  const fbSave={mode:FB.mode,inst:FB.inst,win:FB.win,hl:FB.hl,onTap:FB.onTap};
+  const restore=()=>{melStop();if(MEL.raf)cancelAnimationFrame(MEL.raf);MEL.raf=null;FB.ghost=null;FB.hl=null;FB.onTap=null;FB.mode=fbSave.mode;FB.inst=fbSave.inst;FB.win=fbSave.win;};
+  teardown=restore;
+  let libOpen=load("mjk-mellib",true),optOpen=load("mjk-melopt",false);
+  function pick(id){const s=melAll().find(x=>x.id===id)||MEL_LIB[0];save("mjk-melsong",s.id);melStop();FB.inst=MEL.inst;melLoad(s);draw();}
+  function draw(){melStop();if(MEL.raf)cancelAnimationFrame(MEL.raf);FB.mode="play";FB.inst=MEL.inst;if(!MEL.song||!melAll().find(x=>x.id===MEL.song.id)){const id=load("mjk-melsong","mtnking");MEL.song=melAll().find(x=>x.id===id)||MEL_LIB[0];}
+    melLoad(MEL.song);const S=MEL.song,groups={};melAll().forEach(s=>{(groups[s.g]=groups[s.g]||[]).push(s);});
+    const tagTxt=S.tag==="pd"?"public domain":S.tag==="orig"?"MMU original":"your import",bk=load(mk("mel",S.id+"-"+MEL.inst+"-"+MEL.mode),0);
+    view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎼 Melodies</span></div><div class="panel">
+      <div class="rrow2"><span class="rchips tight" id="melInst"></span></div>
+      <details id="melLib" ${libOpen?"open":""} style="margin:6px 0"><summary style="cursor:pointer;list-style:none;padding:6px 2px;font:800 .9rem system-ui;color:var(--muted)">🎵 Library · ${melAll().length} melodies ▾</summary><div id="melLibBody"></div></details>
+      <div style="margin:6px 0 2px;font:900 1.2rem system-ui">${esc(S.name)}</div><div style="color:var(--muted);font-size:.85rem;margin-bottom:6px">${MEL_GENRE_IC[S.g]||"🎵"} ${esc(S.g)} · ${esc(S.by||"")} · <i>${tagTxt}</i>${bk?' · best <b style="color:#5fe0a8">'+bk+'</b>':''}</div>
+      <div class="rchips tight" id="melModes" style="margin:4px 0"></div>
+      <div id="melHud" style="min-height:24px;text-align:center;margin:4px 0"></div>
+      <div id="melStageWrap"><canvas id="melCv" style="display:block;width:100%;height:270px;border-radius:14px 14px 0 0;background:linear-gradient(#07060f,#14102a 70%,#1d1638)"></canvas>
+        <div id="fbStage" style="overflow:hidden;border-radius:0 0 14px 14px;max-height:370px"><div id="fbBox" style="position:relative"><div id="fbSvgWrap">${fbSVG()}</div><div id="fbTouch" style="position:absolute;left:0;top:0;right:0;bottom:0;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none"></div></div></div></div>
+      <div style="display:flex;align-items:center;gap:8px;margin:10px 0 4px"><button class="rchip sm" id="melBpmDn" style="min-width:40px;justify-content:center;font-weight:900">−</button><span style="flex:0 0 auto;text-align:center;font:900 1.05rem system-ui;min-width:82px">♩ <span id="melBpmV">${MEL.bpm}</span> <span style="font-size:.75rem;color:var(--muted)">BPM</span></span><button class="rchip sm" id="melBpmUp" style="min-width:40px;justify-content:center;font-weight:900">+</button><input type="range" id="melBpm" min="30" max="220" value="${MEL.bpm}" style="flex:1 1 auto;min-width:60px;accent-color:var(--gold)"></div>
+      ${clickVolRow("melClick",MEL.clickVol)}
+      <div class="actions"><button class="btn" id="melGo" style="flex:1 1 100%">${MEL.mode==="watch"?"▶ Watch it":"▶ Start"}</button></div>
+      <div id="melRes"></div>
+      <details id="melOpt" ${optOpen?"open":""} style="margin-top:6px"><summary style="cursor:pointer;list-style:none;padding:8px 2px;font:800 .85rem system-ui;color:var(--muted)">⚙️ Settings ▾</summary>
+        <div class="rrow2"><span class="rchips tight"><button class="rchip sm${MEL.guide?" sel":""}" id="melGuide">🔈 Guide notes</button><button class="rchip sm${MEL.loop?" sel":""}" id="melLoop">🔁 Loop</button>${leadChip()}<button class="rchip sm${FB.showNotes?" sel":""}" id="melNames">🏷️ Note names</button></span></div>
+        ${volSlider("melVol")}
+        <div class="actions" style="margin-top:6px"><label class="btn ghost" style="flex:1 1 100%;text-align:center;cursor:pointer">➕ Add a melody (MIDI file)<input type="file" id="melFile" accept=".mid,.midi,audio/midi" style="display:none"></label></div>
+        <div style="color:var(--muted);font-size:.8rem;margin-top:4px">Imports the main line of a MIDI file you have. It shows up under ⭐ My melodies, fitted to your instrument.</div>
+      </details></div>`;
+    $("#eBack").onclick=()=>{restore();renderStrings(MEL.inst==="bass"?"guitar":MEL.inst);};
+    const ii=$("#melInst");[["guitar","Guitar"],["bass","Bass"],["ukulele","Ukulele"]].forEach(o=>{const b=document.createElement("button");b.className="rchip sm"+(MEL.inst===o[0]?" sel":"");b.textContent=o[1];b.onclick=()=>{MEL.inst=o[0];draw();};ii.appendChild(b);});
+    const lb=$("#melLibBody");Object.keys(groups).forEach(gn=>{const row=document.createElement("div");row.className="rrow2";row.style.marginTop="4px";row.innerHTML='<span class="rlab" style="min-width:auto">'+(MEL_GENRE_IC[gn]||"🎵")+' '+esc(gn)+'</span>';const ch=document.createElement("span");ch.className="rchips tight";groups[gn].forEach(s=>{const b=document.createElement("button");b.className="rchip sm"+(s.id===S.id?" sel":"");b.textContent=s.name;b.onclick=()=>pick(s.id);ch.appendChild(b);});row.appendChild(ch);lb.appendChild(row);});
+    $("#melLib").addEventListener("toggle",function(){save("mjk-mellib",this.open);});$("#melOpt").addEventListener("toggle",function(){save("mjk-melopt",this.open);});
+    const mm=$("#melModes");[["watch","👀 Watch"],["tap","👆 Tap the neck"],["mic","🎸 My instrument"]].forEach(o=>{const b=document.createElement("button");b.className="rchip sm"+(MEL.mode===o[0]?" sel":"");b.textContent=o[1];b.onclick=()=>{MEL.mode=o[0];save("mjk-melmode",o[0]);draw();};mm.appendChild(b);});
+    const bp=$("#melBpm"),setB=v=>{const nb=Math.max(30,Math.min(220,Math.round(v)));if(MEL.running){const now=ac().currentTime,cur=(now-MEL.t0)/melSpb();MEL.bpm=nb;MEL.t0=now-cur*melSpb();}else MEL.bpm=nb;bp.value=MEL.bpm;$("#melBpmV").textContent=MEL.bpm;};
+    bp.oninput=()=>setB(+bp.value);$("#melBpmDn").onclick=()=>setB(MEL.bpm-5);$("#melBpmUp").onclick=()=>setB(MEL.bpm+5);
+    bindClickVol("melClick",v=>{MEL.clickVol=v;save("mjk-melclick",v);});bindVol("melVol");
+    $("#melGo").onclick=()=>{if(MEL.running)melStop();else{$("#melRes").innerHTML="";melStart();}};
+    $("#melGuide").onclick=function(){MEL.guide=!MEL.guide;save("mjk-melguide",MEL.guide);this.classList.toggle("sel",MEL.guide);};
+    $("#melLoop").onclick=function(){MEL.loop=!MEL.loop;save("mjk-melloop",MEL.loop);this.classList.toggle("sel",MEL.loop);};
+    $("#melNames").onclick=function(){FB.showNotes=!FB.showNotes;this.classList.toggle("sel",FB.showNotes);MEL.nextKey="";};
+    wireLead(draw);
+    $("#melFile").onchange=function(){const f=this.files&&this.files[0];if(!f)return;melImport(f,(id,err)=>{if(!id){alertMsg("Couldn’t read that MIDI — "+(err&&err.message||"try another file"));return;}save("mjk-mellib",true);pick(id);});};
+    fbBindTouch(document.getElementById("fbTouch"));
+    MEL.nextKey="";melHud();MEL.raf=requestAnimationFrame(melFrame);
+  }
+  function alertMsg(m){const r=$("#melRes");if(r)r.innerHTML='<div class="feedback try">'+esc(m)+'</div>';}
+  draw();
+}
+
 function strProg(inst){
   if(toneRAF)cancelAnimationFrame(toneRAF);prgStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   let pi=0,crRaf=null;PRG.inst=inst;
