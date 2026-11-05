@@ -6181,11 +6181,18 @@ function hfxLanes(c,lane,N,proj,yOf,wave,now){for(let s=0;s<N;s++){const col=HWY
     c.beginPath();for(let i=0;i<=24;i++){const d=i/24,x=proj(lane[s],d,wave(d)),y=yOf(d);if(i)c.lineTo(x,y);else c.moveTo(x,y);}c.strokeStyle=col+"33";c.lineWidth=7;c.stroke();c.strokeStyle=col+"aa";c.lineWidth=1.8;c.stroke();}}
 function hfxHitLine(c,x0,x1,y,flash,now){const gr=c.createLinearGradient(x0,0,x1,0);const h=(now*40)%360;["#ff5d6c","#ffc94a","#4fe08a","#4aa8ff","#c27dff","#ff5d6c"].forEach((col,i)=>gr.addColorStop(i/5,col));
   c.beginPath();c.moveTo(x0,y);c.lineTo(x1,y);c.strokeStyle=gr;c.lineWidth=3.5+5*flash;c.shadowColor="#ffe27a";c.shadowBlur=12+26*flash;c.globalAlpha=0.75+0.25*flash;c.stroke();c.globalAlpha=1;c.shadowBlur=0;}
-function hfxGem(c,x,y,r,col,label,sub,dim){c.save();const w=r*1.12,h=r*(sub?1.32:1.05);c.shadowColor=col;c.shadowBlur=dim?0:14;const g=c.createLinearGradient(x,y-h,x,y+h);g.addColorStop(0,"#ffffff");g.addColorStop(0.16,col);g.addColorStop(1,col);
+const HWYP={lbl:load("mjk-hwylbl","note"),neck:load("mjk-hwyneck",false)};
+function hwyBadge(s,m){return HWYP.lbl==="note"?NOTE_NAMES[((m%12)+12)%12]:HWYP.lbl==="string"?fbLabel(s)+" str":"";}
+function hfxGem(c,x,y,r,col,label,badge,dim){c.save();const w=r*1.08,h=r*1.08;c.shadowColor=col;c.shadowBlur=dim?0:14;const g=c.createLinearGradient(x,y-h,x,y+h);g.addColorStop(0,"#ffffff");g.addColorStop(0.16,col);g.addColorStop(1,col);
   c.fillStyle=dim?"#ff5d6c":g;c.beginPath();if(c.roundRect)c.roundRect(x-w,y-h,2*w,2*h,r*0.4);else c.rect(x-w,y-h,2*w,2*h);c.fill();c.shadowBlur=0;c.lineWidth=Math.max(1.5,r*0.14);c.strokeStyle="rgba(255,255,255,.95)";c.stroke();
-  c.textAlign="center";c.textBaseline="middle";c.fillStyle="#120c20";c.font="900 "+Math.round(r*(sub?1.0:1.15))+"px system-ui";c.fillText(label,x,sub?y-h*0.26:y+r*0.05);
-  if(sub){c.fillStyle="rgba(18,12,32,.82)";c.beginPath();if(c.roundRect)c.roundRect(x-w*0.78,y+h*0.12,w*1.56,h*0.72,r*0.25);else c.rect(x-w*0.78,y+h*0.12,w*1.56,h*0.72);c.fill();c.fillStyle="#fff";c.font="800 "+Math.round(r*0.62)+"px system-ui";c.fillText(sub,x,y+h*0.49);}
+  c.textAlign="center";c.textBaseline="middle";c.fillStyle="#120c20";c.font="900 "+Math.round(r*1.2)+"px system-ui";c.fillText(label,x,y+r*0.06);
+  if(badge){c.font="900 "+Math.round(Math.max(10,r*0.82))+"px system-ui";const bw=c.measureText(badge).width+r*0.7,bh=r*1.05,by=y-h-bh/2-2;c.fillStyle="rgba(10,7,20,.92)";c.strokeStyle=col;c.lineWidth=1.6;c.beginPath();if(c.roundRect)c.roundRect(x-bw/2,by-bh/2,bw,bh,bh/2);else c.rect(x-bw/2,by-bh/2,bw,bh);c.fill();c.stroke();c.fillStyle="#fff";c.fillText(badge,x,by+0.5);}
   c.textBaseline="alphabetic";c.restore();}
+function hwyOptsHTML(){return '<div class="rchips tight" style="justify-content:center;margin:2px 0 6px"><button class="rchip sm" id="hwyLbl">\ud83c\udff7\ufe0f Labels: '+({note:"Note",string:"String",off:"Fret only"})[HWYP.lbl]+'</button><button class="rchip sm'+(HWYP.neck?" sel":"")+'" id="hwyNeck">\ud83c\udfb8 Neck: '+(HWYP.neck?"Shown":"Folded")+'</button></div>';}
+function hwyOptsBind(onNeck){const l=document.getElementById("hwyLbl");if(l)l.onclick=()=>{HWYP.lbl=HWYP.lbl==="note"?"string":HWYP.lbl==="string"?"off":"note";save("mjk-hwylbl",HWYP.lbl);l.textContent="\ud83c\udff7\ufe0f Labels: "+({note:"Note",string:"String",off:"Fret only"})[HWYP.lbl];};
+  const n=document.getElementById("hwyNeck");if(n)n.onclick=()=>{HWYP.neck=!HWYP.neck;save("mjk-hwyneck",HWYP.neck);n.classList.toggle("sel",HWYP.neck);n.textContent="\ud83c\udfb8 Neck: "+(HWYP.neck?"Shown":"Folded");hwyApplyFold();if(onNeck)onNeck();};}
+function hwyApplyFold(){const bx=document.getElementById("fbBox"),z=document.getElementById("fbZone"),cv=document.getElementById("hwyCv")||document.getElementById("melCv");
+  if(bx){bx.style.display=HWYP.neck?"":"none";bx.style.maxHeight="";bx.style.overflow="";}if(z)z.style.marginTop=HWYP.neck?"-4.6%":"0";if(cv)cv.style.height=HWYP.neck?"280px":"360px";}
 function hfxLaneNames(c,lane,N,proj,yOf,wave,hitY){for(let s=0;s<N;s++){const col=HWY_COL[(N-1-s)%6],nm=fbLabel(s),x=lane[s];
     c.fillStyle="rgba(10,7,20,.9)";c.strokeStyle=col;c.lineWidth=2;c.beginPath();c.arc(x,hitY,10,0,Math.PI*2);c.fill();c.stroke();c.fillStyle=col;c.font="900 11px system-ui";c.textAlign="center";c.textBaseline="middle";c.fillText(nm,x,hitY+0.5);
     const xt=proj(x,1,wave(1)),yt=yOf(1);c.fillStyle=col;c.font="800 9px system-ui";c.fillText(nm,xt,yt-7);c.textBaseline="alphabetic";}}
@@ -6195,7 +6202,7 @@ function hfxPill(c,x,y,txt,k,col){c.save();c.font="900 "+Math.round(17*k)+"px sy
 
 function hwyStop(){if(HWY.raf)cancelAnimationFrame(HWY.raf);HWY.raf=null;HWY.cv=null;}
 function hwyMount(dia){hwyStop();const cv=document.createElement("canvas");cv.id="hwyCv";cv.style.cssText="display:block;width:100%;height:300px;border-radius:14px 14px 0 0;background:linear-gradient(#07060f,#14102a 70%,#1d1638)";dia.insertBefore(cv,dia.firstChild);
-  const st=document.getElementById("fbStage");if(st)st.style.borderRadius="0 0 14px 14px";const bx=document.getElementById("fbBox");if(bx){bx.style.maxHeight="345px";bx.style.overflow="hidden";}
+  const st=document.getElementById("fbStage");if(st)st.style.borderRadius="0 0 14px 14px";hwyApplyFold();
   HWY.cv=cv;const loop=()=>{if(!HWY.cv||!document.body.contains(HWY.cv)){hwyStop();return;}try{hwyDraw();}catch(e){}HWY.raf=requestAnimationFrame(loop);};HWY.raf=requestAnimationFrame(loop);}
 function hwyEvents(now,L){/* beats from the scheduler's anchor: beat k is at PRG.nextTime + k*spb */
   const spb=60/PRG.bpm,n=PRG.chords.length,out=[];if(!n)return out;
@@ -6209,7 +6216,7 @@ function hwyEvents(now,L){/* beats from the scheduler's anchor: beat k is at PRG
     if(b===0)out.push({t:tt,chord:name,idx:idx,down:true,bar:true});else if(b===2)out.push({t:tt,chord:name,idx:idx,down:false});else out.push({t:tt,beat:true});}
   return out;}
 function hwyDraw(){const cv=HWY.cv,dpr=Math.min(2.5,window.devicePixelRatio||1),W=cv.clientWidth,H=cv.clientHeight;if(!W)return;
-  if(cv.width!==Math.round(W*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
   const c=cv.getContext("2d");c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);
   const g=fbGeo(),N=g.N,sc=W/g.VBW,lane=[];for(let s=0;s<N;s++)lane.push(g.sx(s,g.nutY)*sc);
   const cx=(lane[0]+lane[N-1])/2,hitY=H-16,topY=46,spb=60/PRG.bpm,L=6*spb,now=ac().currentTime;
@@ -6240,8 +6247,8 @@ function hwyDraw(){const cv=HWY.cv,dpr=Math.min(2.5,window.devicePixelRatio||1),
       for(let s=0;s<N;s++){const f=sh[s],x=proj(lane[s],dd,w);if(f==null)continue;
         if(f<0){c.strokeStyle="rgba(255,143,140,.8)";c.lineWidth=2*k;const r=5*k;c.beginPath();c.moveTo(x-r,y-r);c.lineTo(x+r,y+r);c.moveTo(x+r,y-r);c.lineTo(x-r,y+r);c.stroke();continue;}
         const col=HWY_COL[(N-1-s)%6],r=12*k;
-        if(f===0){c.strokeStyle=col;c.lineWidth=3*k;c.shadowColor=col;c.shadowBlur=10;c.beginPath();c.arc(x,y,r*0.85,0,Math.PI*2);c.stroke();c.shadowBlur=0;c.fillStyle="rgba(255,255,255,.85)";c.font="800 "+Math.round(9*k)+"px system-ui";c.textAlign="center";c.fillText(NOTE_NAMES[((strs[s]%12)+12)%12],x,y+3*k);continue;}
-        hfxGem(c,x,y,r*1.15,col,String(f),NOTE_NAMES[(((strs[s]+f)%12)+12)%12]);}
+        if(f===0){c.strokeStyle=col;c.lineWidth=3*k;c.shadowColor=col;c.shadowBlur=10;c.beginPath();c.arc(x,y,r*0.85,0,Math.PI*2);c.stroke();c.shadowBlur=0;c.fillStyle="#fff";c.font="900 "+Math.round(11*k)+"px system-ui";c.textAlign="center";c.fillText("0",x,y+4*k);const ob=hwyBadge(s,strs[s]);if(ob){c.font="900 "+Math.round(10*k)+"px system-ui";c.fillStyle=col;c.fillText(ob,x,y-r-4*k);}continue;}
+        hfxGem(c,x,y,r*1.15,col,String(f),hwyBadge(s,strs[s]+f));}
       hfxPill(c,xa-6*k,y,e.chord,k,e.down?"#f3c14a":"#7ff0d6");}
     c.globalAlpha=1;});
   hfxParts(c,dt);hfxLaneNames(c,lane,N,proj,yOf,wave,hitY);
@@ -6348,7 +6355,7 @@ function melFrame(){MEL.raf=requestAnimationFrame(melFrame);const cv=document.ge
   if(MEL.running){melMicFrame(now);MEL.notes.forEach(n=>{if(n.j)return;const t=melT(n.b);if(MEL.mode==="watch"){if(now>=t){n.j="auto";MEL.fx.push({t:now,s:n.s,k:"auto"});}}else if(now>t+0.25){n.j="miss";MEL.miss++;MEL.streak=0;MEL.fx.push({t:now,s:n.s,k:"miss"});melHud();}});
     if(now>melT(MEL.len)+0.3){if(MEL.loop){const old=MEL.mode;MEL.t0=melT(MEL.len);MEL.clickB=0;MEL.notes.forEach(n=>{n.j=null;n.sch=false;});}else{melFinish();}}}
   melNeckHint(now);try{melDraw(cv,now);}catch(e){}}
-function melDraw(cv,now){const dpr=Math.min(2.5,window.devicePixelRatio||1),W=cv.clientWidth,H=cv.clientHeight;if(!W)return;if(cv.width!==Math.round(W*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
+function melDraw(cv,now){const dpr=Math.min(2.5,window.devicePixelRatio||1),W=cv.clientWidth,H=cv.clientHeight;if(!W)return;if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
   const c=cv.getContext("2d");c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);const g=fbGeo(),N=g.N,sc=W/g.VBW,lane=[];for(let s=0;s<N;s++)lane.push(g.sx(s,g.nutY)*sc);
   const cx=(lane[0]+lane[N-1])/2,hitY=H-16,topY=46,spb=melSpb(),L=Math.max(1.6,Math.min(3.4,4*spb));
   const proj=(x,d,w)=>cx+(x-cx)*(1-0.5*d)+(w||0),yOf=d=>hitY-(hitY-topY)*(1-Math.pow(1-d,1.5)),wave=d=>Math.sin(d*5.5-now*2.2)*5*d;
@@ -6367,7 +6374,7 @@ function melDraw(cv,now){const dpr=Math.min(2.5,window.devicePixelRatio||1),W=cv
     const dd=Math.max(0,d),y=yOf(dd),w=wave(dd),k=1-0.5*dd,x=proj(lane[n.s],dd,w),col=HWY_COL[(N-1-n.s)%6];
     if(n.dur*spb>0.45){const d2=Math.min(1,de),y2=yOf(Math.max(0,d2)),x2=proj(lane[n.s],Math.max(0,d2),wave(Math.max(0,d2)));c.strokeStyle=col+"aa";c.shadowColor=col;c.shadowBlur=10;c.lineWidth=8*k;c.lineCap="round";c.beginPath();c.moveTo(x,y);c.lineTo(x2,y2);c.stroke();c.shadowBlur=0;}
     if(d<-0.02&&n.j==="miss"){c.globalAlpha=Math.max(0,1+d*6);}
-    const nm=NOTE_NAMES[((n.m%12)+12)%12];hfxGem(c,x,y,17*k,col,FB.showNotes?nm:(n.f===0?"0":String(n.f)),FB.showNotes?(n.f===0?"open":"fr "+n.f):nm,n.j==="miss");c.globalAlpha=1;}
+    hfxGem(c,x,y,17*k,col,String(n.f),hwyBadge(n.s,n.m),n.j==="miss");c.globalAlpha=1;}
   // hit sparks + words
   MEL.fx=MEL.fx.filter(f=>now-f.t<0.7);MEL.fx.forEach(f=>{const a=(now-f.t)/0.7,x=lane[Math.min(N-1,f.s)];c.globalAlpha=1-a;
     if(f.k!=="miss"&&f.k!=="oops"){c.strokeStyle=f.k==="good"?"#7ff0d6":"#ffe27a";c.lineWidth=3;c.beginPath();c.arc(x,hitY,10+30*a,0,Math.PI*2);c.stroke();}
@@ -6397,9 +6404,10 @@ function renderMelody(inst){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden
       <details id="melLib" ${libOpen?"open":""} style="margin:6px 0"><summary style="cursor:pointer;list-style:none;padding:6px 2px;font:800 .9rem system-ui;color:var(--muted)">🎵 Library · ${melAll().length} melodies ▾</summary><div id="melLibBody"></div></details>
       <div style="margin:6px 0 2px;font:900 1.2rem system-ui">${esc(S.name)}</div><div style="color:var(--muted);font-size:.85rem;margin-bottom:6px">${MEL_GENRE_IC[S.g]||"🎵"} ${esc(S.g)} · ${esc(S.by||"")} · <i>${tagTxt}</i>${bk?' · best <b style="color:#5fe0a8">'+bk+'</b>':''}</div>
       <div class="rchips tight" id="melModes" style="margin:4px 0"></div>
+      ${hwyOptsHTML()}
       <div id="melHud" style="min-height:24px;text-align:center;margin:4px 0"></div>
       <div id="melStageWrap"><canvas id="melCv" style="display:block;width:100%;height:300px;border-radius:14px 14px 0 0;background:linear-gradient(#07060f,#14102a 70%,#1d1638)"></canvas>
-        <div id="fbStage" style="border-radius:0 0 14px 14px"><div id="fbBox" style="position:relative;max-height:360px;overflow:hidden"><div id="fbSvgWrap">${fbSVG()}</div><div id="fbTouch" style="position:absolute;left:0;top:0;right:0;bottom:0;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none"></div></div>
+        <div id="fbStage" style="border-radius:0 0 14px 14px"><div id="fbBox" style="position:relative"><div id="fbSvgWrap">${fbSVG()}</div><div id="fbTouch" style="position:absolute;left:0;top:0;right:0;bottom:0;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none"></div></div>
         <div id="fbZone" style="touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;position:relative;overflow:hidden;filter:drop-shadow(0 10px 20px rgba(0,0,0,.45))">${fbZoneSVG()}</div></div></div>
       <div style="display:flex;align-items:center;gap:8px;margin:10px 0 4px"><button class="rchip sm" id="melBpmDn" style="min-width:40px;justify-content:center;font-weight:900">−</button><span style="flex:0 0 auto;text-align:center;font:900 1.05rem system-ui;min-width:82px">♩ <span id="melBpmV">${MEL.bpm}</span> <span style="font-size:.75rem;color:var(--muted)">BPM</span></span><button class="rchip sm" id="melBpmUp" style="min-width:40px;justify-content:center;font-weight:900">+</button><input type="range" id="melBpm" min="30" max="220" value="${MEL.bpm}" style="flex:1 1 auto;min-width:60px;accent-color:var(--gold)"></div>
       ${clickVolRow("melClick",MEL.clickVol)}
@@ -6425,7 +6433,7 @@ function renderMelody(inst){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden
     $("#melNames").onclick=function(){FB.showNotes=!FB.showNotes;this.classList.toggle("sel",FB.showNotes);MEL.nextKey="";};
     wireLead(draw);
     $("#melFile").onchange=function(){const f=this.files&&this.files[0];if(!f)return;melImport(f,(id,err)=>{if(!id){alertMsg("Couldn’t read that MIDI — "+(err&&err.message||"try another file"));return;}save("mjk-mellib",true);pick(id);});};
-    fbBindTouch(document.getElementById("fbTouch"));fbBindZone(document.getElementById("fbZone"));
+    fbBindTouch(document.getElementById("fbTouch"));fbBindZone(document.getElementById("fbZone"));hwyOptsBind(()=>{MEL.nextKey="";});hwyApplyFold();
     MEL.nextKey="";melHud();MEL.raf=requestAnimationFrame(melFrame);
   }
   function alertMsg(m){const r=$("#melRes");if(r)r.innerHTML='<div class="feedback try">'+esc(m)+'</div>';}
@@ -6511,6 +6519,7 @@ function strProg(inst){
         <div class="prg-now" id="prgNow">${P.chords[0]}</div>
         <div class="hpstrip" id="prgStrip" style="display:none;margin:6px 0"></div>
         <div class="rchips tight" id="prgView" style="justify-content:center;margin:6px 0"></div>
+        ${PRG.view==="hwy"?hwyOptsHTML():""}
         <div class="${prgNeckish()?"":"chordgrid prgdia"}" id="prgDia" style="justify-content:center"></div>
         <div style="display:flex;align-items:center;gap:8px;margin:10px 0 4px"><button class="rchip sm" id="prgBpmDn" style="min-width:40px;justify-content:center;font-weight:900">−</button><span style="flex:0 0 auto;text-align:center;font:900 1.05rem system-ui,sans-serif;min-width:82px">♩ <span id="prgBpmV">${PRG.bpm}</span> <span style="font-size:.75rem;color:var(--muted)">BPM</span></span><button class="rchip sm" id="prgBpmUp" style="min-width:40px;justify-content:center;font-weight:900">+</button><input type="range" id="prgBpm" min="40" max="200" value="${PRG.bpm}" style="flex:1 1 auto;min-width:60px;accent-color:var(--gold)"></div>
         ${clickVolRow("prgClickV",PRG.clickVol)}
@@ -6526,7 +6535,7 @@ function strProg(inst){
     $("#eBack").onclick=()=>{prgStop();if(crRaf)cancelAnimationFrame(crRaf);try{stopMic();}catch(e){}fbRestore();renderStrings(inst);};
     const pl=$("#prgList");PROGS.forEach((p,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===pi?" sel":"");b.textContent=p.name;b.onclick=()=>{prgStop();if(crRaf)cancelAnimationFrame(crRaf);pi=i;draw();};pl.appendChild(b);});
     const row=$("#prgChordRow");P.chords.forEach((c,i)=>{const s=document.createElement("span");s.className="pchip"+(i===0?" on":"");s.textContent=c;row.appendChild(s);});if(leadOn()){const nx=row.children[1];if(nx)nx.classList.add("next");}
-    const dia=$("#prgDia");prgGhost(0);hwyStop();if(prgNeckish()){prgNeckMount(dia,P.chords[0]);if(PRG.view==="hwy")hwyMount(dia);}else{P.chords.forEach((c,i)=>{const card=document.createElement("div");card.className="chordcard"+(i===0?" kgon":"");const h=document.createElement("h4");h.textContent=c;card.appendChild(h);const f=keyShape(inst,c);if(f)card.appendChild(chordDiagram(inst,f,c,keyFing(inst,c)));dia.appendChild(card);});}
+    const dia=$("#prgDia");prgGhost(0);hwyStop();if(prgNeckish()){prgNeckMount(dia,P.chords[0]);if(PRG.view==="hwy"){hwyMount(dia);hwyOptsBind(()=>prgShow(PRG.running?PRG.idx:0));}}else{P.chords.forEach((c,i)=>{const card=document.createElement("div");card.className="chordcard"+(i===0?" kgon":"");const h=document.createElement("h4");h.textContent=c;card.appendChild(h);const f=keyShape(inst,c);if(f)card.appendChild(chordDiagram(inst,f,c,keyFing(inst,c)));dia.appendChild(card);});}
     const bp=$("#prgBpm");const setBpm=v=>{PRG.bpm=Math.max(40,Math.min(200,Math.round(v)));bp.value=PRG.bpm;$("#prgBpmV").textContent=PRG.bpm;prgSum();};bp.oninput=()=>setBpm(+bp.value);$("#prgBpmDn").onclick=()=>setBpm(PRG.bpm-5);$("#prgBpmUp").onclick=()=>setBpm(PRG.bpm+5);
     function prgSum(){const s=$("#prgOptSum");if(s)s.textContent="Click "+(PRG.clickVol>0?Math.round(PRG.clickVol*100)+"%":"off")+(PRG.zoom?" \u00b7 Close-up":"");}
     prgSum();
