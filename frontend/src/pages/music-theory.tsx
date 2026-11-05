@@ -47,7 +47,8 @@ export default function MusicTheory() {
         title="MAJICK Music"
         srcDoc={html}
         className="block w-full h-full border-0"
-        allow="microphone; bluetooth"
+        allow="microphone; bluetooth; midi; fullscreen"
+        allowFullScreen
         sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
       />
     </div>
