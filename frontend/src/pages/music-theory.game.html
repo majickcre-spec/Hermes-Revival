@@ -7015,9 +7015,9 @@ function renderMelodyLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=
 }
 /* ===== MEDITATION — binaural brainwaves, breathwork + HRV, rhythm mind, sessions ===== */
 let MED={master:null,oscs:[],timer:null};
-function medStop(){if(MED.timer){clearInterval(MED.timer);MED.timer=null;}if(!MED.master)return;const a=ac(),m=MED.master,os=MED.oscs;MED.master=null;MED.oscs=[];try{m.gain.cancelScheduledValues(a.currentTime);m.gain.setTargetAtTime(0.0001,a.currentTime,0.3);}catch(e){}setTimeout(()=>{os.forEach(o=>{try{o.stop();}catch(e){}});},800);}
+function medStop(){if(MED.timer){clearInterval(MED.timer);MED.timer=null;}try{if(MED.ocean){clearTimeout(MED.ocean.t);MED.ocean=null;}}catch(e){}MED.hum=null;if(!MED.master)return;const a=ac(),m=MED.master,os=MED.oscs;MED.master=null;MED.oscs=[];try{m.gain.cancelScheduledValues(a.currentTime);m.gain.setTargetAtTime(0.0001,a.currentTime,0.3);}catch(e){}setTimeout(()=>{os.forEach(o=>{try{o.stop();}catch(e){}});},800);}
 function medBinaural(beatHz,carrier,vol,shimmer){try{medMarkDone();}catch(e){}medStop();unlockAudio();const a=ac(),oscs=[];let rightO=null,shimL=null;
-  const master=a.createGain();master.gain.value=0.0001;master.connect(a.destination);master.gain.setTargetAtTime(vol==null?0.5:vol,a.currentTime,0.9);
+  const master=a.createGain();master.gain.value=0.0001;const gate=a.createGain();gate.gain.value=1;master.connect(gate);gate.connect(a.destination);MED.gate=gate;MED.hum=null;MED.ocean=null;master.gain.setTargetAtTime(vol==null?0.5:vol,a.currentTime,0.9);
   const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=2200;
   const dg=a.createGain();dg.gain.value=0.86;lp.connect(dg);dg.connect(master);const dd=[];[[0.023,0.09],[0.041,0.06]].forEach(([f,d])=>{const l=a.createOscillator();l.type="sine";l.frequency.value=f;const lg=a.createGain();lg.gain.value=MEDDRIFT.on?d:0;lg._d=d;l.connect(lg);lg.connect(dg.gain);l.start();oscs.push(l);dd.push(lg);});MED.driftG=dd;
   [[-1,0],[1,beatHz]].forEach(([pan,off])=>{const o=a.createOscillator();o.type="sine";o.frequency.value=carrier+off;const pn=a.createStereoPanner?a.createStereoPanner():null;if(pn)pn.pan.value=pan;const g=a.createGain();g.gain.value=0.17;o.connect(pn||g);if(pn)pn.connect(g);g.connect(lp);o.start();oscs.push(o);if(pan===1)rightO=o;});
@@ -7026,6 +7026,30 @@ function medBinaural(beatHz,carrier,vol,shimmer){try{medMarkDone();}catch(e){}me
   MED.master=master;MED.oscs=oscs;MED.right=rightO;MED.lfo=shimL;MED.body=null;MED.bodyDepth=null;}
 const MEDDRIFT={on:load("mjk-meddrift",true)};
 function medDrift(on){MEDDRIFT.on=on;save("mjk-meddrift",on);try{const a=ac();(MED.driftG||[]).forEach(g=>{g.gain.cancelScheduledValues(a.currentTime);g.gain.setTargetAtTime(on?g._d:0,a.currentTime,1.5);});}catch(e){}}
+/* ---- ocean waves (generated, uneven swells) + humming guide ---- */
+const MEDOCEAN={on:load("mjk-medocean",false),lvl:load("mjk-medoceanlvl",0.55)};
+function medOceanStart(){if(!MED.master)return;medOceanStop(true);const a=ac(),len=a.sampleRate*3,buf=a.createBuffer(2,len,a.sampleRate);
+  for(let ch=0;ch<2;ch++){const d=buf.getChannelData(ch);let b0=0,b1=0,b2=0;for(let i=0;i<len;i++){const w=Math.random()*2-1;b0=0.99765*b0+w*0.099;b1=0.963*b1+w*0.2965;b2=0.57*b2+w*1.0527;d[i]=(b0+b1+b2+w*0.1848)*0.18;}}
+  const src=a.createBufferSource();src.buffer=buf;src.loop=true;const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=500;lp.Q.value=0.4;const env=a.createGain();env.gain.value=0.0001;const out=a.createGain();out.gain.value=MEDOCEAN.lvl;
+  src.connect(lp);lp.connect(env);env.connect(out);out.connect(MED.master);src.start();MED.oscs.push(src);MED.ocean={src:src,lp:lp,env:env,out:out,t:null};
+  const wave=()=>{if(!MED.ocean||MED.ocean.src!==src)return;const t=a.currentTime+0.05,pk=0.35+Math.random()*0.65,rise=2.2+Math.random()*2.3,hold=0.3+Math.random()*0.8,fall=3.5+Math.random()*4,floor=0.05+Math.random()*0.08,gap=Math.random()*2.2;
+    env.gain.cancelScheduledValues(t);env.gain.setValueAtTime(Math.max(0.0001,env.gain.value),t);env.gain.linearRampToValueAtTime(pk,t+rise);env.gain.setValueAtTime(pk,t+rise+hold);env.gain.linearRampToValueAtTime(floor,t+rise+hold+fall);
+    lp.frequency.cancelScheduledValues(t);lp.frequency.setValueAtTime(lp.frequency.value,t);lp.frequency.linearRampToValueAtTime(700+pk*1400,t+rise);lp.frequency.linearRampToValueAtTime(420,t+rise+hold+fall);
+    MED.ocean.t=setTimeout(wave,(rise+hold+fall+gap)*1000);};wave();}
+function medOceanStop(fast){const o=MED.ocean;if(!o)return;MED.ocean=null;clearTimeout(o.t);try{const a=ac();o.out.gain.setTargetAtTime(0.0001,a.currentTime,fast?0.05:1.2);setTimeout(()=>{try{o.src.stop();}catch(e){}},fast?300:5000);}catch(e){}}
+function medOcean(on){MEDOCEAN.on=on;save("mjk-medocean",on);if(!MED.master)return;if(on)medOceanStart();else medOceanStop();}
+function medOceanLevel(v){MEDOCEAN.lvl=v;save("mjk-medoceanlvl",v);if(MED.ocean)MED.ocean.out.gain.setTargetAtTime(v,ac().currentTime,0.3);}
+/* humming guide: a soft "mmm" voice you hum along with, plus a tiny chime to breathe in */
+const MEDHUM={on:load("mjk-medhum",true)};
+function medHumVoice(){if(!MED.master)return null;if(MED.hum)return MED.hum;const a=ac(),o=a.createOscillator(),o2=a.createOscillator(),vib=a.createOscillator(),vg=a.createGain(),f=a.createBiquadFilter(),g=a.createGain();
+  o.type="sawtooth";o.frequency.value=130.8;o2.type="triangle";o2.frequency.value=261.6;vib.frequency.value=5;vg.gain.value=1.4;vib.connect(vg);vg.connect(o.frequency);vg.connect(o2.frequency);
+  f.type="lowpass";f.frequency.value=420;f.Q.value=3;g.gain.value=0.0001;o.connect(f);o2.connect(f);f.connect(g);g.connect(MED.master);[o,o2,vib].forEach(x=>{x.start();MED.oscs.push(x);});MED.hum={g:g};return MED.hum;}
+function medHumCue(kind,dur){if(!MED.master)return;const a=ac(),t=a.currentTime;
+  if(kind==="in"){const o=a.createOscillator(),g=a.createGain();o.type="sine";o.frequency.value=659.3;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.05,t+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t+1.6);o.connect(g);g.connect(MED.master);o.start(t);o.stop(t+1.7);
+    const h=MED.hum;if(h){h.g.gain.cancelScheduledValues(t);h.g.gain.setTargetAtTime(0.0001,t,0.25);}}
+  else if(kind==="hum"&&MEDHUM.on){const h=medHumVoice();if(!h)return;h.g.gain.cancelScheduledValues(t);h.g.gain.setTargetAtTime(0.045,t,0.35);h.g.gain.setTargetAtTime(0.0001,t+Math.max(1,dur-0.8),0.4);}
+  else if(kind==="off"){const h=MED.hum;if(h){h.g.gain.cancelScheduledValues(t);h.g.gain.setTargetAtTime(0.0001,t,0.3);}}}
+
 function medPulse(on){try{if(MED.pulseG){const a=ac();MED.pulseG.gain.cancelScheduledValues(a.currentTime);MED.pulseG.gain.setTargetAtTime(on?0.03:0,a.currentTime,0.25);}}catch(e){}}
 const BRAINWAVES=[
  {id:"delta",name:"Delta",hz:2.5,range:"0.5–4 Hz",intent:"Sleep & deep healing",desc:"The slowest waves — dreamless sleep and physical repair. Lie down, dim the lights."},
@@ -7124,8 +7148,10 @@ const JOURNEYS=[
   segs:[[0,.15,14,12,"Letting the day go"],[.15,.4,12,9,"Calm alpha"],[.4,.7,9,6,"Dreamy theta"],[.7,1,6,4,"Ready for sleep \u2014 stays low"]],end:"\ud83c\udf19 Stay where you are \u2014 let the quiet carry you."},
  {id:"sleep",ic:"\ud83d\udca4",name:"Sleep Drift",when:"Bedtime \u00b7 into delta, fades out",desc:"For falling asleep: starts at a relaxed 10 Hz, sinks through theta into deep delta (~1.5 Hz) and quietly fades away.",def:45,
   segs:[[0,.15,10,8,"Settling into bed"],[.15,.45,8,5,"Heavy & dreamy"],[.45,.75,5,2.5,"Sinking into delta"],[.75,1,2.5,1.5,"Deep sleep \u2014 fading out"]],end:"\ud83d\udca4 Goodnight."},
+ {id:"hum",ic:"\ud83d\udc1d",name:"Humming Clear",when:"Stuffy nose \u00b7 hum along with the ocean",desc:"Slow nasal breathing and long \u201cmmm\u201d hums (bee breath) to get air moving through your nose and sinuses, with calm alpha\u2013theta beats underneath. Breathe in through your nose at the chime, then hum along with the soft guide voice until it fades. Turn on \ud83c\udf0a Ocean for waves. Feels good \u2014 not a cure.",def:20,
+  segs:[[0,.12,14,10,"Settle in \u2014 breathe slowly through your nose"],[.12,.38,10,10,"Hum set 1 \u2014 in at the chime, hum on the out-breath",1],[.38,.5,10,8,"Rest \u2014 easy nose breathing"],[.5,.76,8,8,"Hum set 2 \u2014 longer, softer hums",1],[.76,.88,8,9,"Rest \u2014 let it all open up"],[.88,1,9,11,"Back to calm & clear"]],end:"\ud83d\udc1d Nice work \u2014 a gentle nose blow and a glass of water now."},
  {id:"dive",ic:"\ud83c\udf00",name:"Down & Back",when:"Any time \u00b7 pick your depth",desc:"The classic: from everyday thinking (~14 Hz) down to the depth you choose, rests there, then brings you back up to calm, clear waking (~10 Hz).",def:30,segs:null,end:"\u2705 Journey complete \u2014 take a slow breath, wiggle your fingers, open your eyes when ready."}];
-function jPlanFor(id,total,depth){const J=JOURNEYS.find(j=>j.id===id)||JOURNEYS[5];if(!J.segs)return jPlan(total,depth);return J.segs.map(s=>({t0:s[0]*total*60,t1:s[1]*total*60,h0:s[2],h1:s[3],label:s[4]}));}
+function jPlanFor(id,total,depth){const J=JOURNEYS.find(j=>j.id===id)||JOURNEYS[5];if(!J.segs)return jPlan(total,depth);return J.segs.map(s=>({t0:s[0]*total*60,t1:s[1]*total*60,h0:s[2],h1:s[3],label:s[4],hum:!!s[5]}));}
 function jHzAt(plan,t){for(var i=0;i<plan.length;i++){var s=plan[i];if(t<=s.t1){var k=s.t1>s.t0?Math.max(0,(t-s.t0)/(s.t1-s.t0)):1;return {hz:s.h0+(s.h1-s.h0)*k,label:s.label};}}var L=plan[plan.length-1];return {hz:L.h1,label:L.label,done:true};}
 function jBand(hz){return hz<4?"Delta":hz<8?"Theta":hz<12?"Alpha":"Beta";}
 function jSVG(plan,total,t){var W=320,H=120,pad=8,yOf=function(h){return pad+(1-Math.min(20,h)/20)*(H-2*pad);},xOf=function(s){return pad+(s/total)*(W-2*pad);};
@@ -7134,7 +7160,7 @@ function jSVG(plan,total,t){var W=320,H=120,pad=8,yOf=function(h){return pad+(1-
   var dot="";if(t!=null){var cur=jHzAt(plan,Math.min(t,total));dot='<circle cx="'+xOf(Math.min(t,total))+'" cy="'+yOf(cur.hz)+'" r="6" fill="#f4b740" stroke="#fff" stroke-width="2"/>';}
   return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;border-radius:10px;background:var(--bg);border:1px solid var(--line)">'+g+'<polyline points="'+pts.join(" ")+'" fill="none" stroke="#7ff0d6" stroke-width="3" stroke-linejoin="round"/>'+dot+'</svg>';}
 function renderJourney(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){medStop();};
-  var jType=load("mjk-jtype","morning"),jLen=load("mjk-jlen",20),jDepth=load("mjk-jdepth",4),carrier=200,vol=0.5,shimmer=true,body=load("mjk-bwbody",false),playing=false,t0=0,plan=null;
+  var paused=false,pausedAt=0,humPh="",lastMap=0,jType=load("mjk-jtype","morning"),jLen=load("mjk-jlen",20),jDepth=load("mjk-jdepth",4),carrier=200,vol=0.5,shimmer=true,body=load("mjk-bwbody",false),playing=false,t0=0,plan=null;
   function fmt(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
   function draw(){var P=jPlanFor(jType,jLen,jDepth),J=JOURNEYS.find(function(j){return j.id===jType;})||JOURNEYS[5];
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌀 Brainwave Journey</span></div><div class="panel">'+
@@ -7143,17 +7169,21 @@ function renderJourney(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home
       '<div style="margin:6px 0 4px;font:900 1.15rem system-ui">'+J.ic+' '+J.name+' <span style="font-size:.8rem;font-weight:700;color:var(--muted)">\u00b7 '+J.when+'</span></div><div class="site-note" style="margin:0 0 4px">'+J.desc+'</div>'+
       '<div class="site-note" style="margin:0 0 6px;font-size:.8rem">'+P.map(function(s){return '<b>'+Math.round(s.t0/60)+'\u2013'+Math.round(s.t1/60)+' min</b> '+s.label+' ('+(s.h0===s.h1?s.h0:s.h0+'\u2192'+s.h1)+' Hz)';}).join('<br>')+'</div>'+
       '<div id="jRead" style="text-align:center;margin:8px 0"><div style="font:900 2.2rem system-ui;color:#f4b740" id="jHz">'+P[0].h0.toFixed(1)+' Hz</div><div style="font-weight:800" id="jBandL">'+jBand(P[0].h0)+'</div><div class="site-note" id="jPhase" style="margin:2px 0">Ready when you are</div><div class="rbpm" id="jLeft" style="display:inline-block;margin-top:4px">'+jLen+':00</div></div>'+
+      '<div id="jHum" style="display:none;text-align:center;margin:8px 0;padding:10px;border-radius:14px;background:var(--bg);border:1px solid var(--line)"></div>'+
       '<div id="jMap">'+jSVG(P,jLen*60,playing?0:null)+'</div>'+
       '<div class="rrow2" style="margin-top:10px"><span class="rlab">Length</span><span class="rchips tight" id="jLens"></span></div>'+
       (J.segs?'':'<div class="rrow2"><span class="rlab">How deep</span><span class="rchips tight" id="jDeps"></span></div>')+
-      '<div class="rrow"><span class="rlab">Tone</span><input type="range" id="jCar" min="90" max="360" value="'+carrier+'" style="flex:1"><span class="rbpm" id="jCarV">'+carrier+' Hz</span></div>'+
-      '<div class="rrow2"><span class="rlab">Options</span><span class="rchips tight"><button class="rchip sm'+(shimmer?" sel":"")+'" id="jShim">✨ Felt pulse: '+(shimmer?"On":"Off")+'</button><button class="rchip sm'+(MEDDRIFT.on?" sel":"")+'" id="jDrift">🌫️ Drift: '+(MEDDRIFT.on?"On":"Off")+'</button><button class="rchip sm'+(body?" sel":"")+'" id="jBody">🌊 Body wave 0.1 Hz: '+(body?"On":"Off")+'</button></span></div>'+
+      '<div class="rrow"><span class="rlab">Tone</span><input type="range" id="jCar" min="90" max="1000" value="'+carrier+'" style="flex:1"><span class="rbpm" id="jCarV">'+carrier+' Hz</span></div>'+
+      '<div class="rrow2"><span class="rlab">Solfeggio</span><span class="rchips tight" id="jSolf">'+[174,285,396,417,528,639].map(function(h){return '<button class="rchip sm'+(carrier===h?" sel":"")+'" data-hz="'+h+'">'+h+'</button>';}).join("")+'</span></div>'+
+      '<div class="site-note" style="margin:0 0 6px;font-size:.78rem">Sets the tone the beat rides on. Lovely to listen to; small studies found 528 Hz music a little calming — no proof any tone heals.</div>'+
+      '<div class="rrow2"><span class="rlab">Options</span><span class="rchips tight"><button class="rchip sm'+(MEDOCEAN.on?" sel":"")+'" id="jOcean">🌊 Ocean: '+(MEDOCEAN.on?"On":"Off")+'</button>'+(J.segs&&J.segs.some(function(s){return s[5];})?'<button class="rchip sm'+(MEDHUM.on?" sel":"")+'" id="jGuide">🐝 Guide voice: '+(MEDHUM.on?"On":"Off")+'</button>':'')+'<button class="rchip sm'+(shimmer?" sel":"")+'" id="jShim">✨ Felt pulse: '+(shimmer?"On":"Off")+'</button><button class="rchip sm'+(MEDDRIFT.on?" sel":"")+'" id="jDrift">🌫️ Drift: '+(MEDDRIFT.on?"On":"Off")+'</button><button class="rchip sm'+(body?" sel":"")+'" id="jBody">🌊 Body wave 0.1 Hz: '+(body?"On":"Off")+'</button></span></div>'+
       (body?'<div class="site-note" style="margin:2px 0 6px">A slow 10-second swell — breathe in as it rises, out as it falls (about 6 breaths a minute). It matches your body’s own ~0.1 Hz rhythm.</div>':'')+
+      (MEDOCEAN.on?'<div class="rrow"><span class="rlab">🌊 Waves</span><input type="range" id="jOceanL" min="0.05" max="1" step="0.01" value="'+MEDOCEAN.lvl+'" style="flex:1"></div>':'')+
       '<div class="rrow"><span class="rlab">Volume</span><input type="range" id="jVol" min="0" max="1" step="0.01" value="'+vol+'" style="flex:1"></div>'+
-      '<div class="actions"><button class="btn" id="jPlay">'+(playing?"⏹ End journey":"▶ Begin journey")+'</button></div>'+
+      '<div class="actions" style="flex-wrap:wrap">'+(playing?'<button class="btn" id="jPause" style="flex:1 1 55%">'+(paused?"▶ Resume":"⏸ Pause")+'</button><button class="btn ghost" id="jPlay" style="flex:1 1 35%">⏹ End</button>':'<button class="btn" id="jPlay" style="flex:1 1 100%">▶ Begin journey</button>')+'</div>'+(paused?'<div class="site-note" style="text-align:center">Paused at '+fmt(pausedAt)+' — tap Resume to pick up right here.</div>':'')+
       '<div class="site-note">🎧 Binaural beats need headphones. Not a medical device — a tool for settling in. Don’t use while driving.</div></div>';
     $("#eBack").onclick=function(){medStop();renderMeditation();};
-    var jt=$("#jTypes");JOURNEYS.forEach(function(j){var b=document.createElement("button");b.className="rchip"+(j.id===jType?" sel":"");b.style.cssText="justify-content:flex-start;text-align:left;padding:8px 12px;border-radius:12px;width:100%";b.innerHTML='<span style="font-size:1.2rem;margin-right:6px">'+j.ic+'</span><span><b>'+j.name+'</b><br><span style="font-size:.78rem;opacity:.75;font-weight:600">'+j.when+'</span></span>';b.onclick=function(){if(playing)return;jType=j.id;save("mjk-jtype",j.id);jLen=j.def;save("mjk-jlen",jLen);draw();};jt.appendChild(b);});
+    var jt=$("#jTypes");JOURNEYS.forEach(function(j){var b=document.createElement("button");b.className="rchip"+(j.id===jType?" sel":"");b.style.cssText="justify-content:flex-start;text-align:left;padding:8px 12px;border-radius:12px;width:100%";b.innerHTML='<span style="font-size:1.2rem;margin-right:6px">'+j.ic+'</span><span><b>'+j.name+'</b><br><span style="font-size:.78rem;opacity:.75;font-weight:600">'+j.when+'</span></span>';b.onclick=function(){if(playing)return;jType=j.id;save("mjk-jtype",j.id);jLen=j.def;save("mjk-jlen",jLen);if(j.id==="hum"){carrier=528;if(!load("mjk-humocean1",false)){save("mjk-humocean1",true);MEDOCEAN.on=true;save("mjk-medocean",true);}}draw();};jt.appendChild(b);});
     var ls=$("#jLens");[10,20,30,45].forEach(function(m){var b=document.createElement("button");b.className="rchip sm"+(m===jLen?" sel":"");b.textContent=m+" min";b.onclick=function(){if(playing)return;jLen=m;save("mjk-jlen",m);draw();};ls.appendChild(b);});
     var ds=$("#jDeps");if(ds)[["Theta · 6 Hz",6],["Deep theta · 4 Hz",4],["Delta · 2 Hz",2]].forEach(function(o){var b=document.createElement("button");b.className="rchip sm"+(o[1]===jDepth?" sel":"");b.textContent=o[0];b.onclick=function(){if(playing)return;jDepth=o[1];save("mjk-jdepth",o[1]);draw();};ds.appendChild(b);});
     var jc=$("#jCar");jc.oninput=function(){carrier=+jc.value;$("#jCarV").textContent=carrier+" Hz";};if(playing)jc.disabled=true;
@@ -7161,15 +7191,30 @@ function renderJourney(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home
     $("#jDrift").onclick=function(){medDrift(!MEDDRIFT.on);this.classList.toggle("sel",MEDDRIFT.on);this.textContent="🌫️ Drift: "+(MEDDRIFT.on?"On":"Off");};
     $("#jBody").onclick=function(){body=!body;save("mjk-bwbody",body);if(playing)medBodyWave(body,vol);draw();};
     var jv=$("#jVol");jv.oninput=function(){vol=+jv.value;if(MED.master)MED.master.gain.setTargetAtTime(vol,ac().currentTime,0.1);if(MED.bodyDepth)MED.bodyDepth.gain.value=vol*0.4;};
-    $("#jPlay").onclick=function(){if(playing){medStop();playing=false;draw();}else begin();};
-    if(playing)tick();}
-  function begin(){plan=jPlanFor(jType,jLen,jDepth);var h0=plan[0].h0;medBinaural(h0,carrier,vol,shimmer);var a=ac();t0=a.currentTime;
-    [[MED.right&&MED.right.frequency,carrier],[MED.lfo&&MED.lfo.frequency,0]].forEach(function(pp){var p=pp[0],base=pp[1];if(!p)return;p.cancelScheduledValues(t0);p.setValueAtTime(base+h0,t0);plan.forEach(function(s){p.linearRampToValueAtTime(base+s.h1,t0+s.t1);});});
-    medBodyWave(body,vol);playing=true;draw();MED.timer=setInterval(tick,500);}
-  function tick(){if(!playing)return;var total=jLen*60,t=ac().currentTime-t0,cur=jHzAt(plan,t);
+    $("#jPlay").onclick=function(){if(playing){medStop();playing=false;paused=false;draw();}else begin();};
+    var jpz=$("#jPause");if(jpz)jpz.onclick=function(){if(paused)resume();else pause();};
+    $("#jOcean").onclick=function(){medOcean(!MEDOCEAN.on);draw();};var ol=$("#jOceanL");if(ol)ol.oninput=function(){medOceanLevel(+ol.value);};
+    var gh=$("#jGuide");if(gh)gh.onclick=function(){MEDHUM.on=!MEDHUM.on;save("mjk-medhum",MEDHUM.on);if(!MEDHUM.on)medHumCue("off");this.classList.toggle("sel",MEDHUM.on);this.textContent="🐝 Guide voice: "+(MEDHUM.on?"On":"Off");};
+    document.querySelectorAll("#jSolf [data-hz]").forEach(function(b){b.onclick=function(){if(playing)return;carrier=+b.getAttribute("data-hz");draw();};});
+    if(playing&&!paused)tick();}
+  function jSched(fromT){var a=ac(),now=a.currentTime,cur=jHzAt(plan,fromT).hz;[[MED.right&&MED.right.frequency,carrier],[MED.lfo&&MED.lfo.frequency,0]].forEach(function(pp){var p=pp[0],base=pp[1];if(!p)return;p.cancelScheduledValues(now);p.setValueAtTime(base+cur,now);plan.forEach(function(s){if(s.t1>fromT)p.linearRampToValueAtTime(base+s.h1,t0+s.t1);});});}
+  function begin(){plan=jPlanFor(jType,jLen,jDepth);var h0=plan[0].h0;medBinaural(h0,carrier,vol,shimmer);var a=ac();t0=a.currentTime;jSched(0);
+    medBodyWave(body,vol);if(MEDOCEAN.on)medOceanStart();playing=true;paused=false;humPh="";lastMap=0;draw();MED.timer=setInterval(tick,250);}
+  window.__jSkip=function(s){t0-=s;if(playing&&!paused)jSched(ac().currentTime-t0);};
+  function pause(){if(!playing||paused)return;var a=ac();pausedAt=a.currentTime-t0;paused=true;if(MED.timer){clearInterval(MED.timer);MED.timer=null;}
+    [MED.right&&MED.right.frequency,MED.lfo&&MED.lfo.frequency].forEach(function(p){if(!p)return;var v=p.value;p.cancelScheduledValues(a.currentTime);p.setValueAtTime(v,a.currentTime);});
+    medHumCue("off");if(MED.gate){MED.gate.gain.cancelScheduledValues(a.currentTime);MED.gate.gain.setTargetAtTime(0.0001,a.currentTime,0.25);}humPh="";draw();readout(pausedAt);}
+  function resume(){if(!playing||!paused)return;var a=ac();unlockAudio();t0=a.currentTime-pausedAt;paused=false;jSched(pausedAt);if(MED.gate){MED.gate.gain.cancelScheduledValues(a.currentTime);MED.gate.gain.setTargetAtTime(1,a.currentTime,0.4);}lastMap=0;draw();MED.timer=setInterval(tick,250);}
+  function readout(t){var total=jLen*60,cur=jHzAt(plan,t),hz=$("#jHz"),bl=$("#jBandL"),ph=$("#jPhase"),lf=$("#jLeft"),mp=$("#jMap");if(hz)hz.textContent=cur.hz.toFixed(1)+" Hz";if(bl)bl.textContent=jBand(cur.hz);if(ph)ph.textContent=cur.label;if(lf)lf.textContent=fmt(total-t)+" left";if(mp)mp.innerHTML=jSVG(plan,total,t);}
+  function tick(){if(!playing||paused)return;var total=jLen*60,t=ac().currentTime-t0,cur=jHzAt(plan,t);
     var hz=$("#jHz"),bl=$("#jBandL"),ph=$("#jPhase"),lf=$("#jLeft"),mp=$("#jMap");
     if(hz)hz.textContent=cur.hz.toFixed(1)+" Hz";if(bl)bl.textContent=jBand(cur.hz)+({Beta:cur.hz>=15?" · alert & energized":" · everyday thinking",Alpha:" · calm, relaxed",Theta:" · deep, dreamy",Delta:" · deepest rest"})[jBand(cur.hz)];
-    if(ph)ph.textContent=cur.label;if(lf)lf.textContent=fmt(total-t)+" left";if(mp)mp.innerHTML=jSVG(plan,total,t);
+    if(ph)ph.textContent=cur.label;if(lf)lf.textContent=fmt(total-t)+" left";var nowMs=Date.now();if(mp&&nowMs-lastMap>1500){lastMap=nowMs;mp.innerHTML=jSVG(plan,total,t);}
+    var seg=null;for(var i=0;i<plan.length;i++){if(t>=plan[i].t0&&t<plan[i].t1){seg=plan[i];break;}}var hb=$("#jHum");
+    if(seg&&seg.hum){var c=(t-seg.t0)%12,p=c<4?"in":"hum";if(p!==humPh){humPh=p;medHumCue(p,8);}
+      if(hb){hb.style.display="block";hb.innerHTML=p==="in"?'<div style="font:900 1.5rem system-ui;color:#7ff0d6">🌬️ Breathe in through your nose</div><div class="site-note">slow and easy… '+Math.ceil(4-c)+'</div>':'<div style="font:900 1.5rem system-ui;color:#f4b740">🐝 Hmmmmm…</div><div class="site-note">lips closed, hum with the voice — feel it buzz in your nose &amp; cheeks … '+Math.ceil(12-c)+'</div>';
+        var bar=p==="in"?(c/4):((c-4)/8);hb.innerHTML+='<div style="height:6px;border-radius:3px;background:rgba(255,255,255,.08);margin-top:6px;overflow:hidden"><div style="height:100%;width:'+Math.round(bar*100)+'%;background:'+(p==="in"?"#7ff0d6":"#f4b740")+'"></div></div>';}}
+    else{if(humPh){humPh="";medHumCue("off");}if(hb)hb.style.display="none";}
     if(t>=total){finish();}}
   function finish(){playing=false;if(MED.timer){clearInterval(MED.timer);MED.timer=null;}try{medMarkDone();}catch(e){}if(activeId()){try{addBeans(10);beanChip();}catch(e){}}
     try{var a=ac();if(MED.master)MED.master.gain.setTargetAtTime(0.0001,a.currentTime,2.5);}catch(e){}setTimeout(medStop,9000);
