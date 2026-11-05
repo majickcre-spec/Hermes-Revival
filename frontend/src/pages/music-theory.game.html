@@ -1219,6 +1219,12 @@ function _silentWavURL(){try{var sr=8000,n=Math.floor(sr*0.25),buf=new ArrayBuff
 /* iOS: play sound even when the ringer/silent switch is OFF (use the playback audio session like a music app) */
 function audioPlaybackCategory(){try{if(navigator.audioSession&&navigator.audioSession.type!=="play-and-record")navigator.audioSession.type="playback";}catch(e){}
   try{if(!_silentEl){var u=_silentWavURL();if(u){_silentEl=new Audio(u);_silentEl.loop=true;_silentEl.volume=0.02;_silentEl.setAttribute("playsinline","");}}if(_silentEl)_silentEl.play().catch(function(){});}catch(e){}}
+var APPVOL=(function(){try{var v=parseFloat(localStorage.getItem("mjk-vol"));return isFinite(v)?Math.max(0,Math.min(1,v)):1;}catch(e){return 1;}})();
+(function(){try{var Pn=AudioNode.prototype,orig=Pn.connect,OAC=window.OfflineAudioContext||window.webkitOfflineAudioContext;
+  Pn.connect=function(dest){try{if(dest&&typeof AudioDestinationNode!=="undefined"&&dest instanceof AudioDestinationNode&&!this.__mv){var c=dest.context;if(!(OAC&&c instanceof OAC)){if(!c.__mv){var g=c.createGain();g.__mv=true;g.gain.value=APPVOL*APPVOL;orig.call(g,dest);c.__mv=g;}var args=Array.prototype.slice.call(arguments);args[0]=c.__mv;return orig.apply(this,args);}}}catch(e){}return orig.apply(this,arguments);};}catch(e){}})();
+function setAppVol(v){APPVOL=Math.max(0,Math.min(1,v));try{localStorage.setItem("mjk-vol",String(APPVOL));}catch(e){}try{var c=ac();if(c.__mv){c.__mv.gain.cancelScheduledValues(0);c.__mv.gain.value=APPVOL*APPVOL;}}catch(e){}}
+function volSlider(id){return '<div class="rrow"><span class="rlab">🔊 Volume</span><input type="range" id="'+id+'" min="0" max="100" value="'+Math.round(APPVOL*100)+'" style="flex:1"><span class="rbpm" id="'+id+'V">'+Math.round(APPVOL*100)+'%</span></div>';}
+function bindVol(id){var s=document.getElementById(id);if(!s)return;s.oninput=function(){setAppVol(s.value/100);var l=document.getElementById(id+"V");if(l)l.textContent=s.value+"%";};}
 function unlockAudio(){const a=ac();try{a.resume();}catch(e){}audioPlaybackCategory();if(_audioUnlocked)return;_audioUnlocked=true;
   try{const b=a.createBuffer(1,1,22050),s=a.createBufferSource();s.buffer=b;s.connect(a.destination);s.start(0);}catch(e){}
   try{sfLoadInst("piano");}catch(e){}}
@@ -4488,7 +4494,7 @@ function fbSVG(){var g=fbGeo(),N=g.N,shape=fbCurShape(),fingers=(FB.mode==="chor
       s.push('<text x="'+ox.toFixed(1)+'" y="'+(oy-10).toFixed(1)+'" font-size="15" font-weight="800" fill="#cfc6ea" text-anchor="middle" font-family="system-ui">'+(FB.hideLbl?"?":fbLabel(sl))+'</text>'+mk);
       if(!shape)s.push('<circle class="fbhit" data-pos="'+sl+':0" cx="'+ox.toFixed(1)+'" cy="'+oy.toFixed(1)+'" r="16" fill="transparent"/>');}}
   // finger target dots (chord mode)
-  if(shape){for(var cs=0;cs<N;cs++){var cf=shape[cs];if(cf>0&&cf>=FB.win&&cf<FB.win+4){var dx=g.sx(cs,g.fy(cf)),dy=g.fy(cf);var got=false;FB.active.forEach(function(v){if(v.s===cs&&v.f===cf)got=true;});var fn=(fingers&&fingers[cs])?String(fingers[cs]):"";var lab=FB.showNotes?fbNote(cs,cf):fn;
+  if(shape){for(var cs=0;cs<N;cs++){var cf=shape[cs];if(cf>0&&cf>=FB.win&&cf<FB.win+4){var dx=g.sx(cs,g.fy(cf)),dy=g.fy(cf);var got=false;FB.active.forEach(function(v){if(v.s===cs&&v.f===cf)got=true;});if(FB.pvHeld)got=true;var fn=(fingers&&fingers[cs])?String(fingers[cs]):"";var lab=FB.showNotes?fbNote(cs,cf):fn;
     s.push('<circle cx="'+dx.toFixed(1)+'" cy="'+dy.toFixed(1)+'" r="21" fill="'+(got?"url(#fbgot)":"url(#fbdot)")+'" stroke="'+(got?"#3fcf7a":"#7ff0d6")+'" stroke-width="2.5"/>'+(lab!==""?'<text x="'+dx.toFixed(1)+'" y="'+(dy+7).toFixed(1)+'" font-size="'+(lab.length>1?16:19)+'" font-weight="800" fill="#06281d" text-anchor="middle" font-family="system-ui">'+lab+'</text>':'')+(FB.showNotes&&fn?'<circle cx="'+(dx+17).toFixed(1)+'" cy="'+(dy-17).toFixed(1)+'" r="10" fill="#1a1430" stroke="#7ff0d6" stroke-width="1.5"/><text x="'+(dx+17).toFixed(1)+'" y="'+(dy-13).toFixed(1)+'" font-size="12" font-weight="800" fill="#7ff0d6" text-anchor="middle" font-family="system-ui">'+fn+'</text>':''));}}}
   // scale notes (scale mode)
   if(FB.mode==="scale"){var sset=fbScaleSet();
@@ -4722,7 +4728,7 @@ function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.
       '<div id="fbBox" style="position:relative"><div id="fbSvgWrap">'+fbSVG()+'</div><div id="fbTouch" style="position:absolute;left:0;top:0;right:0;bottom:0;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none"></div></div>'+
       '<div id="fbZone" style="touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;margin-top:-4.6%;position:relative;filter:drop-shadow(0 10px 20px rgba(0,0,0,.45))">'+fbZoneSVG()+'</div>'+
       (FB.mode==="chord"?'<div id="fbHold"><div id="fbHoldBar"></div></div>':'')+
-      '<div class="actions" style="justify-content:center;margin-top:10px"><button class="rchip sm'+(FB.showNotes?" sel":"")+'" id="fbNotes">🏷️ Note names: '+(FB.showNotes?"On":"Off")+'</button></div>'+
+      '<div class="actions" style="justify-content:center;margin-top:10px"><button class="rchip sm'+(FB.showNotes?" sel":"")+'" id="fbNotes">🏷️ Note names: '+(FB.showNotes?"On":"Off")+'</button></div>'+volSlider("fbVol")+
       '<div class="feedback" id="fbStatus" style="min-height:22px">'+(FB.mode==="chord"?"Fingers on the dots \u00b7 hold 3 seconds":"")+'</div>'+
       
       '</div>';
@@ -4741,7 +4747,7 @@ function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.
     var lb=$("#fbLbl");if(lb)lb.onclick=function(){FB.lbl=(FB.lbl==="numbers")?"letters":"numbers";draw();};
     var up=$("#fbUp");if(up)up.onclick=function(){FB.win=Math.max(1,FB.win-4);draw();};
     var dn=$("#fbDn");if(dn)dn.onclick=function(){FB.win=Math.min(FB_MAXFRET-3,FB.win+4);draw();};
-    fbBindZone(document.getElementById("fbZone"));
+    fbBindZone(document.getElementById("fbZone"));bindVol("fbVol");
     {var _hw=$("#fbHow");if(_hw)_hw.addEventListener("toggle",function(){FB.howOpen=_hw.open;});}
     if(FB.mode==="train"){var _st=$("#fbStatus");if(_st)_st.textContent="";var _nb=$("#fbNotes");if(_nb)_nb.style.display="none";trMount();}
     var nb=$("#fbNotes");if(nb)nb.onclick=function(){FB.showNotes=!FB.showNotes;draw();};
@@ -5828,25 +5834,36 @@ function strKey(inst){
   }
   draw();
 }
-const PRG={chords:[],names:[],idx:0,bpm:90,running:false,schID:null,raf:null,nextTime:0,inst:"guitar",loops:0,paid:false,onName:"",visQ:[]};
-function prgStop(){PRG.running=false;if(PRG.schID){clearInterval(PRG.schID);PRG.schID=null;}if(PRG.raf){cancelAnimationFrame(PRG.raf);PRG.raf=null;}const b=$("#prgStart");if(b)b.textContent="▶ Play along";}
-function prgSchedule(){const a=ac(),ahead=0.25,spb=60/PRG.bpm,barDur=spb*4;
-  while(PRG.nextTime<a.currentTime+ahead){const name=PRG.chords[PRG.idx],frets=CHORDS[PRG.inst][name];
-    click(PRG.nextTime,"beat");
-    if(frets){strum(PRG.inst,frets,PRG.nextTime,true);strum(PRG.inst,frets,PRG.nextTime+2*spb,false);}
-    PRG.visQ.push({t:PRG.nextTime,idx:PRG.idx});
-    PRG.nextTime+=barDur;PRG.idx=(PRG.idx+1)%PRG.chords.length;if(PRG.idx===0)PRG.loops++;}}
-function prgShow(idx){const now=$("#prgNow");if(now)now.textContent=PRG.chords[idx];const dia=$("#prgDia");if(dia){dia.innerHTML="";const f=CHORDS[PRG.inst][PRG.chords[idx]];if(f)dia.appendChild(chordDiagram(PRG.inst,f,PRG.chords[idx]));}
+const PRG={chords:[],names:[],idx:0,bpm:90,running:false,schID:null,raf:null,nextTime:0,inst:"guitar",loops:0,paid:false,onName:"",visQ:[],beat:0,cnt:0,clickOn:load("mjk-prgclick",true),view:load("mjk-prgview","diagram")};
+(function(){try{var s=document.createElement("style");s.textContent=".pvsweep{position:absolute;top:0;bottom:0;width:20%;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(255,240,200,.5),transparent);animation:pvsw .2s linear forwards}.pvsweep.up{animation-name:pvswu}@keyframes pvsw{from{left:-20%}to{left:100%}}@keyframes pvswu{from{left:100%}to{left:-20%}}";document.head.appendChild(s);}catch(e){}})();
+function prgStop(){PRG.running=false;if(PRG.schID){clearInterval(PRG.schID);PRG.schID=null;}if(PRG.raf){cancelAnimationFrame(PRG.raf);PRG.raf=null;}PRG.visQ=[];PRG.cnt=0;const b=$("#prgStart");if(b)b.textContent="▶ Play along";const st=$("#prgStatus");if(st&&/^(Get ready|Count-in)/.test(st.textContent))st.textContent="";const nw=$("#prgNow");if(nw&&/^[1-4]$/.test(nw.textContent)&&PRG.chords.length)nw.textContent=PRG.chords[PRG.idx]||PRG.chords[0];}
+function prgSchedule(){const a=ac(),ahead=0.1,spb=60/PRG.bpm;
+  while(PRG.nextTime<a.currentTime+ahead){
+    if(PRG.cnt>0){const n=5-PRG.cnt;if(PRG.clickOn)click(PRG.nextTime,n===1?"accent":"beat");PRG.visQ.push({t:PRG.nextTime,count:n});PRG.cnt--;PRG.nextTime+=spb;continue;}
+    const name=PRG.chords[PRG.idx],frets=CHORDS[PRG.inst][name],b=PRG.beat;
+    if(b===0)PRG.visQ.push({t:PRG.nextTime,idx:PRG.idx});
+    if(PRG.clickOn)click(PRG.nextTime,b===0?"accent":"beat");
+    if(frets&&(b===0||b===2)){const down=(b===0);strum(PRG.inst,frets,PRG.nextTime,down);PRG.visQ.push({t:PRG.nextTime,strum:down,frets:frets});}
+    PRG.nextTime+=spb;PRG.beat++;if(PRG.beat>=4){PRG.beat=0;PRG.idx=(PRG.idx+1)%PRG.chords.length;if(PRG.idx===0)PRG.loops++;}}}
+function prgNeckShow(name){const w=document.getElementById("fbSvgWrap");if(!w||PRG.view!=="neck")return;FB.inst=PRG.inst;FB.mode="chord";FB.adv=false;FB.chord=name;const sh=fbShapeFor(name);FB.win=sh?fbWinFor(sh):1;const sn=FB.showNotes;FB.showNotes=false;FB.pvHeld=true;w.innerHTML=fbSVG();FB.pvHeld=false;FB.showNotes=sn;}
+function prgNeckMount(box,name){box.style.display="block";box.innerHTML='<div id="fbSvgWrap"></div><div id="fbZone" style="touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;margin-top:-4.6%;position:relative;overflow:hidden;filter:drop-shadow(0 10px 20px rgba(0,0,0,.45))"></div>';FB.inst=PRG.inst;prgNeckShow(name);const z=document.getElementById("fbZone");z.innerHTML=fbZoneSVG();fbBindZone(z);}
+function prgStrumViz(down,frets){if(PRG.view!=="neck")return;const z=document.getElementById("fbZone");if(!z)return;const N=frets.length,ord=[];for(let i=0;i<N;i++)ord.push(down?i:N-1-i);let k=0;ord.forEach(function(s){if(frets[s]<0)return;const d=k*30;k++;setTimeout(function(){fbZoneVib(s);},d);});const sw=document.createElement("div");sw.className="pvsweep"+(down?"":" up");z.appendChild(sw);setTimeout(function(){try{sw.remove();}catch(e){}},300);}
+function prgShow(idx){const now=$("#prgNow");if(now)now.textContent=PRG.chords[idx];
+  if(PRG.view==="neck")prgNeckShow(PRG.chords[idx]);else{const dia=$("#prgDia");if(dia){dia.innerHTML="";const f=CHORDS[PRG.inst][PRG.chords[idx]];if(f)dia.appendChild(chordDiagram(PRG.inst,f,PRG.chords[idx]));}}
   document.querySelectorAll("#prgChordRow .pchip").forEach((el,i)=>el.classList.toggle("on",i===idx));
   document.querySelectorAll("#prgChordRow .pchip.next").forEach(e=>e.classList.remove("next"));if(leadOn()){const nx=document.querySelectorAll("#prgChordRow .pchip")[(idx+1)%PRG.chords.length];if(nx)nx.classList.add("next");}}
-function prgFrame(){const now=ac().currentTime;while(PRG.visQ.length&&PRG.visQ[0].t<=now){const e=PRG.visQ.shift();prgShow(e.idx);}
+function prgFrame(){const now=ac().currentTime;while(PRG.visQ.length&&PRG.visQ[0].t<=now){const e=PRG.visQ.shift();
+    if(e.count){const nw=$("#prgNow");if(nw)nw.textContent=String(e.count);const st=$("#prgStatus");if(st)st.textContent="Count-in… "+e.count;}
+    else if(e.strum!=null)prgStrumViz(e.strum,e.frets);
+    else{const st=$("#prgStatus");if(st&&/^(Get ready|Count-in)/.test(st.textContent))st.textContent="";prgShow(e.idx);}}
   if(PRG.loops>=1&&!PRG.paid){PRG.paid=true;if(activeId()&&!load(mk("str",PRG.inst+"-prog-"+PRG.onName),false)){addBeans(8);save(mk("str",PRG.inst+"-prog-"+PRG.onName),true);beanChip();const n=$("#prgNote");if(n)n.textContent="+8 🫘 — you played it through!";}}
   PRG.raf=requestAnimationFrame(prgFrame);}
-function prgStart(){unlockAudio();if(PRG.running)return;const a=ac();PRG.running=true;PRG.idx=0;PRG.loops=0;PRG.paid=false;PRG.nextTime=a.currentTime+0.2;PRG.visQ=[];PRG.schID=setInterval(prgSchedule,25);PRG.raf=requestAnimationFrame(prgFrame);const b=$("#prgStart");if(b)b.textContent="⏸ Stop";}
+function prgStart(){unlockAudio();if(PRG.running)return;const a=ac();PRG.running=true;PRG.idx=0;PRG.beat=0;PRG.cnt=4;PRG.loops=0;PRG.paid=false;PRG.nextTime=a.currentTime+0.15;PRG.visQ=[];PRG.schID=setInterval(prgSchedule,25);PRG.raf=requestAnimationFrame(prgFrame);const b=$("#prgStart");if(b)b.textContent="⏸ Stop";const st=$("#prgStatus");if(st)st.textContent="Get ready…";}
 function strProg(inst){
   if(toneRAF)cancelAnimationFrame(toneRAF);prgStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   let pi=0,crRaf=null;PRG.inst=inst;
-  function prgHL(i){document.querySelectorAll("#prgChordRow .pchip").forEach((el,k)=>el.classList.toggle("on",k===i));}
+  const fbSave={mode:FB.mode,chord:FB.chord,inst:FB.inst,win:FB.win,adv:FB.adv};const fbRestore=()=>{FB.mode=fbSave.mode;FB.chord=fbSave.chord;FB.inst=fbSave.inst;FB.win=fbSave.win;FB.adv=fbSave.adv;};teardown=()=>{prgStop();fbRestore();};
+  function prgHL(i){prgShow(i);const fr=CHORDS[inst][PRG.chords[i]];if(fr)prgStrumViz(true,fr);}
   function prgCR(){
     prgStop();if(crRaf)cancelAnimationFrame(crRaf);const st=$("#prgStatus");if(st)st.textContent="turning on mic…";const fb=$("#prgFb");if(fb)fb.style.display="none";
     ensureMic().then(ok=>{
@@ -5920,22 +5937,27 @@ function strProg(inst){
         <div id="prgChordRow" class="prg-chordrow"></div>
         <div class="prg-now" id="prgNow">${P.chords[0]}</div>
         <div class="hpstrip" id="prgStrip" style="display:none;margin:6px 0"></div>
+        <div class="rchips tight" id="prgView" style="justify-content:center;margin:6px 0"></div>
         <div class="chordgrid" id="prgDia" style="justify-content:center"></div>
         <div class="rrow"><span class="rlab">Tempo</span><input type="range" id="prgBpm" min="50" max="140" value="${PRG.bpm}" style="flex:1"><span class="rbpm" id="prgBpmV">${PRG.bpm}</span></div>
-        <div class="rrow2"><span class="rlab">Lead note</span><span class="rchips tight">${leadChip()}</span></div>
+        <div class="rrow2"><span class="rlab">Options</span><span class="rchips tight">${leadChip()}<button class="rchip sm${PRG.clickOn?" sel":""}" id="prgClick">${PRG.clickOn?"🔊 Click on":"🔇 Click off"}</button></span></div>
+        ${volSlider("prgVol")}
         <div class="actions"><button class="btn" id="prgStart">▶ Play along</button><button class="btn ghost" id="prgCR">🎤 Strum it back</button><button class="btn ghost" id="prgPick">🎯 Pick it back</button></div>
         <div class="feedback" id="prgStatus"></div>
         <div class="idea-fb" id="prgFb" style="display:none"></div>
         <div class="bean-note" id="prgNote"></div>
       </div>`;
-    $("#eBack").onclick=()=>{prgStop();if(crRaf)cancelAnimationFrame(crRaf);try{stopMic();}catch(e){}renderStrings(inst);};
+    $("#eBack").onclick=()=>{prgStop();if(crRaf)cancelAnimationFrame(crRaf);try{stopMic();}catch(e){}fbRestore();renderStrings(inst);};
     const pl=$("#prgList");PROGS.forEach((p,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===pi?" sel":"");b.textContent=p.name;b.onclick=()=>{prgStop();if(crRaf)cancelAnimationFrame(crRaf);pi=i;draw();};pl.appendChild(b);});
     const row=$("#prgChordRow");P.chords.forEach((c,i)=>{const s=document.createElement("span");s.className="pchip"+(i===0?" on":"");s.textContent=c;row.appendChild(s);});if(leadOn()){const nx=row.children[1];if(nx)nx.classList.add("next");}
-    const dia=$("#prgDia");const f0=CHORDS[inst][P.chords[0]];if(f0)dia.appendChild(chordDiagram(inst,f0,P.chords[0]));
+    const dia=$("#prgDia");if(PRG.view==="neck")prgNeckMount(dia,P.chords[0]);else{const f0=CHORDS[inst][P.chords[0]];if(f0)dia.appendChild(chordDiagram(inst,f0,P.chords[0]));}
     const bp=$("#prgBpm");bp.oninput=()=>{PRG.bpm=+bp.value;$("#prgBpmV").textContent=PRG.bpm;};
     $("#prgStart").onclick=()=>{if(PRG.running)prgStop();else prgStart();};
     $("#prgCR").onclick=prgCR;
     $("#prgPick").onclick=prgPick;
+    {const pv=$("#prgView");[["diagram","📊 Diagram"],["neck","🎸 Neck view"]].forEach(o=>{const b=document.createElement("button");b.className="rchip sm"+(PRG.view===o[0]?" sel":"");b.textContent=o[1];b.onclick=()=>{PRG.view=o[0];save("mjk-prgview",o[0]);const was=PRG.running;draw();if(was){const b2=$("#prgStart");if(b2)b2.textContent="⏸ Stop";}};pv.appendChild(b);});}
+    {const ck=$("#prgClick");if(ck)ck.onclick=()=>{PRG.clickOn=!PRG.clickOn;save("mjk-prgclick",PRG.clickOn);ck.classList.toggle("sel",PRG.clickOn);ck.textContent=PRG.clickOn?"🔊 Click on":"🔇 Click off";};}
+    bindVol("prgVol");
     wireLead(draw);
   }
   draw();
