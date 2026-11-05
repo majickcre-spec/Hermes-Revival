@@ -4492,15 +4492,42 @@ function fbDemoUI(){var b=document.getElementById("fbDemo");if(b){b.textContent=
   var z=document.getElementById("fbDemoZoom");if(z)z.classList.toggle("sel",FBD.zoom);var l=document.getElementById("fbDemoLoop");if(l)l.classList.toggle("sel",FBD.loop);}
 function fbDemoCam(mode){FBD.cam=mode;var sc=document.getElementById("fbScaler"),box=document.getElementById("fbBox"),st=document.getElementById("fbStage");if(!sc||!box||!st)return;
   if(!mode||!FBD.zoom){sc.style.transform="";st.style.height="";if(mode==="body"&&FBD.on){var z=document.getElementById("fbZone");if(z)try{z.scrollIntoView({behavior:"smooth",block:"end"});}catch(e){}}return;}
-  var k=(mode==="chord"?1.4:1.6),W=sc.offsetWidth,Hf=sc.offsetHeight,H=Math.round(Math.min(Hf,(window.innerHeight||700)*0.58)),px=W/2,py=Hf;st.style.height=H+"px";
-  if(mode==="chord"){var g=fbGeo(),sh=fbCurShape(),n=0,sx=0,sy=0;if(sh)for(var s=0;s<sh.length;s++){var f=sh[s];if(f>0&&f>=FB.win&&f<FB.win+4){sx+=g.sx(s,g.fy(f));sy+=g.fy(f);n++;}}
+  var k=(mode==="chord"?1.4:mode==="note"?1.7:1.6),W=sc.offsetWidth,Hf=sc.offsetHeight,H=Math.round(Math.min(Hf,(window.innerHeight||700)*0.58)),px=W/2,py=Hf;st.style.height=H+"px";
+  if(mode==="note"&&FB.hl){var gn=fbGeo(),hy=FB.hl.f===0?gn.nutY-20:gn.fy(FB.hl.f),hx=FB.hl.f===0?gn.sx(FB.hl.s,gn.nutY):gn.sx(FB.hl.s,hy);px=hx*(box.offsetWidth/gn.VBW);py=hy*(box.offsetHeight/gn.VBH);}
+  else if(mode==="chord"){var g=fbGeo(),sh=fbCurShape(),n=0,sx=0,sy=0;if(sh)for(var s=0;s<sh.length;s++){var f=sh[s];if(f>0&&f>=FB.win&&f<FB.win+4){sx+=g.sx(s,g.fy(f));sy+=g.fy(f);n++;}}
     if(!n){sx=g.VBW/2;sy=g.nutY;n=1;}px=(sx/n)*(box.offsetWidth/g.VBW);py=(sy/n)*(box.offsetHeight/g.VBH);}
   var tx=Math.min(0,Math.max(W-W*k,W/2-px*k)),ty=Math.min(0,Math.max(H-Hf*k,H/2-py*k));
   sc.style.transform="translate("+tx.toFixed(1)+"px,"+ty.toFixed(1)+"px) scale("+k+")";}
 function fbDemoSweep(up){var z=document.getElementById("fbZone"),sh=fbCurShape();if(!z||!sh)return;var N=sh.length,k=0;for(var i=0;i<N;i++){var s=up?N-1-i:i;if(sh[s]<0)continue;(function(s,d){setTimeout(function(){fbZoneVib(s);},d);})(s,k*30);k++;}
   var sw=document.createElement("div");sw.className="pvsweep"+(up?" up":"");z.appendChild(sw);setTimeout(function(){try{sw.remove();}catch(e){}},300);}
+function fbDemoBarHTML(){return '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0 2px"><button class="btn" id="fbDemo" style="padding:10px 14px;flex:1 1 100%">\u25b6 Watch it played</button><span class="rchips tight" id="fbDemoSp"><span class="rlab" style="margin-right:2px">Speed</span>'+[[0.25,"\u00bc\u00d7"],[0.5,"\u00bd\u00d7"],[0.75,"\u00be\u00d7"],[1,"1\u00d7"]].map(function(v){return '<button class="rchip sm'+(FBD.sp===v[0]?" sel":"")+'" data-sp="'+v[0]+'">'+v[1]+'</button>';}).join("")+'</span><button class="rchip sm'+(FBD.zoom?" sel":"")+'" id="fbDemoZoom">\ud83d\udd0d Close-up</button><button class="rchip sm'+(FBD.loop?" sel":"")+'" id="fbDemoLoop">\ud83d\udd01 Loop</button></div>';}
+function fbDemoRunScale(){fbScaleStop();var set=fbScaleSet(),strings=fbStrings(),N=strings.length,win1=(FB.win===1),byM={};
+  for(var s=0;s<N;s++){for(var f=(win1?0:FB.win);f<FB.win+4;f++){var m=strings[s]+f,pc=((m%12)+12)%12;if((pc in set)&&!(m in byM))byM[m]={s:s,f:f,m:m,pc:pc};}}
+  var up=Object.keys(byM).map(Number).sort(function(a,b){return a-b;}).map(function(m){return byM[m];});if(!up.length)return;
+  unlockAudio();fbDemoReset();var tok=FBD.tok;FBD.on=true;fbDemoUI();
+  var cap=document.getElementById("fbDemoSay");if(cap){cap.style.display="block";try{cap.scrollIntoView({behavior:"smooth",block:"start"});}catch(e){}}
+  var nm=NOTE_NAMES[FB.scaleRoot]+" "+FB_SCALE_NM[FB.scaleType];
+  function wait(ms){return new Promise(function(r){setTimeout(function(){r(FBD.tok===tok);},ms/FBD.sp);});}
+  function fing(f){return f===0?"open string":"finger <b>"+Math.min(4,Math.max(1,f-FB.win+1))+"</b>";}
+  (async function(){
+    do{
+      FB.hl=null;FB.tgtStr=null;fbPaint();fbDemoCam(null);
+      fbDemoSay("\ud83d\udc40 <b>"+esc(nm)+"</b> \u2014 gold dots are the root (home note). Watch it go up, then back down.");
+      if(!await wait(1500))return;
+      var seq=up.concat(up.slice(0,-1).reverse());
+      for(var i=0;i<seq.length;i++){var n=seq[i],goingUp=i<up.length,k=goingUp?i+1:seq.length-i;
+        FB.hl={s:n.s,f:n.f};FB.tgtStr=n.s;fbPaint();fbDemoCam("note");fbPlay(n.s,n.f);
+        var deg=set[n.pc],root=(n.pc===FB.scaleRoot);
+        fbDemoSay((goingUp?"\u2b06 Up":"\u2b07 Down")+" \u00b7 note "+k+" of "+up.length+": <b style=\"color:"+(root?"var(--gold)":"inherit")+"\">"+NOTE_NAMES[n.pc]+"</b>"+(root?" (root)":" ("+deg+")")+"<br><span style=\"font-weight:600;color:var(--muted)\"><b>"+fbLabel(n.s)+"</b> string, fret <b>"+n.f+"</b> \u00b7 "+fing(n.f)+"</span>");
+        if(!await wait(i===up.length-1?1100:700))return;}
+      FB.hl=null;FB.tgtStr=null;fbPaint();fbDemoCam(null);
+      fbDemoSay("\u2705 That\u2019s the <b>"+esc(nm)+"</b> in "+fbSecLabel().replace(/^Section (\d) \u00b7 .*/,"section $1")+". Your turn \u2014 tap the dots low to high, then back down"+(FBD.loop?" (looping\u2026)":"")+".");
+      if(!await wait(FBD.loop?1800:1200))return;
+    }while(FBD.loop&&FBD.tok===tok);
+    if(FBD.tok!==tok)return;FBD.on=false;fbDemoUI();
+  })();}
 function fbDemoStop(){fbDemoReset();fbDemoCam(null);fbDemoSay("");fbPaint();fbDemoUI();}
-function fbDemoRun(){if(FB.mode!=="chord")return;var sh=fbCurShape();if(!sh)return;unlockAudio();fbDemoReset();var tok=FBD.tok;FBD.on=true;fbDemoUI();
+function fbDemoRun(){if(FB.mode==="scale"){fbDemoRunScale();return;}if(FB.mode!=="chord")return;var sh=fbCurShape();if(!sh)return;unlockAudio();fbDemoReset();var tok=FBD.tok;FBD.on=true;fbDemoUI();
   var name=FB.chord,fing=fbFingersFor(name)||[],N=sh.length,FN={1:"index",2:"middle",3:"ring",4:"pinky",T:"thumb"};
   var cap=document.getElementById("fbDemoSay");if(cap){cap.style.display="block";try{cap.scrollIntoView({behavior:"smooth",block:"start"});}catch(e){}}
   var w0=fbWinFor(sh);if(FB.win!==w0){FB.win=w0;var l=document.getElementById("fbWinLbl");if(l)l.textContent=fbSecLabel();fbSecChips();}
@@ -4817,9 +4844,9 @@ function trRush(){trReset();FB.tr.kind="rush";FB.tr.inst=FB.inst;FB.tr.score=0;F
 }
 function fbHowto(){var m=FB.mode,inst={guitar:"guitar",bass:"bass",ukulele:"ukulele"}[FB.inst],st;
   if(m==="chord")st=["Pick a chord at the top.","Put a fingertip on <b>each glowing dot</b>. The number is the finger: <b>1</b> index, <b>2</b> middle, <b>3</b> ring, <b>4</b> pinky.","<b>✕</b> above a string = don’t play it. <b>○</b> = play it open (no finger).","<b>Hold the shape 3 seconds</b> — the bar fills and it locks in.","Keep holding, and <b>strum the guitar body</b> below the neck with your other thumb."];
-  else if(m==="scale")st=["Pick a <b>root note</b> and a <b>scale</b>.","<b>Gold dots</b> are the root (home note). The other dots are the rest of the scale.","Tap <b>▶ Play the scale</b> to watch each dot light up as it plays, up and back down.","Now play it yourself: tap the dots low to high, then back down.","Use <b>▲ Lower / Higher ▼</b> to see the shape further up the neck."];
+  else if(m==="scale")st=["Pick a <b>root note</b> and a <b>scale</b>.","<b>Gold dots</b> are the root (home note). The other dots are the rest of the scale.","Tap <b>▶ Watch it played</b> — each note lights up and plays, up and back down, with the string, fret and finger. Slow it down with <b>Speed</b>, zoom in with <b>🔍 Close-up</b>.","Now play it yourself: tap the dots low to high, then back down.","Tap section <b>1 2 3 4</b> (or ▲ ▼) to see the shape further up the neck."];
   else if(m==="train")st=["Pick an activity from the trainer menu.","Read the prompt above the neck, then tap the neck (or pluck a string on the body) where it asks.","<b>Green ✓</b> = right. <b>Red ✗</b> = try again — the hint tells you what you hit.","Each activity saves your best score and earns beans. Finish all five for <b>🏆 Neck Master</b>.","<b>← Trainer</b> takes you back to the menu any time."];
-  else st=["Hold your phone like the "+inst+" neck: the strings run from the <b>top (nut)</b> down to the <b>body</b>. The thickest, lowest string is on the <b>left</b>.","<b>Fretting hand:</b> press a spot on a string to play that note. Fret numbers are on the left.","<b>Strumming hand:</b> swipe your thumb across the strings on the <b>guitar body</b> below the neck. Swipe right = down-strum, left = up-strum. Tap one string on the body to pick just that string.","Hold frets with one hand while you strum with the other — the notes you hold ring in the strum.","<b>▲ Lower / Higher ▼</b> moves up and down the neck, 4 frets at a time.","<b>Note names</b> shows the name of every note on the neck."];
+  else st=["Hold your phone like the "+inst+" neck: the strings run from the <b>top (nut)</b> down to the <b>body</b>. The thickest, lowest string is on the <b>left</b>.","<b>Fretting hand:</b> press a spot on a string to play that note. Fret numbers are on the left.","<b>Strumming hand:</b> swipe your thumb across the strings on the <b>guitar body</b> below the neck. Swipe right = down-strum, left = up-strum. Tap one string on the body to pick just that string.","Hold frets with one hand while you strum with the other — the notes you hold ring in the strum.","Tap section <b>1 2 3 4</b> to jump along the neck (1 = open position, 4 = frets 13–16), or step with <b>▲ ▼</b>.","<b>Note names</b> shows the name of every note on the neck."];
   return '<details class="howto" id="fbHow" data-how="1"'+(FB.howOpen?" open":"")+'><summary>ⓘ How to play <span class="hw-car">▾</span></summary><div class="hw-body"><ol class="hw-steps">'+st.map(function(x){return "<li>"+x+"</li>";}).join("")+'</ol></div></details>';}
 function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.mode=startMode;if(FB.inst==="bass"&&FB.mode==="chord")FB.mode="play";if(FB.mode==="chord"&&!fbShapeFor(FB.chord))FB.chord=(CHORDS[FB.inst]?Object.keys(CHORDS[FB.inst])[0]:"C");
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);try{sfLoadInst("guitar");}catch(e){}
@@ -4837,8 +4864,8 @@ function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.
       fbHowto()+
       (FB.mode==="train"?'<div id="fbTr" style="background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:8px 0"></div>':'')+
       (FB.mode==="chord"?'<div class="rrow2"><span class="rlab">Chord</span><span class="rchips tight" id="fbChips"></span></div>'+
-        '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0 2px"><button class="btn" id="fbDemo" style="padding:10px 14px;flex:1 1 100%">\u25b6 Watch it played</button><span class="rchips tight" id="fbDemoSp"><span class="rlab" style="margin-right:2px">Speed</span>'+[[0.25,"\u00bc\u00d7"],[0.5,"\u00bd\u00d7"],[0.75,"\u00be\u00d7"],[1,"1\u00d7"]].map(function(v){return '<button class="rchip sm'+(FBD.sp===v[0]?" sel":"")+'" data-sp="'+v[0]+'">'+v[1]+'</button>';}).join("")+'</span><button class="rchip sm'+(FBD.zoom?" sel":"")+'" id="fbDemoZoom">\ud83d\udd0d Close-up</button><button class="rchip sm'+(FBD.loop?" sel":"")+'" id="fbDemoLoop">\ud83d\udd01 Loop</button></div>'+(FB_ADV[FB.inst]?'<div class="rrow2" style="margin-top:2px"><button class="rchip sm'+(FB.adv?" sel":"")+'" id="fbAdv">'+(FB.adv?"★ Showing advanced shapes":"➕ More / advanced shapes")+'</button></div>':''):'')+
-      (FB.mode==="scale"?'<div class="rrow2"><span class="rlab">Root</span><span class="rchips tight" id="fbRoot"></span></div><div class="rrow2" style="margin-top:2px"><span class="rlab">Scale</span><span class="rchips tight" id="fbScale"></span></div><div class="actions" style="margin:6px 0 0"><button class="btn ghost" id="fbPlayScale">▶ Play the scale (up &amp; down)</button></div>':'')+
+        fbDemoBarHTML()+(FB_ADV[FB.inst]?'<div class="rrow2" style="margin-top:2px"><button class="rchip sm'+(FB.adv?" sel":"")+'" id="fbAdv">'+(FB.adv?"★ Showing advanced shapes":"➕ More / advanced shapes")+'</button></div>':''):'')+
+      (FB.mode==="scale"?'<div class="rrow2"><span class="rlab">Root</span><span class="rchips tight" id="fbRoot"></span></div><div class="rrow2" style="margin-top:2px"><span class="rlab">Scale</span><span class="rchips tight" id="fbScale"></span></div>'+fbDemoBarHTML():'')+
       '<div id="fbSecs" style="display:flex;align-items:center;gap:6px;margin:8px 0 2px"><button class="btn ghost" id="fbUp" aria-label="Section toward the nut" style="flex:0 0 auto;padding:10px 14px;font-size:1rem">▲</button>'+FB_SECS.map(function(w,i){return '<button class="rchip'+(FB.win===w?" sel":"")+'" data-win="'+w+'" style="flex:1 1 0;min-width:0;justify-content:center;padding:10px 0;font-weight:900;font-size:1.05rem">'+(i+1)+'</button>';}).join("")+'<button class="btn ghost" id="fbDn" aria-label="Section toward the body" style="flex:0 0 auto;padding:10px 14px;font-size:1rem">▼</button></div>'+
       '<div id="fbWinLbl" style="text-align:center;font:800 .82rem system-ui,sans-serif;color:var(--muted);margin:0 0 6px">'+fbSecLabel()+'</div>'+
       '<div id="fbDemoSay" style="display:none;text-align:center;font:700 .95rem/1.35 system-ui,sans-serif;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:4px 0 8px;min-height:2.7em"></div>'+
