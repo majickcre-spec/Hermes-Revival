@@ -4398,7 +4398,7 @@ function renderSyllabus(i){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=
 const FB_TUNE={guitar:[40,45,50,55,59,64],bass:[28,33,38,43],ukulele:[67,60,64,69]};
 const FB_LBL={guitar:["E","A","D","G","B","e"],bass:["E","A","D","G"],ukulele:["G","C","E","A"]};
 const FB_MAXFRET=15;
-const FB={inst:"guitar",mode:"play",chord:"C",win:1,showNotes:false,adv:false,scaleRoot:0,scaleType:"majpent",active:new Map(),strums:{},lbl:"letters",locked:{},holdRAF:null,holdT:0};
+const FB={inst:"guitar",mode:"play",chord:"C",win:1,showNotes:true,adv:false,scaleRoot:0,scaleType:"majpent",active:new Map(),strums:{},lbl:"letters",locked:{},holdRAF:null,holdT:0};
 const FB_SCALES=["major","minor","majpent","minpent","blues","dorian"];
 const FB_SCALE_IV={major:[0,2,4,5,7,9,11],minor:[0,2,3,5,7,8,10],majpent:[0,2,4,7,9],minpent:[0,3,5,7,10],blues:[0,3,5,6,7,10],dorian:[0,2,3,5,7,9,10]};
 const FB_SCALE_NM={major:"Major",minor:"Minor",majpent:"Major pentatonic",minpent:"Minor pentatonic",blues:"Blues",dorian:"Dorian"};
@@ -4412,7 +4412,7 @@ const FB_INLAY={3:1,5:1,7:1,9:1,12:2,15:1};
 "#fbBox{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;width:100%;display:block;filter:drop-shadow(0 10px 20px rgba(0,0,0,.45))}"+
 "#fbBox svg{width:100%;height:auto;display:block}"+
 "#fbHold{height:8px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:10px}#fbHoldBar{height:100%;width:0;background:#5fe0a8;transition:width .05s}"+
-".fbchip-adv{opacity:.65}";
+".fbchip-adv{opacity:.65}#fbZone .szs{transform-box:fill-box;transform-origin:center}#fbZone .szs.vib{animation:fbvib .28s ease-out}@keyframes fbvib{0%{transform:translateX(0)}20%{transform:translateX(2.2px)}40%{transform:translateX(-1.8px)}60%{transform:translateX(1.2px)}80%{transform:translateX(-.6px)}100%{transform:translateX(0)}}";
 document.head.appendChild(s);}catch(e){}})();
 function fbStrings(){return FB_TUNE[FB.inst];}
 function fbShapeFor(name){if(FB.adv&&FB_ADV[FB.inst]&&FB_ADV[FB.inst][name])return FB_ADV[FB.inst][name];return (CHORDS[FB.inst]&&CHORDS[FB.inst][name])||null;}
@@ -4505,8 +4505,43 @@ function fbBindTouch(box){if(!box||box._fbBound)return;box._fbBound=true;var S=f
     box.addEventListener("pointermove",function(e){if(e.buttons===0)return;move("p"+e.pointerId,e.clientX,e.clientY);});
     var pe=function(e){end("p"+e.pointerId);};box.addEventListener("pointerup",pe);box.addEventListener("pointercancel",pe);
   }}
+function fbZoneXs(){var g=fbGeo(),xs=[];for(var s=0;s<g.N;s++)xs.push(g.sx(s,g.bottomY));return xs;}
+function fbZoneSVG(){var g=fbGeo(),N=g.N,W=g.VBW,H=200,xs=fbZoneXs(),cx=g.cx,s=[];
+  s.push('<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block">');
+  s.push('<defs><linearGradient id="szTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d8b07a"/><stop offset="1" stop-color="#b5874f"/></linearGradient>'+
+    '<radialGradient id="szHole" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#0c0806"/><stop offset=".85" stop-color="#1a110a"/><stop offset="1" stop-color="#2b1a0e"/></radialGradient>'+
+    '<linearGradient id="szSteel" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9aa3ad"/><stop offset=".5" stop-color="#f4f7fa"/><stop offset="1" stop-color="#9aa3ad"/></linearGradient>'+
+    '<linearGradient id="szBrass" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8a7138"/><stop offset=".5" stop-color="#ecd59a"/><stop offset="1" stop-color="#8a7138"/></linearGradient></defs>');
+  var L=Math.max(0,xs[0]-26),R=Math.min(W,xs[N-1]+26);
+  s.push('<path d="M'+L+' 0 L'+R+' 0 L'+R+' '+(H-22)+' Q'+R+' '+H+' '+(R-22)+' '+H+' L'+(L+22)+' '+H+' Q'+L+' '+H+' '+L+' '+(H-22)+' Z" fill="url(#szTop)" stroke="#6b4a26" stroke-width="1.5"/>');
+  for(var gi=1;gi<9;gi++){var gx=L+(R-L)*gi/9;s.push('<line x1="'+gx.toFixed(1)+'" y1="0" x2="'+gx.toFixed(1)+'" y2="'+H+'" stroke="rgba(110,70,30,.13)" stroke-width="1"/>');}
+  var hy=96,hr=Math.min(70,(R-L)*0.24);
+  s.push('<circle cx="'+cx+'" cy="'+hy+'" r="'+(hr+14)+'" fill="none" stroke="#5a3a1c" stroke-width="3"/><circle cx="'+cx+'" cy="'+hy+'" r="'+(hr+8)+'" fill="none" stroke="#e9d3a6" stroke-width="2.5" stroke-dasharray="3 3"/><circle cx="'+cx+'" cy="'+hy+'" r="'+(hr+3)+'" fill="none" stroke="#5a3a1c" stroke-width="2"/>');
+  s.push('<circle cx="'+cx+'" cy="'+hy+'" r="'+hr+'" fill="url(#szHole)"/>');
+  for(var i=0;i<N;i++){var w=fbStrW(i,N)+0.5,col=fbWound(i)?"#c9ab62":"#e8edf2";
+    s.push('<line x1="'+(xs[i]+1.6).toFixed(1)+'" y1="0" x2="'+(xs[i]+1.6).toFixed(1)+'" y2="'+H+'" stroke="rgba(40,22,6,.45)" stroke-width="'+(w+0.6).toFixed(2)+'"/>');
+    s.push('<line class="szs" data-s="'+i+'" x1="'+xs[i].toFixed(1)+'" y1="0" x2="'+xs[i].toFixed(1)+'" y2="'+H+'" stroke="'+col+'" stroke-width="'+w.toFixed(2)+'"/>');}
+  s.push('<text x="'+cx+'" y="'+(H-10)+'" font-size="12" font-weight="700" fill="rgba(60,35,12,.55)" text-anchor="middle" font-family="system-ui">swipe across the strings to strum · tap one to pick it</text>');
+  s.push('</svg>');return s.join("");}
+function fbZoneVib(s){var el=document.querySelector('#fbZone .szs[data-s="'+s+'"]');if(!el)return;el.classList.remove("vib");void el.getBoundingClientRect();el.classList.add("vib");}
+function fbBindZone(el){if(!el||el._bound)return;el._bound=true;var st={};
+  function vx(cx){var svg=el.querySelector("svg");if(!svg)return null;var r=svg.getBoundingClientRect();return (cx-r.left)*(fbGeo().VBW/r.width);}
+  function start(id,cx){var x=vx(cx);if(x==null)return;st[id]={x:x,moved:false};}
+  function move(id,cx){var p=st[id];if(!p)return;var x=vx(cx);if(x==null)return;var xs=fbZoneXs(),lo=Math.min(p.x,x),hi=Math.max(p.x,x),hit=[];
+    for(var i=0;i<xs.length;i++){if(xs[i]>lo&&xs[i]<=hi)hit.push(i);}if(x<p.x)hit.reverse();
+    hit.forEach(function(s,k){fbStrumString(s,k*0.012);});if(hit.length)p.moved=true;p.x=x;}
+  function end(id){var p=st[id];delete st[id];if(p&&!p.moved){var xs=fbZoneXs(),b=-1,bd=1e9;for(var i=0;i<xs.length;i++){var d=Math.abs(xs[i]-p.x);if(d<bd){bd=d;b=i;}}if(b>=0&&bd<=30)fbStrumString(b);}}
+  if("ontouchstart" in window){
+    el.addEventListener("touchstart",function(e){e.preventDefault();unlockAudio();for(var i=0;i<e.changedTouches.length;i++){var c=e.changedTouches[i];start("t"+c.identifier,c.clientX);}},{passive:false});
+    el.addEventListener("touchmove",function(e){e.preventDefault();for(var i=0;i<e.changedTouches.length;i++){var c=e.changedTouches[i];move("t"+c.identifier,c.clientX);}},{passive:false});
+    var te=function(e){for(var i=0;i<e.changedTouches.length;i++)end("t"+e.changedTouches[i].identifier);};el.addEventListener("touchend",te);el.addEventListener("touchcancel",te);
+  }else{
+    el.addEventListener("pointerdown",function(e){e.preventDefault();unlockAudio();try{el.setPointerCapture(e.pointerId);}catch(_){}start("p"+e.pointerId,e.clientX);});
+    el.addEventListener("pointermove",function(e){if(e.buttons===0)return;move("p"+e.pointerId,e.clientX);});
+    var pe=function(e){end("p"+e.pointerId);};el.addEventListener("pointerup",pe);el.addEventListener("pointercancel",pe);
+  }}
 function fbStringAtPt(svg,g,cx,cy){var r=svg.getBoundingClientRect();if(!r.width||!r.height)return -1;var xV=(cx-r.left)*(g.VBW/r.width),yV=(cy-r.top)*(g.VBH/r.height);var best=-1,bd=1e9;for(var s=0;s<g.N;s++){var sx=g.sx(s,yV),d=Math.abs(xV-sx);if(d<bd){bd=d;best=s;}}return bd<=48?best:-1;}
-function fbStrumString(s){if(s<0)return;unlockAudio();var strings=fbStrings(),sh=fbCurShape(),f;if(FB.mode==="chord"&&sh){f=sh[s];if(f<0)return;}else{f=0;FB.active.forEach(function(v){if(v.s===s)f=v.f;});}pluck(strings[s]+f,ac().currentTime+0.001,2.0,0.45);}
+function fbStrumString(s,d){if(s<0)return;unlockAudio();var strings=fbStrings(),sh=fbCurShape(),f;if(FB.mode==="chord"&&sh){f=sh[s];if(f<0)return;}else{f=0;FB.active.forEach(function(v){if(v.s===s)f=v.f;});}pluck(strings[s]+f,ac().currentTime+0.001+(d||0),2.6,0.5);if(typeof fbZoneVib==="function")fbZoneVib(s);}
 function fbPaint(){var w=document.getElementById("fbSvgWrap");if(w)w.innerHTML=fbSVG();else{var box=document.getElementById("fbBox");if(box)box.innerHTML=fbSVG();}
   if(FB.mode==="chord"){var st=document.getElementById("fbStatus"),sh=fbCurShape();
     if(fbChordCorrect()){if(!FB.holdRAF)fbStartHold();if(st&&!/Locked/.test(st.textContent))st.innerHTML='<b style="color:#5fe0a8">Shape is right — hold it to lock it in.</b>';}
@@ -4529,8 +4564,9 @@ function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.
       (FB.mode==="scale"?'<div class="rrow2"><span class="rlab">Root</span><span class="rchips tight" id="fbRoot"></span></div><div class="rrow2" style="margin-top:2px"><span class="rlab">Scale</span><span class="rchips tight" id="fbScale"></span></div><div class="actions" style="margin:6px 0 0"><button class="btn ghost" id="fbPlayScale">▶ Play the scale (up &amp; down)</button></div>':'')+
       '<div class="actions" style="justify-content:space-between;align-items:center;gap:6px;flex-wrap:nowrap;margin:8px 0 4px"><button class="btn ghost" id="fbUp" style="flex:1 1 0;min-width:0;padding:12px 6px;font-size:.9rem;letter-spacing:0">▲ Lower</button><span class="rbpm" id="fbWinLbl" style="flex:0 0 auto;min-width:84px;text-align:center;font-size:12px">'+winLabel+'</span><button class="btn ghost" id="fbDn" style="flex:1 1 0;min-width:0;padding:12px 6px;font-size:.9rem;letter-spacing:0">Higher ▼</button></div>'+
       '<div id="fbBox" style="position:relative"><div id="fbSvgWrap">'+fbSVG()+'</div><div id="fbTouch" style="position:absolute;left:0;top:0;right:0;bottom:0;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none"></div></div>'+
+      '<div id="fbZone" style="touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;margin-top:-4.6%;position:relative;filter:drop-shadow(0 10px 20px rgba(0,0,0,.45))">'+fbZoneSVG()+'</div>'+
       (FB.mode==="chord"?'<div id="fbHold"><div id="fbHoldBar"></div></div>':'')+
-      '<div class="actions" style="justify-content:center;margin-top:10px"><button class="btn" id="fbStrum">🎸 Strum</button><button class="rchip sm'+(FB.showNotes?" sel":"")+'" id="fbNotes">🏷️ Note names</button><button class="rchip sm'+(FB.lbl==="numbers"?" sel":"")+'" id="fbLbl">🔢 String numbers</button></div>'+
+      '<div class="actions" style="justify-content:center;margin-top:10px"><button class="rchip sm'+(FB.showNotes?" sel":"")+'" id="fbNotes">🏷️ Note names: '+(FB.showNotes?"On":"Off")+'</button></div>'+
       '<div class="feedback" id="fbStatus" style="min-height:22px">'+(FB.mode==="chord"?"Place a finger on each glowing dot — hold 3s to lock it in.":FB.mode==="scale"?"Gold dots are the root; numbers are scale degrees. Tap any note to hear it, or play the whole scale. Page ▲▼ to see the shape move up the neck.":"Tap a spot on a string to play that note. The neck is narrower at the nut (top) and widens toward the body, like the real thing.")+'</div>'+
       '<div class="site-note"><b style="color:#7ff0d6">Swipe across the strings to strum</b> — or tap one string to pick a single note. Page up and down the neck with ▲▼ — four frets at a time, numbered on the left. Turn on <b>Note names</b> to learn what every spot is. Hold a chord shape 3 seconds to burn it into muscle memory.</div>'+
       '</div>';
@@ -4548,7 +4584,7 @@ function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.
     var lb=$("#fbLbl");if(lb)lb.onclick=function(){FB.lbl=(FB.lbl==="numbers")?"letters":"numbers";draw();};
     var up=$("#fbUp");if(up)up.onclick=function(){FB.win=Math.max(1,FB.win-4);draw();};
     var dn=$("#fbDn");if(dn)dn.onclick=function(){FB.win=Math.min(FB_MAXFRET-3,FB.win+4);draw();};
-    $("#fbStrum").onclick=function(){fbStrum();};
+    fbBindZone(document.getElementById("fbZone"));
     var nb=$("#fbNotes");if(nb)nb.onclick=function(){FB.showNotes=!FB.showNotes;draw();};
     var ab=$("#fbAdv");if(ab)ab.onclick=function(){FB.adv=!FB.adv;draw();};
     if(FB.mode==="chord"){var cc=$("#fbChips");var locked=fbLockedCount();fbChordNames().forEach(function(nm){var isAdv=FB.adv&&FB_ADV[FB.inst]&&FB_ADV[FB.inst][nm]&&!(CHORDS[FB.inst]&&CHORDS[FB.inst][nm]);var btn=document.createElement("button");btn.className="rchip sm"+(nm===FB.chord?" sel":"")+(isAdv?" fbchip-adv":"");btn.textContent=(isAdv?"★ ":"")+nm;btn.onclick=function(){FB.chord=nm;draw();};cc.appendChild(btn);});}
