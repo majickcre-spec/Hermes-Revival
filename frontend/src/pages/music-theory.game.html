@@ -3402,6 +3402,26 @@ function lsLib(){return load(mk("learnsong","lib"),[]);}
 function lsSaveLib(l){save(mk("learnsong","lib"),l);}
 function customChords(inst){return load(mk("customchords",inst),{});}
 function songFrets(inst,name){if(CHORDS[inst]&&CHORDS[inst][name])return {frets:CHORDS[inst][name],fingers:(FINGERS[inst]||{})[name]};const cc=customChords(inst);if(cc[name])return {frets:cc[name].frets,fingers:cc[name].fingers};return null;}
+function _lsP(str){return str.trim().split(/\s+/).map(function(tok){var a=tok.split(":");return {name:a[0],beats:a[1]?+a[1]:4};});}
+const LS_PRESETS=[
+ {name:"I\u2013V\u2013vi\u2013IV \u2014 The Four Chords",genre:"Pop",chordsLabel:"G D Em C",ex:"Let It Be \u00b7 Don't Stop Believin'",bpm:84,inst:"guitar",sections:[{name:"I\u2013V\u2013vi\u2013IV",chords:_lsP("G D Em C")}]},
+ {name:"I\u2013vi\u2013IV\u2013V \u2014 50s Doo-Wop",genre:"Doo-Wop / Oldies",chordsLabel:"C Am F G",ex:"Stand By Me \u00b7 Earth Angel",bpm:72,inst:"guitar",sections:[{name:"I\u2013vi\u2013IV\u2013V",chords:_lsP("C Am F G")}]},
+ {name:"vi\u2013IV\u2013I\u2013V \u2014 Pop-Punk Axis",genre:"Pop / Rock",chordsLabel:"Em C G D",ex:"She Will Be Loved \u00b7 Africa",bpm:92,inst:"guitar",sections:[{name:"vi\u2013IV\u2013I\u2013V",chords:_lsP("Em C G D")}]},
+ {name:"I\u2013IV\u2013V \u2014 12-Bar Blues",genre:"Blues",chordsLabel:"A D E (12 bars)",ex:"Johnny B. Goode \u00b7 Sweet Home Chicago",bpm:100,inst:"guitar",sections:[{name:"12-Bar Blues",chords:_lsP("A A A A D D A A E D A E")}]},
+ {name:"ii\u2013V\u2013I \u2014 Jazz Turnaround",genre:"Jazz",chordsLabel:"Dm G7 C",ex:"Autumn Leaves \u00b7 jazz standards",bpm:120,inst:"guitar",sections:[{name:"ii\u2013V\u2013I",chords:_lsP("Dm G7 C C")}]},
+ {name:"I\u2013V\u2013vi\u2013iii\u2013IV\u2013I\u2013IV\u2013V \u2014 Pachelbel's Canon",genre:"Classical / Pop",chordsLabel:"C G Am Em F C F G",ex:"Canon in D \u00b7 Basket Case",bpm:80,inst:"guitar",sections:[{name:"Canon",chords:_lsP("C G Am Em F C F G")}]},
+ {name:"i\u2013\u266dVII\u2013\u266dVI\u2013V \u2014 Andalusian Cadence",genre:"Flamenco / Rock",chordsLabel:"Am G F E",ex:"Hit the Road Jack \u00b7 Stray Cat Strut",bpm:96,inst:"guitar",sections:[{name:"Andalusian",chords:_lsP("Am G F E")}]},
+ {name:"I\u2013IV\u2013V\u2013IV \u2014 Three-Chord Rock",genre:"Rock",chordsLabel:"G C D C",ex:"Wild Thing \u00b7 La Bamba",bpm:120,inst:"guitar",sections:[{name:"I\u2013IV\u2013V\u2013IV",chords:_lsP("G C D C")}]},
+ {name:"I\u2013vi\u2013ii\u2013V \u2014 Heart & Soul",genre:"Jazz / Pop",chordsLabel:"C Am Dm G",ex:"Heart and Soul \u00b7 Blue Moon",bpm:96,inst:"guitar",sections:[{name:"I\u2013vi\u2013ii\u2013V",chords:_lsP("C Am Dm G")}]},
+ {name:"i\u2013VI\u2013III\u2013VII \u2014 Minor Epic",genre:"Ballad / Pop",chordsLabel:"Am F C G",ex:"Despacito \u00b7 many ballads",bpm:92,inst:"guitar",sections:[{name:"i\u2013VI\u2013III\u2013VII",chords:_lsP("Am F C G")}]},
+ {name:"Folk Singalong in G \u2014 I\u00b7V\u00b7vi\u00b7IV\u00b7ii",genre:"Folk",chordsLabel:"G C D Em Am",ex:"a full singalong chart",bpm:92,inst:"guitar",sections:[
+   {name:"Line 1",chords:_lsP("G G G:2 D:2 C")},
+   {name:"Line 2",chords:_lsP("G D C G")},
+   {name:"Line 3",chords:_lsP("Em Em C G")},
+   {name:"Line 4",chords:_lsP("Am Em C G")},
+   {name:"Line 5",chords:_lsP("C G C G")},
+   {name:"Line 6",chords:_lsP("Am C G G")}]}
+];
 function renderLearnSong(){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   let song=null,running=false,schID=null,raf=null,nextTime=0,seq=[],idx=0,vq=[],transpose=0,loopSec=-1,bpm=90;
@@ -3422,8 +3442,9 @@ function renderLearnSong(){
     let h='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎼 Learn a Song</span></div><div class="panel">'+
       '<div class="intro">Bring in a song you&rsquo;re already practicing and turn it into a chord chart you can play along with — loop it, slow it down, and transpose to your key.</div>'+
       '<div class="actions"><button class="btn" id="lsNew">＋ New song</button></div>'+
-      '<div class="rlab" style="display:block;margin:14px 0 6px">My songs</div><div id="lsList"></div></div>';
+      '<div class="rlab" style="display:block;margin:14px 0 6px">Popular progressions <span style="opacity:.7;font-weight:600">\u2014 pick one, play along, loop &amp; slow it down</span></div><div id="lsPresets"></div>'+'<div class="rlab" style="display:block;margin:14px 0 6px">My songs</div><div id="lsList"></div></div>';
     view.innerHTML=h;$("#eBack").onclick=goHome;$("#lsNew").onclick=showNew;
+    {const pb=$("#lsPresets");if(pb){pb.innerHTML="";LS_PRESETS.forEach(p=>{const row=document.createElement("div");row.className="kb";row.innerHTML='<span class="kb-ic">\ud83c\udfb8</span><div class="kb-main"><div class="kb-t">'+esc(p.name)+'</div><div class="kb-s">'+esc(p.genre)+' \u00b7 '+esc(p.chordsLabel)+(p.ex?' \u00b7 '+esc(p.ex):"")+'</div></div>';const op=document.createElement("button");op.className="kb-btn";op.textContent="play";op.onclick=()=>openSong(p);row.appendChild(op);pb.appendChild(row);});}}
     const box=$("#lsList"),lib=lsLib();if(!lib.length){box.innerHTML='<div class="site-note">No songs yet — tap “New song.”</div>';return;}
     box.innerHTML="";lib.forEach((s,i)=>{const row=document.createElement("div");row.className="kb";row.innerHTML='<span class="kb-ic">🎼</span><div class="kb-main"><div class="kb-t">'+esc(s.name)+'</div><div class="kb-s">'+s.inst+' · '+s.sections.reduce((n,x)=>n+x.chords.length,0)+' chords</div></div>';
       const op=document.createElement("button");op.className="kb-btn";op.textContent="open";op.onclick=()=>openSong(s);
