@@ -4590,8 +4590,8 @@ const FB_INLAY={3:1,5:1,7:1,9:1,12:2,15:1};
 ".fbchip-adv{opacity:.65}#fbZone .szs{transform-box:fill-box;transform-origin:center}#fbZone .szs.vib{animation:fbvib .28s ease-out}@keyframes fbvib{0%{transform:translateX(0)}20%{transform:translateX(2.2px)}40%{transform:translateX(-1.8px)}60%{transform:translateX(1.2px)}80%{transform:translateX(-.6px)}100%{transform:translateX(0)}}";
 document.head.appendChild(s);}catch(e){}})();
 function fbStrings(){return FB_TUNE[FB.inst];}
-function fbShapeFor(name){if(FB.adv&&FB_ADV[FB.inst]&&FB_ADV[FB.inst][name])return FB_ADV[FB.inst][name];return (CHORDS[FB.inst]&&CHORDS[FB.inst][name])||null;}
-function fbFingersFor(name){if(FB.adv&&FB_ADV_FING[FB.inst]&&FB_ADV_FING[FB.inst][name])return FB_ADV_FING[FB.inst][name];return (FINGERS[FB.inst]&&FINGERS[FB.inst][name])||null;}
+function fbShapeFor(name){if(FB.adv&&FB_ADV[FB.inst]&&FB_ADV[FB.inst][name])return FB_ADV[FB.inst][name];return (CHORDS[FB.inst]&&CHORDS[FB.inst][name])||(typeof KEY_SHAPES!=="undefined"&&KEY_SHAPES[FB.inst]&&KEY_SHAPES[FB.inst][name])||null;}
+function fbFingersFor(name){if(FB.adv&&FB_ADV_FING[FB.inst]&&FB_ADV_FING[FB.inst][name])return FB_ADV_FING[FB.inst][name];return (FINGERS[FB.inst]&&FINGERS[FB.inst][name])||(typeof KEY_FING!=="undefined"&&KEY_FING[FB.inst]&&KEY_FING[FB.inst][name])||null;}
 function fbCurShape(){return FB.mode==="chord"?fbShapeFor(FB.chord):null;}
 function fbNote(s,f){var m=fbStrings()[s]+f;return NOTE_NAMES[((m%12)+12)%12];}
 function fbLabel(s){return FB.lbl==="numbers"?String(fbStrings().length-s):FB_LBL[FB.inst][s];}
@@ -5517,9 +5517,26 @@ const FINGERS={
    A:[2,1,0,0],D:[1,2,3,0],E:[2,3,4,1],Bm:[3,1,1,1],G7:[0,2,1,3],C7:[0,0,0,1],D7:[1,1,1,3]}
 };
 const KEY_CHORDS={
- C:{chords:["C","Dm","Em","F","G","Am"],rn:["I","ii","iii","IV","V","vi"]},
- G:{chords:["G","Am","Bm","C","D","Em"],rn:["I","ii","iii","IV","V","vi"]}
+  "C":{label:"C major",chords:["C", "Dm", "Em", "F", "G", "Am", "Bdim"],rn:["I","ii","iii","IV","V","vi","vii\u00b0"],minor:false},
+  "G":{label:"G major",chords:["G", "Am", "Bm", "C", "D", "Em", "F#dim"],rn:["I","ii","iii","IV","V","vi","vii\u00b0"],minor:false},
+  "D":{label:"D major",chords:["D", "Em", "F#m", "G", "A", "Bm", "C#dim"],rn:["I","ii","iii","IV","V","vi","vii\u00b0"],minor:false},
+  "A":{label:"A major",chords:["A", "Bm", "C#m", "D", "E", "F#m", "G#dim"],rn:["I","ii","iii","IV","V","vi","vii\u00b0"],minor:false},
+  "E":{label:"E major",chords:["E", "F#m", "G#m", "A", "B", "C#m", "D#dim"],rn:["I","ii","iii","IV","V","vi","vii\u00b0"],minor:false},
+  "F":{label:"F major",chords:["F", "Gm", "Am", "Bb", "C", "Dm", "Edim"],rn:["I","ii","iii","IV","V","vi","vii\u00b0"],minor:false},
+  "Bb":{label:"B\u266d major",chords:["Bb", "Cm", "Dm", "Eb", "F", "Gm", "Adim"],rn:["I","ii","iii","IV","V","vi","vii\u00b0"],minor:false},
+  "Am":{label:"A minor",chords:["Am", "Bdim", "C", "Dm", "Em", "F", "G"],rn:["i","ii\u00b0","III","iv","v","VI","VII"],minor:true},
+  "Em":{label:"E minor",chords:["Em", "F#dim", "G", "Am", "Bm", "C", "D"],rn:["i","ii\u00b0","III","iv","v","VI","VII"],minor:true},
+  "Dm":{label:"D minor",chords:["Dm", "Edim", "F", "Gm", "Am", "Bb", "C"],rn:["i","ii\u00b0","III","iv","v","VI","VII"],minor:true}
 };
+/* extra shapes so every key's chord family has a playable shape */
+const KEY_SHAPES={guitar:{"F#m":[2,4,4,2,2,2],"C#m":[-1,4,6,6,5,4],"G#m":[4,6,6,4,4,4],"B":[-1,2,4,4,4,2],"Gm":[3,5,5,3,3,3],"Bb":[-1,1,3,3,3,1],"Cm":[-1,3,5,5,4,3],"Eb":[-1,-1,1,3,4,3],
+  "Bdim":[-1,2,3,4,3,-1],"C#dim":[-1,4,5,6,5,-1],"Adim":[-1,0,1,2,1,-1],"F#dim":[-1,-1,4,5,7,5],"G#dim":[-1,-1,6,7,9,7],"D#dim":[-1,-1,1,2,4,2],"Edim":[-1,-1,2,3,5,3]},
+ ukulele:{"F#m":[2,1,2,0],"C#m":[1,1,0,4],"G#m":[1,3,4,2],"B":[4,3,2,2],"Gm":[0,2,3,1],"Bb":[3,2,1,1],"Cm":[0,3,3,3],"Eb":[0,3,3,1],
+  "Bdim":[4,2,1,2],"C#dim":[0,1,0,4],"Adim":[2,3,5,3],"F#dim":[2,0,2,0],"G#dim":[1,2,4,2],"D#dim":[2,3,2,0],"Edim":[0,4,3,1]}};
+const KEY_FING={guitar:{"F#m":[1,3,4,1,1,1],"C#m":[0,1,3,4,2,1],"G#m":[1,3,4,1,1,1],"B":[0,1,2,3,4,1],"Gm":[1,3,4,1,1,1],"Bb":[0,1,2,3,4,1],"Cm":[0,1,3,4,2,1],"Eb":[0,0,1,2,4,3],
+  "Bdim":[0,1,2,4,3,0],"C#dim":[0,1,2,4,3,0],"Adim":[0,0,1,3,2,0],"F#dim":[0,0,1,2,4,3],"G#dim":[0,0,1,2,4,3],"D#dim":[0,0,1,2,4,3],"Edim":[0,0,1,2,4,3]},ukulele:{}};
+function keyShape(inst,name){return (CHORDS[inst]&&CHORDS[inst][name])||(KEY_SHAPES[inst]&&KEY_SHAPES[inst][name])||(FB_ADV[inst]&&FB_ADV[inst][name])||null;}
+function keyFing(inst,name){return (FINGERS[inst]&&FINGERS[inst][name])||(KEY_FING[inst]&&KEY_FING[inst][name])||(FB_ADV_FING[inst]&&FB_ADV_FING[inst][name])||null;}
 const PROGS=[
  {name:"I–V–vi–IV · G (the 4-chord song)",chords:["G","D","Em","C"]},
  {name:"I–IV–V · G (rock & blues)",chords:["G","C","D","G"]},
@@ -5535,11 +5552,12 @@ function pluck(midi,time,dur,peak){sfLoadInst("guitar");if(sfInstReady("guitar")
   o.connect(lp);lp.connect(g);g.connect(out);o.start(time);o.stop(time+dur+0.05);}
 function strum(inst,frets,time,down){const notes=chordNotes(inst,frets),order=down?notes:notes.slice().reverse();order.forEach((m,i)=>pluck(m,time+i*0.03,1.5,0.24));}
 function chordDiagram(inst,frets,name,fgArg){const NS="http://www.w3.org/2000/svg",nS=STRING_INSTR[inst].strings.length,nF=5,x0=26,y0=30,dx=28,dy=28,W=x0+(nS-1)*dx+18,H=y0+nF*dy+10;
+  const _pos=frets.filter(f=>f>0),_mx=_pos.length?Math.max.apply(null,_pos):0,base=_mx>nF?Math.min.apply(null,_pos):1;if(base>1)frets=frets.map(f=>f>0?f-base+1:f);
   const fingers=fgArg||((name&&FINGERS[inst]&&FINGERS[inst][name])||null);
   const svg=document.createElementNS(NS,"svg");svg.setAttribute("viewBox","0 0 "+W+" "+H);svg.setAttribute("width",W);
   const mk=(t,a)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
-  for(let r=0;r<=nF;r++){const y=y0+r*dy;svg.appendChild(mk("line",{x1:x0,x2:x0+(nS-1)*dx,y1:y,y2:y,stroke:r===0?"#e8e4d9":"rgba(255,255,255,.28)","stroke-width":r===0?3.5:1.1}));
-    if(r>=1){const t=mk("text",{x:x0-11,y:y0+(r-0.5)*dy+4,"text-anchor":"middle","font-size":"11",fill:"#8aa0a8"});t.textContent=r;svg.appendChild(t);}}
+  for(let r=0;r<=nF;r++){const y=y0+r*dy;svg.appendChild(mk("line",{x1:x0,x2:x0+(nS-1)*dx,y1:y,y2:y,stroke:(r===0&&base===1)?"#e8e4d9":"rgba(255,255,255,.28)","stroke-width":(r===0&&base===1)?3.5:1.1}));
+    if(r>=1){const t=mk("text",{x:x0-11,y:y0+(r-0.5)*dy+4,"text-anchor":"middle","font-size":"11",fill:base>1&&r===1?"#f3c14a":"#8aa0a8","font-weight":base>1&&r===1?"800":"400"});t.textContent=base+r-1;svg.appendChild(t);}}
   for(let s=0;s<nS;s++){const x=x0+s*dx;svg.appendChild(mk("line",{x1:x,x2:x,y1:y0,y2:y0+nF*dy,stroke:"rgba(255,255,255,.28)","stroke-width":1.1}));}
   // barres: same finger on the same fret across 2+ strings
   if(fingers){const grp={};frets.forEach((fr,s)=>{if(fr>0&&fingers[s]>0){const key=fingers[s]+"@"+fr;(grp[key]=grp[key]||[]).push(s);}});
@@ -6096,26 +6114,45 @@ function strBarre(inst){
 }
 function strKey(inst){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  let key="C";
-  function draw(){
+  let key=load("mjk-strkey","C");if(!KEY_CHORDS[key])key="C";let playT=[];
+  const KP=[{n:"I–V–vi–IV",d:"pop",maj:[0,4,5,3],min:[0,5,2,6]},{n:"I–IV–V–I",d:"rock & folk",maj:[0,3,4,0],min:[0,3,4,0]},{n:"vi–IV–I–V",d:"ballad",maj:[5,3,0,4],min:[0,6,5,6]},{n:"ii–V–I",d:"jazz",maj:[1,4,0,0],min:[3,4,0,0]},{n:"I–vi–IV–V",d:"50s",maj:[0,5,3,4],min:[0,5,3,4]}];
+  function stopPlay(){playT.forEach(clearTimeout);playT=[];document.querySelectorAll("#kg .chordcard").forEach(c=>c.classList.remove("kgon"));}
+  function playSeq(idx,beat){stopPlay();unlockAudio();const K=KEY_CHORDS[key],ms=beat||900;
+    idx.forEach((ci,k)=>{playT.push(setTimeout(()=>{const nm=K.chords[ci],fr=keyShape(inst,nm);document.querySelectorAll("#kg .chordcard").forEach((c,j)=>c.classList.toggle("kgon",j===ci));if(fr)strum(inst,fr,ac().currentTime+0.02,true);
+      const now=$("#kNow");if(now)now.innerHTML='<b>'+esc(nm)+'</b> <span style="color:var(--muted)">'+K.rn[ci]+'</span>';},k*ms));});
+    playT.push(setTimeout(()=>{stopPlay();const now=$("#kNow");if(now)now.textContent="";},idx.length*ms+300));}
+  teardown=stopPlay;
+  function draw(){stopPlay();
     const K=KEY_CHORDS[key];
     view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔑 Chords in a Key</span></div>
-      <div class="panel"><div class="intro">These are the chords that belong to <b>${key} major</b> — songs in this key mostly use these. Tap one to hear it.</div>
-      <div class="rrow2"><span class="rlab">Key</span><span class="rchips tight" id="keyChips"></span></div>
-      <div id="fgLegend"></div>
+      <div class="panel"><div class="intro">Every key has a family of 7 chords — songs in that key mostly use these. Pick a key, tap a chord to hear it, or play the whole family and common progressions.</div>
+      <div class="rrow2"><span class="rlab">Major</span><span class="rchips tight" id="keyMaj"></span></div>
+      <div class="rrow2" style="margin-top:2px"><span class="rlab">Minor</span><span class="rchips tight" id="keyMin"></span></div>
+      <div style="margin:10px 0 4px;font:900 1.25rem system-ui,sans-serif">${K.label} <span style="font-size:.85rem;font-weight:700;color:var(--muted)">· ${K.chords[0]} is home</span></div>
+      <div class="actions" style="margin:4px 0"><button class="btn" id="kFam" style="flex:1 1 100%">▶ Play the family</button></div>
+      <div class="rrow2" style="margin-top:4px"><span class="rlab">Play</span><span class="rchips tight" id="kProg"></span></div>
+      <div id="kNow" style="min-height:1.6em;text-align:center;font:800 1.05rem system-ui,sans-serif;margin:6px 0"></div>
+      <details class="howto" style="margin:4px 0 8px"><summary>✋ Finger guide</summary><div id="fgLegend"></div></details>
       <div class="chordgrid" id="kg"></div></div>`;
-    $("#eBack").onclick=()=>renderStrings(inst);
+    $("#eBack").onclick=()=>{stopPlay();renderStrings(inst);};
     const fl=$("#fgLegend");if(fl)fl.appendChild(fingerLegend());
-    const kc=$("#keyChips");Object.keys(KEY_CHORDS).forEach(k=>{const b=document.createElement("button");b.className="rchip sm"+(k===key?" sel":"");b.textContent=k+" major";b.onclick=()=>{key=k;draw();};kc.appendChild(b);});
+    Object.keys(KEY_CHORDS).forEach(k=>{const kk=KEY_CHORDS[k],b=document.createElement("button");b.className="rchip sm"+(k===key?" sel":"");b.textContent=kk.label.replace(/ (major|minor)$/,"");b.onclick=()=>{key=k;save("mjk-strkey",k);draw();};$(kk.minor?"#keyMin":"#keyMaj").appendChild(b);});
+    $("#kFam").onclick=()=>playSeq([0,1,2,3,4,5,6,0],750);
+    const kp=$("#kProg");KP.forEach(pr=>{const idx=K.minor?pr.min:pr.maj,b=document.createElement("button");b.className="rchip sm";b.innerHTML=idx.map(i=>K.chords[i]).join(" ")+' <span style="opacity:.6;font-size:.75em">'+pr.d+'</span>';b.onclick=()=>playSeq(idx.concat(idx),900);kp.appendChild(b);});
     const kg=$("#kg");
-    K.chords.forEach((name,i)=>{const frets=CHORDS[inst][name];const card=document.createElement("div");card.className="chordcard";
-      const h=document.createElement("h4");h.innerHTML=name+' <span style="color:var(--muted);font-size:.8rem">'+K.rn[i]+'</span>';card.appendChild(h);
-      if(frets){card.appendChild(chordDiagram(inst,frets,name));const hear=document.createElement("button");hear.className="rchip sm";hear.textContent="▶ hear";hear.onclick=()=>{unlockAudio();strum(inst,frets,ac().currentTime+0.02,true);};card.appendChild(hear);}
+    K.chords.forEach((name,i)=>{const frets=keyShape(inst,name);const card=document.createElement("div");card.className="chordcard";
+      const fn=K.rn[i],fam=(/°/.test(fn)?"dim":(fn===fn.toUpperCase()?"maj":"min"));
+      const h=document.createElement("h4");h.innerHTML=esc(name)+' <span style="color:'+(fam==="maj"?"var(--gold)":fam==="min"?"#7ff0d6":"#ff8f8c")+';font-size:.85rem;font-weight:900">'+fn+'</span>';card.appendChild(h);
+      if(frets){card.appendChild(chordDiagram(inst,frets,name,keyFing(inst,name)));const row=document.createElement("div");row.style.cssText="display:flex;gap:6px;margin-top:4px;justify-content:center";
+        const hear=document.createElement("button");hear.className="rchip sm";hear.textContent="▶";hear.onclick=()=>{stopPlay();unlockAudio();strum(inst,frets,ac().currentTime+0.02,true);};row.appendChild(hear);
+        if(inst!=="bass"){const w=document.createElement("button");w.className="rchip sm";w.textContent="👀 Watch";w.onclick=()=>{stopPlay();FB.chord=name;FB.adv=false;FBD.auto=true;renderFretboard(inst,"chord");};row.appendChild(w);}
+        card.appendChild(row);}
       else{const p=document.createElement("div");p.className="site-note";p.textContent="(shape coming)";card.appendChild(p);}
       kg.appendChild(card);});
   }
   draw();
 }
+(function(){try{var s=document.createElement("style");s.textContent="#kg .chordcard{transition:transform .15s,box-shadow .15s}#kg .chordcard.kgon{transform:scale(1.06);box-shadow:0 0 0 2px var(--gold),0 8px 22px rgba(243,193,74,.35)}";document.head.appendChild(s);}catch(e){}})();
 const PRG={chords:[],names:[],idx:0,bpm:90,running:false,schID:null,raf:null,nextTime:0,inst:"guitar",loops:0,paid:false,onName:"",visQ:[],beat:0,cnt:0,clickOn:load("mjk-prgclick",true),view:load("mjk-prgview","diagram")};
 (function(){try{var s=document.createElement("style");s.textContent=".pvsweep{position:absolute;top:0;bottom:0;width:20%;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(255,240,200,.5),transparent);animation:pvsw .2s linear forwards}.pvsweep.up{animation-name:pvswu}@keyframes pvsw{from{left:-20%}to{left:100%}}@keyframes pvswu{from{left:100%}to{left:-20%}}";document.head.appendChild(s);}catch(e){}})();
 function prgStop(){PRG.running=false;if(PRG.schID){clearInterval(PRG.schID);PRG.schID=null;}if(PRG.raf){cancelAnimationFrame(PRG.raf);PRG.raf=null;}PRG.visQ=[];PRG.cnt=0;const b=$("#prgStart");if(b)b.textContent="▶ Play along";const st=$("#prgStatus");if(st&&/^(Get ready|Count-in)/.test(st.textContent))st.textContent="";const nw=$("#prgNow");if(nw&&/^[1-4]$/.test(nw.textContent)&&PRG.chords.length)nw.textContent=PRG.chords[PRG.idx]||PRG.chords[0];}
