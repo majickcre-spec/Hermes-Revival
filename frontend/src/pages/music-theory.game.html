@@ -1459,7 +1459,7 @@ function autoCorrelate(buf,sr){
 function stopMic(){
   if(toneRAF)cancelAnimationFrame(toneRAF);toneRAF=null;
   if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null;}
-  toneAnalyser=null;
+  toneAnalyser=null;window.MIC_NODE=null;
 }
 async function ensureMic(){
   if(toneAnalyser)return true;
@@ -1470,7 +1470,7 @@ async function ensureMic(){
     const src=a.createMediaStreamSource(micStream);
     const mg=a.createGain();mg.gain.value=4.4; // boost so quiet notes/singing register
     toneAnalyser=a.createAnalyser();toneAnalyser.fftSize=2048;toneAnalyser.smoothingTimeConstant=0;
-    src.connect(mg);mg.connect(toneAnalyser);
+    src.connect(mg);mg.connect(toneAnalyser);window.MIC_NODE=mg;
     return true;
   }catch(e){return false;}
 }
@@ -2015,6 +2015,7 @@ function rCells(){return 4*rPat().div;}
 function rCellDur(){return (60/R.bpm)/rPat().div;}
 function click(time,kind,vol){
   if(vol!=null&&vol<=0.001)return;
+  try{CLICKLOG.push({t:time,v:vol==null?1:vol});if(CLICKLOG.length>32)CLICKLOG.shift();}catch(e){}
   const a=ac(),sd=soundDef(),o=a.createOscillator(),g=a.createGain();
   o.type=sd.type;o.frequency.value=kind==="accent"?sd.a:kind==="beat"?sd.b:sd.s;
   const lvl=(kind==="sub"?0.2:kind==="beat"?0.46:0.66)*(vol==null?1:vol);
@@ -6160,6 +6161,7 @@ function strKey(inst){
 (function(){try{var s=document.createElement("style");s.textContent="#prgDia.prgdia{display:grid!important;grid-template-columns:1fr 1fr;gap:8px}#prgDia.prgdia .chordcard{min-width:0;padding:6px}#prgDia.prgdia .chordcard svg{width:100%;height:auto}#kg .chordcard,#prgDia .chordcard{transition:transform .15s,box-shadow .15s}#kg .chordcard.kgon,#prgDia .chordcard.kgnext{box-shadow:0 0 0 2px #5aa0ff}#prgDia .chordcard.kgon{transform:scale(1.06);box-shadow:0 0 0 2px var(--gold),0 8px 22px rgba(243,193,74,.35)}";document.head.appendChild(s);}catch(e){}})();
 const PRG={chords:[],names:[],idx:0,bpm:90,running:false,schID:null,raf:null,nextTime:0,inst:"guitar",loops:0,paid:false,onName:"",visQ:[],beat:0,cnt:0,clickOn:load("mjk-prgclick",true),view:load("mjk-prgview","neck"),clickVol:load("mjk-prgclickvol",null),zoom:load("mjk-prgzoom",false),optOpen:load("mjk-prgopen",false)};
 if(PRG.clickVol==null)PRG.clickVol=PRG.clickOn?0.35:0;
+PRG.mic=load("mjk-prgmic",false);PRG.band=load("mjk-prgband",false);
 if(!load("mjk-prghwy1",false)){PRG.view="hwy";save("mjk-prgview","hwy");save("mjk-prghwy1",true);}
 function prgCam(){if(PRG.view!=="neck"||!PRG.zoom){var st=document.getElementById("fbStage"),sc=document.getElementById("fbScaler");if(sc)sc.style.transform="";if(st)st.style.height="";return;}var z=FBD.zoom;FBD.zoom=true;try{fbDemoCam("chord");}catch(e){}FBD.zoom=z;}
 (function(){try{var s=document.createElement("style");s.textContent=".pvsweep{position:absolute;top:0;bottom:0;width:20%;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(255,240,200,.5),transparent);animation:pvsw .2s linear forwards}.pvsweep.up{animation-name:pvswu}@keyframes pvsw{from{left:-20%}to{left:100%}}@keyframes pvswu{from{left:100%}to{left:-20%}}";document.head.appendChild(s);}catch(e){}})();
@@ -6211,7 +6213,7 @@ function hwyEvents(now,L){/* beats from the scheduler's anchor: beat k is at PRG
   if(PRG.running){anchor=PRG.nextTime;cnt=PRG.cnt;pos0=PRG.idx*4+PRG.beat;}else{anchor=now+spb*0.75;cnt=0;pos0=0;}
   const kMin=Math.floor((now-0.6-anchor)/spb),kMax=Math.ceil((now+L-anchor)/spb);
   for(let k=kMin;k<=kMax;k++){const tt=anchor+k*spb;
-    if(k<cnt){const num=4-(cnt-k)+1;if(PRG.running&&num>=1&&num<=4)out.push({t:tt,count:num});continue;}
+    if(k>=0&&k<cnt||(k<0&&cnt>0)){const num=4-(cnt-k)+1;if(PRG.running&&num>=1&&num<=4)out.push({t:tt,count:num});continue;}
     let m=pos0+(k-cnt);if(!PRG.running&&m<0)continue;if(PRG.running&&k<0&&PRG.cnt>0)continue;
     const tot=n*4;m=((m%tot)+tot)%tot;const idx=Math.floor(m/4),b=m%4,name=PRG.chords[idx];
     if(b===0)out.push({t:tt,chord:name,idx:idx,down:true,bar:true});else if(b===2)out.push({t:tt,chord:name,idx:idx,down:false});else out.push({t:tt,beat:true});}
@@ -6226,7 +6228,7 @@ function hwyDraw(){const cv=HWY.cv,dpr=Math.min(2.5,window.devicePixelRatio||1),
   const wave=d=>Math.sin(d*5.5-now*2.2)*5*d;
   const dt=Math.min(0.05,Math.max(0,now-(HWY.last||now)));HWY.last=now;
   hfxStars(c,W,H,now,PRG.running?0.35/L:0.02);hfxLanes(c,lane,N,proj,yOf,wave,now);
-  const ev=hwyEvents(now,L);const strs=fbStrings();
+  const ev=hwyEvents(now,L);const strs=fbStrings();hwyScoreTick(now,ev);
   if(PRG.running){ev.forEach(e=>{if(e.chord!=null&&HWY.prev!=null&&e.t>HWY.prev&&e.t<=now){const sh=keyShape(PRG.inst,e.chord)||[];for(let s=0;s<N;s++)if(sh[s]>=0)hfxBurst(lane[s],hitY,HWY_COL[(N-1-s)%6],e.bar?8:3,e.bar);}});}HWY.prev=now;
   // beat lines
   ev.forEach(e=>{const d=(e.t-now)/L;if(d<0||d>1)return;const y=yOf(d),w=wave(d);c.beginPath();c.moveTo(proj(lane[0]-14,d,w),y);c.lineTo(proj(lane[N-1]+14,d,w),y);c.strokeStyle=e.bar?"rgba(255,255,255,.35)":"rgba(255,255,255,.1)";c.lineWidth=e.bar?2:1;c.stroke();});
@@ -6252,13 +6254,72 @@ function hwyDraw(){const cv=HWY.cv,dpr=Math.min(2.5,window.devicePixelRatio||1),
         hfxGem(c,x,y,r*1.1,col,String(f),hwyBadge(s,strs[s]+f));}
       hfxPill(c,xa-6*k,y,e.chord,k,e.down?"#f3c14a":"#7ff0d6");}
     c.globalAlpha=1;});
-  hfxParts(c,dt);hfxLaneNames(c,lane,N,proj,yOf,wave,hitY);
+  hfxParts(c,dt);hfxLaneNames(c,lane,N,proj,yOf,wave,hitY);hwyScoreDraw(c,W,hitY,now);
   {const nx=ev.find(e=>e.bar&&e.t>now-0.05);if(nx){const sh=keyShape(PRG.inst,nx.chord)||[];hfxNext(c,W,nx.chord+" chord",sh.map(f=>f<0?"x":f).join(" ")+"  (low → high)");}}
   // bouncing ball between strums
   const hits=ev.filter(e=>e.chord!=null).map(e=>e.t).sort((a,b)=>a-b);let t1=null,t2=null;for(let i=0;i<hits.length;i++){if(hits[i]<=now)t1=hits[i];else{t2=hits[i];break;}}
   if(PRG.running&&t2!=null){if(t1==null)t1=t2-2*spb;const ph=Math.min(1,Math.max(0,(now-t1)/(t2-t1))),arc=Math.min(70,30+(t2-t1)*30),by=hitY-9-Math.sin(Math.PI*ph)*arc;
     c.fillStyle="#fff";c.shadowColor="#fff";c.shadowBlur=12;c.beginPath();c.arc(cx,by,7,0,Math.PI*2);c.fill();c.shadowBlur=0;}
 }
+/* ===== MIC ENGINE — level, onsets, chroma, setup/calibration (shared by the highway games) ===== */
+const MIC={lat:load("mjk-miclat",0.08),floor:load("mjk-micfloor",0.004),bleed:load("mjk-micbleed",0),bleedVol:load("mjk-micbleedvol",0.35),cal:load("mjk-miccal",false),an:null,anF:null,td:null,fd:null,prevR:0,lastOn:-9,onsets:[],meterRAF:null,busy:false};
+const CLICKLOG=[];
+function micNodes(){if(!window.MIC_NODE)return false;const a=ac();if(!MIC.an||MIC.node!==window.MIC_NODE){MIC.node=window.MIC_NODE;MIC.an=a.createAnalyser();MIC.an.fftSize=1024;MIC.an.smoothingTimeConstant=0;MIC.anF=a.createAnalyser();MIC.anF.fftSize=8192;MIC.anF.smoothingTimeConstant=0.15;MIC.node.connect(MIC.an);MIC.node.connect(MIC.anF);MIC.td=new Float32Array(1024);MIC.fd=new Float32Array(4096);}return true;}
+function micRMS(){if(!MIC.an)return 0;MIC.an.getFloatTimeDomainData(MIC.td);let s=0;for(let i=0;i<MIC.td.length;i++)s+=MIC.td[i]*MIC.td[i];return Math.sqrt(s/MIC.td.length);}
+function micChroma(){const ch=new Array(12).fill(0);if(!MIC.anF)return ch;MIC.anF.getFloatFrequencyData(MIC.fd);const bin=ac().sampleRate/8192;const i0=Math.ceil(75/bin),i1=Math.min(MIC.fd.length-1,Math.floor(2400/bin));
+  for(let i=i0+1;i<i1;i++){const db=MIC.fd[i];if(db<-85||db<MIC.fd[i-1]||db<MIC.fd[i+1])continue;const m=Math.pow(10,db/20),f=i*bin,pc=(((Math.round(12*Math.log2(f/440))+69)%12)+12)%12;ch[pc]+=m*m;}
+  const tot=ch.reduce((x,y)=>x+y,0)||1;return ch.map(v=>v/tot);}
+function micBleedAt(t){let b=0;for(let i=CLICKLOG.length-1;i>=0;i--){const c=CLICKLOG[i];if(Math.abs(t-c.t)<0.07)b=Math.max(b,MIC.bleed*(c.v/(MIC.bleedVol||0.35)));if(c.t<t-1)break;}return b;}
+/* call every animation frame while listening; returns an onset record or null */
+function micTick(now){const r=micRMS();let on=null;const thr=Math.max(MIC.floor*4,0.012),bl=micBleedAt(now-MIC.lat);
+  if(r>thr&&r>MIC.prevR*1.45+0.003&&now-MIC.lastOn>0.09&&(bl===0||r>bl*1.7)){MIC.lastOn=now;on={t:now-MIC.lat,at:now,r:r,ch:null,chAt:now+0.12,used:false};MIC.onsets.push(on);if(MIC.onsets.length>40)MIC.onsets.shift();}
+  MIC.onsets.forEach(o=>{if(!o.ch&&now>=o.chAt)o.ch=micChroma();});MIC.prevR=r;MIC.level=r;return on;}
+function micStatusTxt(){return MIC.cal?("set · delay "+Math.round(MIC.lat*1000)+" ms"+(MIC.bleed>MIC.floor*6?" · 🎧 headphones help":"")):"not set up yet";}
+function micSetupHTML(){return '<details id="micSet" style="margin:6px 0"><summary style="cursor:pointer;list-style:none;padding:8px 2px;font:800 .88rem system-ui;color:var(--muted)">🎤 Mic setup · <span id="micSum" style="font-weight:600">'+micStatusTxt()+'</span> ▾</summary>'+
+  '<div style="display:flex;align-items:center;gap:8px;margin:4px 0"><span class="rlab" style="min-width:auto">Level</span><div style="flex:1;height:14px;border-radius:7px;background:rgba(255,255,255,.08);overflow:hidden"><div id="micBar" style="height:100%;width:0;background:linear-gradient(90deg,#4fe08a,#ffc94a 70%,#ff5d6c);transition:width .05s"></div></div><b id="micNote" style="min-width:52px;text-align:right;font:900 1rem system-ui">—</b></div>'+
+  '<div style="color:var(--muted);font-size:.82rem;margin:2px 0 6px">Play a string — the bar should jump into the yellow and the note name should match (a quick tune check).</div>'+
+  '<div class="actions"><button class="btn ghost" id="micCal" style="flex:1 1 100%">▶ Run setup (about 10 seconds)</button></div><div id="micCalMsg" class="feedback" style="min-height:20px"></div></details>';}
+function micMeterStop(){if(MIC.meterRAF)cancelAnimationFrame(MIC.meterRAF);MIC.meterRAF=null;}
+function micMeterStart(){micMeterStop();const buf=new Float32Array(2048);let lastP=0;const loop=()=>{const bar=document.getElementById("micBar");if(!bar){micMeterStop();return;}const r=micRMS();bar.style.width=Math.min(100,Math.round(Math.sqrt(r/0.25)*100))+"%";
+  const now=performance.now();if(toneAnalyser&&now-lastP>120){lastP=now;toneAnalyser.getFloatTimeDomainData(buf);const hz=autoCorrelate(buf,ac().sampleRate),nt=document.getElementById("micNote");if(nt){if(hz>0){const m=69+12*Math.log2(hz/440),c=Math.round((m-Math.round(m))*100);nt.textContent=NOTE_NAMES[((Math.round(m)%12)+12)%12]+(Math.abs(c)>12?(c>0?" ↑":" ↓"):" ✓");}else nt.textContent="—";}}
+  MIC.meterRAF=requestAnimationFrame(loop);};MIC.meterRAF=requestAnimationFrame(loop);}
+function micSetupBind(){const d=document.getElementById("micSet");if(!d)return;d.addEventListener("toggle",()=>{if(d.open){unlockAudio();ensureMic().then(ok=>{const m=document.getElementById("micCalMsg");if(!ok){if(m)m.textContent="🎤 Allow the microphone to use this.";return;}micNodes();micMeterStart();});}else micMeterStop();});
+  const b=document.getElementById("micCal");if(b)b.onclick=()=>micCalibrate();}
+function micSample(dur){return new Promise(res=>{const out=[],t0=ac().currentTime;const loop=()=>{const now=ac().currentTime;out.push({t:now,r:micRMS()});if(now-t0<dur)requestAnimationFrame(loop);else res(out);};requestAnimationFrame(loop);});}
+function med(a){if(!a.length)return null;const s=a.slice().sort((x,y)=>x-y);return s[Math.floor(s.length/2)];}
+async function micCalibrate(){if(MIC.busy)return;const msg=t=>{const m=document.getElementById("micCalMsg");if(m)m.innerHTML=t;};unlockAudio();const ok=await ensureMic();if(!ok){msg("🎤 Allow the microphone to use this.");return;}micNodes();MIC.busy=true;
+  try{
+    msg("1/3 · <b>Stay quiet</b> — measuring the room…");await new Promise(r=>setTimeout(r,300));
+    const q=await micSample(1.2);const floor=Math.max(0.001,med(q.map(x=>x.r)));
+    msg("2/3 · <b>Stay quiet</b> — listening to the click through your speaker…");
+    const a=ac(),vol=0.35,clicks=[];let t=a.currentTime+0.35;for(let i=0;i<4;i++){click(t,"beat",vol);clicks.push(t);t+=0.6;}
+    const s2=await micSample(0.35+0.6*4+0.1);const peaks=[],dl=[];clicks.forEach(tc=>{let pk=0,first=null;s2.forEach(x=>{if(x.t>=tc&&x.t<=tc+0.3){if(x.r>pk)pk=x.r;if(first==null&&x.r>floor*3)first=x.t-tc;}});peaks.push(pk);if(first!=null)dl.push(first);});
+    const bleed=med(peaks)||0,bleedLat=dl.length>=3?med(dl):null;
+    msg("3/3 · <b>Strum a muted chord on each click</b> (8 clicks)…");await new Promise(r=>setTimeout(r,400));
+    const cl2=[];t=ac().currentTime+0.5;for(let i=0;i<8;i++){click(t,i%4===0?"accent":"beat",0.4);cl2.push(t);t+=0.75;}
+    const s3=await micSample(0.5+0.75*8+0.2);const thr=Math.max(floor*4,0.012),ons=[];let prev=0,last=-9;s3.forEach(x=>{if(x.r>thr&&x.r>prev*1.45+0.003&&x.t-last>0.12){let nearClick=false;cl2.forEach(c=>{if(Math.abs(x.t-c)<0.07&&x.r<Math.max(bleed*1.7,thr))nearClick=true;});if(!nearClick){ons.push(x.t);last=x.t;}}prev=x.r;});
+    const offs=[];cl2.forEach(c=>{let best=null;ons.forEach(o=>{const d=o-c;if(d>-0.12&&d<0.4&&(best==null||Math.abs(d)<Math.abs(best)))best=d;});if(best!=null)offs.push(best);});
+    let lat=MIC.lat,how="";if(offs.length>=5){lat=Math.max(0,Math.min(0.35,med(offs)));how="from your strums";}else if(bleedLat!=null){lat=Math.max(0,Math.min(0.35,bleedLat));how="from the click";}else how="kept the default (I didn’t hear enough strums)";
+    MIC.floor=floor;MIC.bleed=bleed;MIC.bleedVol=vol;MIC.lat=lat;MIC.cal=true;save("mjk-micfloor",floor);save("mjk-micbleed",bleed);save("mjk-micbleedvol",vol);save("mjk-miclat",lat);save("mjk-miccal",true);
+    const noise=floor<0.006?"quiet ✓":floor<0.02?"a little noisy":"noisy — find a quieter spot",bl=bleed>floor*6;
+    msg("✅ Done — mic delay <b>"+Math.round(lat*1000)+" ms</b> ("+how+") · room "+noise+(bl?" · the mic hears your speaker — <b>🎧 headphones</b> or a lower click will score most fairly":"")+" · heard "+offs.length+"/8 strums");
+    const sm=document.getElementById("micSum");if(sm)sm.textContent=micStatusTxt();
+  }catch(e){msg("Setup hit a snag: "+esc(String(e&&e.message||e)));}MIC.busy=false;}
+/* ---- chord scoring on the Progressions highway ---- */
+function chordPCs(inst,name){const sh=keyShape(inst,name)||[],st=STRING_INSTR[inst]?STRING_INSTR[inst].strings:fbStrings(),set={};sh.forEach((f,s)=>{if(f>=0)set[(((st[s]+f)%12)+12)%12]=1;});return set;}
+function hwyScoreReset(){PRG.sc={score:0,streak:0,top:0,n:0,hit:0,bars:0,clean:0,jd:{},fx:[]};MIC.onsets=[];}
+function hwyScoreHud(){const h=document.getElementById("prgHud");if(!h)return;if(!PRG.mic){h.innerHTML="";return;}const S=PRG.sc||{score:0,streak:0,n:0,hit:0,bars:0,clean:0};const acc=S.n?Math.round(100*S.hit/S.n):100,ch=S.bars?Math.round(100*S.clean/S.bars):100;
+  h.innerHTML='<b style="font-size:1.1rem">'+S.score+'</b> pts · 🔥 '+S.streak+(S.streak>=8?' <b style="color:var(--gold)">×'+Math.min(4,1+Math.floor(S.streak/8))+'</b>':'')+' · ⏱ '+acc+'% on time · 🎸 '+ch+'% clean chords <span style="display:inline-block;width:46px;height:8px;border-radius:4px;background:rgba(255,255,255,.1);vertical-align:middle;overflow:hidden"><span id="prgLvl" style="display:block;height:100%;width:0;background:#4fe08a"></span></span>';}
+function hwyScoreTick(now,ev){if(!PRG.mic||!PRG.running||!PRG.sc)return;micTick(now);const lv=document.getElementById("prgLvl");if(lv)lv.style.width=Math.min(100,Math.round(Math.sqrt((MIC.level||0)/0.25)*100))+"%";
+  const S=PRG.sc;ev.forEach(e=>{if(e.chord==null||e.t<PRG.scoreFrom)return;const key=Math.round(e.t*1000);if(S.jd[key])return;if(now<e.t+MIC.lat+0.32)return;S.jd[key]=1;
+    let best=null,bd=1e9;MIC.onsets.forEach(o=>{if(o.used)return;const d=o.t-e.t;if(Math.abs(d)<=0.25&&Math.abs(d)<bd){bd=Math.abs(d);best=o;}});S.n++;
+    if(!best){S.streak=0;S.fx.push({t:now,k:"miss",txt:"MISS"});hwyScoreHud();return;}best.used=true;const tk=bd<=0.09?"perfect":"good";S.hit++;S.streak++;S.top=Math.max(S.top,S.streak);
+    let pts=e.bar?(tk==="perfect"?100:60):(tk==="perfect"?50:30),txt=tk==="perfect"?"PERFECT":"GOOD",q=null;
+    if(e.bar){S.bars++;const want=chordPCs(PRG.inst,e.chord),ch=best.ch||micChroma();let m=0;for(const pc in want)m+=ch[pc]||0;q=m>=0.72?"clean":m>=0.5?"close":"wrong";if(q==="clean")S.clean++;pts=Math.round(pts*(q==="clean"?1:q==="close"?0.6:0.2));txt+=q==="clean"?" · ✓ "+e.chord:q==="close"?" · ~ close":" · ✗ not "+e.chord;}
+    S.score+=pts*Math.min(4,1+Math.floor(S.streak/8));S.fx.push({t:now,k:q==="wrong"?"wrongchord":tk,txt:txt,bar:e.bar,chord:e.chord});hwyScoreHud();});}
+function hwyScoreDraw(c,W,hitY,now){if(!PRG.sc)return;PRG.sc.fx=PRG.sc.fx.filter(f=>now-f.t<0.9);PRG.sc.fx.forEach(f=>{const a=(now-f.t)/0.9;c.globalAlpha=1-a;c.font="900 "+(f.bar?17:14)+"px system-ui";c.textAlign="center";
+  c.fillStyle=f.k==="perfect"?"#ffe27a":f.k==="good"?"#7ff0d6":"#ff5d6c";c.shadowColor=c.fillStyle;c.shadowBlur=12;c.fillText(f.txt,W/2,hitY-40-30*a);c.shadowBlur=0;c.globalAlpha=1;});}
+
 function prgStop(){if(PRG.running&&PRG.view==="hwy"&&PRG.chords.length)setTimeout(()=>{if(!PRG.running&&document.getElementById("hwyCv"))try{prgShow(0);}catch(e){}},0);PRG.running=false;if(PRG.schID){clearInterval(PRG.schID);PRG.schID=null;}if(PRG.raf){cancelAnimationFrame(PRG.raf);PRG.raf=null;}PRG.visQ=[];PRG.cnt=0;const b=$("#prgStart");if(b)b.textContent="▶ Watch & play along";const st=$("#prgStatus");if(st&&/^(Get ready|Count-in)/.test(st.textContent))st.textContent="";const nw=$("#prgNow");if(nw&&/^[1-4]$/.test(nw.textContent)&&PRG.chords.length)nw.textContent=PRG.chords[PRG.idx]||PRG.chords[0];}
 function prgSchedule(){const a=ac(),ahead=0.1,spb=60/PRG.bpm;
   while(PRG.nextTime<a.currentTime+ahead){
@@ -6266,7 +6327,7 @@ function prgSchedule(){const a=ac(),ahead=0.1,spb=60/PRG.bpm;
     const name=PRG.chords[PRG.idx],frets=keyShape(PRG.inst,name),b=PRG.beat;
     if(b===0)PRG.visQ.push({t:PRG.nextTime,idx:PRG.idx});
     click(PRG.nextTime,b===0?"accent":"beat",PRG.clickVol);
-    if(frets&&(b===0||b===2)){const down=(b===0);strum(PRG.inst,frets,PRG.nextTime,down);PRG.visQ.push({t:PRG.nextTime,strum:down,frets:frets});}
+    if(frets&&(b===0||b===2)){const down=(b===0);if(!(PRG.mic&&!PRG.band))strum(PRG.inst,frets,PRG.nextTime,down);PRG.visQ.push({t:PRG.nextTime,strum:down,frets:frets});}
     PRG.nextTime+=spb;PRG.beat++;if(PRG.beat>=4){PRG.beat=0;PRG.idx=(PRG.idx+1)%PRG.chords.length;if(PRG.idx===0)PRG.loops++;}}}
 function prgNeckShow(name){const w=document.getElementById("fbSvgWrap");if(!w||!prgNeckish())return;FB.inst=PRG.inst;FB.mode="chord";FB.adv=false;FB.chord=name;const sh=fbShapeFor(name);FB.win=sh?fbWinFor(sh):1;const sn=FB.showNotes;FB.showNotes=false;FB.pvHeld=true;w.innerHTML=fbSVG();FB.pvHeld=false;FB.showNotes=sn;}
 function prgNeckMount(box,name){box.style.display="block";box.innerHTML='<div id="fbStage" style="overflow:hidden;border-radius:14px;padding-bottom:14px"><div id="fbScaler" style="transform-origin:0 0;transition:transform .6s ease"><div id="fbBox" style="position:relative"><div id="fbSvgWrap"></div></div><div id="fbZone" style="touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;margin-top:-4.6%;position:relative;overflow:hidden;filter:drop-shadow(0 10px 20px rgba(0,0,0,.45))"></div></div></div>';FB.inst=PRG.inst;prgNeckShow(name);setTimeout(prgCam,50);const z=document.getElementById("fbZone");z.innerHTML=fbZoneSVG();fbBindZone(z);}
@@ -6340,7 +6401,7 @@ function melTap(s,f){if(!MEL.running||MEL.mode!=="tap")return;const now=ac().cur
   if(best)melJudge(best,now-melT(best.b),now);else{MEL.streak=0;MEL.fx.push({t:now,s:s,k:"oops"});melHud();}}
 function melMicFrame(now){if(MEL.mode!=="mic"||!toneAnalyser)return;if(!MEL.micBuf||MEL.micBuf.length!==toneAnalyser.fftSize)MEL.micBuf=new Float32Array(toneAnalyser.fftSize);toneAnalyser.getFloatTimeDomainData(MEL.micBuf);
   const hz=autoCorrelate(MEL.micBuf,ac().sampleRate);if(hz<=0)return;const mm=69+12*Math.log2(hz/440),near=Math.round(mm);if(Math.abs(mm-near)>0.45)return;
-  MEL.notes.forEach(n=>{if(n.j)return;const dt=now-0.05-melT(n.b);if(dt<-0.2||dt>0.25)return;if(((near-n.m)%12+12)%12===0)melJudge(n,dt,now);});}
+  MEL.notes.forEach(n=>{if(n.j)return;const dt=now-MIC.lat-melT(n.b);if(dt<-0.2||dt>0.25)return;if(((near-n.m)%12+12)%12===0)melJudge(n,dt,now);});}
 function melHud(){const h=document.getElementById("melHud");if(!h)return;if(MEL.mode==="watch"){h.innerHTML=MEL.running?'<span style="color:var(--muted)">Watching — '+esc(MEL.song.name)+'</span>':"";return;}
   const judged=MEL.notes.filter(n=>n.j).length,acc=judged?Math.round(100*MEL.hits/judged):100;
   h.innerHTML='<b style="font-size:1.15rem">'+MEL.score+'</b> pts · 🔥 '+MEL.streak+(MEL.streak>=8?' <b style="color:var(--gold)">×'+Math.min(4,1+Math.floor(MEL.streak/8))+'</b>':'')+' · 🎯 '+acc+'%';}
@@ -6405,7 +6466,7 @@ function renderMelody(inst){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden
       <details id="melLib" ${libOpen?"open":""} style="margin:6px 0"><summary style="cursor:pointer;list-style:none;padding:6px 2px;font:800 .9rem system-ui;color:var(--muted)">🎵 Library · ${melAll().length} melodies ▾</summary><div id="melLibBody"></div></details>
       <div style="margin:6px 0 2px;font:900 1.2rem system-ui">${esc(S.name)}</div><div style="color:var(--muted);font-size:.85rem;margin-bottom:6px">${MEL_GENRE_IC[S.g]||"🎵"} ${esc(S.g)} · ${esc(S.by||"")} · <i>${tagTxt}</i>${bk?' · best <b style="color:#5fe0a8">'+bk+'</b>':''}</div>
       <div class="rchips tight" id="melModes" style="margin:4px 0"></div>
-      ${hwyOptsHTML()}
+      ${hwyOptsHTML()}${MEL.mode==="mic"?micSetupHTML():""}
       <div id="melHud" style="min-height:24px;text-align:center;margin:4px 0"></div>
       <div id="melStageWrap"><canvas id="melCv" style="display:block;width:100%;height:300px;border-radius:14px 14px 0 0;background:linear-gradient(#07060f,#14102a 70%,#1d1638)"></canvas>
         <div id="fbStage" style="border-radius:0 0 14px 14px"><div id="fbBox" style="position:relative"><div id="fbSvgWrap">${fbSVG()}</div><div id="fbTouch" style="position:absolute;left:0;top:0;right:0;bottom:0;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none"></div></div>
@@ -6434,7 +6495,7 @@ function renderMelody(inst){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden
     $("#melNames").onclick=function(){FB.showNotes=!FB.showNotes;this.classList.toggle("sel",FB.showNotes);MEL.nextKey="";};
     wireLead(draw);
     $("#melFile").onchange=function(){const f=this.files&&this.files[0];if(!f)return;melImport(f,(id,err)=>{if(!id){alertMsg("Couldn’t read that MIDI — "+(err&&err.message||"try another file"));return;}save("mjk-mellib",true);pick(id);});};
-    fbBindTouch(document.getElementById("fbTouch"));fbBindZone(document.getElementById("fbZone"));hwyOptsBind(()=>{MEL.nextKey="";});hwyApplyFold();
+    fbBindTouch(document.getElementById("fbTouch"));fbBindZone(document.getElementById("fbZone"));hwyOptsBind(()=>{MEL.nextKey="";});hwyApplyFold();micSetupBind();
     MEL.nextKey="";melHud();MEL.raf=requestAnimationFrame(melFrame);
   }
   function alertMsg(m){const r=$("#melRes");if(r)r.innerHTML='<div class="feedback try">'+esc(m)+'</div>';}
@@ -6520,7 +6581,7 @@ function strProg(inst){
         <div class="prg-now" id="prgNow">${P.chords[0]}</div>
         <div class="hpstrip" id="prgStrip" style="display:none;margin:6px 0"></div>
         <div class="rchips tight" id="prgView" style="justify-content:center;margin:6px 0"></div>
-        ${PRG.view==="hwy"?hwyOptsHTML():""}
+        ${PRG.view==="hwy"?hwyOptsHTML()+'<div class="rchips tight" style="justify-content:center;margin:0 0 4px"><button class="rchip sm'+(PRG.mic?" sel":"")+'" id="prgMic">🎸 Score my guitar: '+(PRG.mic?"On":"Off")+'</button>'+(PRG.mic?'<button class="rchip sm'+(PRG.band?" sel":"")+'" id="prgBand">🔈 Band '+(PRG.band?"on":"off")+'</button>':'')+'</div>'+(PRG.mic?micSetupHTML()+'<div id="prgHud" style="min-height:24px;text-align:center;margin:2px 0 4px"></div>':''):""}
         <div class="${prgNeckish()?"":"chordgrid prgdia"}" id="prgDia" style="justify-content:center"></div>
         <div style="display:flex;align-items:center;gap:8px;margin:10px 0 4px"><button class="rchip sm" id="prgBpmDn" style="min-width:40px;justify-content:center;font-weight:900">−</button><span style="flex:0 0 auto;text-align:center;font:900 1.05rem system-ui,sans-serif;min-width:82px">♩ <span id="prgBpmV">${PRG.bpm}</span> <span style="font-size:.75rem;color:var(--muted)">BPM</span></span><button class="rchip sm" id="prgBpmUp" style="min-width:40px;justify-content:center;font-weight:900">+</button><input type="range" id="prgBpm" min="40" max="200" value="${PRG.bpm}" style="flex:1 1 auto;min-width:60px;accent-color:var(--gold)"></div>
         ${clickVolRow("prgClickV",PRG.clickVol)}
@@ -6543,7 +6604,8 @@ function strProg(inst){
     bindClickVol("prgClickV",v=>{PRG.clickVol=v;save("mjk-prgclickvol",v);prgSum();});
     $("#prgZoom").onclick=function(){PRG.zoom=!PRG.zoom;save("mjk-prgzoom",PRG.zoom);this.classList.toggle("sel",PRG.zoom);prgSum();prgCam();};
     {const od=$("#prgOpt");od.addEventListener("toggle",()=>{PRG.optOpen=od.open;save("mjk-prgopen",od.open);$("#prgOptArr").textContent=od.open?"\u25b4":"\u25be";});}
-    $("#prgStart").onclick=()=>{if(PRG.running)prgStop();else prgStart();};
+    $("#prgStart").onclick=()=>{if(PRG.running){prgStop();if(PRG.mic){try{stopMic();}catch(e){}}}else if(PRG.view==="hwy"&&PRG.mic){unlockAudio();const h=$("#prgHud");if(h)h.textContent="Turning on the mic…";ensureMic().then(ok=>{if(!ok){if(h)h.textContent="🎤 Allow the mic to score your guitar.";return;}micNodes();hwyScoreReset();prgStart();PRG.scoreFrom=PRG.nextTime+4*60/PRG.bpm-0.05;hwyScoreHud();});}else prgStart();};
+    {const mb=$("#prgMic");if(mb)mb.onclick=()=>{PRG.mic=!PRG.mic;save("mjk-prgmic",PRG.mic);prgStop();draw();};const bb=$("#prgBand");if(bb)bb.onclick=()=>{PRG.band=!PRG.band;save("mjk-prgband",PRG.band);bb.classList.toggle("sel",PRG.band);bb.textContent="🔈 Band "+(PRG.band?"on":"off");};micSetupBind();hwyScoreHud();}
     $("#prgCR").onclick=prgCR;
     $("#prgPick").onclick=prgPick;
     {const pv=$("#prgView");[["hwy","\ud83d\udee3\ufe0f Highway"],["neck","\ud83c\udfb8 Neck"],["diagram","\u270b Shapes"]].forEach(o=>{const b=document.createElement("button");b.className="rchip sm"+(PRG.view===o[0]?" sel":"");b.textContent=o[1];b.onclick=()=>{PRG.view=o[0];save("mjk-prgview",o[0]);const was=PRG.running;draw();if(was){const b2=$("#prgStart");if(b2)b2.textContent="⏸ Stop";}};pv.appendChild(b);});}
