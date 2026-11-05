@@ -7016,13 +7016,13 @@ function renderMelodyLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=
 /* ===== MEDITATION — binaural brainwaves, breathwork + HRV, rhythm mind, sessions ===== */
 let MED={master:null,oscs:[],timer:null};
 function medStop(){if(MED.timer){clearInterval(MED.timer);MED.timer=null;}MED.layers=[];try{if(MED.ocean){clearTimeout(MED.ocean.t);MED.ocean=null;}}catch(e){}MED.hum=null;if(!MED.master)return;const a=ac(),m=MED.master,os=MED.oscs;MED.master=null;MED.oscs=[];try{m.gain.cancelScheduledValues(a.currentTime);m.gain.setTargetAtTime(0.0001,a.currentTime,0.3);}catch(e){}setTimeout(()=>{os.forEach(o=>{try{o.stop();}catch(e){}});},800);}
-function medBinaural(beatHz,carrier,vol,shimmer){try{medMarkDone();}catch(e){}medStop();unlockAudio();const a=ac(),oscs=[];let rightO=null,shimL=null;
+function medBinaural(beatHz,carrier,vol,shimmer){try{medMarkDone();}catch(e){}medStop();unlockAudio();MED.pans=[];if(MEDSPK.on)shimmer=true;const a=ac(),oscs=[];let rightO=null,shimL=null;
   const master=a.createGain();master.gain.value=0.0001;const gate=a.createGain();gate.gain.value=1;master.connect(gate);gate.connect(a.destination);MED.gate=gate;MED.hum=null;MED.ocean=null;master.gain.setTargetAtTime(vol==null?0.5:vol,a.currentTime,0.9);
   const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=2200;
   const dg=a.createGain();dg.gain.value=0.86;lp.connect(dg);dg.connect(master);const dd=[];[[0.023,0.09],[0.041,0.06]].forEach(([f,d])=>{const l=a.createOscillator();l.type="sine";l.frequency.value=f;const lg=a.createGain();lg.gain.value=MEDDRIFT.on?d:0;lg._d=d;l.connect(lg);lg.connect(dg.gain);l.start();oscs.push(l);dd.push(lg);});MED.driftG=dd;
-  [[-1,0],[1,beatHz]].forEach(([pan,off])=>{const o=a.createOscillator();o.type="sine";o.frequency.value=carrier+off;const pn=a.createStereoPanner?a.createStereoPanner():null;if(pn)pn.pan.value=pan;const g=a.createGain();g.gain.value=0.17;o.connect(pn||g);if(pn)pn.connect(g);g.connect(lp);o.start();oscs.push(o);if(pan===1)rightO=o;});
+  [[-1,0],[1,beatHz]].forEach(([pan,off])=>{const o=a.createOscillator();o.type="sine";o.frequency.value=carrier+off;const pn=a.createStereoPanner?a.createStereoPanner():null;if(pn){pn.pan.value=MEDSPK.on?0:pan;MED.pans.push([pn,pan]);}const g=a.createGain();g.gain.value=0.17;o.connect(pn||g);if(pn)pn.connect(g);g.connect(lp);o.start();oscs.push(o);if(pan===1)rightO=o;});
   [0,7].forEach(n=>{const o=a.createOscillator();o.type="sine";o.frequency.value=carrier*Math.pow(2,n/12)/2;const g=a.createGain();g.gain.value=0.035;const tr=a.createOscillator();tr.type="sine";tr.frequency.value=0.07;const tg=a.createGain();tg.gain.value=0.018;tr.connect(tg);tg.connect(g.gain);tr.start();oscs.push(tr);o.connect(g);g.connect(lp);o.start();oscs.push(o);});
-  {const o=a.createOscillator();o.type="sine";o.frequency.value=carrier;const g=a.createGain();g.gain.value=0;const lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=beatHz;const lg=a.createGain();lg.gain.value=shimmer?0.03:0;lfo.connect(lg);lg.connect(g.gain);lfo.start();oscs.push(lfo);shimL=lfo;MED.pulseG=lg;o.connect(g);g.connect(lp);o.start();oscs.push(o);}
+  {const o=a.createOscillator();o.type="sine";o.frequency.value=carrier;const g=a.createGain();g.gain.value=0;const lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=beatHz;const lg=a.createGain();lg.gain.value=shimmer?(MEDSPK.on?0.07:0.03):0;lfo.connect(lg);lg.connect(g.gain);lfo.start();oscs.push(lfo);shimL=lfo;MED.pulseG=lg;o.connect(g);g.connect(lp);o.start();oscs.push(o);}
   MED.master=master;MED.oscs=oscs;MED.right=rightO;MED.lfo=shimL;MED.body=null;MED.bodyDepth=null;}
 const MEDDRIFT={on:load("mjk-meddrift",true)};
 function medDrift(on){MEDDRIFT.on=on;save("mjk-meddrift",on);try{const a=ac();(MED.driftG||[]).forEach(g=>{g.gain.cancelScheduledValues(a.currentTime);g.gain.setTargetAtTime(on?g._d:0,a.currentTime,1.5);});}catch(e){}}
@@ -7057,7 +7057,7 @@ const MEDLAYER={mode:load("mjk-medlayers","off")}; // off | phi | oct
 function medLayersStop(){(MED.layers||[]).forEach(L=>{try{L.g.gain.setTargetAtTime(0.0001,ac().currentTime,0.6);}catch(e){}});MED.layers=[];}
 /* specs: [{hz:fixed beat} or {ratio:x of main beat}, carrier, level] */
 function medLayersStart(specs){if(!MED.master)return;medLayersStop();const a=ac(),lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=1500;lp.connect(MED.master);MED.layers=[];
-  specs.forEach(sp=>{const g=a.createGain();g.gain.value=0.0001;g.connect(lp);const beat=sp.hz||1;[[-1,0],[1,beat]].forEach(([pan,off])=>{const o=a.createOscillator();o.type="sine";o.frequency.value=sp.carrier+off;const pn=a.createStereoPanner?a.createStereoPanner():null;if(pn){pn.pan.value=pan;o.connect(pn);pn.connect(g);}else o.connect(g);o.start();MED.oscs.push(o);if(pan===1)sp.r=o;});
+  specs.forEach(sp=>{const g=a.createGain();g.gain.value=0.0001;g.connect(lp);const beat=sp.hz||1;[[-1,0],[1,beat]].forEach(([pan,off])=>{const o=a.createOscillator();o.type="sine";o.frequency.value=sp.carrier+off;const pn=a.createStereoPanner?a.createStereoPanner():null;if(pn){pn.pan.value=MEDSPK.on?0:pan;(MED.pans=MED.pans||[]).push([pn,pan]);o.connect(pn);pn.connect(g);}else o.connect(g);o.start();MED.oscs.push(o);if(pan===1)sp.r=o;});
     MED.layers.push({g:g,r:sp.r,carrier:sp.carrier,hz:sp.hz||null,ratio:sp.ratio||null,level:sp.level||0.05,on:false});});}
 function medLayerLevel(i,on,tc){const L=(MED.layers||[])[i];if(!L)return;L.on=on;L.g.gain.setTargetAtTime(on?L.level:0.0001,ac().currentTime,tc||2.5);}
 function medLayersFollow(mainHz){(MED.layers||[]).forEach(L=>{if(L.ratio&&L.r){const f=Math.max(0.5,Math.min(70,mainHz*L.ratio));L.r.frequency.setTargetAtTime(L.carrier+f,ac().currentTime,0.2);}});}
@@ -7065,7 +7065,50 @@ function layerSpecs(mode,carrier){const k=carrier/200;if(mode==="phi")return [1/
   if(mode==="oct")return [0.5,2,4].map((r,i)=>({ratio:r,carrier:Math.round([130,250,320][i]*k),level:0.045}));return [];}
 function ladderSpecs(carrier){const k=carrier/200;return PHI_LADDER.map((hz,i)=>({hz:hz,carrier:Math.round([96,112,128,150,180,215,255,300][i]*k),level:i>=6?0.06:0.05}));}
 
-function medPulse(on){try{if(MED.pulseG){const a=ac();MED.pulseG.gain.cancelScheduledValues(a.currentTime);MED.pulseG.gain.setTargetAtTime(on?0.03:0,a.currentTime,0.25);}}catch(e){}}
+function medPulse(on){try{if(MED.pulseG){const a=ac();MED.pulseG.gain.cancelScheduledValues(a.currentTime);MED.pulseG.gain.setTargetAtTime(on?(MEDSPK.on?0.07:0.03):0,a.currentTime,0.25);}}catch(e){}}
+const MEDSPK={on:load("mjk-medspk",false)};
+function medSpeaker(on){MEDSPK.on=on;save("mjk-medspk",on);try{const a=ac();(MED.pans||[]).forEach(([pn,orig])=>{pn.pan.cancelScheduledValues(a.currentTime);pn.pan.setTargetAtTime(on?0:orig,a.currentTime,0.3);});if(MED.pulseG){MED.pulseG.gain.cancelScheduledValues(a.currentTime);MED.pulseG.gain.setTargetAtTime(on?0.07:0.03,a.currentTime,0.4);}}catch(e){}}
+/* ===== SENSORS PANEL for journeys — reuses the app's heart-rate (HR) and Muse (M) Bluetooth engines ===== */
+const BIO={log:[],t0:Date.now(),timer:null};
+function bioBT(){return !!(navigator.bluetooth&&navigator.bluetooth.requestDevice);}
+function bioMsg(t){const m=document.getElementById("bioMsg");if(m)m.innerHTML=t;}
+function bioHelp(){bioMsg("<b>This browser can’t use Bluetooth.</b> On iPhone, Safari blocks it — install the free <b>Bluefy – Web BLE Browser</b> app and open MMU in it. On Android or a computer, use Chrome.");}
+function bioHR(){if(HR.connected&&HR.bpm)return HR.bpm;if(M.connected&&M.hr)return M.hr;return null;}
+function bioHRV(){if(HR.connected&&HR.rr&&HR.rr.length>=6)return hrv();if(M.connected&&M.rmssd)return M.rmssd;return null;}
+function bioCoherence(){let rr=HR.connected&&HR.rr&&HR.rr.length?HR.rr.slice():(M.connected&&M.ibis?M.ibis.map(x=>x.ibi):[]);if(rr.length<40)return null;
+  let s=0,st=rr.length;while(st>0&&s<64000){st--;s+=rr[st];}rr=rr.slice(st);let t=0;const pts=rr.map(v=>{t+=v/1000;return [t,v];}),T=pts[pts.length-1][0];if(T<45)return null;
+  const fs=2,n=Math.floor(T*fs),y=new Array(n);let k=0;for(let j=0;j<n;j++){const tt=j/fs;while(k<pts.length-2&&pts[k+1][0]<tt)k++;const a=pts[k],b=pts[k+1]||a,u=b[0]>a[0]?Math.min(1,Math.max(0,(tt-a[0])/(b[0]-a[0]))):0;y[j]=a[1]+(b[1]-a[1])*u;}
+  const mean=y.reduce((p,q)=>p+q,0)/n,pw=[];for(let fi=1;fi/T<=0.4;fi++){const f=fi/T;let re=0,im=0;for(let j=0;j<n;j++){const w=0.5-0.5*Math.cos(2*Math.PI*j/(n-1)),v=(y[j]-mean)*w;re+=v*Math.cos(2*Math.PI*f*j/fs);im-=v*Math.sin(2*Math.PI*f*j/fs);}pw.push([f,re*re+im*im]);}
+  let pk=null;pw.forEach(p=>{if(p[0]>=0.04&&p[0]<=0.26&&(!pk||p[1]>pk[1]))pk=p;});if(!pk)return null;let peak=0,tot=0;pw.forEach(p=>{tot+=p[1];if(Math.abs(p[0]-pk[0])<=0.015)peak+=p[1];});return {score:peak/Math.max(1e-9,tot-peak),freq:pk[0]};}
+function bioStart(){if(BIO.timer)return;BIO.timer=setInterval(()=>{if(!HR.connected&&!M.connected)return;BIO.log.push({t:Date.now(),hr:bioHR(),hrv:bioHRV(),co:(bioCoherence()||{}).score,al:M.connected?M.alpha:null,th:M.connected?M.theta:null,be:M.connected?M.beta:null});if(BIO.log.length>7200)BIO.log.shift();bioPaint();},1000);}
+function bioStatus(){const a=[];const h=bioHR();if(HR.connected||h)a.push("❤️ "+(h||"…"));if(M.connected)a.push("🧠 Muse");return a.length?a.join(" · "):"not connected";}
+function bioSpark(key,col){const pts=BIO.log.slice(-120).map(p=>p[key]),v=pts.filter(x=>x!=null);if(v.length<2)return "";const W=120,H=24,mx=Math.max.apply(null,v),mn=Math.min.apply(null,v);
+  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:24px"><polyline fill="none" stroke="'+col+'" stroke-width="2" points="'+pts.map((x,i)=>x==null?"":(i*W/Math.max(1,pts.length-1)).toFixed(1)+","+(H-2-(x-mn)/Math.max(1e-6,mx-mn)*(H-4)).toFixed(1)).filter(Boolean).join(" ")+'"/></svg>';}
+function bioPaint(){const el=document.getElementById("bioLive");if(!el)return;const sm=document.getElementById("bioSum");if(sm)sm.textContent=bioStatus();
+  const tile=(lab,val,sub,sp)=>'<div style="background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px;text-align:center"><div style="font-size:.72rem;color:var(--muted);font-weight:800">'+lab+'</div><div style="font:900 1.25rem system-ui">'+val+'</div><div style="font-size:.68rem;color:var(--muted)">'+(sub||"")+'</div>'+(sp||"")+'</div>';
+  let h="";const hr=bioHR(),hv=bioHRV(),co=bioCoherence();
+  if(HR.connected||M.connected){h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:6px 0">'+tile("Heart rate",hr?hr+'<span style="font-size:.7rem"> bpm</span>':"—","",bioSpark("hr","#ff5d6c"))+tile("HRV (RMSSD)",hv!=null?hv+'<span style="font-size:.7rem"> ms</span>':"—",hv==null?(HR.connected&&(!HR.rr||!HR.rr.length)?"no beat timing from this sensor":"gathering beats…"):"higher = more relaxed",bioSpark("hrv","#4fe08a"))+tile("Coherence",co?(co.score<0.5?"Low":co.score<1.5?"Medium":"High"):"—",co?("rhythm "+(co.freq*60).toFixed(1)+"/min"):"needs ~1 min",bioSpark("co","#f4b740"))+'</div>';}
+  if(M.connected){const B={theta:M.theta||0,alpha:M.alpha||0,beta:M.beta||0},cols={theta:"#4aa8ff",alpha:"#4fe08a",beta:"#ffc94a"},dom=Object.keys(B).sort((a,b)=>B[b]-B[a])[0];
+    h+='<div style="margin:6px 0">'+Object.keys(B).map(k=>'<div style="display:flex;align-items:center;gap:6px;margin:2px 0"><span style="width:46px;font-size:.75rem;font-weight:800;text-transform:capitalize">'+k+'</span><div style="flex:1;height:10px;border-radius:5px;background:rgba(255,255,255,.07);overflow:hidden"><div style="height:100%;width:'+Math.round(B[k])+'%;background:'+cols[k]+'"></div></div><span style="width:34px;text-align:right;font-size:.75rem">'+Math.round(B[k])+'%</span></div>').join("")+'</div><div class="site-note" style="font-size:.8rem">Strongest right now: <b style="text-transform:capitalize">'+dom+'</b>'+(M.battery!=null?' · Muse battery '+Math.round(M.battery)+'%':'')+'</div>';}
+  el.innerHTML=h;}
+function bioSummary(){const L=BIO.log.filter(p=>p.t>=BIO.t0);if(L.length<20)return "";const avg=k=>{const v=L.map(p=>p[k]).filter(x=>x!=null&&x>0);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;};const hr=avg("hr"),hv=avg("hrv"),al=avg("al"),th=avg("th");
+  const parts=[hr!=null?"avg HR <b>"+Math.round(hr)+"</b>":"",hv!=null?"HRV <b>"+Math.round(hv)+" ms</b>":"",al!=null?"alpha <b>"+Math.round(al)+"%</b>":"",th!=null?"theta <b>"+Math.round(th)+"%</b>":""].filter(Boolean);return parts.length?'<div class="site-note" style="margin-top:6px">📊 This session: '+parts.join(" · ")+'</div>':"";}
+function bioPanelHTML(){return '<details id="bioSet" style="margin:6px 0"'+(HR.connected||M.connected?" open":"")+'><summary style="cursor:pointer;list-style:none;padding:8px 2px;font:800 .9rem system-ui;color:var(--muted)">🫀 Sensors · <span id="bioSum" style="font-weight:600">'+bioStatus()+'</span> ▾</summary>'+
+  '<div class="actions" style="flex-wrap:wrap"><button class="btn ghost" id="bioHRb" style="flex:1 1 45%">'+(HR.connected?"❤️ Connected":"❤️ Heart rate / HRV")+'</button><button class="btn ghost" id="bioMuseb" style="flex:1 1 45%">'+(M.connected?"🧠 Connected":"🧠 Muse headband")+'</button></div>'+
+  '<div id="bioMsg" class="feedback" style="min-height:18px"></div><div id="bioLive"></div>'+
+  '<details style="margin-top:4px"><summary style="cursor:pointer;font-size:.8rem;color:var(--muted);list-style:none">ℹ️ How to connect each device ▾</summary><div class="site-note" style="font-size:.8rem">'+
+  '<b>iPhone:</b> Safari can’t use Bluetooth. Install the free <b>Bluefy – Web BLE Browser</b> app and open MMU in it.<br>'+
+  '<b>Apple Watch:</b> it doesn’t share heart rate over Bluetooth by itself. Run a broadcaster app (<b>HeartCast</b> or <b>HR Broadcast</b>) on the watch, then tap ❤️ and pick it. Most send heart rate only, so HRV may not show.<br>'+
+  '<b>Chest strap</b> (Polar H10, Garmin, Wahoo…): tap ❤️ — best HRV.<br>'+
+  '<b>HeartMath sensor:</b> tap ❤️ and look for “HeartMath-HRV…”. It may use HeartMath’s own format — if it doesn’t show up, it only works in HeartMath’s app. Tell me what you see.<br>'+
+  '<b>Muse 2 / Muse S:</b> turn it on, close the Muse app, tap 🧠. Muse also gives heart rate from its forehead sensor.<br>Not a medical device.</div></details></details>';}
+function bioPanelBind(){const a=document.getElementById("bioHRb"),b=document.getElementById("bioMuseb");
+  if(a)a.onclick=async()=>{if(!bioBT()){bioHelp();return;}if(HR.connected)return;bioMsg("Pick your heart sensor in the list…");const ok=await hrConnect(e=>{if(e&&e.name==="NotFoundError")bioMsg("No sensor picked. Apple Watch needs a broadcaster app running first (see tips).");});
+    if(ok){bioMsg("❤️ Connected"+(HR.dev&&HR.dev.name?" to <b>"+esc(HR.dev.name)+"</b>":"")+". HRV needs about a minute of beats.");a.textContent="❤️ Connected";bioStart();try{if(typeof startHRLoop==="function")startHRLoop();}catch(e){}}};
+  if(b)b.onclick=async()=>{if(!bioBT()){bioHelp();return;}if(M.connected)return;const st=document.getElementById("bioMsg");try{await museConnect(st);bioMsg("🧠 Muse streaming — sit still a few seconds while the signal settles.");b.textContent="🧠 Connected";bioStart();}
+    catch(e){bioMsg(e&&e.name==="NotFoundError"?"No Muse picked — make sure it’s on and closed in the Muse app.":"Couldn’t connect: "+esc(String(e&&e.message||e)));}};
+  if(HR.connected||M.connected)bioStart();bioPaint();}
+
 const BRAINWAVES=[
  {id:"delta",name:"Delta",hz:2.5,range:"0.5–4 Hz",intent:"Sleep & deep healing",desc:"The slowest waves — dreamless sleep and physical repair. Lie down, dim the lights."},
  {id:"theta",name:"Theta",hz:6,range:"4–8 Hz",intent:"Deep meditation & intuition",desc:"The dreamlike, hypnagogic state — deep meditation, creativity, and letting go."},
@@ -7193,6 +7236,8 @@ function renderJourney(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home
       '<div class="rrow2" style="margin-top:10px"><span class="rlab">Length</span><span class="rchips tight" id="jLens"></span></div>'+
       (J.segs?'':'<div class="rrow2"><span class="rlab">How deep</span><span class="rchips tight" id="jDeps"></span></div>')+
       '<div class="rrow"><span class="rlab">Tone</span><input type="range" id="jCar" min="90" max="1000" value="'+carrier+'" style="flex:1"><span class="rbpm" id="jCarV">'+carrier+' Hz</span></div>'+
+      '<div class="rrow2"><span class="rlab">Listen on</span><span class="rchips tight"><button class="rchip sm'+(!MEDSPK.on?" sel":"")+'" id="jHead">🎧 Headphones</button><button class="rchip sm'+(MEDSPK.on?" sel":"")+'" id="jSpk">🔈 Speaker</button></span></div>'+
+      (MEDSPK.on?'<div class="site-note" style="margin:0 0 6px;font-size:.78rem">Speaker mode: both tones play from the speaker so the beat pulses in the air (a <b>monaural</b> beat), plus a stronger pulse. Works without headphones — great at bedtime.</div>':'')+
       '<div class="rrow2"><span class="rlab">Solfeggio</span><span class="rchips tight" id="jSolf">'+[174,285,396,417,528,639].map(function(h){return '<button class="rchip sm'+(carrier===h?" sel":"")+'" data-hz="'+h+'">'+h+'</button>';}).join("")+'</span></div>'+
       '<div class="site-note" style="margin:0 0 6px;font-size:.78rem">Sets the tone the beat rides on. Lovely to listen to; small studies found 528 Hz music a little calming — no proof any tone heals.</div>'+
       '<div class="rrow2"><span class="rlab">Options</span><span class="rchips tight"><button class="rchip sm'+(MEDLAYER.mode!=="off"&&!J.ladder?" sel":"")+'" id="jLay"'+(J.ladder?' style="display:none"':'')+'>✨ Layers: '+({off:"Off",phi:"Golden \u03c6",oct:"Octaves"})[MEDLAYER.mode]+'</button><button class="rchip sm'+(MEDOCEAN.on?" sel":"")+'" id="jOcean">🌊 Ocean: '+(MEDOCEAN.on?"On":"Off")+'</button>'+(J.segs&&J.segs.some(function(s){return s[5];})?'<button class="rchip sm'+(MEDHUM.on?" sel":"")+'" id="jGuide">🐝 Guide voice: '+(MEDHUM.on?"On":"Off")+'</button>':'')+'<button class="rchip sm'+(shimmer?" sel":"")+'" id="jShim">✨ Felt pulse: '+(shimmer?"On":"Off")+'</button><button class="rchip sm'+(MEDDRIFT.on?" sel":"")+'" id="jDrift">🌫️ Drift: '+(MEDDRIFT.on?"On":"Off")+'</button><button class="rchip sm'+(body?" sel":"")+'" id="jBody">🌊 Body wave 0.1 Hz: '+(body?"On":"Off")+'</button></span></div>'+
@@ -7200,7 +7245,8 @@ function renderJourney(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home
       (MEDOCEAN.on?'<div class="rrow"><span class="rlab">🌊 Waves</span><input type="range" id="jOceanL" min="0.05" max="1" step="0.01" value="'+MEDOCEAN.lvl+'" style="flex:1"></div>':'')+
       '<div class="rrow"><span class="rlab">Volume</span><input type="range" id="jVol" min="0" max="1" step="0.01" value="'+vol+'" style="flex:1"></div>'+
       '<div class="actions" style="flex-wrap:wrap">'+(playing?'<button class="btn" id="jPause" style="flex:1 1 55%">'+(paused?"▶ Resume":"⏸ Pause")+'</button><button class="btn ghost" id="jPlay" style="flex:1 1 35%">⏹ End</button>':'<button class="btn" id="jPlay" style="flex:1 1 100%">▶ Begin journey</button>')+'</div>'+(paused?'<div class="site-note" style="text-align:center">Paused at '+fmt(pausedAt)+' — tap Resume to pick up right here.</div>':'')+
-      '<div class="site-note">🎧 Binaural beats need headphones. Not a medical device — a tool for settling in. Don’t use while driving.</div></div>';
+      bioPanelHTML()+
+      '<div class="site-note">'+(MEDSPK.on?'🔈 Speaker mode on — no headphones needed.':'🎧 Binaural beats need headphones — or switch to 🔈 Speaker.')+' Not a medical device — a tool for settling in. Don’t use while driving.</div></div>';
     $("#eBack").onclick=function(){medStop();renderMeditation();};
     var jt=$("#jTypes");JOURNEYS.forEach(function(j){var b=document.createElement("button");b.className="rchip"+(j.id===jType?" sel":"");b.style.cssText="justify-content:flex-start;text-align:left;padding:8px 12px;border-radius:12px;width:100%";b.innerHTML='<span style="font-size:1.2rem;margin-right:6px">'+j.ic+'</span><span><b>'+j.name+'</b><br><span style="font-size:.78rem;opacity:.75;font-weight:600">'+j.when+'</span></span>';b.onclick=function(){if(playing)return;jType=j.id;save("mjk-jtype",j.id);jLen=j.def;save("mjk-jlen",jLen);if(j.id==="hum"){carrier=528;if(!load("mjk-humocean1",false)){save("mjk-humocean1",true);MEDOCEAN.on=true;save("mjk-medocean",true);}}draw();};jt.appendChild(b);});
     var ls=$("#jLens");[10,20,30,45].forEach(function(m){var b=document.createElement("button");b.className="rchip sm"+(m===jLen?" sel":"");b.textContent=m+" min";b.onclick=function(){if(playing)return;jLen=m;save("mjk-jlen",m);draw();};ls.appendChild(b);});
@@ -7211,6 +7257,8 @@ function renderJourney(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home
     $("#jBody").onclick=function(){body=!body;save("mjk-bwbody",body);if(playing)medBodyWave(body,vol);draw();};
     var jv=$("#jVol");jv.oninput=function(){vol=+jv.value;if(MED.master)MED.master.gain.setTargetAtTime(vol,ac().currentTime,0.1);if(MED.bodyDepth)MED.bodyDepth.gain.value=vol*0.4;};
     $("#jPlay").onclick=function(){if(playing){medStop();playing=false;paused=false;draw();}else begin();};
+    var jhd=$("#jHead"),jsp=$("#jSpk");if(jhd)jhd.onclick=function(){medSpeaker(false);draw();};if(jsp)jsp.onclick=function(){medSpeaker(true);if(playing){shimmer=true;medPulse(true);}draw();};
+    bioPanelBind();
     var jpz=$("#jPause");if(jpz)jpz.onclick=function(){if(paused)resume();else pause();};
     var jl=$("#jLay");if(jl)jl.onclick=function(){MEDLAYER.mode=MEDLAYER.mode==="off"?"phi":MEDLAYER.mode==="phi"?"oct":"off";save("mjk-medlayers",MEDLAYER.mode);
       if(playing&&!plan.layers){if(MEDLAYER.mode==="off")medLayersStop();else{medLayersStart(layerSpecs(MEDLAYER.mode,carrier));(MED.layers||[]).forEach(function(L,i){medLayerLevel(i,true,3);});medLayersFollow(jHzAt(plan,ac().currentTime-t0).hz);}}draw();};
@@ -7219,7 +7267,7 @@ function renderJourney(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home
     document.querySelectorAll("#jSolf [data-hz]").forEach(function(b){b.onclick=function(){if(playing)return;carrier=+b.getAttribute("data-hz");draw();};});
     if(playing&&!paused)tick();}
   function jSched(fromT){var a=ac(),now=a.currentTime,cur=jHzAt(plan,fromT).hz;[[MED.right&&MED.right.frequency,carrier],[MED.lfo&&MED.lfo.frequency,0]].forEach(function(pp){var p=pp[0],base=pp[1];if(!p)return;p.cancelScheduledValues(now);p.setValueAtTime(base+cur,now);plan.forEach(function(s){if(s.t1>fromT)p.linearRampToValueAtTime(base+s.h1,t0+s.t1);});});}
-  function begin(){plan=jPlanFor(jType,jLen,jDepth);var h0=plan[0].h0;medBinaural(h0,carrier,vol,shimmer);var a=ac();t0=a.currentTime;jSched(0);
+  function begin(){BIO.t0=Date.now();plan=jPlanFor(jType,jLen,jDepth);var h0=plan[0].h0;medBinaural(h0,carrier,vol,shimmer);var a=ac();t0=a.currentTime;jSched(0);
     medBodyWave(body,vol);if(MEDOCEAN.on)medOceanStart();if(plan.layers)medLayersStart(ladderSpecs(carrier));else if(MEDLAYER.mode!=="off"){medLayersStart(layerSpecs(MEDLAYER.mode,carrier));(MED.layers||[]).forEach(function(L,i){medLayerLevel(i,true,3);});medLayersFollow(h0);}playing=true;paused=false;humPh="";lastMap=0;draw();MED.timer=setInterval(tick,250);}
   window.__jSkip=function(s){t0-=s;if(playing&&!paused)jSched(ac().currentTime-t0);};
   function pause(){if(!playing||paused)return;var a=ac();pausedAt=a.currentTime-t0;paused=true;if(MED.timer){clearInterval(MED.timer);MED.timer=null;}
@@ -7242,7 +7290,7 @@ function renderJourney(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home
     if(t>=total){finish();}}
   function finish(){playing=false;if(MED.timer){clearInterval(MED.timer);MED.timer=null;}try{medMarkDone();}catch(e){}if(activeId()){try{addBeans(10);beanChip();}catch(e){}}
     try{var a=ac();if(MED.master)MED.master.gain.setTargetAtTime(0.0001,a.currentTime,2.5);}catch(e){}setTimeout(medStop,9000);
-    draw();var J=JOURNEYS.find(function(j){return j.id===jType;})||JOURNEYS[5],fh=plan[plan.length-1].h1;var ph=$("#jPhase");if(ph)ph.innerHTML='<b style="color:#5fe0a8">'+J.end+'</b>';var hz=$("#jHz");if(hz)hz.textContent=fh.toFixed(1)+" Hz";var bl=$("#jBandL");if(bl)bl.textContent=jBand(fh);}
+    draw();var J=JOURNEYS.find(function(j){return j.id===jType;})||JOURNEYS[5],fh=plan[plan.length-1].h1;var ph=$("#jPhase");if(ph)ph.innerHTML='<b style="color:#5fe0a8">'+J.end+'</b>'+bioSummary();var hz=$("#jHz");if(hz)hz.textContent=fh.toFixed(1)+" Hz";var bl=$("#jBandL");if(bl)bl.textContent=jBand(fh);}
   draw();}
 function renderBreathwork(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   let pi=0,mins=5,running=false,raf=null,startT=0,phaseIdx=-1,toneOn=true,breathGain=null,hrRAF=null;
