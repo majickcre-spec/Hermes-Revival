@@ -7107,23 +7107,39 @@ function renderBrainwave(startId){if(toneRAF)cancelAnimationFrame(toneRAF);medSt
 /* ===== BRAINWAVE JOURNEY — down from everyday thinking, rest deep, back up to calm waking ===== */
 function medBodyWave(on,vol){if(!MED.master)return;var a=ac();if(MED.body){try{MED.body.stop();}catch(e){}MED.body=null;}if(!on)return;var l=a.createOscillator();l.type="sine";l.frequency.value=0.1;var d=a.createGain();d.gain.value=(vol==null?0.5:vol)*0.4;l.connect(d);d.connect(MED.master.gain);l.start();MED.body=l;MED.bodyDepth=d;MED.oscs.push(l);}
 function jPlan(total,depth){var f=total/30,S=[[0,4,14,10,"Settling — busy mind to calm"],[4,8,10,depth,"Drifting down"],[8,20,depth,depth,"Resting deep"],[20,26,depth,10,"Coming back up"],[26,30,10,10,"Calm & awake"]];return S.map(function(s){return {t0:s[0]*60*f,t1:s[1]*60*f,h0:s[2],h1:s[3],label:s[4]};});}
+const JOURNEYS=[
+ {id:"morning",ic:"\u2600\ufe0f",name:"Morning Rise",when:"Wake-up \u00b7 like a cup of coffee",desc:"Starts where sleep left you (slow ~3 Hz), lifts through dreamy theta and calm alpha, and finishes in bright, alert beta (~18 Hz). Ends awake and ready.",def:20,
+  segs:[[0,.15,3,3,"Still half-asleep \u2014 slow waves"],[.15,.45,3,7,"Surfacing \u2014 sleepy theta lifting"],[.45,.7,7,10,"Waking up \u2014 calm alpha"],[.7,.9,10,15,"Brightening \u2014 clear-headed beta"],[.9,1,15,18,"The coffee \u2014 alert & ready"]],end:"\u2600\ufe0f You\u2019re up \u2014 stretch, drink some water, open the curtains."},
+ {id:"reset",ic:"\ud83c\udf43",name:"Afternoon Reset",when:"Midday \u00b7 short dip & back up",desc:"A quick dip from busy afternoon brain (~15 Hz) down into light theta (~7 Hz), then lifts you back to fresh, focused beta. A power-nap for your mind.",def:20,
+  segs:[[0,.1,15,14,"Shaking off the afternoon"],[.1,.3,14,10,"Easing down"],[.3,.6,10,7,"Light theta dip \u2014 mind softens"],[.6,.85,7,12,"Lifting back up"],[.85,1,12,15,"Refreshed & focused"]],end:"\ud83c\udf43 Reset done \u2014 roll your shoulders and get back to it."},
+ {id:"siesta",ic:"\ud83c\udf0a",name:"Deep Siesta",when:"Afternoon \u00b7 long, deep & back up",desc:"A longer ride: settles from everyday thinking, sinks into deep theta (~4\u20135 Hz) and rests there, then climbs slowly back to calm, clear waking.",def:40,
+  segs:[[0,.1,14,10,"Settling"],[.1,.25,10,5,"Drifting down"],[.25,.6,5,4,"Deep rest \u2014 theta"],[.6,.85,4,10,"Rising slowly"],[.85,1,10,14,"Clear & awake"]],end:"\ud83c\udf0a Welcome back \u2014 take a slow breath before you stand up."},
+ {id:"evening",ic:"\ud83c\udf19",name:"Evening Wind-Down",when:"Evening \u00b7 down and stays down",desc:"Lets the day go: everyday beta down to calm alpha, then dreamy theta, and it stays low at the end (~4 Hz) \u2014 no climb back up. Good before bed or a quiet evening.",def:30,
+  segs:[[0,.15,14,12,"Letting the day go"],[.15,.4,12,9,"Calm alpha"],[.4,.7,9,6,"Dreamy theta"],[.7,1,6,4,"Ready for sleep \u2014 stays low"]],end:"\ud83c\udf19 Stay where you are \u2014 let the quiet carry you."},
+ {id:"sleep",ic:"\ud83d\udca4",name:"Sleep Drift",when:"Bedtime \u00b7 into delta, fades out",desc:"For falling asleep: starts at a relaxed 10 Hz, sinks through theta into deep delta (~1.5 Hz) and quietly fades away.",def:45,
+  segs:[[0,.15,10,8,"Settling into bed"],[.15,.45,8,5,"Heavy & dreamy"],[.45,.75,5,2.5,"Sinking into delta"],[.75,1,2.5,1.5,"Deep sleep \u2014 fading out"]],end:"\ud83d\udca4 Goodnight."},
+ {id:"dive",ic:"\ud83c\udf00",name:"Down & Back",when:"Any time \u00b7 pick your depth",desc:"The classic: from everyday thinking (~14 Hz) down to the depth you choose, rests there, then brings you back up to calm, clear waking (~10 Hz).",def:30,segs:null,end:"\u2705 Journey complete \u2014 take a slow breath, wiggle your fingers, open your eyes when ready."}];
+function jPlanFor(id,total,depth){const J=JOURNEYS.find(j=>j.id===id)||JOURNEYS[5];if(!J.segs)return jPlan(total,depth);return J.segs.map(s=>({t0:s[0]*total*60,t1:s[1]*total*60,h0:s[2],h1:s[3],label:s[4]}));}
 function jHzAt(plan,t){for(var i=0;i<plan.length;i++){var s=plan[i];if(t<=s.t1){var k=s.t1>s.t0?Math.max(0,(t-s.t0)/(s.t1-s.t0)):1;return {hz:s.h0+(s.h1-s.h0)*k,label:s.label};}}var L=plan[plan.length-1];return {hz:L.h1,label:L.label,done:true};}
 function jBand(hz){return hz<4?"Delta":hz<8?"Theta":hz<12?"Alpha":"Beta";}
-function jSVG(plan,total,t){var W=320,H=110,pad=8,yOf=function(h){return pad+(1-Math.min(16,h)/16)*(H-2*pad);},xOf=function(s){return pad+(s/total)*(W-2*pad);};
+function jSVG(plan,total,t){var W=320,H=120,pad=8,yOf=function(h){return pad+(1-Math.min(20,h)/20)*(H-2*pad);},xOf=function(s){return pad+(s/total)*(W-2*pad);};
   var pts=[];plan.forEach(function(s,i){if(i===0)pts.push(xOf(s.t0)+","+yOf(s.h0));pts.push(xOf(s.t1)+","+yOf(s.h1));});
-  var bands=[[12,16,"Beta"],[8,12,"Alpha"],[4,8,"Theta"],[0,4,"Delta"]],g="";bands.forEach(function(b,i){g+='<rect x="0" y="'+yOf(b[1])+'" width="'+W+'" height="'+(yOf(b[0])-yOf(b[1]))+'" fill="'+(i%2?"rgba(255,255,255,.03)":"rgba(255,255,255,.06)")+'"/><text x="'+(W-4)+'" y="'+(yOf(b[1])+12)+'" text-anchor="end" font-size="10" fill="rgba(255,255,255,.4)" font-family="system-ui">'+b[2]+'</text>';});
+  var bands=[[12,20,"Beta"],[8,12,"Alpha"],[4,8,"Theta"],[0,4,"Delta"]],g="";bands.forEach(function(b,i){g+='<rect x="0" y="'+yOf(b[1])+'" width="'+W+'" height="'+(yOf(b[0])-yOf(b[1]))+'" fill="'+(i%2?"rgba(255,255,255,.03)":"rgba(255,255,255,.06)")+'"/><text x="'+(W-4)+'" y="'+(yOf(b[1])+12)+'" text-anchor="end" font-size="10" fill="rgba(255,255,255,.4)" font-family="system-ui">'+b[2]+'</text>';});
   var dot="";if(t!=null){var cur=jHzAt(plan,Math.min(t,total));dot='<circle cx="'+xOf(Math.min(t,total))+'" cy="'+yOf(cur.hz)+'" r="6" fill="#f4b740" stroke="#fff" stroke-width="2"/>';}
   return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;border-radius:10px;background:var(--bg);border:1px solid var(--line)">'+g+'<polyline points="'+pts.join(" ")+'" fill="none" stroke="#7ff0d6" stroke-width="3" stroke-linejoin="round"/>'+dot+'</svg>';}
 function renderJourney(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){medStop();};
-  var jLen=load("mjk-jlen",30),jDepth=load("mjk-jdepth",4),carrier=200,vol=0.5,shimmer=true,body=load("mjk-bwbody",false),playing=false,t0=0,plan=null;
+  var jType=load("mjk-jtype","morning"),jLen=load("mjk-jlen",20),jDepth=load("mjk-jdepth",4),carrier=200,vol=0.5,shimmer=true,body=load("mjk-bwbody",false),playing=false,t0=0,plan=null;
   function fmt(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
-  function draw(){var P=jPlan(jLen,jDepth);
+  function draw(){var P=jPlanFor(jType,jLen,jDepth),J=JOURNEYS.find(function(j){return j.id===jType;})||JOURNEYS[5];
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌀 Brainwave Journey</span></div><div class="panel">'+
-      '<div class="intro">A guided ride on a binaural beat. It starts where your mind is now — everyday thinking (~14 Hz) — drifts down to the depth you pick, rests there, then brings you <b>back up to calm, clear waking</b> (~10 Hz alpha). <b>Headphones on</b>, lie back, nothing to do but listen.</div>'+
-      '<div id="jRead" style="text-align:center;margin:8px 0"><div style="font:900 2.2rem system-ui;color:#f4b740" id="jHz">14.0 Hz</div><div style="font-weight:800" id="jBandL">Beta · everyday thinking</div><div class="site-note" id="jPhase" style="margin:2px 0">Ready when you are</div><div class="rbpm" id="jLeft" style="display:inline-block;margin-top:4px">'+jLen+':00</div></div>'+
+      '<div class="intro">A guided ride on a binaural beat that slowly moves your brainwaves where you want them. Pick a journey for the time of day. <b>Headphones on</b>, lie back, nothing to do but listen.</div>'+
+      '<div id="jTypes" style="display:grid;gap:6px;margin:8px 0"></div>'+
+      '<div style="margin:6px 0 4px;font:900 1.15rem system-ui">'+J.ic+' '+J.name+' <span style="font-size:.8rem;font-weight:700;color:var(--muted)">\u00b7 '+J.when+'</span></div><div class="site-note" style="margin:0 0 4px">'+J.desc+'</div>'+
+      '<div class="site-note" style="margin:0 0 6px;font-size:.8rem">'+P.map(function(s){return '<b>'+Math.round(s.t0/60)+'\u2013'+Math.round(s.t1/60)+' min</b> '+s.label+' ('+(s.h0===s.h1?s.h0:s.h0+'\u2192'+s.h1)+' Hz)';}).join('<br>')+'</div>'+
+      '<div id="jRead" style="text-align:center;margin:8px 0"><div style="font:900 2.2rem system-ui;color:#f4b740" id="jHz">'+P[0].h0.toFixed(1)+' Hz</div><div style="font-weight:800" id="jBandL">'+jBand(P[0].h0)+'</div><div class="site-note" id="jPhase" style="margin:2px 0">Ready when you are</div><div class="rbpm" id="jLeft" style="display:inline-block;margin-top:4px">'+jLen+':00</div></div>'+
       '<div id="jMap">'+jSVG(P,jLen*60,playing?0:null)+'</div>'+
       '<div class="rrow2" style="margin-top:10px"><span class="rlab">Length</span><span class="rchips tight" id="jLens"></span></div>'+
-      '<div class="rrow2"><span class="rlab">How deep</span><span class="rchips tight" id="jDeps"></span></div>'+
+      (J.segs?'':'<div class="rrow2"><span class="rlab">How deep</span><span class="rchips tight" id="jDeps"></span></div>')+
       '<div class="rrow"><span class="rlab">Tone</span><input type="range" id="jCar" min="90" max="360" value="'+carrier+'" style="flex:1"><span class="rbpm" id="jCarV">'+carrier+' Hz</span></div>'+
       '<div class="rrow2"><span class="rlab">Options</span><span class="rchips tight"><button class="rchip sm'+(shimmer?" sel":"")+'" id="jShim">✨ Felt pulse: '+(shimmer?"On":"Off")+'</button><button class="rchip sm'+(body?" sel":"")+'" id="jBody">🌊 Body wave 0.1 Hz: '+(body?"On":"Off")+'</button></span></div>'+
       (body?'<div class="site-note" style="margin:2px 0 6px">A slow 10-second swell — breathe in as it rises, out as it falls (about 6 breaths a minute). It matches your body’s own ~0.1 Hz rhythm.</div>':'')+
@@ -7131,25 +7147,26 @@ function renderJourney(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home
       '<div class="actions"><button class="btn" id="jPlay">'+(playing?"⏹ End journey":"▶ Begin journey")+'</button></div>'+
       '<div class="site-note">🎧 Binaural beats need headphones. Not a medical device — a tool for settling in. Don’t use while driving.</div></div>';
     $("#eBack").onclick=function(){medStop();renderMeditation();};
-    var ls=$("#jLens");[20,30,45].forEach(function(m){var b=document.createElement("button");b.className="rchip sm"+(m===jLen?" sel":"");b.textContent=m+" min";b.onclick=function(){if(playing)return;jLen=m;save("mjk-jlen",m);draw();};ls.appendChild(b);});
-    var ds=$("#jDeps");[["Theta · 6 Hz",6],["Deep theta · 4 Hz",4],["Delta · 2 Hz",2]].forEach(function(o){var b=document.createElement("button");b.className="rchip sm"+(o[1]===jDepth?" sel":"");b.textContent=o[0];b.onclick=function(){if(playing)return;jDepth=o[1];save("mjk-jdepth",o[1]);draw();};ds.appendChild(b);});
+    var jt=$("#jTypes");JOURNEYS.forEach(function(j){var b=document.createElement("button");b.className="rchip"+(j.id===jType?" sel":"");b.style.cssText="justify-content:flex-start;text-align:left;padding:8px 12px;border-radius:12px;width:100%";b.innerHTML='<span style="font-size:1.2rem;margin-right:6px">'+j.ic+'</span><span><b>'+j.name+'</b><br><span style="font-size:.78rem;opacity:.75;font-weight:600">'+j.when+'</span></span>';b.onclick=function(){if(playing)return;jType=j.id;save("mjk-jtype",j.id);jLen=j.def;save("mjk-jlen",jLen);draw();};jt.appendChild(b);});
+    var ls=$("#jLens");[10,20,30,45].forEach(function(m){var b=document.createElement("button");b.className="rchip sm"+(m===jLen?" sel":"");b.textContent=m+" min";b.onclick=function(){if(playing)return;jLen=m;save("mjk-jlen",m);draw();};ls.appendChild(b);});
+    var ds=$("#jDeps");if(ds)[["Theta · 6 Hz",6],["Deep theta · 4 Hz",4],["Delta · 2 Hz",2]].forEach(function(o){var b=document.createElement("button");b.className="rchip sm"+(o[1]===jDepth?" sel":"");b.textContent=o[0];b.onclick=function(){if(playing)return;jDepth=o[1];save("mjk-jdepth",o[1]);draw();};ds.appendChild(b);});
     var jc=$("#jCar");jc.oninput=function(){carrier=+jc.value;$("#jCarV").textContent=carrier+" Hz";};if(playing)jc.disabled=true;
     $("#jShim").onclick=function(){if(playing)return;shimmer=!shimmer;draw();};
     $("#jBody").onclick=function(){body=!body;save("mjk-bwbody",body);if(playing)medBodyWave(body,vol);draw();};
     var jv=$("#jVol");jv.oninput=function(){vol=+jv.value;if(MED.master)MED.master.gain.setTargetAtTime(vol,ac().currentTime,0.1);if(MED.bodyDepth)MED.bodyDepth.gain.value=vol*0.4;};
     $("#jPlay").onclick=function(){if(playing){medStop();playing=false;draw();}else begin();};
     if(playing)tick();}
-  function begin(){plan=jPlan(jLen,jDepth);medBinaural(14,carrier,vol,shimmer);var a=ac();t0=a.currentTime;
-    [[MED.right&&MED.right.frequency,carrier],[MED.lfo&&MED.lfo.frequency,0]].forEach(function(pp){var p=pp[0],base=pp[1];if(!p)return;p.cancelScheduledValues(t0);p.setValueAtTime(base+14,t0);plan.forEach(function(s){p.linearRampToValueAtTime(base+s.h1,t0+s.t1);});});
+  function begin(){plan=jPlanFor(jType,jLen,jDepth);var h0=plan[0].h0;medBinaural(h0,carrier,vol,shimmer);var a=ac();t0=a.currentTime;
+    [[MED.right&&MED.right.frequency,carrier],[MED.lfo&&MED.lfo.frequency,0]].forEach(function(pp){var p=pp[0],base=pp[1];if(!p)return;p.cancelScheduledValues(t0);p.setValueAtTime(base+h0,t0);plan.forEach(function(s){p.linearRampToValueAtTime(base+s.h1,t0+s.t1);});});
     medBodyWave(body,vol);playing=true;draw();MED.timer=setInterval(tick,500);}
   function tick(){if(!playing)return;var total=jLen*60,t=ac().currentTime-t0,cur=jHzAt(plan,t);
     var hz=$("#jHz"),bl=$("#jBandL"),ph=$("#jPhase"),lf=$("#jLeft"),mp=$("#jMap");
-    if(hz)hz.textContent=cur.hz.toFixed(1)+" Hz";if(bl)bl.textContent=jBand(cur.hz)+({Beta:" · everyday thinking",Alpha:" · calm, relaxed",Theta:" · deep, dreamy",Delta:" · deepest rest"})[jBand(cur.hz)];
+    if(hz)hz.textContent=cur.hz.toFixed(1)+" Hz";if(bl)bl.textContent=jBand(cur.hz)+({Beta:cur.hz>=15?" · alert & energized":" · everyday thinking",Alpha:" · calm, relaxed",Theta:" · deep, dreamy",Delta:" · deepest rest"})[jBand(cur.hz)];
     if(ph)ph.textContent=cur.label;if(lf)lf.textContent=fmt(total-t)+" left";if(mp)mp.innerHTML=jSVG(plan,total,t);
     if(t>=total){finish();}}
   function finish(){playing=false;if(MED.timer){clearInterval(MED.timer);MED.timer=null;}try{medMarkDone();}catch(e){}if(activeId()){try{addBeans(10);beanChip();}catch(e){}}
     try{var a=ac();if(MED.master)MED.master.gain.setTargetAtTime(0.0001,a.currentTime,2.5);}catch(e){}setTimeout(medStop,9000);
-    draw();var ph=$("#jPhase");if(ph)ph.innerHTML='<b style="color:#5fe0a8">✅ Journey complete</b> — take a slow breath, wiggle your fingers, open your eyes when ready.';var hz=$("#jHz");if(hz)hz.textContent="10.0 Hz";var bl=$("#jBandL");if(bl)bl.textContent="Alpha · calm & awake";}
+    draw();var J=JOURNEYS.find(function(j){return j.id===jType;})||JOURNEYS[5],fh=plan[plan.length-1].h1;var ph=$("#jPhase");if(ph)ph.innerHTML='<b style="color:#5fe0a8">'+J.end+'</b>';var hz=$("#jHz");if(hz)hz.textContent=fh.toFixed(1)+" Hz";var bl=$("#jBandL");if(bl)bl.textContent=jBand(fh);}
   draw();}
 function renderBreathwork(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   let pi=0,mins=5,running=false,raf=null,startT=0,phaseIdx=-1,toneOn=true,breathGain=null,hrRAF=null;
