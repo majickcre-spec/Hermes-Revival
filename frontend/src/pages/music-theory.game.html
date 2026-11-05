@@ -1192,7 +1192,12 @@ const SONGS={
 /* audio */
 let AC=null,PIANO_WAVE=null,PIANO_MASTER=null,_audioUnlocked=false;
 function ac(){if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();return AC;}
-function unlockAudio(){const a=ac();try{a.resume();}catch(e){}if(_audioUnlocked)return;_audioUnlocked=true;
+var _silentEl=null;
+function _silentWavURL(){try{var sr=8000,n=Math.floor(sr*0.25),buf=new ArrayBuffer(44+n),v=new DataView(buf);function ws(o,s){for(var i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));}ws(0,"RIFF");v.setUint32(4,36+n,true);ws(8,"WAVE");ws(12,"fmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr,true);v.setUint16(32,1,true);v.setUint16(34,8,true);ws(36,"data");v.setUint32(40,n,true);for(var i=0;i<n;i++)v.setUint8(44+i,128);var u8=new Uint8Array(buf),bin="";for(var j=0;j<u8.length;j++)bin+=String.fromCharCode(u8[j]);return "data:audio/wav;base64,"+btoa(bin);}catch(e){return "";}}
+/* iOS: play sound even when the ringer/silent switch is OFF (use the playback audio session like a music app) */
+function audioPlaybackCategory(){try{if(navigator.audioSession&&navigator.audioSession.type!=="play-and-record")navigator.audioSession.type="playback";}catch(e){}
+  try{if(!_silentEl){var u=_silentWavURL();if(u){_silentEl=new Audio(u);_silentEl.loop=true;_silentEl.volume=0.02;_silentEl.setAttribute("playsinline","");}}if(_silentEl)_silentEl.play().catch(function(){});}catch(e){}}
+function unlockAudio(){const a=ac();try{a.resume();}catch(e){}audioPlaybackCategory();if(_audioUnlocked)return;_audioUnlocked=true;
   try{const b=a.createBuffer(1,1,22050),s=a.createBufferSource();s.buffer=b;s.connect(a.destination);s.start(0);}catch(e){}
   try{sfLoadInst("piano");}catch(e){}}
 document.addEventListener("pointerdown",unlockAudio,true);
@@ -1376,6 +1381,7 @@ async function ensureMic(){
   if(toneAnalyser)return true;
   try{
     const a=ac();
+    try{if(navigator.audioSession)navigator.audioSession.type="play-and-record";}catch(e){}
     micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
     const src=a.createMediaStreamSource(micStream);
     const mg=a.createGain();mg.gain.value=4.4; // boost so quiet notes/singing register
