@@ -961,7 +961,9 @@ function renderHome(){
       letters.forEach(function(L){var b=document.createElement("button");b.textContent=L;b.onclick=function(){if(b.classList.contains("sel")){_clear();return;}if(si)si.value="";_clrSel();b.classList.add("sel");var hits=IDX.filter(function(e){return (e.title||"").charAt(0).toUpperCase()===L;});_show(hits,L+" — "+hits.length+" item"+(hits.length>1?"s":"")+" (tap "+L+" again to close)");};az.appendChild(b);});}
 }
 let teardown=null;
-function goHome(){if(teardown){try{teardown();}catch(e){}teardown=null;}view.hidden=true;home.hidden=false;renderHome();window.scrollTo(0,0);}
+function goHome(){if(teardown){try{teardown();}catch(e){}teardown=null;}view.hidden=true;home.hidden=false;renderHome();window.scrollTo(0,0);if(window.__mjkNavConsume)window.__mjkNavConsume();}
+/* Back button (esp. iPhone): drop to the music home first, then out to Hermes — not straight out */
+(function(){try{if(!view)return;var primed=false,inPop=false;function prime(){if(primed)return;try{history.pushState({mjk:"view"},"");}catch(e){}primed=true;}try{var mo=new MutationObserver(function(){if(!view.hidden)prime();});mo.observe(view,{attributes:true,attributeFilter:["hidden"]});}catch(e){}window.addEventListener("popstate",function(){if(!view.hidden){inPop=true;try{goHome();}catch(e){}inPop=false;primed=false;}});window.__mjkNavConsume=function(){if(primed&&!inPop){primed=false;try{history.back();}catch(e){}}};}catch(e){}})();
 
 /* ===== topic view ===== */
 let T=null,tab="learn";
