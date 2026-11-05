@@ -7514,14 +7514,19 @@ function renderGate(){
     start.onclick=()=>{const q=getProfiles();const id=newId();q.push({id,name:lp.name,pin:null});setProfiles(q);activate(id);};
     list.appendChild(start);
   }
-  ps.forEach(p=>{const b=document.createElement("button");b.className="pcard";
-    b.innerHTML=`<span class="pav">${esc(p.name.slice(0,1).toUpperCase())}</span><span class="pnm">${esc(p.name)}</span>${p.pin?'<span class="plock">🔒</span>':''}`;
-    b.onclick=()=>selectProfile(p);list.appendChild(b);});
+  ps.forEach(p=>{const b=document.createElement("button");b.className="pcard";b.style.position="relative";
+    b.innerHTML=`<span class="pav">${esc(p.name.slice(0,1).toUpperCase())}</span><span class="pnm">${esc(p.name)}</span>${p.pin?'<span class="plock">🔒</span>':''}<span class="pdel" role="button" aria-label="Remove ${esc(p.name)}" title="Remove player" style="position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#ff9f9a;font-size:12px;font-weight:900;line-height:1">✕</span>`;
+    b.onclick=(e)=>{if(e.target&&e.target.closest&&e.target.closest(".pdel")){e.stopPropagation();confirmDeletePlayer(p);return;}selectProfile(p);};list.appendChild(b);});
   const add=document.createElement("button");add.className="pcard add";
   add.innerHTML=`<span class="pav">＋</span><span class="pnm">New player</span>`;
   add.onclick=showCreate;list.appendChild(add);
   renderCloudBar();
 }
+function deletePlayer(id){const keep=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&(k.indexOf("majick-p-"+id+"-")===0||k.indexOf("music-"+id+"-")===0))keep.push(k);}keep.forEach(k=>{try{localStorage.removeItem(k);}catch(e){}});
+  setProfiles(getProfiles().filter(x=>x.id!==id));if(activeId()===id){try{localStorage.removeItem("majick-active");}catch(e){}}try{cloudPush();}catch(e){}}
+function confirmDeletePlayer(p){const f=$("#gateForm");if(!f)return;
+  f.innerHTML=`<div class="unlock"><div class="ulabel">Remove <b>${esc(p.name)}</b>?</div><div class="site-note" style="text-align:center;margin:4px 0 10px">This deletes ${esc(p.name)}'s progress and beans on this device${acctTok&&acctTok()?" and in your synced account":""}. It can't be undone.</div><div class="actions"><button class="btn ghost" id="pdNo">Cancel</button><button class="btn" id="pdYes" style="background:#e2554f;border-color:#e2554f">Remove ${esc(p.name)}</button></div></div>`;
+  $("#pdNo").onclick=()=>{f.innerHTML="";};$("#pdYes").onclick=()=>{deletePlayer(p.id);renderGate();};}
 function selectProfile(p){
   if(p.pin){$("#gateForm").innerHTML=`<div class="unlock"><div class="ulabel">${esc(p.name)}'s code</div>
     <input class="pin-input" id="pinIn" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="code" placeholder="••••">
