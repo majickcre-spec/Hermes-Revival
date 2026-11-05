@@ -738,6 +738,56 @@ function howWrap(root){if(!root)return;root.querySelectorAll(".intro:not([data-h
   d.innerHTML='<summary>ⓘ How it works <span class="hw-car">▾</span></summary><div class="hw-body"></div>';
   el.parentNode.insertBefore(d,el);d.querySelector(".hw-body").appendChild(el);d.addEventListener("toggle",function(){HOW_OPEN[k]=d.open;});});}
 (function(){try{var q=false;var mo=new MutationObserver(function(){if(q)return;q=true;Promise.resolve().then(function(){q=false;howWrap(view);});});mo.observe(view,{childList:true,subtree:true});}catch(e){}})();
+/* ===== FLOATING METRONOME — on every screen, own tempo + own volume, keeps running between screens ===== */
+var MET={on:false,bpm:load("mjk-met-bpm",90),beats:load("mjk-met-beats",4),vol:load("mjk-met-vol",0.6),snd:load("mjk-met-snd","click"),next:0,beat:0,sch:null,raf:null,q:[],g:null,taps:[],open:false};
+(function(){try{var s=document.createElement("style");s.textContent=
+"#metFab{position:fixed;left:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:2147482500;display:flex;align-items:center;gap:6px;padding:9px 14px;border-radius:999px;border:1px solid rgba(244,183,64,.6);background:rgba(20,14,40,.92);color:#f4b740;font:800 .95rem system-ui,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.45);cursor:pointer;-webkit-user-select:none;user-select:none;transition:transform .06s}"+
+"#metFab.on{background:#f4b740;color:#2a1a00}#metFab.beat{transform:scale(1.12)}#metFab.acc{transform:scale(1.2)}"+
+"body.gated #metFab,body.gated #metPanel{display:none!important}"+
+"#metPanel{position:fixed;left:12px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:2147482500;width:min(340px,calc(100vw - 24px));background:var(--card,#1a1430);border:1px solid var(--line,#3a3160);border-radius:16px;padding:12px 14px;box-shadow:0 12px 30px rgba(0,0,0,.55);color:var(--cream,#f3eefc);font:inherit}"+
+"#metPanel .mrow{display:flex;align-items:center;gap:8px;margin:8px 0}#metPanel .mlab{font-size:.78rem;color:var(--muted,#9a93b8);min-width:52px;font-weight:700}"+
+"#metPanel .mbtn{border:1px solid var(--line,#3a3160);background:var(--card2,#241c42);color:inherit;border-radius:10px;padding:8px 11px;font:800 .9rem system-ui;cursor:pointer}#metPanel .mbtn.sel{border-color:#7ff0d6;background:rgba(127,240,214,.15);color:#7ff0d6}"+
+"#metPanel .mgo{flex:1;padding:12px;border-radius:12px;border:0;background:#f4b740;color:#2a1a00;font:900 1rem system-ui;cursor:pointer}#metPanel .mgo.on{background:#ff6b6b;color:#fff}"+
+"#metDots{display:flex;gap:6px;justify-content:center;margin:6px 0 2px}#metDots span{width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.12)}#metDots span.on{background:#f4b740}#metDots span.on.a{background:#ff8f5c}"+
+"#metBpmBig{font:900 1.8rem system-ui;color:#f4b740;min-width:70px;text-align:center}";
+document.head.appendChild(s);}catch(e){}})();
+function metGain(){var a=ac();if(!MET.g){MET.g=a.createGain();MET.g.connect(a.destination);}MET.g.gain.value=MET.vol*MET.vol*1.8;return MET.g;}
+function metTick(t,acc){try{var a=ac(),g=metGain(),o=a.createOscillator(),e=a.createGain();
+  if(MET.snd==="wood"){o.type="sine";o.frequency.value=acc?1250:860;e.gain.setValueAtTime(0.0001,t);e.gain.exponentialRampToValueAtTime(acc?1:0.7,t+0.002);e.gain.exponentialRampToValueAtTime(0.0001,t+0.09);}
+  else{o.type="square";o.frequency.value=acc?1800:1250;e.gain.setValueAtTime(0.0001,t);e.gain.exponentialRampToValueAtTime(acc?0.5:0.32,t+0.001);e.gain.exponentialRampToValueAtTime(0.0001,t+0.045);}
+  o.connect(e);e.connect(g);o.start(t);o.stop(t+0.12);}catch(e){}}
+function metSched(){var a=ac();while(MET.next<a.currentTime+0.12){var acc=(MET.beats>1&&MET.beat===0);metTick(MET.next,acc);MET.q.push({t:MET.next,b:MET.beat});MET.next+=60/MET.bpm;MET.beat=(MET.beat+1)%Math.max(1,MET.beats);}}
+function metShow(b){var f=document.getElementById("metFab");if(f){var acc=(MET.beats>1&&b===0);f.classList.remove("beat","acc");void f.offsetWidth;f.classList.add(acc?"acc":"beat");setTimeout(function(){f.classList.remove("beat","acc");},110);}
+  var d=document.getElementById("metDots");if(d)d.querySelectorAll("span").forEach(function(s,i){s.classList.toggle("on",i===b);});}
+function metFrame(){var now=ac().currentTime;while(MET.q.length&&MET.q[0].t<=now){metShow(MET.q.shift().b);}if(MET.on)MET.raf=requestAnimationFrame(metFrame);}
+function metStart(){unlockAudio();if(MET.on)return;MET.on=true;MET.beat=0;MET.q=[];MET.next=ac().currentTime+0.08;MET.sch=setInterval(metSched,25);MET.raf=requestAnimationFrame(metFrame);metUI();}
+function metStop(){MET.on=false;if(MET.sch){clearInterval(MET.sch);MET.sch=null;}if(MET.raf){cancelAnimationFrame(MET.raf);MET.raf=null;}MET.q=[];metUI();}
+function metSetBpm(v){MET.bpm=Math.max(30,Math.min(240,Math.round(v)));save("mjk-met-bpm",MET.bpm);metUI(true);}
+function metUI(soft){var f=document.getElementById("metFab");if(f){f.classList.toggle("on",MET.on);f.innerHTML="♩ "+MET.bpm+(MET.on?" ⏹":"");}
+  var p=document.getElementById("metPanel");if(!p)return;p.hidden=!MET.open;if(!MET.open)return;
+  if(soft){var bb=document.getElementById("metBpmBig");if(bb)bb.textContent=MET.bpm;var sl=document.getElementById("metBpm");if(sl&&+sl.value!==MET.bpm)sl.value=MET.bpm;var go=document.getElementById("metGo");if(go){go.textContent=MET.on?"⏹ Stop":"▶ Start";go.classList.toggle("on",MET.on);}return;}
+  var dots="";for(var i=0;i<Math.max(1,MET.beats);i++)dots+='<span class="'+(i===0&&MET.beats>1?"a":"")+'"></span>';
+  p.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between"><b>♩ Metronome</b><button class="mbtn" id="metClose" aria-label="Close">✕</button></div>'+
+    '<div id="metDots">'+dots+'</div>'+
+    '<div class="mrow"><button class="mbtn" id="metDn">−</button><div id="metBpmBig">'+MET.bpm+'</div><button class="mbtn" id="metUp">+</button><button class="mbtn" id="metTap" style="margin-left:auto">Tap</button></div>'+
+    '<div class="mrow"><input type="range" id="metBpm" min="30" max="240" value="'+MET.bpm+'" style="flex:1"></div>'+
+    '<div class="mrow"><span class="mlab">Beats</span>'+[1,2,3,4,6].map(function(n){return '<button class="mbtn'+(MET.beats===n?" sel":"")+'" data-mb="'+n+'">'+n+'</button>';}).join("")+'</div>'+
+    '<div class="mrow"><span class="mlab">Sound</span><button class="mbtn'+(MET.snd==="click"?" sel":"")+'" data-ms="click">Click</button><button class="mbtn'+(MET.snd==="wood"?" sel":"")+'" data-ms="wood">Woodblock</button></div>'+
+    '<div class="mrow"><span class="mlab">🔊 Click vol</span><input type="range" id="metVol" min="0" max="100" value="'+Math.round(MET.vol*100)+'" style="flex:1"><span style="min-width:38px;text-align:right;font-weight:800" id="metVolV">'+Math.round(MET.vol*100)+'%</span></div>'+
+    '<div class="mrow"><button class="mgo'+(MET.on?" on":"")+'" id="metGo">'+(MET.on?"⏹ Stop":"▶ Start")+'</button></div>'+
+    '<div style="font-size:.74rem;color:var(--muted,#9a93b8);text-align:center">Keeps playing while you move around the app. This volume is just for the click.</div>';
+  document.getElementById("metClose").onclick=function(){MET.open=false;metUI();};
+  document.getElementById("metDn").onclick=function(){metSetBpm(MET.bpm-1);};document.getElementById("metUp").onclick=function(){metSetBpm(MET.bpm+1);};
+  document.getElementById("metBpm").oninput=function(){metSetBpm(+this.value);};
+  document.getElementById("metTap").onclick=function(){unlockAudio();var now=performance.now();if(MET.taps.length&&now-MET.taps[MET.taps.length-1]>2000)MET.taps=[];MET.taps.push(now);if(MET.taps.length>5)MET.taps.shift();if(MET.taps.length>=2){var s=0;for(var i=1;i<MET.taps.length;i++)s+=MET.taps[i]-MET.taps[i-1];metSetBpm(60000/(s/(MET.taps.length-1)));}};
+  p.querySelectorAll("[data-mb]").forEach(function(b){b.onclick=function(){MET.beats=+b.getAttribute("data-mb");save("mjk-met-beats",MET.beats);MET.beat=0;metUI();};});
+  p.querySelectorAll("[data-ms]").forEach(function(b){b.onclick=function(){MET.snd=b.getAttribute("data-ms");save("mjk-met-snd",MET.snd);metUI();if(!MET.on){unlockAudio();metTick(ac().currentTime+0.02,true);}};});
+  var mv=document.getElementById("metVol");mv.oninput=function(){MET.vol=mv.value/100;save("mjk-met-vol",MET.vol);document.getElementById("metVolV").textContent=mv.value+"%";if(MET.g)MET.g.gain.value=MET.vol*MET.vol*1.8;};
+  document.getElementById("metGo").onclick=function(){if(MET.on)metStop();else metStart();};}
+(function(){try{var f=document.createElement("button");f.id="metFab";f.type="button";f.setAttribute("aria-label","Metronome");document.body.appendChild(f);
+  var p=document.createElement("div");p.id="metPanel";p.hidden=true;document.body.appendChild(p);
+  f.onclick=function(){unlockAudio();MET.open=!MET.open;metUI();};metUI();}catch(e){}})();
+
 function beanChip(){const c=$("#beanChipM");if(!c)return;
   if(activeId()&&!isAdult()){c.hidden=false;c.style.cursor="pointer";c.title="Open the Bean Shop";c.onclick=function(){if(activeId()&&!isAdult())renderMusicShop();};$("#beanNumM").textContent=getBeans();}else c.hidden=true;}
 /* ===== BEAN SHOP — shared economy with Star's Heads (same catalog, goals, claims, beans) ===== */
