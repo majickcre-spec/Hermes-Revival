@@ -6364,13 +6364,13 @@ function renderMelodyLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=
 /* ===== MEDITATION — binaural brainwaves, breathwork + HRV, rhythm mind, sessions ===== */
 let MED={master:null,oscs:[],timer:null};
 function medStop(){if(MED.timer){clearInterval(MED.timer);MED.timer=null;}if(!MED.master)return;const a=ac(),m=MED.master,os=MED.oscs;MED.master=null;MED.oscs=[];try{m.gain.cancelScheduledValues(a.currentTime);m.gain.setTargetAtTime(0.0001,a.currentTime,0.3);}catch(e){}setTimeout(()=>{os.forEach(o=>{try{o.stop();}catch(e){}});},800);}
-function medBinaural(beatHz,carrier,vol,shimmer){try{medMarkDone();}catch(e){}medStop();unlockAudio();const a=ac(),oscs=[];
+function medBinaural(beatHz,carrier,vol,shimmer){try{medMarkDone();}catch(e){}medStop();unlockAudio();const a=ac(),oscs=[];let rightO=null,shimL=null;
   const master=a.createGain();master.gain.value=0.0001;master.connect(a.destination);master.gain.setTargetAtTime(vol==null?0.5:vol,a.currentTime,0.9);
   const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=2200;lp.connect(master);
-  [[-1,0],[1,beatHz]].forEach(([pan,off])=>{const o=a.createOscillator();o.type="sine";o.frequency.value=carrier+off;const pn=a.createStereoPanner?a.createStereoPanner():null;if(pn)pn.pan.value=pan;const g=a.createGain();g.gain.value=0.17;o.connect(pn||g);if(pn)pn.connect(g);g.connect(lp);o.start();oscs.push(o);});
+  [[-1,0],[1,beatHz]].forEach(([pan,off])=>{const o=a.createOscillator();o.type="sine";o.frequency.value=carrier+off;const pn=a.createStereoPanner?a.createStereoPanner():null;if(pn)pn.pan.value=pan;const g=a.createGain();g.gain.value=0.17;o.connect(pn||g);if(pn)pn.connect(g);g.connect(lp);o.start();oscs.push(o);if(pan===1)rightO=o;});
   [0,7].forEach(n=>{const o=a.createOscillator();o.type="sine";o.frequency.value=carrier*Math.pow(2,n/12)/2;const g=a.createGain();g.gain.value=0.035;const tr=a.createOscillator();tr.type="sine";tr.frequency.value=0.07;const tg=a.createGain();tg.gain.value=0.018;tr.connect(tg);tg.connect(g.gain);tr.start();oscs.push(tr);o.connect(g);g.connect(lp);o.start();oscs.push(o);});
-  if(shimmer){const o=a.createOscillator();o.type="sine";o.frequency.value=carrier;const g=a.createGain();g.gain.value=0;const lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=beatHz;const lg=a.createGain();lg.gain.value=0.03;lfo.connect(lg);lg.connect(g.gain);lfo.start();oscs.push(lfo);o.connect(g);g.connect(lp);o.start();oscs.push(o);}
-  MED.master=master;MED.oscs=oscs;}
+  if(shimmer){const o=a.createOscillator();o.type="sine";o.frequency.value=carrier;const g=a.createGain();g.gain.value=0;const lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=beatHz;const lg=a.createGain();lg.gain.value=0.03;lfo.connect(lg);lg.connect(g.gain);lfo.start();oscs.push(lfo);shimL=lfo;o.connect(g);g.connect(lp);o.start();oscs.push(o);}
+  MED.master=master;MED.oscs=oscs;MED.right=rightO;MED.lfo=shimL;MED.body=null;MED.bodyDepth=null;}
 const BRAINWAVES=[
  {id:"delta",name:"Delta",hz:2.5,range:"0.5–4 Hz",intent:"Sleep & deep healing",desc:"The slowest waves — dreamless sleep and physical repair. Lie down, dim the lights."},
  {id:"theta",name:"Theta",hz:6,range:"4–8 Hz",intent:"Deep meditation & intuition",desc:"The dreamlike, hypnagogic state — deep meditation, creativity, and letting go."},
@@ -6413,6 +6413,7 @@ function medRemTick(){var r=medRemGet();if(r.on&&!medDidToday()&&!medDismissed()
 function renderMeditation(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{medStop();};
   const MODS=[
    {ic:"🌀",title:"Brainwave Binaural",blurb:"Pick an intention — sleep, meditate, flow, focus, insight — and ride the matching brainwave as a binaural beat. Headphones on.",go:renderBrainwave},
+   {ic:"🌀",title:"Brainwave Journey",blurb:"A 30-minute ride: start in everyday thinking, drift down to deep theta or delta, rest there, and come back up to calm, clear waking. Headphones on.",go:renderJourney},
    {ic:"🌬️",title:"Breathwork",blurb:"Guided breathing — coherent, box, 4·7·8 — with a breathing circle to follow. Connect a heart monitor to watch your HRV settle.",go:renderBreathwork},
    {ic:"🥁",title:"Rhythm Mind",blurb:"Train your internal clock — the beat plays, then goes silent, and you keep it alive in your head. See how steady your inner pulse is.",go:renderRhythmMind},
    {ic:"🕯️",title:"Meditation Session",blurb:"Set an intention and a length, and sit with a soft ground tone and gentle bells. A clean, quiet timer.",go:renderMedSession}
@@ -6425,29 +6426,79 @@ function renderMeditation(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();h
   (function(){var r=medRemGet();var on=$("#medRemOn"),off=$("#medRemOff"),tm=$("#medRemTime"),note=$("#medRemNote");if(tm)tm.value=r.time||"08:00";function upd(){if(on)on.classList.toggle("sel",r.on);if(off)off.classList.toggle("sel",!r.on);if(note)note.textContent=r.on?("Reminder on at "+(r.time||"08:00")+((window.Notification&&Notification.permission==="granted")?" \u00b7 alerts on":"")):"Reminder off.";}if(on)on.onclick=function(){r.on=true;medRemSet(r);if(window.Notification&&Notification.permission==="default"){try{Notification.requestPermission().then(upd);}catch(e){}}upd();};if(off)off.onclick=function(){r.on=false;medRemSet(r);upd();};if(tm)tm.onchange=function(){r.time=tm.value||"08:00";medRemSet(r);upd();};upd();})();
 }
 function renderBrainwave(startId){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{medStop();};
-  let wi=2,carrier=200,vol=0.5,shimmer=true,playing=false;if(startId){for(var _bi=0;_bi<BRAINWAVES.length;_bi++){if(BRAINWAVES[_bi].id===startId)wi=_bi;}}
+  let wi=2,carrier=200,vol=0.5,shimmer=true,playing=false,body=load("mjk-bwbody",false);const startBW=hz=>{medBinaural(hz,carrier,vol,shimmer);medBodyWave(body,vol);};if(startId){for(var _bi=0;_bi<BRAINWAVES.length;_bi++){if(BRAINWAVES[_bi].id===startId)wi=_bi;}}
   function draw(){const w=BRAINWAVES[wi];
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌀 Brainwave Binaural</span></div><div class="panel">'+
       '<div class="intro">A <b>binaural beat</b> plays a slightly different tone in each ear; your brain hears the <b>difference</b> as a pulse and tends to settle toward it. Pick what you want, put on <b>headphones</b>, and relax — nothing to do but listen.</div>'+
+      '<button class="btn" id="bwJourney" style="width:100%;margin:4px 0 12px">🌀 30-min Journey — down deep &amp; back up →</button>'+
       '<div class="rlab" style="display:block;margin:4px 0 6px">Intention</div><div class="rchips" id="bwWaves"></div>'+
       '<div class="idea-fb" id="bwInfo" style="margin-top:10px"></div>'+
-      '<div class="rrow"><span class="rlab">Beat</span><input type="range" id="bwBeat" min="1" max="40" step="0.17" value="'+w.hz+'" style="flex:1"><span class="rbpm" id="bwBeatV">'+w.hz.toFixed(2)+' Hz</span></div>'+
+      '<div class="rrow"><span class="rlab">Beat</span><input type="range" id="bwBeat" min="0.1" max="40" step="0.05" value="'+w.hz+'" style="flex:1"><span class="rbpm" id="bwBeatV">'+w.hz.toFixed(2)+' Hz</span></div>'+
       '<div class="rrow"><span class="rlab">Tone</span><input type="range" id="bwCar" min="90" max="360" value="'+carrier+'" style="flex:1"><span class="rbpm" id="bwCarV">'+carrier+' Hz</span></div>'+
       '<div class="rrow2"><span class="rlab">Felt pulse</span><span class="rchips tight"><button class="rchip sm'+(shimmer?" sel":"")+'" id="bwShim">'+(shimmer?"On":"Off")+'</button><span class="site-note" style="margin:0 0 0 8px">adds a soft audible pulse so it works even without perfect headphones</span></span></div>'+
+      '<div class="rrow2"><span class="rlab">Body wave</span><span class="rchips tight"><button class="rchip sm'+(body?" sel":"")+'" id="bwBody">🌊 0.1 Hz: '+(body?"On":"Off")+'</button><span class="site-note" style="margin:0 0 0 8px">a slow 10-second swell to breathe with — in as it rises, out as it falls</span></span></div>'+
       '<div class="rrow"><span class="rlab">Volume</span><input type="range" id="bwVol" min="0" max="1" step="0.01" value="'+vol+'" style="flex:1"></div>'+
       '<div class="actions"><button class="btn" id="bwPlay">'+(playing?"⏸ Stop":"▶ Play")+'</button></div>'+
       '<div class="site-note">🎧 Headphones are what make binaural beats work — the pulse lives in the difference between your ears. Not a medical device; just a tool for settling in.</div></div>';
     $("#eBack").onclick=()=>{medStop();renderMeditation();};
-    const wc=$("#bwWaves");BRAINWAVES.forEach((v,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===wi?" sel":"");b.textContent=v.name;b.onclick=()=>{wi=i;const nw=BRAINWAVES[i];$("#bwBeat").value=nw.hz;$("#bwBeatV").textContent=nw.hz.toFixed(2)+" Hz";draw();if(playing)medBinaural(nw.hz,carrier,vol,shimmer);};wc.appendChild(b);});
+    const wc=$("#bwWaves");BRAINWAVES.forEach((v,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===wi?" sel":"");b.textContent=v.name;b.onclick=()=>{wi=i;const nw=BRAINWAVES[i];$("#bwBeat").value=nw.hz;$("#bwBeatV").textContent=nw.hz.toFixed(2)+" Hz";draw();if(playing)startBW(nw.hz);};wc.appendChild(b);});
     $("#bwInfo").innerHTML='<b style="color:#c9b3ff">'+w.name+' · '+w.range+'</b> — '+w.intent+'. '+w.desc;
-    const bb=$("#bwBeat");bb.oninput=()=>{$("#bwBeatV").textContent=(+bb.value).toFixed(2)+" Hz";if(playing)medBinaural(+bb.value,carrier,vol,shimmer);};
-    const bc=$("#bwCar");bc.oninput=()=>{carrier=+bc.value;$("#bwCarV").textContent=carrier+" Hz";if(playing)medBinaural(+bb.value,carrier,vol,shimmer);};
-    $("#bwShim").onclick=()=>{shimmer=!shimmer;draw();if(playing)medBinaural(+$("#bwBeat").value,carrier,vol,shimmer);};
+    const bb=$("#bwBeat");bb.oninput=()=>{$("#bwBeatV").textContent=(+bb.value).toFixed(2)+" Hz";if(playing)startBW(+bb.value);};
+    const bc=$("#bwCar");bc.oninput=()=>{carrier=+bc.value;$("#bwCarV").textContent=carrier+" Hz";if(playing)startBW(+bb.value);};
+    {const jb=$("#bwJourney");if(jb)jb.onclick=()=>{medStop();renderJourney();};const bd=$("#bwBody");if(bd)bd.onclick=()=>{body=!body;save("mjk-bwbody",body);draw();if(playing)medBodyWave(body,vol);};}
+    $("#bwShim").onclick=()=>{shimmer=!shimmer;draw();if(playing)startBW(+$("#bwBeat").value);};
     const bv=$("#bwVol");bv.oninput=()=>{vol=+bv.value;if(MED.master)MED.master.gain.setTargetAtTime(vol,ac().currentTime,0.1);};
-    $("#bwPlay").onclick=()=>{if(playing){medStop();playing=false;$("#bwPlay").textContent="▶ Play";}else{medBinaural(+$("#bwBeat").value,carrier,vol,shimmer);playing=true;$("#bwPlay").textContent="⏸ Stop";}};
+    $("#bwPlay").onclick=()=>{if(playing){medStop();playing=false;$("#bwPlay").textContent="▶ Play";}else{startBW(+$("#bwBeat").value);playing=true;$("#bwPlay").textContent="⏸ Stop";}};
   }
   draw();
 }
+/* ===== BRAINWAVE JOURNEY — down from everyday thinking, rest deep, back up to calm waking ===== */
+function medBodyWave(on,vol){if(!MED.master)return;var a=ac();if(MED.body){try{MED.body.stop();}catch(e){}MED.body=null;}if(!on)return;var l=a.createOscillator();l.type="sine";l.frequency.value=0.1;var d=a.createGain();d.gain.value=(vol==null?0.5:vol)*0.4;l.connect(d);d.connect(MED.master.gain);l.start();MED.body=l;MED.bodyDepth=d;MED.oscs.push(l);}
+function jPlan(total,depth){var f=total/30,S=[[0,4,14,10,"Settling — busy mind to calm"],[4,8,10,depth,"Drifting down"],[8,20,depth,depth,"Resting deep"],[20,26,depth,10,"Coming back up"],[26,30,10,10,"Calm & awake"]];return S.map(function(s){return {t0:s[0]*60*f,t1:s[1]*60*f,h0:s[2],h1:s[3],label:s[4]};});}
+function jHzAt(plan,t){for(var i=0;i<plan.length;i++){var s=plan[i];if(t<=s.t1){var k=s.t1>s.t0?Math.max(0,(t-s.t0)/(s.t1-s.t0)):1;return {hz:s.h0+(s.h1-s.h0)*k,label:s.label};}}var L=plan[plan.length-1];return {hz:L.h1,label:L.label,done:true};}
+function jBand(hz){return hz<4?"Delta":hz<8?"Theta":hz<12?"Alpha":"Beta";}
+function jSVG(plan,total,t){var W=320,H=110,pad=8,yOf=function(h){return pad+(1-Math.min(16,h)/16)*(H-2*pad);},xOf=function(s){return pad+(s/total)*(W-2*pad);};
+  var pts=[];plan.forEach(function(s,i){if(i===0)pts.push(xOf(s.t0)+","+yOf(s.h0));pts.push(xOf(s.t1)+","+yOf(s.h1));});
+  var bands=[[12,16,"Beta"],[8,12,"Alpha"],[4,8,"Theta"],[0,4,"Delta"]],g="";bands.forEach(function(b,i){g+='<rect x="0" y="'+yOf(b[1])+'" width="'+W+'" height="'+(yOf(b[0])-yOf(b[1]))+'" fill="'+(i%2?"rgba(255,255,255,.03)":"rgba(255,255,255,.06)")+'"/><text x="'+(W-4)+'" y="'+(yOf(b[1])+12)+'" text-anchor="end" font-size="10" fill="rgba(255,255,255,.4)" font-family="system-ui">'+b[2]+'</text>';});
+  var dot="";if(t!=null){var cur=jHzAt(plan,Math.min(t,total));dot='<circle cx="'+xOf(Math.min(t,total))+'" cy="'+yOf(cur.hz)+'" r="6" fill="#f4b740" stroke="#fff" stroke-width="2"/>';}
+  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;border-radius:10px;background:var(--bg);border:1px solid var(--line)">'+g+'<polyline points="'+pts.join(" ")+'" fill="none" stroke="#7ff0d6" stroke-width="3" stroke-linejoin="round"/>'+dot+'</svg>';}
+function renderJourney(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){medStop();};
+  var jLen=load("mjk-jlen",30),jDepth=load("mjk-jdepth",4),carrier=200,vol=0.5,shimmer=true,body=load("mjk-bwbody",false),playing=false,t0=0,plan=null;
+  function fmt(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
+  function draw(){var P=jPlan(jLen,jDepth);
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌀 Brainwave Journey</span></div><div class="panel">'+
+      '<div class="intro">A guided ride on a binaural beat. It starts where your mind is now — everyday thinking (~14 Hz) — drifts down to the depth you pick, rests there, then brings you <b>back up to calm, clear waking</b> (~10 Hz alpha). <b>Headphones on</b>, lie back, nothing to do but listen.</div>'+
+      '<div id="jRead" style="text-align:center;margin:8px 0"><div style="font:900 2.2rem system-ui;color:#f4b740" id="jHz">14.0 Hz</div><div style="font-weight:800" id="jBandL">Beta · everyday thinking</div><div class="site-note" id="jPhase" style="margin:2px 0">Ready when you are</div><div class="rbpm" id="jLeft" style="display:inline-block;margin-top:4px">'+jLen+':00</div></div>'+
+      '<div id="jMap">'+jSVG(P,jLen*60,playing?0:null)+'</div>'+
+      '<div class="rrow2" style="margin-top:10px"><span class="rlab">Length</span><span class="rchips tight" id="jLens"></span></div>'+
+      '<div class="rrow2"><span class="rlab">How deep</span><span class="rchips tight" id="jDeps"></span></div>'+
+      '<div class="rrow"><span class="rlab">Tone</span><input type="range" id="jCar" min="90" max="360" value="'+carrier+'" style="flex:1"><span class="rbpm" id="jCarV">'+carrier+' Hz</span></div>'+
+      '<div class="rrow2"><span class="rlab">Options</span><span class="rchips tight"><button class="rchip sm'+(shimmer?" sel":"")+'" id="jShim">✨ Felt pulse: '+(shimmer?"On":"Off")+'</button><button class="rchip sm'+(body?" sel":"")+'" id="jBody">🌊 Body wave 0.1 Hz: '+(body?"On":"Off")+'</button></span></div>'+
+      (body?'<div class="site-note" style="margin:2px 0 6px">A slow 10-second swell — breathe in as it rises, out as it falls (about 6 breaths a minute). It matches your body’s own ~0.1 Hz rhythm.</div>':'')+
+      '<div class="rrow"><span class="rlab">Volume</span><input type="range" id="jVol" min="0" max="1" step="0.01" value="'+vol+'" style="flex:1"></div>'+
+      '<div class="actions"><button class="btn" id="jPlay">'+(playing?"⏹ End journey":"▶ Begin journey")+'</button></div>'+
+      '<div class="site-note">🎧 Binaural beats need headphones. Not a medical device — a tool for settling in. Don’t use while driving.</div></div>';
+    $("#eBack").onclick=function(){medStop();renderMeditation();};
+    var ls=$("#jLens");[20,30,45].forEach(function(m){var b=document.createElement("button");b.className="rchip sm"+(m===jLen?" sel":"");b.textContent=m+" min";b.onclick=function(){if(playing)return;jLen=m;save("mjk-jlen",m);draw();};ls.appendChild(b);});
+    var ds=$("#jDeps");[["Theta · 6 Hz",6],["Deep theta · 4 Hz",4],["Delta · 2 Hz",2]].forEach(function(o){var b=document.createElement("button");b.className="rchip sm"+(o[1]===jDepth?" sel":"");b.textContent=o[0];b.onclick=function(){if(playing)return;jDepth=o[1];save("mjk-jdepth",o[1]);draw();};ds.appendChild(b);});
+    var jc=$("#jCar");jc.oninput=function(){carrier=+jc.value;$("#jCarV").textContent=carrier+" Hz";};if(playing)jc.disabled=true;
+    $("#jShim").onclick=function(){if(playing)return;shimmer=!shimmer;draw();};
+    $("#jBody").onclick=function(){body=!body;save("mjk-bwbody",body);if(playing)medBodyWave(body,vol);draw();};
+    var jv=$("#jVol");jv.oninput=function(){vol=+jv.value;if(MED.master)MED.master.gain.setTargetAtTime(vol,ac().currentTime,0.1);if(MED.bodyDepth)MED.bodyDepth.gain.value=vol*0.4;};
+    $("#jPlay").onclick=function(){if(playing){medStop();playing=false;draw();}else begin();};
+    if(playing)tick();}
+  function begin(){plan=jPlan(jLen,jDepth);medBinaural(14,carrier,vol,shimmer);var a=ac();t0=a.currentTime;
+    [[MED.right&&MED.right.frequency,carrier],[MED.lfo&&MED.lfo.frequency,0]].forEach(function(pp){var p=pp[0],base=pp[1];if(!p)return;p.cancelScheduledValues(t0);p.setValueAtTime(base+14,t0);plan.forEach(function(s){p.linearRampToValueAtTime(base+s.h1,t0+s.t1);});});
+    medBodyWave(body,vol);playing=true;draw();MED.timer=setInterval(tick,500);}
+  function tick(){if(!playing)return;var total=jLen*60,t=ac().currentTime-t0,cur=jHzAt(plan,t);
+    var hz=$("#jHz"),bl=$("#jBandL"),ph=$("#jPhase"),lf=$("#jLeft"),mp=$("#jMap");
+    if(hz)hz.textContent=cur.hz.toFixed(1)+" Hz";if(bl)bl.textContent=jBand(cur.hz)+({Beta:" · everyday thinking",Alpha:" · calm, relaxed",Theta:" · deep, dreamy",Delta:" · deepest rest"})[jBand(cur.hz)];
+    if(ph)ph.textContent=cur.label;if(lf)lf.textContent=fmt(total-t)+" left";if(mp)mp.innerHTML=jSVG(plan,total,t);
+    if(t>=total){finish();}}
+  function finish(){playing=false;if(MED.timer){clearInterval(MED.timer);MED.timer=null;}try{medMarkDone();}catch(e){}if(activeId()){try{addBeans(10);beanChip();}catch(e){}}
+    try{var a=ac();if(MED.master)MED.master.gain.setTargetAtTime(0.0001,a.currentTime,2.5);}catch(e){}setTimeout(medStop,9000);
+    draw();var ph=$("#jPhase");if(ph)ph.innerHTML='<b style="color:#5fe0a8">✅ Journey complete</b> — take a slow breath, wiggle your fingers, open your eyes when ready.';var hz=$("#jHz");if(hz)hz.textContent="10.0 Hz";var bl=$("#jBandL");if(bl)bl.textContent="Alpha · calm & awake";}
+  draw();}
 function renderBreathwork(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   let pi=0,mins=5,running=false,raf=null,startT=0,phaseIdx=-1,toneOn=true,breathGain=null,hrRAF=null;
   teardown=()=>{running=false;if(raf)cancelAnimationFrame(raf);if(hrRAF)cancelAnimationFrame(hrRAF);medStop();};
