@@ -4481,6 +4481,8 @@ function fbSVG(){var g=fbGeo(),N=g.N,shape=fbCurShape(),fingers=(FB.mode==="chor
     if(pressed)s.push('<circle cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="21" fill="url(#fbdot)" stroke="#7ff0d6" stroke-width="2.5"/>');
     if(FB.showNotes&&FB.mode==="play"){s.push('<text x="'+px.toFixed(1)+'" y="'+(py+4).toFixed(1)+'" font-size="14" font-weight="700" fill="'+(pressed?"#06281d":"rgba(255,255,255,.72)")+'" text-anchor="middle" font-family="system-ui" style="paint-order:stroke" stroke="rgba(0,0,0,.35)" stroke-width="'+(pressed?0:2.5)+'">'+fbNote(ps,pf)+'</text>');}
     s.push('<circle class="fbhit" data-pos="'+ps+':'+pf+'" cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="18" fill="transparent"/>');}}
+  if(FB.hl&&(FB.hl.f===0?win1:(FB.hl.f>=FB.win&&FB.hl.f<FB.win+4))){var hx=FB.hl.f===0?g.sx(FB.hl.s,g.nutY):g.sx(FB.hl.s,g.fy(FB.hl.f)),hy=FB.hl.f===0?g.nutY-20:g.fy(FB.hl.f);
+    s.push('<circle cx="'+hx.toFixed(1)+'" cy="'+hy.toFixed(1)+'" r="30" fill="rgba(255,226,122,.28)"/><circle cx="'+hx.toFixed(1)+'" cy="'+hy.toFixed(1)+'" r="22" fill="#ffe27a" stroke="#ffffff" stroke-width="3"/><text x="'+hx.toFixed(1)+'" y="'+(hy+6).toFixed(1)+'" font-size="17" font-weight="900" fill="#3a2600" text-anchor="middle" font-family="system-ui">'+fbNote(FB.hl.s,FB.hl.f)+'</text>');}
   s.push('</svg>');return s.join("");}
 /* ---- interaction ---- */
 function fbPlay(s,f){unlockAudio();pluck(fbStrings()[s]+f,ac().currentTime+0.001,1.9,0.5);}
@@ -4546,13 +4548,20 @@ function fbPaint(){var w=document.getElementById("fbSvgWrap");if(w)w.innerHTML=f
   if(FB.mode==="chord"){var st=document.getElementById("fbStatus"),sh=fbCurShape();
     if(fbChordCorrect()){if(!FB.holdRAF)fbStartHold();if(st&&!/Locked/.test(st.textContent))st.innerHTML='<b style="color:#5fe0a8">Shape is right — hold it to lock it in.</b>';}
     else{fbStopHold();if(st&&!/Locked/.test(st.textContent))st.textContent=sh?"Place a finger on each glowing dot — hold 3s to lock it in.":"No shapes for bass here — use Play mode.";}}}
-function fbPlayScale(){unlockAudio();var set=fbScaleSet(),strings=fbStrings(),N=strings.length,win1=(FB.win===1),notes=[];for(var s=0;s<N;s++){for(var f=(win1?0:FB.win);f<FB.win+4;f++){var m=strings[s]+f;if((((m%12)+12)%12) in set)notes.push(m);}}notes=notes.filter(function(v,i,a){return a.indexOf(v)===i;}).sort(function(a,b){return a-b;});if(!notes.length)return;var seq=notes.concat(notes.slice(0,-1).reverse());var t=ac().currentTime+0.05;seq.forEach(function(m){pluck(m,t,0.5,0.3);t+=0.26;});}
+function fbScaleStop(){(FB._scT||[]).forEach(clearTimeout);FB._scT=[];if(FB.hl){FB.hl=null;if(document.getElementById("fbSvgWrap"))fbPaint();}}
+function fbPlayScale(){unlockAudio();fbScaleStop();var set=fbScaleSet(),strings=fbStrings(),N=strings.length,win1=(FB.win===1),byM={};
+  for(var s=0;s<N;s++){for(var f=(win1?0:FB.win);f<FB.win+4;f++){var m=strings[s]+f;if(((((m%12)+12)%12) in set)&&!(m in byM))byM[m]={s:s,f:f,m:m};}}
+  var up=Object.keys(byM).map(Number).sort(function(a,b){return a-b;}).map(function(m){return byM[m];});if(!up.length)return;
+  var seq=up.concat(up.slice(0,-1).reverse()),step=0.3,a=ac(),t0=a.currentTime+0.06;
+  seq.forEach(function(p,i){var t=t0+i*step;pluck(p.m,t,0.55,0.45);
+    FB._scT.push(setTimeout(function(){if(!document.getElementById("fbSvgWrap"))return;FB.hl={s:p.s,f:p.f};fbPaint();if(typeof fbZoneVib==="function")fbZoneVib(p.s);},Math.max(0,(t-a.currentTime)*1000)));});
+  FB._scT.push(setTimeout(function(){FB.hl=null;if(document.getElementById("fbSvgWrap"))fbPaint();},Math.max(0,(t0+seq.length*step-a.currentTime)*1000)));}
 function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.mode=startMode;if(FB.inst==="bass"&&FB.mode==="chord")FB.mode="play";if(FB.mode==="chord"&&!fbShapeFor(FB.chord))FB.chord=(CHORDS[FB.inst]?Object.keys(CHORDS[FB.inst])[0]:"C");
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);try{sfLoadInst("guitar");}catch(e){}
   document.removeEventListener("pointerup",fbUpPt);document.removeEventListener("pointercancel",fbUpPt);
   document.addEventListener("pointerup",fbUpPt);document.addEventListener("pointercancel",fbUpPt);
-  teardown=function(){fbStopHold();FB.active.clear();document.removeEventListener("pointerup",fbUpPt);document.removeEventListener("pointercancel",fbUpPt);};
-  function draw(){FB.active.clear();FB.strums={};fbStopHold();
+  teardown=function(){fbScaleStop();fbStopHold();FB.active.clear();document.removeEventListener("pointerup",fbUpPt);document.removeEventListener("pointercancel",fbUpPt);};
+  function draw(){fbScaleStop();FB.active.clear();FB.strums={};fbStopHold();
     if(FB.mode==="chord"){var sh0=fbShapeFor(FB.chord);if(sh0)FB.win=fbWinFor(sh0);}
     var instName={guitar:"Guitar",bass:"Bass",ukulele:"Ukulele"}[FB.inst];
     var winLabel="Frets "+FB.win+"–"+(FB.win+3)+(FB.win===1?" (open position)":"");
