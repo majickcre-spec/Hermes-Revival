@@ -4490,16 +4490,16 @@ function fbChordCorrect(){var sh=fbCurShape();if(!sh)return false;for(var s=0;s<
 function fbStopHold(){if(FB.holdRAF){cancelAnimationFrame(FB.holdRAF);FB.holdRAF=null;}var bar=document.getElementById("fbHoldBar");if(bar)bar.style.width="0";}
 function fbStartHold(){FB.holdT=performance.now();var loop=function(){if(!fbChordCorrect()){fbStopHold();return;}var held=(performance.now()-FB.holdT)/1000,bar=document.getElementById("fbHoldBar");if(bar)bar.style.width=Math.min(100,held/3*100)+"%";if(held>=3){fbHoldDone();return;}FB.holdRAF=requestAnimationFrame(loop);};FB.holdRAF=requestAnimationFrame(loop);}
 function fbHoldDone(){fbStopHold();var st=document.getElementById("fbStatus");if(st)st.innerHTML='<b style="color:#5fe0a8">🔒 Locked in — that’s the shape. Strum it!</b>';fbStrum();var key=FB.inst+"-"+FB.chord;if(!FB.locked[key]){FB.locked[key]=1;if(activeId())addBeans(5);}}
-function fbStrum(){unlockAudio();var a=ac(),strings=fbStrings(),sh=fbCurShape(),t=a.currentTime+0.02;for(var s=0;s<strings.length;s++){var f;if(FB.mode==="chord"&&sh){f=sh[s];if(f<0)continue;}else{f=0;FB.active.forEach(function(v){if(v.s===s)f=v.f;});}pluck(strings[s]+f,t,2.3,0.5);t+=0.03;}}
+function fbStrum(up){unlockAudio();if(up==null){FB._up=!FB._up;up=FB._up;}var a=ac(),strings=fbStrings(),sh=fbCurShape(),t=a.currentTime+0.015,N=strings.length,order=[];for(var i=0;i<N;i++)order.push(up?N-1-i:i);order.forEach(function(s,k){var f;if(FB.mode==="chord"&&sh){f=sh[s];if(f<0)return;}else{f=0;FB.active.forEach(function(v){if(v.s===s)f=v.f;});}var acc=up?(0.42+0.04*k):(0.6-0.03*k);pluck(strings[s]+f,t,3.2,acc);t+=0.014;});}
 function fbHitAt(svg,g,cx,cy){var r=svg.getBoundingClientRect();if(!r.width||!r.height)return null;var xV=(cx-r.left)*(g.VBW/r.width),yV=(cy-r.top)*(g.VBH/r.height);var yc=Math.max(g.nutY,Math.min(g.bottomY,yV)),best=-1,bd=1e9;for(var s=0;s<g.N;s++){var d=Math.abs(xV-g.sx(s,yc));if(d<bd){bd=d;best=s;}}if(best<0||bd>48)return null;var f;if(yV<g.nutY-4){if(FB.win!==1)return null;f=0;}else{var row=Math.floor((yV-g.nutY)/g.rowH);if(row<0)row=0;if(row>3)row=3;f=FB.win+row;}return {s:best,f:f};}
-function fbBindTouch(box){if(!box||box._fbBound)return;box._fbBound=true;var S=function(){return box.querySelector("svg");};
+function fbBindTouch(box){if(!box||box._fbBound)return;box._fbBound=true;var S=function(){return document.querySelector("#fbSvgWrap svg");};
   function start(id,cx,cy){var svg=S();if(!svg)return;var h=fbHitAt(svg,fbGeo(),cx,cy);if(!h){FB.active.set(id,{pending:true,x0:cx,y0:cy});return;}FB.active.set(id,{s:h.s,f:h.f,x0:cx,y0:cy});fbPlay(h.s,h.f);fbPaint();}
   function move(id,cx,cy){var svg=S();if(!svg)return;var st=FB.strums[id];if(st){var s=fbStringAtPt(svg,fbGeo(),cx,cy);if(s>=0&&s!==st.last){fbStrumString(s);st.last=s;}return;}var a=FB.active.get(id);if(!a)return;var dx=cx-a.x0,dy=cy-a.y0;if(Math.abs(dx)>12&&Math.abs(dx)>Math.abs(dy)*1.15){FB.active.delete(id);FB.strums[id]={last:(a.pending?-1:a.s)};var s2=fbStringAtPt(svg,fbGeo(),cx,cy);if(s2>=0&&s2!==FB.strums[id].last){fbStrumString(s2);FB.strums[id].last=s2;}if(!a.pending)fbPaint();return;}if(a.pending)return;var h=fbHitAt(svg,fbGeo(),cx,cy);if(h&&(h.s!==a.s||h.f!==a.f)){a.s=h.s;a.f=h.f;fbPaint();}}
   function end(id){var a=FB.active.get(id);FB.active.delete(id);delete FB.strums[id];if(a&&!a.pending)fbPaint();}
   if("ontouchstart" in window){
-    box.addEventListener("touchstart",function(e){e.preventDefault();unlockAudio();for(var i=0;i<e.changedTouches.length;i++){var c=e.changedTouches[i];start("t"+c.identifier,c.clientX,c.clientY);}},{passive:false});
+    box.addEventListener("touchstart",function(e){e.preventDefault();unlockAudio();var live={};for(var j=0;j<e.touches.length;j++)live["t"+e.touches[j].identifier]=1;FB.active.forEach(function(v,k){if(String(k).charAt(0)==="t"&&!live[k])FB.active.delete(k);});for(var i=0;i<e.changedTouches.length;i++){var c=e.changedTouches[i];start("t"+c.identifier,c.clientX,c.clientY);}},{passive:false});
     box.addEventListener("touchmove",function(e){e.preventDefault();for(var i=0;i<e.changedTouches.length;i++){var c=e.changedTouches[i];move("t"+c.identifier,c.clientX,c.clientY);}},{passive:false});
-    var te=function(e){for(var i=0;i<e.changedTouches.length;i++)end("t"+e.changedTouches[i].identifier);};box.addEventListener("touchend",te);box.addEventListener("touchcancel",te);
+    var te=function(e){for(var i=0;i<e.changedTouches.length;i++)end("t"+e.changedTouches[i].identifier);if(!e.touches||e.touches.length===0){var had=FB.active.size;FB.active.clear();FB.strums={};if(had)fbPaint();}};box.addEventListener("touchend",te);box.addEventListener("touchcancel",te);
   }else{
     box.addEventListener("pointerdown",function(e){e.preventDefault();unlockAudio();try{box.setPointerCapture(e.pointerId);}catch(_){}start("p"+e.pointerId,e.clientX,e.clientY);});
     box.addEventListener("pointermove",function(e){if(e.buttons===0)return;move("p"+e.pointerId,e.clientX,e.clientY);});
@@ -4507,7 +4507,7 @@ function fbBindTouch(box){if(!box||box._fbBound)return;box._fbBound=true;var S=f
   }}
 function fbStringAtPt(svg,g,cx,cy){var r=svg.getBoundingClientRect();if(!r.width||!r.height)return -1;var xV=(cx-r.left)*(g.VBW/r.width),yV=(cy-r.top)*(g.VBH/r.height);var best=-1,bd=1e9;for(var s=0;s<g.N;s++){var sx=g.sx(s,yV),d=Math.abs(xV-sx);if(d<bd){bd=d;best=s;}}return bd<=48?best:-1;}
 function fbStrumString(s){if(s<0)return;unlockAudio();var strings=fbStrings(),sh=fbCurShape(),f;if(FB.mode==="chord"&&sh){f=sh[s];if(f<0)return;}else{f=0;FB.active.forEach(function(v){if(v.s===s)f=v.f;});}pluck(strings[s]+f,ac().currentTime+0.001,2.0,0.45);}
-function fbPaint(){var box=document.getElementById("fbBox");if(box)box.innerHTML=fbSVG();
+function fbPaint(){var w=document.getElementById("fbSvgWrap");if(w)w.innerHTML=fbSVG();else{var box=document.getElementById("fbBox");if(box)box.innerHTML=fbSVG();}
   if(FB.mode==="chord"){var st=document.getElementById("fbStatus"),sh=fbCurShape();
     if(fbChordCorrect()){if(!FB.holdRAF)fbStartHold();if(st&&!/Locked/.test(st.textContent))st.innerHTML='<b style="color:#5fe0a8">Shape is right — hold it to lock it in.</b>';}
     else{fbStopHold();if(st&&!/Locked/.test(st.textContent))st.textContent=sh?"Place a finger on each glowing dot — hold 3s to lock it in.":"No shapes for bass here — use Play mode.";}}}
@@ -4528,14 +4528,14 @@ function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.
       (FB.mode==="chord"?'<div class="rrow2"><span class="rlab">Chord</span><span class="rchips tight" id="fbChips"></span></div>'+(FB_ADV[FB.inst]?'<div class="rrow2" style="margin-top:2px"><button class="rchip sm'+(FB.adv?" sel":"")+'" id="fbAdv">'+(FB.adv?"★ Showing advanced shapes":"➕ More / advanced shapes")+'</button></div>':''):'')+
       (FB.mode==="scale"?'<div class="rrow2"><span class="rlab">Root</span><span class="rchips tight" id="fbRoot"></span></div><div class="rrow2" style="margin-top:2px"><span class="rlab">Scale</span><span class="rchips tight" id="fbScale"></span></div><div class="actions" style="margin:6px 0 0"><button class="btn ghost" id="fbPlayScale">▶ Play the scale (up &amp; down)</button></div>':'')+
       '<div class="actions" style="justify-content:space-between;align-items:center;gap:6px;flex-wrap:nowrap;margin:8px 0 4px"><button class="btn ghost" id="fbUp" style="flex:1 1 0;min-width:0;padding:12px 6px;font-size:.9rem;letter-spacing:0">▲ Lower</button><span class="rbpm" id="fbWinLbl" style="flex:0 0 auto;min-width:84px;text-align:center;font-size:12px">'+winLabel+'</span><button class="btn ghost" id="fbDn" style="flex:1 1 0;min-width:0;padding:12px 6px;font-size:.9rem;letter-spacing:0">Higher ▼</button></div>'+
-      '<div id="fbBox">'+fbSVG()+'</div>'+
+      '<div id="fbBox" style="position:relative"><div id="fbSvgWrap">'+fbSVG()+'</div><div id="fbTouch" style="position:absolute;left:0;top:0;right:0;bottom:0;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none"></div></div>'+
       (FB.mode==="chord"?'<div id="fbHold"><div id="fbHoldBar"></div></div>':'')+
       '<div class="actions" style="justify-content:center;margin-top:10px"><button class="btn" id="fbStrum">🎸 Strum</button><button class="rchip sm'+(FB.showNotes?" sel":"")+'" id="fbNotes">🏷️ Note names</button><button class="rchip sm'+(FB.lbl==="numbers"?" sel":"")+'" id="fbLbl">🔢 String numbers</button></div>'+
       '<div class="feedback" id="fbStatus" style="min-height:22px">'+(FB.mode==="chord"?"Place a finger on each glowing dot — hold 3s to lock it in.":FB.mode==="scale"?"Gold dots are the root; numbers are scale degrees. Tap any note to hear it, or play the whole scale. Page ▲▼ to see the shape move up the neck.":"Tap a spot on a string to play that note. The neck is narrower at the nut (top) and widens toward the body, like the real thing.")+'</div>'+
       '<div class="site-note"><b style="color:#7ff0d6">Swipe across the strings to strum</b> — or tap one string to pick a single note. Page up and down the neck with ▲▼ — four frets at a time, numbered on the left. Turn on <b>Note names</b> to learn what every spot is. Hold a chord shape 3 seconds to burn it into muscle memory.</div>'+
       '</div>';
     $("#eBack").onclick=goHome;
-    fbBindTouch(document.getElementById("fbBox"));
+    fbBindTouch(document.getElementById("fbTouch"));
     $("#fbIg").onclick=function(){FB.inst="guitar";if(FB.mode==="chord"&&!fbShapeFor(FB.chord))FB.chord="C";draw();};
     $("#fbIb").onclick=function(){FB.inst="bass";FB.mode="play";draw();};
     $("#fbIu").onclick=function(){FB.inst="ukulele";if(FB.mode==="chord"&&!fbShapeFor(FB.chord))FB.chord="C";draw();};
@@ -4548,7 +4548,7 @@ function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.
     var lb=$("#fbLbl");if(lb)lb.onclick=function(){FB.lbl=(FB.lbl==="numbers")?"letters":"numbers";draw();};
     var up=$("#fbUp");if(up)up.onclick=function(){FB.win=Math.max(1,FB.win-4);draw();};
     var dn=$("#fbDn");if(dn)dn.onclick=function(){FB.win=Math.min(FB_MAXFRET-3,FB.win+4);draw();};
-    $("#fbStrum").onclick=fbStrum;
+    $("#fbStrum").onclick=function(){fbStrum();};
     var nb=$("#fbNotes");if(nb)nb.onclick=function(){FB.showNotes=!FB.showNotes;draw();};
     var ab=$("#fbAdv");if(ab)ab.onclick=function(){FB.adv=!FB.adv;draw();};
     if(FB.mode==="chord"){var cc=$("#fbChips");var locked=fbLockedCount();fbChordNames().forEach(function(nm){var isAdv=FB.adv&&FB_ADV[FB.inst]&&FB_ADV[FB.inst][nm]&&!(CHORDS[FB.inst]&&CHORDS[FB.inst][nm]);var btn=document.createElement("button");btn.className="rchip sm"+(nm===FB.chord?" sel":"")+(isAdv?" fbchip-adv":"");btn.textContent=(isAdv?"★ ":"")+nm;btn.onclick=function(){FB.chord=nm;draw();};cc.appendChild(btn);});}
