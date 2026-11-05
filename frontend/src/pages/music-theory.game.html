@@ -718,6 +718,26 @@ const QUIZ_BEANS=10, MATCH_BEANS=10, KB_BEANS=5;
 function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 const home=$("#home"),view=$("#view");
+/* ===== HOW-IT-WORKS toggles: instructions stay folded away until you want them ===== */
+(function(){try{var s=document.createElement("style");s.textContent=
+".howto{margin:6px 0 10px}"+
+".howto>summary{list-style:none;display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:7px 13px;border-radius:999px;border:1px solid rgba(127,240,214,.55);background:rgba(127,240,214,.08);color:#7ff0d6;font:800 .86rem system-ui,sans-serif;-webkit-user-select:none;user-select:none}"+
+".howto>summary::-webkit-details-marker{display:none}.howto>summary::marker{content:''}"+
+".howto>summary .hw-car{transition:transform .15s;display:inline-block}.howto[open]>summary .hw-car{transform:rotate(180deg)}"+
+".howto[open]>summary{background:rgba(127,240,214,.16)}"+
+".howto .hw-body{margin-top:8px;padding:12px 14px;border-radius:12px;background:var(--bg);border:1px solid var(--line);font-size:.95rem;line-height:1.5}"+
+".howto .hw-body .intro{margin:0;border:0;padding:0}"+
+".howto ol.hw-steps{margin:0;padding-left:1.3em}.howto ol.hw-steps li{margin:6px 0}"+
+".howto .hw-tip{margin-top:8px;opacity:.8;font-size:.86rem}";
+document.head.appendChild(s);}catch(e){}})();
+var HOW_OPEN={};
+function howKey(el){return (el.textContent||"").replace(/\s+/g," ").trim().slice(0,48);}
+function howWrap(root){if(!root)return;root.querySelectorAll(".intro:not([data-how])").forEach(function(el){el.setAttribute("data-how","1");
+  if(el.closest(".howto"))return;var txt=(el.textContent||"").replace(/\s+/g," ").trim();if(txt.length<70)return;
+  var k=howKey(el),d=document.createElement("details");d.className="howto";if(HOW_OPEN[k])d.open=true;
+  d.innerHTML='<summary>ⓘ How it works <span class="hw-car">▾</span></summary><div class="hw-body"></div>';
+  el.parentNode.insertBefore(d,el);d.querySelector(".hw-body").appendChild(el);d.addEventListener("toggle",function(){HOW_OPEN[k]=d.open;});});}
+(function(){try{var q=false;var mo=new MutationObserver(function(){if(q)return;q=true;Promise.resolve().then(function(){q=false;howWrap(view);});});mo.observe(view,{childList:true,subtree:true});}catch(e){}})();
 function beanChip(){const c=$("#beanChipM");if(!c)return;
   if(activeId()&&!isAdult()){c.hidden=false;c.style.cursor="pointer";c.title="Open the Bean Shop";c.onclick=function(){if(activeId()&&!isAdult())renderMusicShop();};$("#beanNumM").textContent=getBeans();}else c.hidden=true;}
 /* ===== BEAN SHOP — shared economy with Star's Heads (same catalog, goals, claims, beans) ===== */
@@ -4552,7 +4572,7 @@ function fbStrumString(s,d){if(s<0)return;unlockAudio();var strings=fbStrings(),
 function fbPaint(){var w=document.getElementById("fbSvgWrap");if(w)w.innerHTML=fbSVG();else{var box=document.getElementById("fbBox");if(box)box.innerHTML=fbSVG();}
   if(FB.mode==="chord"){var st=document.getElementById("fbStatus"),sh=fbCurShape();
     if(fbChordCorrect()){if(!FB.holdRAF)fbStartHold();if(st&&!/Locked/.test(st.textContent))st.innerHTML='<b style="color:#5fe0a8">Shape is right — hold it to lock it in.</b>';}
-    else{fbStopHold();if(st&&!/Locked/.test(st.textContent))st.textContent=sh?"Place a finger on each glowing dot — hold 3s to lock it in.":"No shapes for bass here — use Play mode.";}}}
+    else{fbStopHold();if(st&&!/Locked/.test(st.textContent))st.textContent=sh?"Fingers on the dots \u00b7 hold 3 seconds":"No shapes for bass here \u2014 use Play mode.";}}}
 function fbScaleStop(){(FB._scT||[]).forEach(clearTimeout);FB._scT=[];if(FB.hl){FB.hl=null;if(document.getElementById("fbSvgWrap"))fbPaint();}}
 function fbPlayScale(){unlockAudio();fbScaleStop();var set=fbScaleSet(),strings=fbStrings(),N=strings.length,win1=(FB.win===1),byM={};
   for(var s=0;s<N;s++){for(var f=(win1?0:FB.win);f<FB.win+4;f++){var m=strings[s]+f;if(((((m%12)+12)%12) in set)&&!(m in byM))byM[m]={s:s,f:f,m:m};}}
@@ -4675,6 +4695,12 @@ function trRush(){trReset();FB.tr.kind="rush";FB.tr.inst=FB.inst;FB.tr.score=0;F
     trSay("⏱ Time! <b>"+sc+"</b> points");trSub(FB.tr.hits+" notes · best streak "+FB.tr.top+(isRec&&sc>0?" · 🏆 NEW RECORD!":(rec!=null?" · record "+Math.max(rec,sc):""))+(bn?" · +"+bn+" beans":""));
     trOpts([["↻ Play again",trRush],["Trainer menu",trMenu]]);}
 }
+function fbHowto(){var m=FB.mode,inst={guitar:"guitar",bass:"bass",ukulele:"ukulele"}[FB.inst],st;
+  if(m==="chord")st=["Pick a chord at the top.","Put a fingertip on <b>each glowing dot</b>. The number is the finger: <b>1</b> index, <b>2</b> middle, <b>3</b> ring, <b>4</b> pinky.","<b>✕</b> above a string = don’t play it. <b>○</b> = play it open (no finger).","<b>Hold the shape 3 seconds</b> — the bar fills and it locks in.","Keep holding, and <b>strum the guitar body</b> below the neck with your other thumb."];
+  else if(m==="scale")st=["Pick a <b>root note</b> and a <b>scale</b>.","<b>Gold dots</b> are the root (home note). The other dots are the rest of the scale.","Tap <b>▶ Play the scale</b> to watch each dot light up as it plays, up and back down.","Now play it yourself: tap the dots low to high, then back down.","Use <b>▲ Lower / Higher ▼</b> to see the shape further up the neck."];
+  else if(m==="train")st=["Pick an activity from the trainer menu.","Read the prompt above the neck, then tap the neck (or pluck a string on the body) where it asks.","<b>Green ✓</b> = right. <b>Red ✗</b> = try again — the hint tells you what you hit.","Each activity saves your best score and earns beans. Finish all five for <b>🏆 Neck Master</b>.","<b>← Trainer</b> takes you back to the menu any time."];
+  else st=["Hold your phone like the "+inst+" neck: the strings run from the <b>top (nut)</b> down to the <b>body</b>. The thickest, lowest string is on the <b>left</b>.","<b>Fretting hand:</b> press a spot on a string to play that note. Fret numbers are on the left.","<b>Strumming hand:</b> swipe your thumb across the strings on the <b>guitar body</b> below the neck. Swipe right = down-strum, left = up-strum. Tap one string on the body to pick just that string.","Hold frets with one hand while you strum with the other — the notes you hold ring in the strum.","<b>▲ Lower / Higher ▼</b> moves up and down the neck, 4 frets at a time.","<b>Note names</b> shows the name of every note on the neck."];
+  return '<details class="howto" id="fbHow" data-how="1"'+(FB.howOpen?" open":"")+'><summary>ⓘ How to play <span class="hw-car">▾</span></summary><div class="hw-body"><ol class="hw-steps">'+st.map(function(x){return "<li>"+x+"</li>";}).join("")+'</ol></div></details>';}
 function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.mode=startMode;if(FB.inst==="bass"&&FB.mode==="chord")FB.mode="play";if(FB.mode==="chord"&&!fbShapeFor(FB.chord))FB.chord=(CHORDS[FB.inst]?Object.keys(CHORDS[FB.inst])[0]:"C");
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);try{sfLoadInst("guitar");}catch(e){}
   document.removeEventListener("pointerup",fbUpPt);document.removeEventListener("pointercancel",fbUpPt);
@@ -4688,6 +4714,7 @@ function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎸 '+instName+' Neck</span></div><div class="panel">'+
       '<div class="rrow2"><span class="rchips tight"><button class="rchip sm'+(FB.inst==="guitar"?" sel":"")+'" id="fbIg">Guitar</button><button class="rchip sm'+(FB.inst==="bass"?" sel":"")+'" id="fbIb">Bass</button><button class="rchip sm'+(FB.inst==="ukulele"?" sel":"")+'" id="fbIu">Ukulele</button></span>'+
       '<span class="rchips tight" style="margin-left:auto"><button class="rchip sm'+(FB.mode==="play"?" sel":"")+'" id="fbMp">🎵 Play</button><button class="rchip sm'+(FB.mode==="chord"?" sel":"")+'" id="fbMc">✋ Chords</button><button class="rchip sm'+(FB.mode==="scale"?" sel":"")+'" id="fbMs">🎼 Scales</button><button class="rchip sm'+(FB.mode==="train"?" sel":"")+'" id="fbMt">🎓 Train</button></span></div>'+
+      fbHowto()+
       (FB.mode==="train"?'<div id="fbTr" style="background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:8px 0"></div>':'')+
       (FB.mode==="chord"?'<div class="rrow2"><span class="rlab">Chord</span><span class="rchips tight" id="fbChips"></span></div>'+(FB_ADV[FB.inst]?'<div class="rrow2" style="margin-top:2px"><button class="rchip sm'+(FB.adv?" sel":"")+'" id="fbAdv">'+(FB.adv?"★ Showing advanced shapes":"➕ More / advanced shapes")+'</button></div>':''):'')+
       (FB.mode==="scale"?'<div class="rrow2"><span class="rlab">Root</span><span class="rchips tight" id="fbRoot"></span></div><div class="rrow2" style="margin-top:2px"><span class="rlab">Scale</span><span class="rchips tight" id="fbScale"></span></div><div class="actions" style="margin:6px 0 0"><button class="btn ghost" id="fbPlayScale">▶ Play the scale (up &amp; down)</button></div>':'')+
@@ -4696,8 +4723,8 @@ function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.
       '<div id="fbZone" style="touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;margin-top:-4.6%;position:relative;filter:drop-shadow(0 10px 20px rgba(0,0,0,.45))">'+fbZoneSVG()+'</div>'+
       (FB.mode==="chord"?'<div id="fbHold"><div id="fbHoldBar"></div></div>':'')+
       '<div class="actions" style="justify-content:center;margin-top:10px"><button class="rchip sm'+(FB.showNotes?" sel":"")+'" id="fbNotes">🏷️ Note names: '+(FB.showNotes?"On":"Off")+'</button></div>'+
-      '<div class="feedback" id="fbStatus" style="min-height:22px">'+(FB.mode==="chord"?"Place a finger on each glowing dot — hold 3s to lock it in.":FB.mode==="scale"?"Gold dots are the root; numbers are scale degrees. Tap any note to hear it, or play the whole scale. Page ▲▼ to see the shape move up the neck.":"Tap a spot on a string to play that note. The neck is narrower at the nut (top) and widens toward the body, like the real thing.")+'</div>'+
-      '<div class="site-note"><b style="color:#7ff0d6">Swipe across the strings to strum</b> — or tap one string to pick a single note. Page up and down the neck with ▲▼ — four frets at a time, numbered on the left. Turn on <b>Note names</b> to learn what every spot is. Hold a chord shape 3 seconds to burn it into muscle memory.</div>'+
+      '<div class="feedback" id="fbStatus" style="min-height:22px">'+(FB.mode==="chord"?"Fingers on the dots \u00b7 hold 3 seconds":"")+'</div>'+
+      
       '</div>';
     $("#eBack").onclick=goHome;
     fbBindTouch(document.getElementById("fbTouch"));
@@ -4715,6 +4742,7 @@ function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.
     var up=$("#fbUp");if(up)up.onclick=function(){FB.win=Math.max(1,FB.win-4);draw();};
     var dn=$("#fbDn");if(dn)dn.onclick=function(){FB.win=Math.min(FB_MAXFRET-3,FB.win+4);draw();};
     fbBindZone(document.getElementById("fbZone"));
+    {var _hw=$("#fbHow");if(_hw)_hw.addEventListener("toggle",function(){FB.howOpen=_hw.open;});}
     if(FB.mode==="train"){var _st=$("#fbStatus");if(_st)_st.textContent="";var _nb=$("#fbNotes");if(_nb)_nb.style.display="none";trMount();}
     var nb=$("#fbNotes");if(nb)nb.onclick=function(){FB.showNotes=!FB.showNotes;draw();};
     var ab=$("#fbAdv");if(ab)ab.onclick=function(){FB.adv=!FB.adv;draw();};
