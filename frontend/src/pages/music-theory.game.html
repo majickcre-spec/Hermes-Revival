@@ -741,6 +741,10 @@ function howWrap(root){if(!root)return;root.querySelectorAll(".intro:not([data-h
   el.parentNode.insertBefore(d,el);d.querySelector(".hw-body").appendChild(el);d.addEventListener("toggle",function(){HOW_OPEN[k]=d.open;});});}
 (function(){try{var q=false;var mo=new MutationObserver(function(){if(q)return;q=true;Promise.resolve().then(function(){q=false;howWrap(view);});});mo.observe(view,{childList:true,subtree:true});}catch(e){}})();
 /* ===== FLOATING METRONOME — on every screen, own tempo + own volume, keeps running between screens ===== */
+/* ONE click volume for the whole app (metronomes, count-ins, practice clicks). Default 20%. */
+var CLICK_VOL=load("mjk-clickvol",0.2),CLICK_BUS=null;
+function clickBus(a){if(!CLICK_BUS||CLICK_BUS.context!==a){CLICK_BUS=a.createGain();CLICK_BUS.connect(a.destination);}CLICK_BUS.gain.value=CLICK_VOL*4;return CLICK_BUS;}
+function setClickVol(v){CLICK_VOL=Math.max(0,Math.min(1,v));save("mjk-clickvol",CLICK_VOL);if(CLICK_BUS)CLICK_BUS.gain.value=CLICK_VOL*4;document.querySelectorAll(".gclick").forEach(function(r){if(+r.value!==Math.round(CLICK_VOL*100))r.value=Math.round(CLICK_VOL*100);var l=document.getElementById(r.id+"V");if(l)l.textContent=CLICK_VOL>0?Math.round(CLICK_VOL*100)+"%":"🔇 off";});}
 var MET={on:false,bpm:load("mjk-met-bpm",90),beats:load("mjk-met-beats",4),vol:load("mjk-met-vol",0.6),snd:load("mjk-met-snd","click"),next:0,beat:0,sch:null,raf:null,q:[],g:null,taps:[],open:false};
 (function(){try{var s=document.createElement("style");s.textContent=
 "#metFab{position:fixed;left:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:2147482500;display:flex;align-items:center;gap:6px;padding:9px 14px;border-radius:999px;border:1px solid rgba(244,183,64,.6);background:rgba(20,14,40,.92);color:#f4b740;font:800 .95rem system-ui,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.45);cursor:pointer;-webkit-user-select:none;user-select:none;transition:transform .06s}"+
@@ -753,7 +757,7 @@ var MET={on:false,bpm:load("mjk-met-bpm",90),beats:load("mjk-met-beats",4),vol:l
 "#metDots{display:flex;gap:6px;justify-content:center;margin:6px 0 2px}#metDots span{width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.12)}#metDots span.on{background:#f4b740}#metDots span.on.a{background:#ff8f5c}"+
 "#metBpmBig{font:900 1.8rem system-ui;color:#f4b740;min-width:70px;text-align:center}";
 document.head.appendChild(s);}catch(e){}})();
-function metGain(){var a=ac();if(!MET.g){MET.g=a.createGain();MET.g.connect(a.destination);}MET.g.gain.value=MET.vol*MET.vol*1.8;return MET.g;}
+function metGain(){return clickBus(ac());}
 function metTick(t,acc){try{var a=ac(),g=metGain(),o=a.createOscillator(),e=a.createGain();
   if(MET.snd==="wood"){o.type="sine";o.frequency.value=acc?1250:860;e.gain.setValueAtTime(0.0001,t);e.gain.exponentialRampToValueAtTime(acc?1:0.7,t+0.002);e.gain.exponentialRampToValueAtTime(0.0001,t+0.09);}
   else{o.type="square";o.frequency.value=acc?1800:1250;e.gain.setValueAtTime(0.0001,t);e.gain.exponentialRampToValueAtTime(acc?0.5:0.32,t+0.001);e.gain.exponentialRampToValueAtTime(0.0001,t+0.045);}
@@ -775,7 +779,7 @@ function metUI(soft){var f=document.getElementById("metFab");if(f){f.classList.t
     '<div class="mrow"><input type="range" id="metBpm" min="30" max="240" value="'+MET.bpm+'" style="flex:1"></div>'+
     '<div class="mrow"><span class="mlab">Beats</span>'+[1,2,3,4,6].map(function(n){return '<button class="mbtn'+(MET.beats===n?" sel":"")+'" data-mb="'+n+'">'+n+'</button>';}).join("")+'</div>'+
     '<div class="mrow"><span class="mlab">Sound</span><button class="mbtn'+(MET.snd==="click"?" sel":"")+'" data-ms="click">Click</button><button class="mbtn'+(MET.snd==="wood"?" sel":"")+'" data-ms="wood">Woodblock</button></div>'+
-    '<div class="mrow"><span class="mlab">🔊 Click vol</span><input type="range" id="metVol" min="0" max="100" value="'+Math.round(MET.vol*100)+'" style="flex:1"><span style="min-width:38px;text-align:right;font-weight:800" id="metVolV">'+Math.round(MET.vol*100)+'%</span></div>'+
+    '<div class="mrow"><span class="mlab">🔊 Click vol <small style="opacity:.7">(all)</small></span><input type="range" class="gclick" id="metVol" min="0" max="100" value="'+Math.round(CLICK_VOL*100)+'" style="flex:1"><span style="min-width:38px;text-align:right;font-weight:800" id="metVolV">'+Math.round(CLICK_VOL*100)+'%</span></div>'+
     '<div class="mrow"><button class="mgo'+(MET.on?" on":"")+'" id="metGo">'+(MET.on?"⏹ Stop":"▶ Start")+'</button></div>'+
     '<div style="font-size:.74rem;color:var(--muted,#9a93b8);text-align:center">Keeps playing while you move around the app. This volume is just for the click.</div>';
   document.getElementById("metClose").onclick=function(){MET.open=false;metUI();};
@@ -784,7 +788,7 @@ function metUI(soft){var f=document.getElementById("metFab");if(f){f.classList.t
   document.getElementById("metTap").onclick=function(){unlockAudio();var now=performance.now();if(MET.taps.length&&now-MET.taps[MET.taps.length-1]>2000)MET.taps=[];MET.taps.push(now);if(MET.taps.length>5)MET.taps.shift();if(MET.taps.length>=2){var s=0;for(var i=1;i<MET.taps.length;i++)s+=MET.taps[i]-MET.taps[i-1];metSetBpm(60000/(s/(MET.taps.length-1)));}};
   p.querySelectorAll("[data-mb]").forEach(function(b){b.onclick=function(){MET.beats=+b.getAttribute("data-mb");save("mjk-met-beats",MET.beats);MET.beat=0;metUI();};});
   p.querySelectorAll("[data-ms]").forEach(function(b){b.onclick=function(){MET.snd=b.getAttribute("data-ms");save("mjk-met-snd",MET.snd);metUI();if(!MET.on){unlockAudio();metTick(ac().currentTime+0.02,true);}};});
-  var mv=document.getElementById("metVol");mv.oninput=function(){MET.vol=mv.value/100;save("mjk-met-vol",MET.vol);document.getElementById("metVolV").textContent=mv.value+"%";if(MET.g)MET.g.gain.value=MET.vol*MET.vol*1.8;};
+  var mv=document.getElementById("metVol");mv.oninput=function(){setClickVol(mv.value/100);document.getElementById("metVolV").textContent=mv.value+"%";;};
   document.getElementById("metGo").onclick=function(){if(MET.on)metStop();else metStart();};}
 (function(){try{var f=document.createElement("button");f.id="metFab";f.type="button";f.setAttribute("aria-label","Metronome");document.body.appendChild(f);
   var p=document.createElement("div");p.id="metPanel";p.hidden=true;document.body.appendChild(p);
@@ -2024,7 +2028,7 @@ function click(time,kind,vol){
   const atk=sd.id==="soft"?0.012:0.002;
   g.gain.setValueAtTime(0.0001,time);g.gain.exponentialRampToValueAtTime(lvl,time+atk);
   g.gain.exponentialRampToValueAtTime(0.0001,time+sd.dur);
-  o.connect(g);g.connect(pianoMaster(a));o.start(time);o.stop(time+sd.dur+0.03);
+  o.connect(g);g.connect(clickBus(a));o.start(time);o.stop(time+sd.dur+0.03);
 }
 function rStop(){R.running=false;if(R.schID){clearInterval(R.schID);R.schID=null;}if(R.raf){cancelAnimationFrame(R.raf);R.raf=null;}const b=$("#rStart");if(b)b.textContent="▶ Start";}
 function rSchedule(){
@@ -2687,7 +2691,7 @@ function ideaUI(){
       '<div class="rrow2" style="align-items:flex-start"><span class="rlab">Section</span><span class="rchips tight" id="llSecs">'+SC.map((x,i)=>{const w=x.lines.filter(l=>l.t.trim()).length,m=(x.notes||[]).length;return '<button class="rchip sm'+(i===llSong.cur?" sel":"")+'" data-sec="'+i+'">'+esc(x.nm)+' <span style="opacity:.6;font-size:.72rem">'+w+'/'+x.lines.length+(m?' ♪':'')+'</span></button>';}).join("")+'<button class="rchip sm" id="llSecAdd">＋ Section</button></span></div>'+
       (llAddOpen?'<div class="rchips tight" style="margin:-2px 0 8px 0;padding-left:8px;border-left:3px solid var(--gold)">'+LL_SECTYPES.map(t=>'<button class="rchip sm" data-addsec="'+t+'">'+t+'</button>').join("")+'</div>':'')+
       '<div class="rchips tight" style="margin:0 0 8px">'+(SC.length>1?'<button class="rchip sm" id="llSecL">◀ move</button><button class="rchip sm" id="llSecR">move ▶</button><button class="rchip sm" id="llSecDel">🗑 Remove '+esc(llSec().nm)+'</button>':'')+'<button class="rchip sm" id="llSecRen">✏️ Rename</button></div>'+
-      '<div class="rrow2"><span class="rlab">Metronome</span><span class="rchips tight" style="align-items:center"><button class="rchip sm'+(llMetOn?" sel":"")+'" id="llMet">🥁 '+(llMetOn?"On":"Off")+'</button><span id="llBeatLight" class="llbeat"></span><span id="llBeatTxt" class="site-note" style="font-size:.8rem;min-width:92px">'+(llMetOn?"":"♩ "+Math.round(bpm)+" BPM")+'</span><input type="range" id="llMetVol" min="0" max="1.5" step="0.05" value="'+llMetVol+'" style="width:110px;accent-color:var(--gold)" title="click volume"></span></div>'+
+      '<div class="rrow2"><span class="rlab">Metronome</span><span class="rchips tight" style="align-items:center"><button class="rchip sm'+(llMetOn?" sel":"")+'" id="llMet">🥁 '+(llMetOn?"On":"Off")+'</button><span id="llBeatLight" class="llbeat"></span><span id="llBeatTxt" class="site-note" style="font-size:.8rem;min-width:92px">'+(llMetOn?"":"♩ "+Math.round(bpm)+" BPM")+'</span><input type="range" class="gclick" id="llMetVol" min="0" max="100" value="'+Math.round(CLICK_VOL*100)+'" style="width:110px;accent-color:var(--gold)" title="click volume (whole app)"><span id="llMetVolV" class="site-note" style="font-size:.75rem">'+Math.round(CLICK_VOL*100)+'%</span></span></div>'+
       '<div class="rrow2" style="align-items:flex-start"><span class="rlab">🥁 Backing</span><span class="rchips tight" id="llBeats"><button class="rchip sm'+(!llBeatId?" sel":"")+'" data-beat="">Click only</button>'+llBeatClips().slice(0,14).map(c=>'<button class="rchip sm'+(c.id===llBeatId?" sel":"")+'" data-beat="'+c.id+'">'+esc(c.name||"Beat")+' <span style="opacity:.6;font-size:.72rem">♩'+Math.round(c.bpm||0)+(c.bars&&c.src!=="import"?" · "+c.bars+" bar"+(c.bars>1?"s":""):"")+'</span></button>').join("")+'<label class="rchip sm" style="cursor:pointer">📂 Load a track<input type="file" id="llBeatFile" accept="audio/*" hidden></label></span></div>'+
       (llBeatId?'<div class="rrow2"><span class="rlab"></span><span class="rchips tight" style="align-items:center">'+(llBeatBuf?'<span class="site-note" style="font-size:.78rem">'+esc((llBeatMeta&&llBeatMeta.name)||"")+' · '+(llBeatMeta&&llBeatMeta.src==="import"?'tempo ♩'+Math.round((llBeatMeta&&llBeatMeta.bpm)||bpm)+' (detected) · beat 1 at '+Math.round(((llBeatMeta&&llBeatMeta.offset)||0)*1000)+' ms':'plays at your tempo ♩'+Math.round(bpm))+'</span>'+(llBeatMeta&&llBeatMeta.src==="import"?'<button class="rchip sm" data-b1="-0.02">◀ beat 1</button><button class="rchip sm" data-b1="0.02">beat 1 ▶</button><button class="rchip sm" data-bt="-0.5">− BPM</button><button class="rchip sm" data-bt="0.5">+ BPM</button>':''):'<span class="site-note">loading beat…</span>')+'<input type="range" id="llBeatVol" min="0" max="1.5" step="0.05" value="'+llBeatVol+'" style="width:100px;accent-color:var(--gold)" title="beat volume"></span></div>':'')+
       '<div class="rrow2"><span class="rlab">⏱ Delay</span><span class="rchips tight" style="align-items:center"><span class="site-note" style="font-size:.8rem">headphones: <b>'+llLatMs+' ms</b></span><button class="rchip sm" id="llLatGo">Check my timing setup</button></span></div><div id="llLatBox" style="margin:2px 0 8px"></div>'+
@@ -2760,13 +2764,13 @@ function ideaUI(){
     const bv=document.getElementById("llBeatVol");if(bv)bv.oninput=()=>{llBeatVol=+bv.value;save("mjk-llbeatvol",llBeatVol);if(llBeatG)llBeatG.gain.value=llBeatVol;};
     const lg=document.getElementById("llLatGo");if(lg)lg.onclick=llLatCheck;
     if(llBeatId&&!llBeatBuf)llBeatLoad(llBeatId);
-    const mvv=document.getElementById("llMetVol");if(mvv)mvv.oninput=()=>{llMetVol=+mvv.value;save("mjk-llmetvol",llMetVol);};
+    const mvv=document.getElementById("llMetVol");if(mvv)mvv.oninput=()=>setClickVol(+mvv.value/100);
     const cl=document.getElementById("llClr");if(cl)cl.onclick=()=>{if(!cl.dataset.sure){cl.dataset.sure=1;cl.textContent="Tap again to clear";return;}llLines=[{t:""},{t:""},{t:""},{t:""}];llSec().lines=llLines;notes=[];takeBufs=[];llFocus=0;llSync();draw();};
     llBankPaint();llRhymePanel();setTimeout(llEchoPaint,0);
     /* warm up rhymes for the first empty line */const fe=llLines.findIndex(l=>!l.t.trim());if(fe>=0){const q=llPartner(llLines,llPat,fe);if(q>=0){const w=lastWord(llLines[q].t).toLowerCase();if(w&&!llRhy[w])rhymeFind(w,r=>{if(r)llRhy[w]=r;});}}}
 
   function setBpm(v){bpm=Math.max(50,Math.min(180,Math.round(v)));save("mjk-ideabpm",bpm);}
-  function metroClick(t,accent){try{var a=ac(),o=a.createOscillator(),g=a.createGain();o.type="square";o.frequency.value=accent?1800:1200;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(Math.max(0.0002,(accent?0.55:0.32)*(typeof llMetVol==="number"?llMetVol:1)),t+0.002);g.gain.exponentialRampToValueAtTime(0.0001,t+0.05);o.connect(g);g.connect(pianoMaster(a));o.start(t);o.stop(t+0.06);}catch(e){}}
+  function metroClick(t,accent){try{var a=ac(),o=a.createOscillator(),g=a.createGain();o.type="square";o.frequency.value=accent?1800:1200;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(accent?0.55:0.32,t+0.002);g.gain.exponentialRampToValueAtTime(0.0001,t+0.05);o.connect(g);g.connect(clickBus(a));o.start(t);o.stop(t+0.06);}catch(e){}}
   function stopMetro(){if(metroTimer){clearInterval(metroTimer);metroTimer=null;}}
   function startMetro(){stopMetro();if(!clickOn)return;var spb=60/bpm,beat=0;metroTimer=setInterval(function(){if(!capturing){stopMetro();return;}metroClick(ac().currentTime+0.02,beat%4===0);beat++;},spb*1000);}
   function beginCapture(mode){unlockAudio();if(capturing||_counting)return;if(!clickOn&&!llBeatBuf){startCap(mode);return;}_counting=true;llMetStop();const a=ac(),spb=60/bpm,lead=0.15,Td=a.currentTime+lead+4*spb,l=$("#ilStatus");
@@ -5461,7 +5465,7 @@ function blRhymeShow(word){var out=document.getElementById("blRhymeOut");if(!out
 var BL={backing:null,name:"",bpm:90,bars:2,playing:false,src:null,voice:null,voiceSrc:null,nudge:0,beatVol:0.9,voiceVol:1.0,clickVol:0.5,clickOn:false,lyrics:"",rec:null,recChunks:[],recording:false,master:null,bGain:null,vGain:null,cGain:null,clickTimer:null,raf:null,_ctx:null,_cn:0,ref:null};
 var BLSESS=load("mjk-beatlab",[]);
 var blDraw=null,blSylUpdate=null,blRenderList=null;
-function blClickSound(t,accent){var a=ac();var o=a.createOscillator();o.type="square";o.frequency.value=accent?1600:1100;var g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(Math.max(0.05,(BL.clickVol||0.5))*(accent?0.9:0.55),t+0.002);g.gain.exponentialRampToValueAtTime(0.0001,t+0.05);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+0.06);}
+function blClickSound(t,accent){var a=ac();var o=a.createOscillator();o.type="square";o.frequency.value=accent?1600:1100;var g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(Math.max(0.05,(BL.clickVol||0.5))*(accent?0.9:0.55),t+0.002);g.gain.exponentialRampToValueAtTime(0.0001,t+0.05);o.connect(g);g.connect(clickBus(a));o.start(t);o.stop(t+0.06);}
 function blMsg(t){var el=document.getElementById("blStatus");if(el)el.innerHTML=t;}
 function blStopAudio(){BL.playing=false;try{if(BL.src)BL.src.stop();}catch(e){}BL.src=null;try{if(BL.voiceSrc)BL.voiceSrc.stop();}catch(e){}BL.voiceSrc=null;if(BL.clickTimer){clearTimeout(BL.clickTimer);BL.clickTimer=null;}if(BL.raf){cancelAnimationFrame(BL.raf);BL.raf=null;}}
 function blGraph(){var a=ac();if(BL.master&&BL._ctx===a){BL.bGain.gain.value=BL.beatVol;BL.vGain.gain.value=BL.voiceVol;return;}BL._ctx=a;var m=a.createGain();m.gain.value=1;m.connect(a.destination);var bg=a.createGain();bg.gain.value=BL.beatVol;bg.connect(m);var vg=a.createGain();vg.gain.value=BL.voiceVol;vg.connect(m);BL.master=m;BL.bGain=bg;BL.vGain=vg;}
@@ -6690,8 +6694,8 @@ PRG.mic=load("mjk-prgmic",false);PRG.band=load("mjk-prgband",false);
 if(!load("mjk-prghwy1",false)){PRG.view="hwy";save("mjk-prgview","hwy");save("mjk-prghwy1",true);}
 function prgCam(){if(PRG.view!=="neck"||!PRG.zoom){var st=document.getElementById("fbStage"),sc=document.getElementById("fbScaler");if(sc)sc.style.transform="";if(st)st.style.height="";return;}var z=FBD.zoom;FBD.zoom=true;try{fbDemoCam("chord");}catch(e){}FBD.zoom=z;}
 (function(){try{var s=document.createElement("style");s.textContent=".pvsweep{position:absolute;top:0;bottom:0;width:20%;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(255,240,200,.5),transparent);animation:pvsw .2s linear forwards}.pvsweep.up{animation-name:pvswu}@keyframes pvsw{from{left:-20%}to{left:100%}}@keyframes pvswu{from{left:100%}to{left:-20%}}";document.head.appendChild(s);}catch(e){}})();
-function clickVolRow(id,vol){return '<div class="rrow" style="margin:4px 0"><span class="rlab">\ud83e\udd41 Click</span><input type="range" id="'+id+'" min="0" max="100" value="'+Math.round(vol*100)+'" style="flex:1;accent-color:var(--gold)"><span class="rbpm" id="'+id+'V" style="min-width:52px;text-align:right">'+(vol>0?Math.round(vol*100)+"%":"\ud83d\udd07 off")+'</span></div>';}
-function bindClickVol(id,set){var r=document.getElementById(id);if(!r)return;r.oninput=function(){var v=(+r.value)/100;set(v);var l=document.getElementById(id+"V");if(l)l.textContent=v>0?Math.round(v*100)+"%":"\ud83d\udd07 off";};}
+function clickVolRow(id,vol){return '<div class="rrow" style="margin:4px 0"><span class="rlab">\ud83e\udd41 Click</span><button class="rchip sm'+(vol>0?" sel":"")+'" id="'+id+'On">'+(vol>0?"On":"Off")+'</button><input type="range" class="gclick" id="'+id+'" min="0" max="100" value="'+Math.round(CLICK_VOL*100)+'" style="flex:1;accent-color:var(--gold)" title="click volume — whole app"><span class="rbpm" id="'+id+'V" style="min-width:52px;text-align:right">'+(CLICK_VOL>0?Math.round(CLICK_VOL*100)+"%":"\ud83d\udd07 off")+'</span></div>';}
+function bindClickVol(id,set){var r=document.getElementById(id);if(!r)return;r.oninput=function(){setClickVol((+r.value)/100);};var b=document.getElementById(id+"On");if(b)b.onclick=function(){var on=!b.classList.contains("sel");b.classList.toggle("sel",on);b.textContent=on?"On":"Off";set(on?0.35:0);};}
 
 /* ===== NECK HIGHWAY — chords, strums and a bouncing ball flow down onto the neck ===== */
 function prgNeckish(){return PRG.view==="neck"||PRG.view==="hwy";}
