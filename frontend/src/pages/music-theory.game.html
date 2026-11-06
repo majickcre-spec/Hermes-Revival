@@ -1050,7 +1050,7 @@ function renderAbout(){if(teardown){try{teardown();}catch(e){}teardown=null;}hom
    '<li>If trouble sleeping lasts more than a few weeks, talk with a doctor — CBT-I (cognitive behavioral therapy for insomnia) is the standard first treatment, and these sessions can sit alongside it.</li>'+
    '<li>Heart-rate, HRV and brainwave readings from consumer sensors are for practice feedback, not diagnosis.</li></ul>'+
    '<p class="rlab" style="margin-top:14px">Your data</p><p style="margin:6px 0">Recordings, sessions and sensor logs are saved on your device. Signing in syncs your players and progress.</p>'+
-   '<p class="rlab" style="margin-top:14px">Sounds &amp; credits</p><p style="margin:6px 0">Sampled instruments from the MusyngKite soundfonts. Nature recordings are CC0 / Pixabay-licensed field recordings collected by the open-source Moodist project. Niko Kotoulas MIDI packs are included for practice.</p></div>';
+   '<p class="rlab" style="margin-top:14px">Sounds &amp; credits</p><p style="margin:6px 0">Piano: Salamander Grand Piano by Alexander Holm (CC-BY 3.0). Other sampled instruments from the MusyngKite soundfonts. Nature recordings are CC0 / Pixabay-licensed field recordings collected by the open-source Moodist project. Niko Kotoulas MIDI packs are included for practice.</p></div>';
   $("#eBack").onclick=goHome;}
 function goHome(){if(teardown){try{teardown();}catch(e){}teardown=null;}if(NAV_MENU&&!view.hidden&&!navAtMenu()){var m=NAV_MENU;try{m();window.scrollTo(0,0);return;}catch(e){}}NAV_MENU=null;view.hidden=true;home.hidden=false;renderHome();window.scrollTo(0,0);if(window.__mjkNavConsume)window.__mjkNavConsume();}
 /* Back button (esp. iPhone): drop to the music home first, then out to Hermes — not straight out */
@@ -1361,15 +1361,36 @@ var SF={ready:{},loading:{},buf:{},anchors:{},base:"https://cdn.jsdelivr.net/gh/
 var SF_NN=["C","Cs","D","Ds","E","F","Fs","G","Gs","A","As","B"];
 function sfFile(midi){return SF_NN[((midi%12)+12)%12]+(Math.floor(midi/12)-1);}
 function sfOn(){return load("mjk-realsound",1)?true:false;}
-function sfInstReady(key){return !!SF.ready[key]&&sfOn();}
-function sfLoadInst(key){if(!SF.folder[key]||SF.loading[key]||SF.ready[key]||!sfOn())return;SF.loading[key]=true;SF.buf[key]=SF.buf[key]||{};SF.anchors[key]=SF.anchors[key]||[];
+function sfInstReady(key){if(key==="piano"&&GR.ready&&sfOn())return true;return !!SF.ready[key]&&sfOn();}
+function sfLoadInst(key){if(key==="piano")grLoad();if(!SF.folder[key]||SF.loading[key]||SF.ready[key]||!sfOn())return;SF.loading[key]=true;SF.buf[key]=SF.buf[key]||{};SF.anchors[key]=SF.anchors[key]||[];
   var a=ac(),base=SF.base+SF.folder[key]+"/",rg=SF.range[key]||[33,96],want=[];for(var m=rg[0];m<=rg[1];m+=3)want.push(m);
   var jobs=want.map(function(m){return fetch(base+sfFile(m)+".mp3").then(function(r){return r.ok?r.arrayBuffer():Promise.reject();}).then(function(ab){return a.decodeAudioData(ab);}).then(function(b){SF.buf[key][m]=b;SF.anchors[key].push(m);}).catch(function(){});});
   function done(){SF.anchors[key].sort(function(x,y){return x-y;});SF.ready[key]=SF.anchors[key].length>0;SF.loading[key]=false;}
   (Promise.allSettled?Promise.allSettled(jobs):Promise.all(jobs.map(function(p){return p.catch(function(){});}))).then(done,done);
 }
+/* ===== Concert grand: Salamander Grand Piano (Yamaha C5, CC-BY 3.0, Alexander Holm) — 4 velocity layers, sampled every minor third, self-hosted ===== */
+var GR={buf:{},want:[],ready:false,loading:false,bus:null,rev:null,layers:[2,3,1,4],ctr:{1:0.22,2:0.47,3:0.72,4:0.95}};
+for(var _m=21;_m<=108;_m+=3)GR.want.push(_m);
+function grLoad(){if(GR.loading||!sfOn())return;GR.loading=true;var a=ac();
+  var layer=function(L){return Promise.all(GR.want.map(function(m){var k=m+"v"+L;return fetch("/sounds/piano/"+k+".mp3").then(function(r){return r.ok?r.arrayBuffer():Promise.reject();}).then(function(ab){return new Promise(function(res,rej){a.decodeAudioData(ab,res,rej);});}).then(function(b){GR.buf[k]=b;}).catch(function(){});}));};
+  var i=0,next=function(){if(i>=GR.layers.length)return;var L=GR.layers[i++];layer(L).then(function(){if(L===2&&GR.buf["60v2"])GR.ready=true;next();});};next();}
+function grBus(a){if(GR.bus)return GR.bus;var g=a.createGain();g.gain.value=2.2;
+  var comp=a.createDynamicsCompressor();comp.threshold.value=-20;comp.knee.value=12;comp.ratio.value=1.8;comp.attack.value=0.012;comp.release.value=0.28;
+  var lim=a.createDynamicsCompressor();lim.threshold.value=-1;lim.knee.value=0;lim.ratio.value=20;lim.attack.value=0.002;lim.release.value=0.1;
+  g.connect(comp);comp.connect(lim);lim.connect(a.destination);
+  try{var rv=a.createConvolver();rv.buffer=lvReverbIR(a,{size:0.55,decay:1.6,damp:0.55,width:100});var rs=a.createGain();rs.gain.value=0.13;g.connect(rs);rs.connect(rv);rv.connect(comp);GR.rev=rs;}catch(e){}
+  GR.bus=g;return g;}
+function grPedal(on){if(!GR.rev)return;try{GR.rev.gain.setTargetAtTime(on?0.2:0.13,ac().currentTime,0.25);}catch(e){}}
+function grPlay(midi,start,dur,v){var a=ac(),an=GR.want.reduce(function(b,m){return Math.abs(m-midi)<Math.abs(b-midi)?m:b;},GR.want[0]);
+  v=Math.max(0.03,Math.min(1,v));var best=0,bd=9;[1,2,3,4].forEach(function(L){var d=Math.abs(GR.ctr[L]-v);if(GR.buf[an+"v"+L]&&d<bd){bd=d;best=L;}});if(!best)return false;
+  var b=GR.buf[an+"v"+best],t0=a.currentTime+(start||0)+0.001,s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain();
+  s.buffer=b;s.playbackRate.value=Math.pow(2,(midi-an)/12);f.type="lowpass";f.Q.value=0.5;f.frequency.value=Math.min(20000,3500+17000*v*v);
+  var peak=Math.max(0.5,Math.min(1.45,Math.pow(v/GR.ctr[best],0.7)));g.gain.setValueAtTime(peak,t0);
+  s.connect(f);f.connect(g);g.connect(grBus(a));s.start(t0);
+  var len=b.duration/s.playbackRate.value;if(dur!=null&&dur<len-0.4){var te=t0+dur;g.gain.setValueAtTime(peak,te);g.gain.setTargetAtTime(0.0001,te,0.09);s.stop(te+0.8);}else s.stop(t0+len+0.05);
+  return {s:s,g:g,stop:function(r){try{var n=a.currentTime;g.gain.cancelScheduledValues(n);g.gain.setValueAtTime(Math.max(0.0001,g.gain.value),n);g.gain.setTargetAtTime(0.0001,n,Math.max(0.05,(r||0.3)/3.5));s.stop(n+(r||0.3)*2+0.1);}catch(x){}}};}
 function sfNearest(key,midi){var an=SF.anchors[key]||[];if(!an.length)return null;var best=an[0],bd=999;for(var i=0;i<an.length;i++){var d=Math.abs(an[i]-midi);if(d<bd){bd=d;best=an[i];}}return best;}
-function sfPlayKey(key,midi,start,dur,gain){try{if(!sfInstReady(key))return false;var anc=sfNearest(key,midi);if(anc==null||!SF.buf[key][anc])return false;
+function sfPlayKey(key,midi,start,dur,gain){try{if(key==="piano"&&GR.ready&&sfOn()){var gh=grPlay(midi,start,dur,(gain==null?0.9:gain)*0.82);if(gh)return gh;}if(!sfInstReady(key))return false;var anc=sfNearest(key,midi);if(anc==null||!SF.buf[key][anc])return false;
   var a=ac(),t0=a.currentTime+(start||0)+0.001,out=pianoMaster(a),s=a.createBufferSource();s.buffer=SF.buf[key][anc];s.playbackRate.value=Math.pow(2,(midi-anc)/12);
   var g=a.createGain(),peak=Math.max(0.05,Math.min(1.1,gain==null?0.9:gain)),rel=Math.max(0.08,(dur||0.5)),tail=(SF.ring&&SF.ring[key])||0.6;
   g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(peak,t0+0.006);g.gain.setValueAtTime(peak,t0+rel);g.gain.exponentialRampToValueAtTime(0.0008,t0+rel+tail);
@@ -4754,10 +4775,10 @@ function pkGeo(W,H){const lo=PK.lo,hi=PK.hi,whites=[];for(let m=lo;m<=hi;m++)if(
   return {W:W,H:H,ww:ww,kbH:kbH,top:top,keys:keys,bh:kbH*0.62};}
 function pkKeyAt(x,y){const G=PK.geo;if(!G||y<G.top)return null;const rel=y-G.top;if(rel<G.bh){for(const m in G.keys){const k=G.keys[m];if(k.black&&x>=k.x&&x<=k.x+k.w)return +m;}}for(const m in G.keys){const k=G.keys[m];if(!k.black&&x>=k.x&&x<k.x+k.w)return +m;}return null;}
 /* ---------- sound + input ---------- */
-function pkSound(m,start,dur,gain){try{sfLoadInst("piano");}catch(e){}if(sfInstReady("piano")){var h=sfPlayKey("piano",m,start||0,dur||1.4,gain==null?0.92:gain);if(h)return h;}playTone(midiToFreq(m),start||0,dur||1.4);return null;}
-function pkNoteOn(m,src,vel){const now=ac().currentTime;PK.down[m]=(PK.down[m]||0)+1;PK.lit[m]={t:now,src:src||"you"};PK.vox=PK.vox||{};if(PK.vox[m]){try{PK.vox[m].stop(0.06);}catch(e){}delete PK.vox[m];}if(src!=="midi"||PK.midiSnd){var g=vel==null?0.92:0.18+0.95*Math.pow(vel/127,1.4);PK.vox[m]=pkSound(m,0,src==="midi"?9:1.6,g);}pkJudge(m,now);}
-function pkNoteOff(m){if(PK.down[m]){PK.down[m]--;if(!PK.down[m])delete PK.down[m];}var v=PK.vox&&PK.vox[m];if(v&&!PK.down[m]){if(PK.sustain){PK.held=PK.held||{};PK.held[m]=v;}else{v.stop(0.3);delete PK.vox[m];}}}
-function pkPedal(on){PK.sustain=on;if(!on&&PK.held){Object.keys(PK.held).forEach(function(m){if(!PK.down[m]){try{PK.held[m].stop(0.35);}catch(e){}if(PK.vox&&PK.vox[m]===PK.held[m])delete PK.vox[m];}});PK.held={};}}
+function pkSound(m,start,dur,gain){try{sfLoadInst("piano");}catch(e){}if(sfInstReady("piano")){var h=sfPlayKey("piano",m,start||0,dur===null?null:(dur||1.4),gain==null?0.92:gain);if(h)return h;}playTone(midiToFreq(m),start||0,dur||1.4);return null;}
+function pkNoteOn(m,src,vel){const now=ac().currentTime;PK.down[m]=(PK.down[m]||0)+1;PK.lit[m]={t:now,src:src||"you"};PK.vox=PK.vox||{};if(PK.vox[m]){try{PK.vox[m].stop(0.06);}catch(e){}delete PK.vox[m];}if(src!=="midi"||PK.midiSnd){var g=vel==null?0.92:0.18+0.95*Math.pow(vel/127,1.4);PK.vox[m]=pkSound(m,0,src==="midi"?(GR.ready?null:9):1.6,g);}pkJudge(m,now);}
+function pkNoteOff(m){if(PK.down[m]){PK.down[m]--;if(!PK.down[m])delete PK.down[m];}var v=PK.vox&&PK.vox[m];if(v&&!PK.down[m]){if(PK.sustain){PK.held=PK.held||{};PK.held[m]=v;}else if(GR.ready&&m>=89){delete PK.vox[m];}else{v.stop(0.3);delete PK.vox[m];}}}
+function pkPedal(on){PK.sustain=on;try{grPedal(on);}catch(e){}if(!on&&PK.held){Object.keys(PK.held).forEach(function(m){if(!PK.down[m]){try{PK.held[m].stop(0.35);}catch(e){}if(PK.vox&&PK.vox[m]===PK.held[m])delete PK.vox[m];}});PK.held={};}}
 function pkJudge(m,now){if(!PK.running||PK.play==="watch")return;const tt=pkT;let best=null,bd=1e9;
   PK.ev.forEach(e=>{if(e.hit==="miss"||e.auto||e.notes.indexOf(m)<0||e.got[m])return;const d=now-tt(e.b);if(Math.abs(d)<0.35&&Math.abs(d)<bd){bd=Math.abs(d);best=e;}});
   if(!best){if(!PK.wait){PK.score.streak=0;PK.fx.push({t:now,m:m,k:"oops"});}return;}best.got[m]=bd;if(Object.keys(best.got).length>=best.notes.length&&!best.hit)pkScoreEv(best,now);}
