@@ -8605,10 +8605,10 @@ function musePPG(){
   if(buf.length>1200)buf.splice(0,buf.length-1200);
 }
 async function museWrite(s){try{await M.ctrl.writeValue(museCmd(s));}catch(e){try{await M.ctrl.writeValueWithoutResponse(museCmd(s));}catch(e2){}}}
-async function museConnect(statusEl){
+async function museConnect(statusEl,all){
   if(!navigator.bluetooth)throw new Error("no-bt");
   statusEl.textContent="Opening Bluetooth…";
-  M.dev=await navigator.bluetooth.requestDevice({filters:[{services:[MUSE_SVC]}],optionalServices:[MUSE_SVC]});
+  M.dev=await navigator.bluetooth.requestDevice(all?{acceptAllDevices:true,optionalServices:[MUSE_SVC]}:{filters:[{services:[MUSE_SVC]}],optionalServices:[MUSE_SVC]});
   const TO=(pr,ms,step)=>Promise.race([pr,new Promise((_,rj)=>setTimeout(()=>rj(new Error("timed out at: "+step)),ms))]);
   statusEl.textContent="Connecting to "+(M.dev.name||"Muse")+"… (step 1 of 4)";
   M.gatt=await TO(M.dev.gatt.connect(),15000,"connecting");
@@ -8673,13 +8673,14 @@ function sensUI(){const f=document.getElementById("sensFab");if(f){const on=HR.c
   const rb=document.getElementById("sensRec");if(rb)rb.textContent=SENS.rec?"■ Stop & save session":"● Start recording";}
 function sensPanelOpen(o){SENS.open=o;const p=document.getElementById("sensPanel");if(!p)return;p.hidden=!o;if(!o)return;
   p.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between"><b>🫀 Sensors</b><button class="mbtn" id="sensX">✕</button></div>'+
-    fullPageNote()+'<div class="srow"><button class="mbtn" id="sensHRb"></button><button class="mbtn" id="sensMb"></button></div><div id="sensMsg" class="snote"></div><div id="sensLive"></div>'+
+    fullPageNote()+'<div class="srow"><button class="mbtn" id="sensHRb"></button><button class="mbtn" id="sensMb"></button></div><div class="snote">Muse not in the list? <button class="mbtn" id="sensMall" style="flex:none;padding:5px 9px;font-size:.78rem">🔎 Show all Bluetooth devices</button></div><div id="sensMsg" class="snote"></div><div id="sensLive"></div>'+
     '<div class="srow"><button class="mbtn" id="sensRec"></button><button class="mbtn" id="sensGo">📊 My sessions</button></div>'+
     '<label class="snote" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="sensAuto"'+(load("mjk-sens-auto",true)?" checked":"")+'> start recording automatically when a sensor connects</label>';
   const msg=t=>{const m=document.getElementById("sensMsg");if(m)m.innerHTML=t;};
   document.getElementById("sensX").onclick=()=>sensPanelOpen(false);
   document.getElementById("sensHRb").onclick=async()=>{if(HR.connected)return;if(!bioBT()){msg("<b>This browser can’t use Bluetooth.</b> On iPhone use the <b>Bluefy</b> app; on a computer use Chrome.");return;}const ok=await hrConnect(()=>sensUI());msg(ok?"❤️ Connected. HRV needs about a minute of beats.":"Couldn’t connect — wear the sensor, wake it, and try again.");sensEnsureTimer();bioStart();sensUI();};
   document.getElementById("sensMb").onclick=async()=>{if(M.connected)return;if(!bioBT()){msg("<b>This browser can’t use Bluetooth.</b> On iPhone use the <b>Bluefy</b> app; on a computer use Chrome.");return;}const st=document.getElementById("sensMsg");try{await museConnect(st);msg("🧠 Muse connected — sit still a moment while it settles.");}catch(e){const r=String((e&&(e.message||e.name))||e||"");try{if(M.gatt&&M.gatt.connected)M.gatt.disconnect();}catch(_){}msg(/cancel|chooser/i.test(r)?"No Muse picked. If it wasn’t in the list: turn it on (hold the button until the lights move), close the Muse app, then tap again.":/not found|no services|characteristic|GATT|unsupported/i.test(r)?"Found the Muse but it didn’t accept the connection (<i>"+esc(r)+"</i>). Newer Muse models (Muse S Athena) use a different protocol I don’t support yet — which Muse do you have?":"Couldn’t connect the Muse: <i>"+esc(r)+"</i>. Turn it off and on, close the Muse app, then tap again.");}sensEnsureTimer();bioStart();sensUI();};
+  document.getElementById("sensMall").onclick=async()=>{if(M.connected)return;if(!bioBT()){msg("<b>This browser can’t use Bluetooth.</b> Use the <b>Bluefy</b> app on iPhone.");return;}const st=document.getElementById("sensMsg");try{await museConnect(st,true);msg("🧠 Muse connected — sit still a moment while it settles.");}catch(e){const r=String((e&&(e.message||e.name))||e||"");try{if(M.gatt&&M.gatt.connected)M.gatt.disconnect();}catch(_){}msg(/fe8d|service|not found|No Services/i.test(r)?"That device isn’t a Muse (or the Muse didn’t answer): <i>"+esc(r)+"</i>":"Couldn’t connect: <i>"+esc(r)+"</i>");}sensEnsureTimer();bioStart();sensUI();};
   document.getElementById("sensRec").onclick=()=>{if(SENS.rec)sensSave(true);else{if(!HR.connected&&!M.connected){msg("Connect a sensor first.");return;}sensBegin();}};
   document.getElementById("sensGo").onclick=()=>{sensPanelOpen(false);try{if(typeof teardown==="function")teardown();}catch(e){}teardown=null;renderSensSessions();};
   document.getElementById("sensAuto").onchange=e=>save("mjk-sens-auto",e.target.checked);
