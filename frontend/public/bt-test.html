@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bluetooth test</title>
+<style>
+body{margin:0;padding:20px;background:#140d28;color:#f4ead2;font:16px/1.4 system-ui}
+h1{font-size:1.3rem;margin:0 0 6px}p{color:#b9b0d6;margin:0 0 14px}
+button{display:block;width:100%;margin:10px 0;padding:18px;border:0;border-radius:14px;font:800 1.1rem system-ui;background:#f4b740;color:#2a1a00}
+button.alt{background:#2a2050;color:#f4ead2;border:1px solid #4a3d80}
+#log{white-space:pre-wrap;background:#0b0816;border:1px solid #3a3160;border-radius:12px;padding:12px;font:13px/1.45 ui-monospace,monospace;min-height:120px}
+</style></head><body>
+<h1>🔧 Bluetooth test</h1>
+<p>Tap a button, pick your device, and read the log. Send Claude a screenshot of the log.</p>
+<button id="muse">🧠 Find Muse</button>
+<button id="all" class="alt">🔎 Show ALL Bluetooth devices</button>
+<button id="hr" class="alt">❤️ Find heart-rate sensor</button>
+<div id="log"></div>
+<script>
+const L=document.getElementById("log");function log(t){L.textContent+=new Date().toLocaleTimeString()+"  "+t+"\n";}
+log("Browser: "+navigator.userAgent);
+log("navigator.bluetooth: "+(navigator.bluetooth?"YES":"NO — this browser can't do Bluetooth"));
+const SVC=0xfe8d,CTRL="273e0001-4c4d-454d-96be-f03bac821358",EEG1="273e0003-4c4d-454d-96be-f03bac821358";
+function to(p,ms,step){return Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error("TIMED OUT at "+step)),ms))]);}
+async function tryDev(opts,kind){try{log("Opening device list… ("+kind+")");const d=await navigator.bluetooth.requestDevice(opts);log("Picked: "+(d.name||"(no name)")+"  id="+d.id);
+  log("Connecting…");const g=await to(d.gatt.connect(),15000,"connect");log("Connected ✓");
+  if(kind==="hr"){const s=await to(g.getPrimaryService("heart_rate"),10000,"heart service");const c=await to(s.getCharacteristic("heart_rate_measurement"),10000,"hr characteristic");await c.startNotifications();c.addEventListener("characteristicvaluechanged",e=>{const v=e.target.value,f=v.getUint8(0),bpm=(f&1)?v.getUint16(1,true):v.getUint8(1);log("❤️ "+bpm+" bpm");});log("Listening for heartbeats ✓");return;}
+  log("Opening Muse service…");const s=await to(g.getPrimaryService(SVC),10000,"muse service");log("Muse service ✓");
+  const ctrl=await to(s.getCharacteristic(CTRL),10000,"control");log("Control channel ✓");
+  const e1=await to(s.getCharacteristic(EEG1),10000,"EEG 1");await to(e1.startNotifications(),10000,"EEG stream");let n=0;e1.addEventListener("characteristicvaluechanged",()=>{n++;if(n===1||n%100===0)log("🧠 EEG packets: "+n);});
+  const cmd=t=>{const e=new TextEncoder().encode("X"+t+"\n");e[0]=e.length-1;return e;};
+  for(const c of ["h","p21","s","d"]){await to(ctrl.writeValue(cmd(c)),8000,"command "+c);await new Promise(r=>setTimeout(r,80));}
+  log("Start command sent ✓ — EEG packets should start counting…");
+  setTimeout(()=>log(n?"✅ Muse streaming works ("+n+" packets)":"⚠️ Connected but no EEG data arrived"),4000);
+}catch(e){log("❌ "+(e&&e.name?e.name+": ":"")+(e&&e.message||e));}}
+document.getElementById("muse").onclick=()=>tryDev({filters:[{services:[SVC]}],optionalServices:[SVC]},"muse");
+document.getElementById("all").onclick=()=>tryDev({acceptAllDevices:true,optionalServices:[SVC]},"muse (all devices)");
+document.getElementById("hr").onclick=()=>tryDev({filters:[{services:["heart_rate"]}]},"hr");
+</script></body></html>
