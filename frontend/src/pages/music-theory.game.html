@@ -1048,6 +1048,7 @@ function renderAbout(){if(teardown){try{teardown();}catch(e){}teardown=null;}hom
    '<li>If you have epilepsy or a seizure disorder, a pacemaker or other implanted device, are pregnant, or live with a mental-health condition, check with your doctor before using pulsed or binaural sounds and paced breathing.</li>'+
    '<li>Stop any breathing exercise if you feel dizzy, light-headed or uncomfortable, and breathe normally.</li>'+
    '<li>If trouble sleeping lasts more than a few weeks, talk with a doctor — CBT-I (cognitive behavioral therapy for insomnia) is the standard first treatment, and these sessions can sit alongside it.</li>'+
+   '<li>Veterans and anyone supporting one can reach the <b>Veterans Crisis Line</b> 24/7: call 988 and press 1, or text 838255. For PTSD, the VA offers proven treatments (prolonged exposure, cognitive processing therapy, EMDR); the guided sessions for veterans can sit alongside them.</li>'+
    '<li>Heart-rate, HRV and brainwave readings from consumer sensors are for practice feedback, not diagnosis.</li></ul>'+
    '<p class="rlab" style="margin-top:14px">Your data</p><p style="margin:6px 0">Recordings, sessions and sensor logs are saved on your device. Signing in syncs your players and progress.</p>'+
    '<p class="rlab" style="margin-top:14px">Sounds &amp; credits</p><p style="margin:6px 0">Sampled instruments from the MusyngKite soundfonts. Nature recordings are CC0 / Pixabay-licensed field recordings collected by the open-source Moodist project. Niko Kotoulas MIDI packs are included for practice.</p></div>';
@@ -7976,6 +7977,7 @@ function renderMeditation(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();h
    {ic:"🌀",title:"Brainwave Binaural",blurb:"Pick an intention — sleep, meditate, flow, focus, insight — and ride the matching brainwave as a binaural beat. Headphones on.",go:renderBrainwave},
    {ic:"🎙",title:"Voice Journey — Orientation",blurb:"Your own guided journey, recorded one line at a time with the script on screen. Plays over nature sounds and binaural layers on a 33-minute timeline.",go:renderVoiceJourney},
    {ic:"🌲",title:"Nature Sounds",blurb:"A library of real recordings — ocean, mountain river, birds, wind in the pines, rain, night crickets, campfire. Mix your own scenes and add your own recordings.",go:renderNature},
+   {ic:"🎖",title:"Guided Sessions for Veterans",blurb:"Present-focused sessions for steadying the body, coming back to the room, winding down and falling asleep. Narrated, with a Ground me button always on screen.",go:renderStandDown},
    {ic:"🌀",title:"Brainwave Journey",blurb:"A 30-minute ride: start in everyday thinking, drift down to deep theta or delta, rest there, and come back up to calm, clear waking. Headphones on.",go:renderJourney},
    {ic:"🌬️",title:"Breathwork",blurb:"Guided breathing — coherent, box, 4·7·8 — with a breathing circle to follow. Connect a heart monitor to watch your HRV settle.",go:renderBreathwork},
    {ic:"🥁",title:"Rhythm Mind",blurb:"Train your internal clock — the beat plays, then goes silent, and you keep it alive in your head. See how steady your inner pulse is.",go:renderRhythmMind},
@@ -8132,6 +8134,161 @@ const VJ_SCRIPT=[
  [["Now use your voice. Breathe in, and as you breathe out, hum. Any note that feels good. Feel it buzz in your chest, your throat, your face.",20,"H"],["Keep going at your own pace. Hum along with me and with the waves.",120],["Let the hum fade. Breathe normally. Feel how the sound is still moving through you.",10,"h"]],
  [["You're more relaxed now than you've been all day. Just be here. Let the waves carry you.",360],["Notice how everything in you is moving together now, in rhythm, all one piece.",180]],
  [["Time to come back. I'll count from one to five, and at five you'll be wide awake and feeling great.",3],["One. You feel the weight of your body again.",3],["Two. Your hands and feet start to wake up.",3],["Three. You hear the room around you.",3],["Four. You feel the air on your skin, fresh and clear.",3],["Five. Eyes open. Wide awake, rested, and better than when you started.",4],["The vault is still there, everything's safe inside. Take only what you need. Welcome back.",5]]];
+/* ===== GUIDED SESSIONS FOR VETERANS: present-focused, choice-giving, grounding first ===== */
+/* step types: {s:text,p:pauseAfter} · {breath:[in,hold,out,hold],n} · {hum:{from,to,dur}} · {count:{from,to,dur}} · {bed:{beat,carrier,scene}} · {quiet:sec} · {fade:sec} */
+var GS_SESS=[
+ {id:"tactical",nm:"Box Breathing",len:"5 min",when:"Anytime",tag:"Steady the body fast — before a hard moment, or after one.",bed:{beat:10,carrier:200,scene:"none"},steps:[
+  {s:"This is box breathing. The same breathing taught to the people who have to stay steady when it counts.",p:2},
+  {s:"Sit however is comfortable. Keep your eyes open, or let your gaze rest on the floor in front of you. Your call.",p:3},
+  {s:"We breathe in a box. In for four. Hold for four. Out for four. Hold for four. The tone will lead you.",p:2},
+  {breath:[4,4,4,4],n:6},
+  {s:"Good. Now we make the exhale longer. That longer breath out is the signal to your body that you are safe to stand down.",p:2},
+  {s:"In for four. Out for six.",p:1},
+  {breath:[4,0,6,0],n:7},
+  {s:"Let your breathing go back to its own rhythm.",p:5},
+  {s:"Feel your feet on the ground. Feel the weight of your body, supported.",p:5},
+  {s:"You are here. You are steady. You can come back to this breath any time you need it.",p:4},{fade:4}]},
+ {id:"ground",nm:"Ground & Present",len:"5 min",when:"Daytime",tag:"Back into the room, right now, through your five senses.",bed:{beat:10,carrier:220,scene:"river"},steps:[
+  {s:"This one brings you all the way into the present, using your senses. Keep your eyes open for this.",p:2},
+  {s:"Put both feet flat on the floor. Press down a little. Feel the ground pushing back.",p:6},
+  {s:"Look around the room. Find five things you can see. Name them to yourself, slowly.",p:14},
+  {s:"Now four things you can feel. The chair under you. Your clothes. The air on your hands. Whatever is there.",p:13},
+  {s:"Three things you can hear. Near, and far.",p:11},
+  {s:"Two things you can smell, or two smells you like.",p:9},
+  {s:"And one thing you can taste, or one slow sip of water if you have it.",p:8},
+  {s:"Take one long breath in, and a longer breath out.",p:6},
+  {s:"Say to yourself: I am here. It is today. I know where I am.",p:6},
+  {s:"That's it. You're grounded. Carry this with you.",p:3},{fade:4}]},
+ {id:"standdown",nm:"Evening Wind-Down",len:"10 min",when:"Evening",tag:"Come off duty at the end of the day. Let the body unclench.",bed:{beat:7,carrier:180,scene:"ocean"},steps:[
+  {s:"The day is done. This is your time to stand down.",p:3},
+  {s:"Find a position that feels secure. Back to a wall is fine. Eyes open or closed — whatever lets you settle.",p:5},
+  {s:"Breathe in through your nose. And out slowly through your mouth, like you're fogging a window.",p:2},
+  {breath:[4,0,7,0],n:6},
+  {s:"Now we check the body, the way you'd check your gear. No rush.",p:3},
+  {s:"Your jaw. Let your teeth come apart. Let your tongue rest.",p:7},
+  {s:"Your shoulders. Let them drop a little. Then a little more.",p:7},
+  {s:"Your hands. Open them. Let your fingers go loose.",p:7},
+  {s:"Your belly. Let it be soft. You don't need to hold anything in right now.",p:8},
+  {s:"Now we'll use your voice to settle the nervous system. Breathe in, and as you breathe out, hum. Any note. Match the tone if you like.",p:2},
+  {hum:{from:55,to:50,dur:90}},
+  {s:"Let the hum go. Feel the quiet buzz it leaves behind.",p:8},
+  {s:"Say this to yourself, and mean it as much as you can: My watch is over for today. I did what I could. I am allowed to rest.",p:10},
+  {s:"Breathe with the waves for a little while.",p:2},
+  {quiet:60},
+  {s:"When you're ready, take a deeper breath, move your fingers, and come back to the room. You're off duty.",p:4},{fade:6}]},
+ {id:"hum",nm:"Hum It Down",len:"10 min",when:"Anytime",tag:"Your own voice, matched to a tone that slowly comes down.",bed:{beat:6,carrier:160,scene:"none"},steps:[
+  {s:"Humming is one of the fastest ways to calm the body. It lengthens the breath out, and you can feel it in your chest.",p:2},
+  {s:"You'll hear a tone. Breathe in, then hum with it on the way out. The ring shows how close you are. Close is plenty.",p:3},
+  {hum:{from:57,to:55,dur:120}},
+  {s:"Good. The tone is coming down now. Follow it.",p:2},
+  {hum:{from:55,to:50,dur:150}},
+  {s:"And lower still. Let it get softer as it gets lower.",p:2},
+  {hum:{from:50,to:45,dur:150}},
+  {s:"Let the hum fade. Just breathe and listen.",p:3},
+  {quiet:45},
+  {s:"Notice how your body feels now compared to when you started. That is yours. You made that.",p:5},{fade:6}]},
+ {id:"nightwatch",nm:"Sleep Journey",len:"25 min",when:"In bed",tag:"Hand off the watch and let sleep come. Ends in silence — no need to touch anything.",night:true,bed:{beat:6,carrier:150,scene:"rain"},steps:[
+  {s:"You're in bed. Get as comfortable as you can. Any position is fine. If a little light or the door matters to you, set it the way that feels right.",p:6},
+  {s:"Breathe in through your nose. And a long slow breath out.",p:2},
+  {breath:[4,0,6,0],n:5},
+  {s:"Let's make sure the perimeter is secure. The doors are locked. Everything that needed doing today is done, or it can wait for morning.",p:8},
+  {s:"Tonight, you're handing off the watch. Picture someone you trust taking your post. Maybe a buddy. Maybe someone from your unit. Maybe just the night itself.",p:10},
+  {s:"They've got it. You can hear them say it: I've got the watch. Get some rest.",p:10},
+  {s:"Let your breath get slower on its own. Out longer than in.",p:2},
+  {breath:[4,0,7,0],n:6},
+  {s:"Now let the body go heavy, one part at a time.",p:3},
+  {s:"Your feet. Heavy and warm.",p:9},{s:"Your legs. Sinking into the bed.",p:9},{s:"Your hips and lower back. Let the bed hold them.",p:9},
+  {s:"Your belly and chest. Rising and falling, slow.",p:10},{s:"Your hands and arms. Loose. Nothing to hold.",p:9},
+  {s:"Your shoulders. Your neck. Let them melt.",p:10},{s:"Your jaw. Your eyes. Your forehead. Smooth and soft.",p:12},
+  {s:"You'll hear a soft, slow pulse. Count down with it from one hundred. If you lose your place, start again anywhere. It doesn't matter.",p:2},
+  {bed:{beat:4}},
+  {count:{from:54,to:38,dur:300}},
+  {s:"Stop counting now. There's nothing left to do.",p:4},
+  {s:"The watch is covered. You're safe to sleep.",p:3},
+  {bed:{beat:2.5}},
+  {quiet:360},{fade:90}]}
+];
+var GS={run:false,timers:[],idx:0,sess:null,t0:0,voice:null,rate:load("mjk-gsrate",0.86),cap:load("mjk-gscap",true),bedVol:load("mjk-gsbed",0.5),duck:null,raf:null};
+function gsVoices(){try{return speechSynthesis.getVoices().filter(function(v){return /^en/i.test(v.lang);});}catch(e){return [];}}
+function gsPickVoice(){var vs=gsVoices(),want=load("mjk-gsvoice","");var v=vs.find(function(x){return x.name===want;});if(v)return v;
+  var pref=["Daniel","Samantha","Aaron","Arthur","Evan","Nathan","Google UK English Male","Google US English","Microsoft Guy","Alex"];for(var i=0;i<pref.length;i++){var f=vs.find(function(x){return x.name.indexOf(pref[i])===0;});if(f)return f;}return vs[0]||null;}
+function gsLater(fn,sec){var t=setTimeout(fn,Math.max(0,sec)*1000);GS.timers.push(t);return t;}
+function gsClear(){GS.timers.forEach(clearTimeout);GS.timers=[];try{speechSynthesis.cancel();}catch(e){}if(GS.stepStop){try{GS.stepStop();}catch(e){}GS.stepStop=null;}}
+function gsBedLevel(v,tau){if(!MED.master)return;try{MED.master.gain.setTargetAtTime(v,ac().currentTime,tau||0.6);}catch(e){}}
+function gsCaption(t){var c=document.getElementById("gsCap");if(c){c.style.opacity=0;setTimeout(function(){c.textContent=GS.cap?t:"";c.style.opacity=1;},250);}}
+function gsSay(text,done){if(!GS.run)return;gsCaption(text);var fin=false,go=function(){if(fin)return;fin=true;gsBedLevel(GS.bedVol*0.9,1.2);done();};gsBedLevel(GS.bedVol*0.55,0.4);
+  try{var u=new SpeechSynthesisUtterance(text);var v=gsPickVoice();if(v)u.voice=v;u.rate=GS.rate;u.pitch=0.95;u.volume=1;u.onend=go;u.onerror=go;speechSynthesis.speak(u);}catch(e){}
+  gsLater(go,text.split(/\s+/).length/(2.3*GS.rate)+3);}
+/* soft breath pacer: a tone that rises on the inhale and settles on the exhale, with the circle */
+function gsBreath(pat,n,done){var a=ac(),out=MED.master||pianoMaster(a),cyc=pat[0]+pat[1]+pat[2]+pat[3],t0=a.currentTime+0.15,nodes=[],circ=document.getElementById("gsCirc"),lab=document.getElementById("gsBl");
+  for(var k=0;k<n;k++){var ts=t0+k*cyc;(function(ts){var o=a.createOscillator(),g=a.createGain();o.type="sine";o.frequency.setValueAtTime(174,ts);o.frequency.linearRampToValueAtTime(220,ts+pat[0]);o.frequency.setValueAtTime(220,ts+pat[0]+pat[1]);o.frequency.linearRampToValueAtTime(164,ts+pat[0]+pat[1]+pat[2]);
+    g.gain.setValueAtTime(0.0001,ts);g.gain.linearRampToValueAtTime(0.09,ts+pat[0]*0.6);g.gain.setValueAtTime(0.09,ts+pat[0]+pat[1]);g.gain.linearRampToValueAtTime(0.0001,ts+pat[0]+pat[1]+pat[2]);o.connect(g);g.connect(out);o.start(ts);o.stop(ts+cyc+0.1);nodes.push(o);})(ts);}
+  var phases=[];for(var k2=0;k2<n;k2++){var b=k2*cyc;phases.push([b,"In",pat[0],1.0]);if(pat[1])phases.push([b+pat[0],"Hold",pat[1],1.0]);phases.push([b+pat[0]+pat[1],"Out",pat[2],0.55]);if(pat[3])phases.push([b+pat[0]+pat[1]+pat[2],"Hold",pat[3],0.55]);}
+  phases.forEach(function(ph){gsLater(function(){if(circ){circ.style.transition="transform "+ph[2]+"s ease-in-out";circ.style.transform="scale("+ph[3]+")";}if(lab)lab.textContent=ph[1]+" · "+ph[2];},ph[0]+0.15);});
+  GS.stepStop=function(){var now=a.currentTime;nodes.forEach(function(o){try{o.stop(now+0.05);}catch(e){}});};gsLater(function(){if(lab)lab.textContent="";GS.stepStop=null;done();},cyc*n+0.4);}
+/* hum matching: guide tone glides down; the mic shows how close the hum is */
+function gsHum(h,done){var a=ac(),out=MED.master||pianoMaster(a),t=a.currentTime+0.1,f0=midiToFreq(h.from),f1=midiToFreq(h.to),o=a.createOscillator(),o2=a.createOscillator(),g=a.createGain();o.type="sine";o2.type="triangle";
+  [o,o2].forEach(function(x,i){x.frequency.setValueAtTime(f0*(i?2:1),t);x.frequency.exponentialRampToValueAtTime(f1*(i?2:1),t+h.dur);x.connect(g);x.start(t);x.stop(t+h.dur+1.5);});
+  g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(0.11,t+3);g.gain.setValueAtTime(0.11,t+h.dur-3);g.gain.linearRampToValueAtTime(0.0001,t+h.dur);g.connect(out);
+  var ring=document.getElementById("gsRing"),lab=document.getElementById("gsBl"),buf=null,on=true,loop=function(){if(!on||!GS.run)return;GS.raf=requestAnimationFrame(loop);if(!toneAnalyser||!buf)return;toneAnalyser.getFloatTimeDomainData(buf);var p=yinPitch(buf,a.sampleRate);
+    var el=Math.min(1,(a.currentTime-t)/h.dur),target=f0*Math.pow(f1/f0,el);if(p>0&&ring){var c=1200*Math.log2(p/target),cc=((c%1200)+1800)%1200-600,close=Math.max(0,1-Math.abs(cc)/250);ring.style.opacity=0.25+0.75*close;ring.style.transform="scale("+(0.85+0.3*close)+")";if(lab)lab.textContent=close>0.8?"Right with it":close>0.4?"Close":"Find the tone";}else if(ring){ring.style.opacity=0.2;}};
+  ensureMic().then(function(ok){if(ok&&toneAnalyser){buf=new Float32Array(toneAnalyser.fftSize);loop();}else if(lab)lab.textContent="Hum along";}).catch(function(){});
+  GS.stepStop=function(){on=false;var now=a.currentTime;try{g.gain.cancelScheduledValues(now);g.gain.setTargetAtTime(0,now,0.2);o.stop(now+0.6);o2.stop(now+0.6);}catch(e){}try{stopMic();}catch(e){}};
+  gsLater(function(){on=false;try{stopMic();}catch(e){}if(ring)ring.style.opacity=0;if(lab)lab.textContent="";GS.stepStop=null;done();},h.dur+0.5);}
+/* slow pulse to count down with; it eases slower across the step */
+function gsCount(c,done){var a=ac(),out=MED.master||pianoMaster(a),t=a.currentTime+0.3,end=t+c.dur,srcs=[],circ=document.getElementById("gsCirc");
+  while(t<end){var el=(t-(end-c.dur))/c.dur,bpm=c.from+(c.to-c.from)*el,o=a.createOscillator(),g=a.createGain(),f=a.createBiquadFilter();o.type="sine";o.frequency.setValueAtTime(110,t);o.frequency.exponentialRampToValueAtTime(70,t+0.12);f.type="lowpass";f.frequency.value=400;
+    g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.35*(1-el*0.5),t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+0.4);o.connect(f);f.connect(g);g.connect(out);o.start(t);o.stop(t+0.45);srcs.push(o);
+    (function(tt){gsLater(function(){if(circ){circ.style.transition="transform .15s";circ.style.transform="scale(0.9)";setTimeout(function(){circ.style.transition="transform 1s";circ.style.transform="scale(0.8)";},160);}},tt-a.currentTime);})(t);t+=60/bpm;}
+  GS.stepStop=function(){var now=a.currentTime;srcs.forEach(function(o){try{o.stop(now+0.02);}catch(e){}});};gsLater(function(){GS.stepStop=null;done();},c.dur+0.5);}
+function gsStep(){if(!GS.run)return;var S=GS.sess,st=S.steps[GS.idx];if(!st){gsEnd(true);return;}var next=function(){GS.idx++;gsPaint();gsStep();};gsPaint();
+  if(st.s!=null){gsSay(st.s,function(){gsLater(next,st.p||1.5);});return;}
+  if(st.breath){gsCaption("");gsBreath(st.breath,st.n||5,function(){gsLater(next,1);});return;}
+  if(st.hum){gsHum(st.hum,function(){gsLater(next,1);});return;}
+  if(st.count){gsCount(st.count,function(){gsLater(next,1);});return;}
+  if(st.bed){if(MED.master&&st.bed.beat)medRetune(st.bed.beat,GS.carrier);next();return;}
+  if(st.quiet){gsCaption("");gsLater(next,st.quiet);return;}
+  if(st.fade){gsBedLevel(0.0001,st.fade/4);gsLater(function(){gsEnd(true);},st.fade);return;}next();}
+function gsStart(S){unlockAudio();gsClear();medStop();GS.sess=S;GS.idx=0;GS.run=true;GS.t0=Date.now();GS.carrier=S.bed.carrier;
+  try{speechSynthesis.cancel();var w=new SpeechSynthesisUtterance(" ");w.volume=0;speechSynthesis.speak(w);}catch(e){}
+  medBinaural(S.bed.beat,S.bed.carrier,1,false);gsBedLevel(GS.bedVol*0.9,3);if(S.bed.scene&&S.bed.scene!=="none"){try{natSceneStart(S.bed.scene);}catch(e){}}
+  var log=load("mjk-gslog",[]);log.unshift({t:Date.now(),id:S.id});save("mjk-gslog",log.slice(0,300));gsRunView();gsLater(gsStep,2.5);}
+function gsEnd(done){GS.run=false;gsClear();medStop();cancelAnimationFrame(GS.raf);if(done){var l=load("mjk-gslog",[]);if(l[0]&&l[0].id===GS.sess.id)l[0].done=true;save("mjk-gslog",l);try{medMarkDone();}catch(e){}}
+  if(GS.sess&&GS.sess.night&&done){var v=document.getElementById("gsCap");if(v)v.textContent="";return;}renderStandDown();}
+/* "Ground me": stop where we are, come back to the room, then choose */
+function gsGround(){gsClear();GS.run=true;var lines=["You're here. Feet on the floor. Look around and find three things you can see.","Breathe in. And a long breath out.","You're safe right now. Take your time."],i=0;
+  var go=function(){if(i<lines.length){gsSay(lines[i++],function(){gsLater(go,4);});}else{GS.run=false;var c=document.getElementById("gsCap");if(c)c.innerHTML='<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn" id="gsResume">Continue the session</button><button class="btn ghost" id="gsQuit">End here</button></div>';
+    document.getElementById("gsResume").onclick=function(){GS.run=true;gsStep();};document.getElementById("gsQuit").onclick=function(){gsEnd(false);};}};go();}
+function gsPaint(){var S=GS.sess;if(!S)return;var pr=document.getElementById("gsProg");if(pr)pr.style.width=(100*GS.idx/S.steps.length)+"%";}
+function gsRunView(){var S=GS.sess,night=!!S.night;view.innerHTML='<div class="gsRun'+(night?' night':'')+'"><div class="gsTop"><button class="back" id="gsBack">←</button><span>'+esc(S.nm)+'</span><span style="margin-left:auto;opacity:.6;font-size:.8rem">'+esc(S.len)+'</span></div>'+
+  '<div class="gsBar"><i id="gsProg"></i></div><div class="gsStage"><div class="gsRing" id="gsRing"></div><div class="gsCirc" id="gsCirc"></div><div class="gsBl" id="gsBl"></div></div><div class="gsCap" id="gsCap"></div>'+
+  '<div class="gsCtl"><button class="btn ghost" id="gsG">Ground me</button><button class="btn ghost" id="gsStop">Stop</button></div></div>';
+  $("#gsBack").onclick=function(){gsEnd(false);};$("#gsStop").onclick=function(){gsEnd(false);};$("#gsG").onclick=gsGround;teardown=function(){GS.run=false;gsClear();medStop();};}
+function renderStandDown(){if(toneRAF)cancelAnimationFrame(toneRAF);GS.run=false;gsClear();medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  var vs=gsVoices(),cur=(gsPickVoice()||{}).name||"",lg=load("mjk-gslog",[]),done=lg.filter(function(x){return x.done;}).length;
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">Guided Sessions for Veterans</span></div><div class="panel">'+
+   '<div class="intro">Guided sessions built for veterans. Every one stays in the here and now. Eyes open or closed, sitting or lying down — always your choice. Tap <b>Ground me</b> anytime to come straight back to the room.</div>'+
+   GS_SESS.map(function(S){return '<button class="card gsCard'+(S.night?' night':'')+'" data-gs="'+S.id+'"><div style="display:flex;justify-content:space-between;gap:8px"><b>'+esc(S.nm)+'</b><span class="site-note" style="font-size:.75rem">'+esc(S.len)+' · '+esc(S.when)+'</span></div><div class="site-note" style="margin-top:4px">'+esc(S.tag)+'</div></button>';}).join("")+
+   '<details style="margin-top:12px"><summary class="rlab">Voice &amp; sound</summary><div style="display:grid;gap:8px;margin-top:8px">'+
+   '<label class="rrow2"><span class="rlab">Voice</span><select id="gsV" style="flex:1">'+(vs.length?vs.map(function(v){return '<option'+(v.name===cur?' selected':'')+'>'+esc(v.name)+'</option>';}).join(""):'<option>Default</option>')+'</select><button class="rchip sm" id="gsVT">▶</button></label>'+
+   '<label class="rrow2"><span class="rlab">Pace</span><input type="range" id="gsR" min="0.7" max="1.05" step="0.01" value="'+GS.rate+'" style="flex:1;accent-color:var(--gold)"></label>'+
+   '<label class="rrow2"><span class="rlab">Background</span><input type="range" id="gsB" min="0.1" max="1" step="0.05" value="'+GS.bedVol+'" style="flex:1;accent-color:var(--gold)"></label>'+
+   '<label class="rrow2"><span class="rlab">Show words</span><input type="checkbox" id="gsC"'+(GS.cap?' checked':'')+'></label></div></details>'+
+   (done?'<div class="site-note" style="margin-top:10px">Sessions completed: <b>'+done+'</b></div>':'')+
+   '<div class="site-note" style="margin-top:14px;font-size:.82rem">Need to talk to someone now? <b>Veterans Crisis Line</b> — call <a href="tel:988" style="color:var(--gold)">988</a> and press 1, or text <a href="sms:838255" style="color:var(--gold)">838255</a>. Free, confidential, 24/7.</div></div>';
+  $("#eBack").onclick=goHome;view.querySelectorAll("[data-gs]").forEach(function(b){b.onclick=function(){gsStart(GS_SESS.find(function(s){return s.id===b.dataset.gs;}));};});
+  var vsel=$("#gsV");vsel.onchange=function(){save("mjk-gsvoice",vsel.value);};$("#gsVT").onclick=function(){try{speechSynthesis.cancel();var u=new SpeechSynthesisUtterance("You're off duty. Time to rest.");var v=gsPickVoice();if(v)u.voice=v;u.rate=GS.rate;u.pitch=0.95;speechSynthesis.speak(u);}catch(e){}};
+  $("#gsR").oninput=function(e){GS.rate=+e.target.value;save("mjk-gsrate",GS.rate);};$("#gsB").oninput=function(e){GS.bedVol=+e.target.value;save("mjk-gsbed",GS.bedVol);};$("#gsC").onchange=function(e){GS.cap=e.target.checked;save("mjk-gscap",GS.cap);};
+  try{if(speechSynthesis&&!vs.length)speechSynthesis.onvoiceschanged=function(){if(document.getElementById("gsV")&&!GS.run)renderStandDown();};}catch(e){}}
+(function(){try{var s=document.createElement("style");s.textContent=
+ ".gsCard{display:block;width:100%;text-align:left;margin:8px 0;padding:12px 14px}.gsCard.night{background:linear-gradient(180deg,#14122a,#0d0c1c)}"+
+ ".gsRun{min-height:100vh;display:flex;flex-direction:column;background:#0b0d14;color:#d8d6e8;margin:-16px;padding:16px}.gsRun.night{background:#000;color:#b85c5c}.gsRun.night .btn{color:#b85c5c;border-color:#3a1717;background:#100606}"+
+ ".gsTop{display:flex;align-items:center;gap:10px;font-weight:700}.gsBar{height:3px;background:rgba(255,255,255,.07);border-radius:2px;margin:10px 0}.gsBar i{display:block;height:100%;width:0;background:currentColor;opacity:.5;transition:width 1s}"+
+ ".gsStage{flex:1;display:flex;align-items:center;justify-content:center;position:relative;min-height:300px}.gsCirc{width:180px;height:180px;border-radius:50%;background:radial-gradient(circle at 50% 40%,rgba(120,150,255,.35),rgba(60,70,140,.08));transform:scale(.8);transition:transform 4s ease-in-out}"+
+ ".gsRun.night .gsCirc{background:radial-gradient(circle at 50% 40%,rgba(160,40,40,.28),rgba(60,10,10,.05))}.gsRing{position:absolute;width:230px;height:230px;border-radius:50%;border:2px solid rgba(255,214,130,.7);opacity:0;transition:opacity .3s,transform .3s}"+
+ ".gsBl{position:absolute;font-size:.95rem;letter-spacing:.08em;opacity:.8}.gsCap{min-height:5.5em;text-align:center;font-size:1.12rem;line-height:1.5;padding:0 8px;transition:opacity .4s}.gsRun.night .gsCap{font-size:1rem;opacity:.6}"+
+ ".gsCtl{display:flex;gap:8px;justify-content:center;padding:12px 0 calc(12px + env(safe-area-inset-bottom))}";document.head.appendChild(s);}catch(e){}})();
+
 function vjDefault(){return {ver:2,name:"Orientation",parts:VJ_PARTS.map((p,i)=>({t:p.t,lines:VJ_SCRIPT[i].map(l=>({id:"l"+Math.random().toString(36).slice(2,8),txt:l[0],pause:l[1],cue:l[2]||"",has:false}))})),hum:{has:false,dur:0},voice:1,bed:0.5,scene:"classic",auto:true};}
 function vjState(){const s=load("mjk-vj",null);return s&&s.ver===2?s:vjDefault();}
 function vjSave(s){save("mjk-vj",s);}
