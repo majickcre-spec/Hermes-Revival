@@ -1048,7 +1048,6 @@ function renderAbout(){if(teardown){try{teardown();}catch(e){}teardown=null;}hom
    '<li>If you have epilepsy or a seizure disorder, a pacemaker or other implanted device, are pregnant, or live with a mental-health condition, check with your doctor before using pulsed or binaural sounds and paced breathing.</li>'+
    '<li>Stop any breathing exercise if you feel dizzy, light-headed or uncomfortable, and breathe normally.</li>'+
    '<li>If trouble sleeping lasts more than a few weeks, talk with a doctor — CBT-I (cognitive behavioral therapy for insomnia) is the standard first treatment, and these sessions can sit alongside it.</li>'+
-   '<li>If you need to talk to someone, the <b>988 Lifeline</b> is free and open 24/7: call or text 988 (veterans press 1). For PTSD, proven treatments include prolonged exposure, cognitive processing therapy and EMDR; the guided sessions can sit alongside them.</li>'+
    '<li>Heart-rate, HRV and brainwave readings from consumer sensors are for practice feedback, not diagnosis.</li></ul>'+
    '<p class="rlab" style="margin-top:14px">Your data</p><p style="margin:6px 0">Recordings, sessions and sensor logs are saved on your device. Signing in syncs your players and progress.</p>'+
    '<p class="rlab" style="margin-top:14px">Sounds &amp; credits</p><p style="margin:6px 0">Sampled instruments from the MusyngKite soundfonts. Nature recordings are CC0 / Pixabay-licensed field recordings collected by the open-source Moodist project. Niko Kotoulas MIDI packs are included for practice.</p></div>';
@@ -8274,8 +8273,7 @@ function renderStandDown(){if(toneRAF)cancelAnimationFrame(toneRAF);GS.run=false
    '<label class="rrow2"><span class="rlab">Pace</span><input type="range" id="gsR" min="0.7" max="1.05" step="0.01" value="'+GS.rate+'" style="flex:1;accent-color:var(--gold)"></label>'+
    '<label class="rrow2"><span class="rlab">Background</span><input type="range" id="gsB" min="0.1" max="1" step="0.05" value="'+GS.bedVol+'" style="flex:1;accent-color:var(--gold)"></label>'+
    '<label class="rrow2"><span class="rlab">Show words</span><input type="checkbox" id="gsC"'+(GS.cap?' checked':'')+'></label></div></details>'+
-   (done?'<div class="site-note" style="margin-top:10px">Sessions completed: <b>'+done+'</b></div>':'')+
-   '<div class="site-note" style="margin-top:14px;font-size:.82rem">Need to talk to someone now? Call or text <a href="tel:988" style="color:var(--gold)">988</a>, any time.</div></div>';
+   '</div>';
   $("#eBack").onclick=goHome;view.querySelectorAll("[data-gs]").forEach(function(b){b.onclick=function(){gsStart(GS_SESS.find(function(s){return s.id===b.dataset.gs;}));};});
   var vsel=$("#gsV");vsel.onchange=function(){save("mjk-gsvoice",vsel.value);};$("#gsVT").onclick=function(){try{speechSynthesis.cancel();var u=new SpeechSynthesisUtterance("You're off duty. Time to rest.");var v=gsPickVoice();if(v)u.voice=v;u.rate=GS.rate;u.pitch=0.95;speechSynthesis.speak(u);}catch(e){}};
   $("#gsR").oninput=function(e){GS.rate=+e.target.value;save("mjk-gsrate",GS.rate);};$("#gsB").oninput=function(e){GS.bedVol=+e.target.value;save("mjk-gsbed",GS.bedVol);};$("#gsC").onchange=function(e){GS.cap=e.target.checked;save("mjk-gscap",GS.cap);};
