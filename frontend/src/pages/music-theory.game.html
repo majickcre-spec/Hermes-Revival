@@ -6404,7 +6404,31 @@ function hfxLanes(c,lane,N,proj,yOf,wave,now){for(let s=0;s<N;s++){const col=HWY
     c.beginPath();for(let i=0;i<=24;i++){const d=i/24,x=proj(lane[s],d,wave(d)),y=yOf(d);if(i)c.lineTo(x,y);else c.moveTo(x,y);}c.strokeStyle=col+"33";c.lineWidth=7;c.stroke();c.strokeStyle=col+"aa";c.lineWidth=1.8;c.stroke();}}
 function hfxHitLine(c,x0,x1,y,flash,now){const gr=c.createLinearGradient(x0,0,x1,0);const h=(now*40)%360;["#ff5d6c","#ffc94a","#4fe08a","#4aa8ff","#c27dff","#ff5d6c"].forEach((col,i)=>gr.addColorStop(i/5,col));
   c.beginPath();c.moveTo(x0,y);c.lineTo(x1,y);c.strokeStyle=gr;c.lineWidth=3.5+5*flash;c.shadowColor="#ffe27a";c.shadowBlur=12+26*flash;c.globalAlpha=0.75+0.25*flash;c.stroke();c.globalAlpha=1;c.shadowBlur=0;}
-const HWYP={lbl:load("mjk-hwylbl","note"),neck:load("mjk-hwyneck",false)};
+const HWYP={lbl:load("mjk-hwylbl","note"),neck:load("mjk-hwyneck",false),grid:load("mjk-hwygrid",true)};
+/* chord as a little fretboard window riding the highway: strings = lanes, fret rows top (nut) → bottom (body), like the neck below */
+function hwyGridCard(c,sh,dd,w,y,bh,k,lane,N,proj,strs,col0){
+  let mn=99,mx=0;for(let s=0;s<N;s++){const f=sh[s];if(f>0){mn=Math.min(mn,f);mx=Math.max(mx,f);}}
+  const base=(mx<=4||mn===99)?1:mn,rows=Math.max(3,Math.min(5,(mx||1)-base+1)),rh=24*k,topH=22*k;
+  const yb=y-bh/2-3*k,yn=yb-rows*rh,yt=yn-topH;
+  const x0=proj(lane[0],dd,w)-16*k,x1=proj(lane[N-1],dd,w)+16*k;
+  c.save();c.fillStyle="rgba(12,9,26,.82)";c.strokeStyle="rgba(255,255,255,.18)";c.lineWidth=1;c.beginPath();if(c.roundRect)c.roundRect(x0,yt,x1-x0,yb-yt,8*k);else c.rect(x0,yt,x1-x0,yb-yt);c.fill();c.stroke();
+  // strings
+  for(let s=0;s<N;s++){const x=proj(lane[s],dd,w);c.strokeStyle=HWY_COL[(N-1-s)%6];c.globalAlpha*=1;c.lineWidth=1.5;c.beginPath();c.moveTo(x,yn);c.lineTo(x,yb);c.stroke();}
+  // nut + fret wires
+  c.strokeStyle="#f4ead2";c.lineWidth=base===1?4*k:1.5;c.beginPath();c.moveTo(x0+4*k,yn);c.lineTo(x1-4*k,yn);c.stroke();
+  c.strokeStyle="rgba(210,210,225,.55)";c.lineWidth=1.5;for(let r=1;r<=rows;r++){const yy=yn+r*rh;c.beginPath();c.moveTo(x0+4*k,yy);c.lineTo(x1-4*k,yy);c.stroke();}
+  // fret numbers down the left side
+  c.fillStyle="rgba(255,255,255,.7)";c.font="800 "+Math.round(11*k)+"px system-ui";c.textAlign="right";c.textBaseline="middle";for(let r=0;r<rows;r++)c.fillText(String(base+r),x0-3*k,yn+(r+0.5)*rh);
+  if(base>1){c.fillStyle="#f3c14a";c.font="900 "+Math.round(11*k)+"px system-ui";c.textAlign="left";c.fillText(base+"fr",x1+3*k,yn+rh*0.5);}
+  // open / muted above the nut
+  for(let s=0;s<N;s++){const f=sh[s],x=proj(lane[s],dd,w),col=HWY_COL[(N-1-s)%6],cy=yt+topH/2;if(f==null)continue;
+    if(f<0){c.strokeStyle="rgba(255,143,140,.9)";c.lineWidth=2*k;const r=5*k;c.beginPath();c.moveTo(x-r,cy-r);c.lineTo(x+r,cy+r);c.moveTo(x+r,cy-r);c.lineTo(x-r,cy+r);c.stroke();continue;}
+    if(f===0){const r=8.5*k;c.strokeStyle=col;c.lineWidth=2.5*k;c.beginPath();c.arc(x,cy,r,0,Math.PI*2);c.stroke();const t=HWYP.lbl==="note"?NOTE_NAMES[((strs[s]%12)+12)%12]:HWYP.lbl==="string"?fbLabel(s):"0";c.fillStyle="#fff";c.font="900 "+Math.round((t.length>1?9:11)*k)+"px system-ui";c.textAlign="center";c.fillText(t,x,cy+1);}}
+  // fretted notes sitting in their fret
+  for(let s=0;s<N;s++){const f=sh[s];if(!(f>0))continue;const x=proj(lane[s],dd,w),col=HWY_COL[(N-1-s)%6],cy=yn+(f-base+0.5)*rh;
+    const m=strs[s]+f,t=HWYP.lbl==="note"?NOTE_NAMES[((m%12)+12)%12]:HWYP.lbl==="string"?fbLabel(s):String(f);
+    hfxGem(c,x,cy,10.5*k,col,t,"");}
+  c.restore();c.textBaseline="alphabetic";}
 function hwyBadge(s,m){return HWYP.lbl==="note"?NOTE_NAMES[((m%12)+12)%12]:HWYP.lbl==="string"?fbLabel(s)+" str":"";}
 function hfxBadge(c,x,y,txt,col,fs){c.save();c.font="900 "+Math.round(fs)+"px system-ui";c.textAlign="center";c.textBaseline="middle";const bw=c.measureText(txt).width+fs*0.9,bh=fs*1.45;c.fillStyle="rgba(10,7,20,.94)";c.strokeStyle=col;c.lineWidth=2;c.beginPath();if(c.roundRect)c.roundRect(x-bw/2,y-bh/2,bw,bh,bh/2);else c.rect(x-bw/2,y-bh/2,bw,bh);c.fill();c.stroke();c.fillStyle="#fff";c.fillText(txt,x,y+0.5);c.restore();return bh;}
 function hfxGem(c,x,y,r,col,label,badge,dim){c.save();const w=r*1.08,h=r*1.08;c.shadowColor=col;c.shadowBlur=dim?0:14;const g=c.createLinearGradient(x,y-h,x,y+h);g.addColorStop(0,"#ffffff");g.addColorStop(0.16,col);g.addColorStop(1,col);
@@ -6412,8 +6436,9 @@ function hfxGem(c,x,y,r,col,label,badge,dim){c.save();const w=r*1.08,h=r*1.08;c.
   c.textAlign="center";c.textBaseline="middle";c.fillStyle="#120c20";c.font="900 "+Math.round(r*1.2)+"px system-ui";c.fillText(label,x,y+r*0.06);
   if(badge){const fs=Math.max(13,r*1.0);hfxBadge(c,x,y-h-fs*0.75-3,badge,col,fs);}
   c.textBaseline="alphabetic";c.restore();}
-function hwyOptsHTML(){return '<div class="rchips tight" style="justify-content:center;margin:2px 0 6px"><button class="rchip sm" id="hwyLbl">\ud83c\udff7\ufe0f Labels: '+({note:"Note",string:"String",off:"Fret only"})[HWYP.lbl]+'</button><button class="rchip sm'+(HWYP.neck?" sel":"")+'" id="hwyNeck">\ud83c\udfb8 Neck: '+(HWYP.neck?"Shown":"Folded")+'</button></div>';}
+function hwyOptsHTML(){return '<div class="rchips tight" style="justify-content:center;margin:2px 0 6px"><button class="rchip sm" id="hwyLbl">\ud83c\udff7\ufe0f Labels: '+({note:"Note",string:"String",off:"Fret only"})[HWYP.lbl]+'</button><button class="rchip sm'+(HWYP.neck?" sel":"")+'" id="hwyNeck">\ud83c\udfb8 Neck: '+(HWYP.neck?"Shown":"Folded")+'</button><button class="rchip sm'+(HWYP.grid?" sel":"")+'" id="hwyGrid">\ud83e\uddf1 Notes: '+(HWYP.grid?"On frets":"Flat")+'</button></div>';}
 function hwyOptsBind(onNeck){const l=document.getElementById("hwyLbl");if(l)l.onclick=()=>{HWYP.lbl=HWYP.lbl==="note"?"string":HWYP.lbl==="string"?"off":"note";save("mjk-hwylbl",HWYP.lbl);l.textContent="\ud83c\udff7\ufe0f Labels: "+({note:"Note",string:"String",off:"Fret only"})[HWYP.lbl];};
+  const gq=document.getElementById("hwyGrid");if(gq)gq.onclick=()=>{HWYP.grid=!HWYP.grid;save("mjk-hwygrid",HWYP.grid);gq.classList.toggle("sel",HWYP.grid);gq.textContent="\ud83e\uddf1 Notes: "+(HWYP.grid?"On frets":"Flat");};
   const n=document.getElementById("hwyNeck");if(n)n.onclick=()=>{HWYP.neck=!HWYP.neck;save("mjk-hwyneck",HWYP.neck);n.classList.toggle("sel",HWYP.neck);n.textContent="\ud83c\udfb8 Neck: "+(HWYP.neck?"Shown":"Folded");hwyApplyFold();if(onNeck)onNeck();};}
 function hwyApplyFold(){const bx=document.getElementById("fbBox"),z=document.getElementById("fbZone"),cv=document.getElementById("hwyCv")||document.getElementById("melCv");
   if(bx){bx.style.display=HWYP.neck?"":"none";bx.style.maxHeight="";bx.style.overflow="";}if(z)z.style.marginTop=HWYP.neck?"-4.6%":"0";if(cv)cv.style.height=HWYP.neck?"280px":"360px";}
@@ -6467,7 +6492,8 @@ function hwyDraw(){const cv=HWY.cv,dpr=Math.min(2.5,window.devicePixelRatio||1),
     c.beginPath();if(c.roundRect)c.roundRect(xa,y-bh/2,xb-xa,bh,8*k);else c.rect(xa,y-bh/2,xb-xa,bh);c.fill();c.stroke();c.shadowBlur=0;
     // strum arrow on the right edge
     c.fillStyle=e.down?"#f3c14a":"#7ff0d6";c.font="900 "+Math.round(20*k)+"px system-ui";c.textAlign="left";c.fillText(e.down?"↓":"↑",xb+4*k,y+7*k);
-    if(e.bar){
+    if(e.bar&&HWYP.grid){hwyGridCard(c,sh,dd,w,y,bh,k,lane,N,proj,strs);hfxPill(c,xa-6*k,y,e.chord,k,e.down?"#f3c14a":"#7ff0d6");}
+    else if(e.bar){
       for(let s=0;s<N;s++){const f=sh[s],x=proj(lane[s],dd,w);if(f==null)continue;
         if(f<0){c.strokeStyle="rgba(255,143,140,.8)";c.lineWidth=2*k;const r=5*k;c.beginPath();c.moveTo(x-r,y-r);c.lineTo(x+r,y+r);c.moveTo(x+r,y-r);c.lineTo(x-r,y+r);c.stroke();continue;}
         const col=HWY_COL[(N-1-s)%6],r=14*k;
