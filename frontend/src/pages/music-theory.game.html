@@ -1311,7 +1311,10 @@ function ac(){if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();i
 var _silentEl=null;
 function _silentWavURL(){try{var sr=8000,n=Math.floor(sr*0.25),buf=new ArrayBuffer(44+n),v=new DataView(buf);function ws(o,s){for(var i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));}ws(0,"RIFF");v.setUint32(4,36+n,true);ws(8,"WAVE");ws(12,"fmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr,true);v.setUint16(32,1,true);v.setUint16(34,8,true);ws(36,"data");v.setUint32(40,n,true);for(var i=0;i<n;i++)v.setUint8(44+i,128);var u8=new Uint8Array(buf),bin="";for(var j=0;j<u8.length;j++)bin+=String.fromCharCode(u8[j]);return "data:audio/wav;base64,"+btoa(bin);}catch(e){return "";}}
 /* iOS: play sound even when the ringer/silent switch is OFF (use the playback audio session like a music app) */
-function audioPlaybackCategory(){try{if(navigator.audioSession&&navigator.audioSession.type!=="play-and-record")navigator.audioSession.type="playback";}catch(e){}
+var MIC_LIVE=[];(function(){try{var md=navigator.mediaDevices;if(md&&md.getUserMedia&&!md.__mjk){var g=md.getUserMedia.bind(md);md.getUserMedia=function(c){return g(c).then(function(st){if(c&&c.audio){MIC_LIVE.push(st);st.getTracks().forEach(function(t){t.addEventListener("ended",function(){setTimeout(audioPlaybackCategory,50);});});}return st;});};md.__mjk=1;}}catch(e){}})();
+(function(){try{var T=window.MediaStreamTrack&&MediaStreamTrack.prototype;if(T&&T.stop&&!T.__mjk){var o=T.stop;T.stop=function(){var r=o.apply(this,arguments);if(this.kind==="audio")setTimeout(audioPlaybackCategory,60);return r;};T.__mjk=1;}}catch(e){}})();
+function micLive(){MIC_LIVE=MIC_LIVE.filter(function(st){return st.getAudioTracks().some(function(t){return t.readyState==="live";});});return MIC_LIVE.length>0;}
+function audioPlaybackCategory(){try{if(navigator.audioSession){if(!micLive()){if(navigator.audioSession.type!=="playback")navigator.audioSession.type="playback";}}}catch(e){}
   try{if(!_silentEl){var u=_silentWavURL();if(u){_silentEl=new Audio(u);_silentEl.loop=true;_silentEl.volume=0.02;_silentEl.setAttribute("playsinline","");}}if(_silentEl)_silentEl.play().catch(function(){});}catch(e){}}
 var APPVOL=(function(){try{var v=parseFloat(localStorage.getItem("mjk-vol"));return isFinite(v)?Math.max(0,Math.min(1,v)):1;}catch(e){return 1;}})();
 (function(){try{var Pn=AudioNode.prototype,orig=Pn.connect,OAC=window.OfflineAudioContext||window.webkitOfflineAudioContext;
@@ -1538,6 +1541,7 @@ function stopMic(){
   if(toneRAF)cancelAnimationFrame(toneRAF);toneRAF=null;
   if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null;}
   toneAnalyser=null;window.MIC_NODE=null;
+  setTimeout(audioPlaybackCategory,60);
 }
 async function ensureMic(){
   if(toneAnalyser)return true;
@@ -7931,7 +7935,7 @@ function bioPanelHTML(){return '<details id="bioSet" style="margin:6px 0"'+(HR.c
   '<b>Apple Watch:</b> it doesn’t share heart rate over Bluetooth by itself. Run a broadcaster app (<b>HeartCast</b> or <b>HR Broadcast</b>) on the watch, then tap ❤️ and pick it. Most send heart rate only, so HRV may not show.<br>'+
   '<b>Chest strap</b> (Polar H10, Garmin, Wahoo…): tap ❤️ — best HRV.<br>'+
   '<b>HeartMath sensor:</b> tap ❤️ and look for “HeartMath-HRV…”. It may use HeartMath’s own format — if it doesn’t show up, it only works in HeartMath’s app. Tell me what you see.<br>'+
-  '<b>Muse 2 / Muse S:</b> turn it on, close the Muse app, tap 🧠. Muse also gives heart rate from its forehead sensor.<br>Not a medical device.</div></details></details>';}
+  '<b>Muse 2 / Muse S:</b> turn it on, close the Muse app, tap 🧠. Muse also gives heart rate from its forehead sensor.</div></details></details>';}
 function bioPanelBind(){const a=document.getElementById("bioHRb"),b=document.getElementById("bioMuseb");
   if(a)a.onclick=async()=>{if(!bioBT()){bioHelp();return;}if(HR.connected)return;bioMsg("Pick your heart sensor in the list…");const ok=await hrConnect(e=>{if(e&&e.name==="NotFoundError")bioMsg("No sensor picked. Apple Watch needs a broadcaster app running first (see tips).");});
     if(ok){bioMsg("❤️ Connected"+(HR.dev&&HR.dev.name?" to <b>"+esc(HR.dev.name)+"</b>":"")+". HRV needs about a minute of beats.");a.textContent="❤️ Connected";bioStart();try{if(typeof startHRLoop==="function")startHRLoop();}catch(e){}}};
@@ -8014,7 +8018,7 @@ function renderBrainwave(startId){if(toneRAF)cancelAnimationFrame(toneRAF);medSt
       '<div class="rrow2"><span class="rlab">Body wave</span><span class="rchips tight"><button class="rchip sm'+(body?" sel":"")+'" id="bwBody">🌊 0.1 Hz: '+(body?"On":"Off")+'</button><span class="site-note" style="margin:0 0 0 8px">a slow 10-second swell to breathe with — in as it rises, out as it falls</span></span></div>'+
       '<div class="rrow"><span class="rlab">Volume</span><input type="range" id="bwVol" min="0" max="1" step="0.01" value="'+vol+'" style="flex:1"></div>'+
       '<div class="actions"><button class="btn" id="bwPlay">'+(playing?"⏸ Stop":"▶ Play")+'</button></div>'+
-      '<div class="site-note">🎧 Headphones are what make binaural beats work — the pulse lives in the difference between your ears. Not a medical device; just a tool for settling in.</div></div>';
+      '<div class="site-note">🎧 Headphones are what make binaural beats work — the pulse lives in the difference between your ears.</div></div>';
     $("#eBack").onclick=()=>{medStop();renderMeditation();};
     const wc=$("#bwWaves");BRAINWAVES.forEach((v,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===wi?" sel":"");b.textContent=v.name;b.onclick=()=>{wi=i;const nw=BRAINWAVES[i];$("#bwBeat").value=nw.hz;$("#bwBeatV").textContent=nw.hz.toFixed(2)+" Hz";draw();if(playing)startBW(nw.hz);};wc.appendChild(b);});
     $("#bwInfo").innerHTML='<b style="color:#c9b3ff">'+w.name+' · '+w.range+'</b> — '+w.intent+'. '+w.desc;
@@ -8116,14 +8120,23 @@ function natStart(mix,out,key){const a=ac(),H={L:{},dead:false,out:out,key:key};
       Ly.tm=setTimeout(go,3000);};go();};
   const occRun=(Ly,b,first)=>{const inf=Ly.inf,ev=inf.occ,wait=first?(3+Math.random()*8):(ev[0]+Math.random()*(ev[1]-ev[0]));
     Ly.tm=setTimeout(()=>{if(H.dead||!H.L[Ly.id])return;const t=a.currentTime+0.05,sl=inf.slice,len=sl?Math.min(b.duration,sl[0]+Math.random()*(sl[1]-sl[0])):b.duration,off=sl?Math.random()*Math.max(0,b.duration-len):0;
-      const s=a.createBufferSource(),e=a.createGain(),p=a.createStereoPanner?a.createStereoPanner():null,dist=0.5+Math.random()*0.5;s.buffer=b;s.connect(e);
-      if(p){p.pan.value=(Math.random()-0.5)*1.4;e.connect(p);p.connect(Ly.g);}else e.connect(Ly.g);const fd=Math.min(1.2,len/4);
+      const s=a.createBufferSource(),e=a.createGain(),high=/owl|birds|gulls|woodpecker|bowl/.test(Ly.id),p=natPlace(a,{t:t,el:high?10+Math.random()*30:(Math.random()*12-4),d:/thunder|wolf|whale/.test(Ly.id)?6+Math.random()*6:2+Math.random()*4,move:(Math.random()-0.5)*(/gulls|birds/.test(Ly.id)?90:30),dur:len}),dist=0.6+Math.random()*0.4;s.buffer=b;s.connect(e);
+      e.connect(p);p.connect(Ly.g);const fd=Math.min(1.2,len/4);
       e.gain.setValueAtTime(0,t);e.gain.linearRampToValueAtTime(dist,t+fd);e.gain.setValueAtTime(dist,t+len-fd);e.gain.linearRampToValueAtTime(0,t+len);s.start(t,off);s.stop(t+len+0.05);Ly.srcs.push(s);if(Ly.srcs.length>4)Ly.srcs.shift();occRun(Ly,b);},wait*1000);};
   H.set=(id,v)=>{const Ly=layer(id);Ly.v=v;const tgt=v*v*(Ly.inf.g||1)*0.8;Ly.g.gain.setTargetAtTime(tgt,a.currentTime,0.4);if(Ly.syncWet)Ly.wet.gain.setTargetAtTime(tgt,a.currentTime,0.4);
     if(Ly.inf.gen){if(v>0&&!Ly.started){Ly.started=true;natGenRun(H,Ly);}else if(v<=0&&Ly.started){Ly.started=false;clearTimeout(Ly.tm);const ss=Ly.srcs;Ly.srcs=[];setTimeout(()=>ss.forEach(x=>{try{x.stop();}catch(e){}}),1500);}return;}
     if(v>0&&!Ly.started){Ly.started=true;natLoad(id).then(b=>{if(!b||H.dead||!H.L[id])return;if(Ly.inf.occ)occRun(Ly,b,true);else loopRun(Ly,b);});}};
   H.stop=fast=>{H.dead=true;Object.values(H.L).forEach(Ly=>{clearTimeout(Ly.tm);try{Ly.g.gain.setTargetAtTime(0,a.currentTime,fast?0.05:0.8);if(Ly.wet)Ly.wet.gain.setTargetAtTime(0,a.currentTime,fast?0.05:0.8);}catch(e){}const ss=Ly.srcs;setTimeout(()=>ss.forEach(s=>{try{s.stop();}catch(e){}}),fast?300:4000);});};
   Object.keys(mix||{}).forEach(id=>{if(mix[id]>0)H.set(id,mix[id]);});return H;}
+/* ===== Spatial (binaural HRTF) placement for soundscapes: each event gets its own spot around the listener, some drift while they ring ===== */
+var NATSP={on:load("mjk-natsp",true)};
+function natPlace(a,o){o=o||{};if(!NATSP.on||!a.createPanner){var sp=a.createStereoPanner?a.createStereoPanner():a.createGain();if(sp.pan)sp.pan.value=Math.max(-1,Math.min(1,Math.sin((o.az||0)*Math.PI/180)*0.9));return sp;}
+  var p=a.createPanner();p.panningModel="HRTF";p.distanceModel="inverse";p.refDistance=1.6;p.rolloffFactor=0.55;p.maxDistance=40;
+  var az=o.az!=null?o.az:(Math.random()*360-180),el=o.el!=null?o.el:(Math.random()*35-8),d=o.d||(1.8+Math.random()*3.5),t=o.t||a.currentTime;
+  var pos=function(A,E){var r=A*Math.PI/180,e=E*Math.PI/180;return [Math.sin(r)*Math.cos(e)*d,Math.sin(e)*d,-Math.cos(r)*Math.cos(e)*d];};
+  var P0=pos(az,el);if(p.positionX){p.positionX.setValueAtTime(P0[0],t);p.positionY.setValueAtTime(P0[1],t);p.positionZ.setValueAtTime(P0[2],t);
+    if(o.move&&o.dur){var steps=6;for(var i=1;i<=steps;i++){var P=pos(az+o.move*i/steps,el+(o.lift||0)*i/steps),tt=t+o.dur*i/steps;p.positionX.linearRampToValueAtTime(P[0],tt);p.positionY.linearRampToValueAtTime(P[1],tt);p.positionZ.linearRampToValueAtTime(P[2],tt);}}}
+  else p.setPosition(P0[0],P0[1],P0[2]);return p;}
 /* ===== Real sampled instruments for soundscapes (Versilian Community Sample Library, CC0): crystal glasses, hand chimes, kalimba, tubular bells, glockenspiel, gongs, tingsha, mark tree, bell tree ===== */
 var INSTS={glass:{notes:[63,66,70,74],mode:"swell",ev:[7,15],rng:[0,20],dry:0.5,wet:0.9},
   hchime:{notes:[48,50,52,54,56,58,60,62,64,66,68,69,72,74,76,78,80,82,84],mode:"melody",ev:[2.5,7],rng:[7,31],dry:0.55,wet:0.8},
@@ -8136,8 +8149,8 @@ var INSTB={};
 function instBuf(set,f){var k=set+"/"+f;if(INSTB[k])return INSTB[k];INSTB[k]=fetch("/sounds/inst/"+k+".mp3").then(function(r){if(!r.ok)throw 0;return r.arrayBuffer();}).then(function(ab){return new Promise(function(res,rej){ac().decodeAudioData(ab,res,rej);});}).catch(function(){delete INSTB[k];return null;});return INSTB[k];}
 function natInstRun(H,Ly,K,T,out,pick,inR){var a=ac(),I=INSTS[Ly.inf.inst],prev=null;
   var play=function(file,rate,t,v,len){instBuf(Ly.inf.inst,file).then(function(b){if(!b||H.dead||!Ly.started)return;var s=a.createBufferSource(),g=a.createGain(),p=a.createStereoPanner?a.createStereoPanner():null,st=Math.max(t,a.currentTime+0.02),L=Math.min(b.duration/rate,len||99);
-      s.buffer=b;s.playbackRate.value=rate;g.gain.setValueAtTime(I.mode==="swell"?0.0001:v,st);if(I.mode==="swell"){g.gain.linearRampToValueAtTime(v,st+Math.min(4,L*0.3));}g.gain.setValueAtTime(v,Math.max(st+0.01,st+L-2.5));g.gain.linearRampToValueAtTime(0.0001,st+L);
-      s.connect(g);var last=g;if(p){p.pan.value=(Math.random()-0.5)*1.3;g.connect(p);last=p;}out(last,I.dry,I.wet);s.start(st);s.stop(st+L+0.05);Ly.srcs.push(s);if(Ly.srcs.length>24)Ly.srcs.shift();});};
+      s.buffer=b;s.playbackRate.value=rate;p=natPlace(a,{t:st,el:Ly.inf.inst==="glock"||Ly.inf.inst==="marktree"?15+Math.random()*30:Math.random()*25-5,move:(I.mode==="swell"||Ly.inf.inst==="gong")?(Math.random()<0.5?-1:1)*(40+Math.random()*60):(Math.random()-0.5)*20,dur:L});g.gain.setValueAtTime(I.mode==="swell"?0.0001:v,st);if(I.mode==="swell"){g.gain.linearRampToValueAtTime(v,st+Math.min(4,L*0.3));}g.gain.setValueAtTime(v,Math.max(st+0.01,st+L-2.5));g.gain.linearRampToValueAtTime(0.0001,st+L);
+      s.connect(g);g.connect(p);out(p,I.dry,I.wet);s.start(st);s.stop(st+L+0.05);Ly.srcs.push(s);if(Ly.srcs.length>24)Ly.srcs.shift();});};
   var note=function(m,t,v,len){var sn=I.notes.reduce(function(b,x){return Math.abs(x-m)<Math.abs(b-m)?x:b;},I.notes[0]);play(sn,Math.pow(2,(m-sn)/12),t,v,len);};
   var pool=function(){var lo=Math.max(I.notes[0]-4,K.r+I.rng[0]),hi=Math.min(I.notes[I.notes.length-1]+4,K.r+I.rng[1]);var p=inR(lo,hi);if(!p.length){for(var o=-24;o<=24&&!p.length;o+=12)p=inR(I.notes[0]-4+o*0,I.notes[I.notes.length-1]+4).filter(function(n){return true;});}return p;};
   var walk=function(P){if(prev==null||P.indexOf(prev)<0||Math.random()<0.15)prev=pick(P);else{var i=P.indexOf(prev);prev=P[Math.max(0,Math.min(P.length-1,i+pick([-2,-1,-1,1,1,2,0])))];}return prev;};
@@ -8178,9 +8191,9 @@ function natGenRun(H,Ly){var a=ac(),K=natKeyOf(H.key),kind=Ly.inf.gen,rv=natRev(
   else if(kind==="shimmer"){var sh=function(){var m=pick(inR(K.r+24,K.r+48)),t=a.currentTime+0.05,dur=7+Math.random()*9,o=a.createOscillator(),o2=a.createOscillator(),g=a.createGain(),v=a.createOscillator(),vg=a.createGain();
       o.type="sine";o2.type="sine";o.frequency.value=midiToFreq(m);o2.frequency.value=midiToFreq(m)*2.003;v.frequency.value=4.2+Math.random();vg.gain.value=1.6;v.connect(vg);vg.connect(o.detune);
       var g2=a.createGain();g2.gain.value=0.3;o2.connect(g2);g2.connect(g);o.connect(g);var o3=a.createOscillator(),g3=a.createGain();o3.type="sine";o3.frequency.value=midiToFreq(m)*4.01;g3.gain.value=0.12;o3.connect(g3);g3.connect(g);o3.start(t);o3.stop(t+dur+0.1);Ly.srcs.push(o3);g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.05,t+dur*0.4);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-      out(g,0.25,1.2);[o,o2,v].forEach(function(x){x.start(t);x.stop(t+dur+0.1);Ly.srcs.push(x);});if(Ly.srcs.length>30)Ly.srcs.splice(0,6);T(sh,2.5+Math.random()*4.5);};T(sh,1);}
+      var shp=natPlace(a,{t:t,el:25+Math.random()*45,d:3+Math.random()*4,move:(Math.random()-0.5)*120,lift:(Math.random()-0.5)*20,dur:dur});g.connect(shp);out(shp,0.25,1.2);[o,o2,v].forEach(function(x){x.start(t);x.stop(t+dur+0.1);Ly.srcs.push(x);});if(Ly.srcs.length>30)Ly.srcs.splice(0,6);T(sh,2.5+Math.random()*4.5);};T(sh,1);}
   else if(kind==="bowls"){natLoad("bowl").then(function(b){if(!b)return;var strike=function(){var m=pick([K.r-5,K.r,K.r+7,K.r+12,K.r]),t=a.currentTime+0.05,s=a.createBufferSource(),g=a.createGain(),p=a.createStereoPanner?a.createStereoPanner():null,len=Math.min(b.duration-1,26);
-      s.buffer=b;s.playbackRate.value=Math.pow(2,(m-57.43)/12);g.gain.setValueAtTime(0.5+Math.random()*0.5,t);g.gain.setValueAtTime(g.gain.value,t+len-4);g.gain.linearRampToValueAtTime(0,t+len);s.connect(g);var last=g;if(p){p.pan.value=(Math.random()-0.5)*1.2;g.connect(p);last=p;}
+      s.buffer=b;s.playbackRate.value=Math.pow(2,(m-57.43)/12);g.gain.setValueAtTime(0.5+Math.random()*0.5,t);g.gain.setValueAtTime(g.gain.value,t+len-4);g.gain.linearRampToValueAtTime(0,t+len);s.connect(g);p=natPlace(a,{t:t,el:Math.random()*15-5,d:1.8+Math.random()*2.5,move:(Math.random()<0.5?-1:1)*(25+Math.random()*40),dur:len});g.connect(p);var last=p;
       out(last,0.7,0.6);s.start(t,0.15);s.stop(t+len+0.1);Ly.srcs.push(s);if(Ly.srcs.length>8)Ly.srcs.shift();T(strike,13+Math.random()*22);};T(strike,0.8);});}
 }
 /* real seagulls for the classic ocean (replaces the synthesized gull when the recording is loaded) */
@@ -8205,10 +8218,10 @@ function renderNature(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.
       '<div class="site-note" style="margin-bottom:8px">Background sound to sleep, relax or focus to. Pick a scene, shape it with the sliders, save your own. Any scene can play under the Guided Sessions and Voice Journeys.</div>'+
       NAT_GRPS.concat(["My mixes"]).map(g=>{const ms=natAllMixes().filter(m=>g==="My mixes"?m.mine:m.grp===g);return ms.length?'<div class="rlab" style="display:block;margin:10px 0 4px">'+g+'</div><div class="rchips tight">'+ms.map(m=>'<button class="rchip sm'+(cur===m.id?' sel':'')+'" data-sc="'+esc(m.id)+'">'+(m.mine?"★ ":"")+esc(m.nm)+'</button>').join("")+'</div>':"";}).join("")+
       '<div class="actions ilacts" style="margin-top:10px"><button class="btn" id="natGo">'+(H?"■ Stop":"▶ Play")+'</button><button class="btn ghost" id="natSave">★ Save this mix</button></div>'+
-      '<div style="display:flex;align-items:center;gap:8px;margin:6px 0 10px"><span class="rlab">Volume</span><input type="range" id="natVol" min="0" max="1" step="0.05" value="'+vol+'" style="flex:1;accent-color:var(--gold)"></div>'+groups+
+      '<div style="display:flex;align-items:center;gap:8px;margin:6px 0 4px"><span class="rlab">Spatial</span><span class="rchips tight"><button class="rchip sm'+(NATSP.on?' sel':'')+'" id="natSp">'+(NATSP.on?'🎧 3D on — headphones':'Off — speakers')+'</button></span></div><div style="display:flex;align-items:center;gap:8px;margin:6px 0 10px"><span class="rlab">Volume</span><input type="range" id="natVol" min="0" max="1" step="0.05" value="'+vol+'" style="flex:1;accent-color:var(--gold)"></div>'+groups+
       '<div class="site-note" style="font-size:.72rem;margin-top:10px">Recordings: CC0 and Pixabay-licence recordings collected by the open-source Moodist project. Piano: Salamander Grand Piano (CC-BY 3.0).</div></div>';
     $("#eBack").onclick=goHome;$("#natGo").onclick=()=>{if(H){stopP();paint();}else play();};
-    $("#natVol").oninput=e=>{vol=+e.target.value;save("mjk-natvol",vol);if(MED.master)MED.master.gain.setTargetAtTime(vol,ac().currentTime,0.2);};
+    $("#natSp").onclick=()=>{NATSP.on=!NATSP.on;save("mjk-natsp",NATSP.on);if(H)play();else paint();};$("#natVol").oninput=e=>{vol=+e.target.value;save("mjk-natvol",vol);if(MED.master)MED.master.gain.setTargetAtTime(vol,ac().currentTime,0.2);};
     view.querySelectorAll("[data-sc]").forEach(b=>b.onclick=()=>{const m=natAllMixes().find(x=>x.id===b.dataset.sc);if(!m)return;mix=Object.assign({},m.mix);key=m.key||null;cur=m.id;save("mjk-natmix",mix);save("mjk-natkey",key);save("mjk-natcur",cur);play();});
     view.querySelectorAll("[data-s]").forEach(r=>r.oninput=()=>{const id=r.dataset.s,v=+r.value;if(v>0)mix[id]=v;else delete mix[id];save("mjk-natmix",mix);if(H)H.set(id,v);});
     view.querySelectorAll("details.natcat").forEach(d=>d.ontoggle=()=>{if(d.open){open=d.dataset.c;save("mjk-natopen",open);view.querySelectorAll("details.natcat").forEach(o=>{if(o!==d)o.open=false;});}});
@@ -8572,7 +8585,7 @@ function renderJourney(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home
       '<div class="rrow"><span class="rlab">Volume</span><input type="range" id="jVol" min="0" max="1" step="0.01" value="'+vol+'" style="flex:1"></div>'+
       '<div class="actions" style="flex-wrap:wrap">'+(playing?'<button class="btn" id="jPause" style="flex:1 1 55%">'+(paused?"▶ Resume":"⏸ Pause")+'</button><button class="btn ghost" id="jPlay" style="flex:1 1 35%">⏹ End</button>':'<button class="btn" id="jPlay" style="flex:1 1 100%">▶ Begin journey</button>')+'</div>'+(paused?'<div class="site-note" style="text-align:center">Paused at '+fmt(pausedAt)+' — tap Resume to pick up right here.</div>':'')+
       bioPanelHTML()+
-      '<div class="site-note">'+(MEDSPK.on?'🔈 Speaker mode on — no headphones needed.':'🎧 Binaural beats need headphones — or switch to 🔈 Speaker.')+' Not a medical device — a tool for settling in. Don’t use while driving.</div></div>';
+      '<div class="site-note">'+(MEDSPK.on?'🔈 Speaker mode on — no headphones needed.':'🎧 Binaural beats need headphones — or switch to 🔈 Speaker.')+'</div></div>';
     $("#eBack").onclick=function(){medStop();renderMeditation();};
     var jt=$("#jTypes");JOURNEYS.forEach(function(j){var b=document.createElement("button");b.className="rchip"+(j.id===jType?" sel":"");b.style.cssText="justify-content:flex-start;text-align:left;padding:8px 12px;border-radius:12px;width:100%";b.innerHTML='<span style="font-size:1.2rem;margin-right:6px">'+j.ic+'</span><span><b>'+j.name+'</b><br><span style="font-size:.78rem;opacity:.75;font-weight:600">'+j.when+'</span></span>';b.onclick=function(){if(playing)return;jType=j.id;save("mjk-jtype",j.id);jLen=j.def;save("mjk-jlen",jLen);if(j.id==="hum"){carrier=528;if(!load("mjk-humocean1",false)){save("mjk-humocean1",true);MEDOCEAN.on=true;save("mjk-medocean",true);}}draw();};jt.appendChild(b);});
     var ls=$("#jLens");[10,20,30,45].forEach(function(m){var b=document.createElement("button");b.className="rchip sm"+(m===jLen?" sel":"");b.textContent=m+" min";b.onclick=function(){if(playing)return;jLen=m;save("mjk-jlen",m);draw();};ls.appendChild(b);});
