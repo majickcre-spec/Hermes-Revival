@@ -1618,8 +1618,8 @@ function parseMidi(buf){
       const st=status&0xf0,ch=status&0x0f;
       if(status===0xff){const meta=u8(),l=vlq();if(meta===0x03)name=str(l);else pos+=l;}
       else if(status===0xf0||status===0xf7){pos+=vlq();}
-      else if(st===0x90){const n=u8(),vel=u8();if(vel>0)on[n]=abs;else if(on[n]!=null){notes.push({n,t:on[n],c:ch});delete on[n];}}
-      else if(st===0x80){const n=u8();u8();if(on[n]!=null){notes.push({n,t:on[n],c:ch});delete on[n];}}
+      else if(st===0x90){const n=u8(),vel=u8();if(vel>0)on[n]=abs;else if(on[n]!=null){notes.push({n,t:on[n],c:ch,e:abs});delete on[n];}}
+      else if(st===0x80){const n=u8();u8();if(on[n]!=null){notes.push({n,t:on[n],c:ch,e:abs});delete on[n];}}
       else if(st===0xa0||st===0xb0||st===0xe0)pos+=2;
       else if(st===0xc0||st===0xd0)pos+=1;
       else pos++;
@@ -4237,7 +4237,7 @@ const PK_FN={1:"thumb",2:"index",3:"middle",4:"ring",5:"pinky"};
 function pkIsBlack(m){return [1,3,6,8,10].indexOf(((m%12)+12)%12)>=0;}
 function pkName(m){return PK_NN[((m%12)+12)%12];}
 function pkNameOct(m){return pkName(m)+(Math.floor(m/12)-1);}
-const PK={look:load("mjk-pklook",6),mode:load("mjk-pkmode","chords"),play:load("mjk-pkplay","watch"),bpm:80,lo:48,hi:72,real:load("mjk-pkreal",false),pxmm:load("mjk-pkpxmm",3.78),labels:load("mjk-pklabels","notes"),fingers:load("mjk-pkfing",true),
+const PK={uprog:load("mjk-pkuprog",null),look:load("mjk-pklook",6),mode:load("mjk-pkmode","chords"),play:load("mjk-pkplay","watch"),bpm:80,lo:48,hi:72,real:load("mjk-pkreal",false),pxmm:load("mjk-pkpxmm",3.78),labels:load("mjk-pklabels","notes"),fingers:load("mjk-pkfing",true),
   wait:load("mjk-pkwait",false),guide:load("mjk-pkguide",true),clickVol:load("mjk-pkclick",0.25),midiSnd:load("mjk-pkmidisnd",false),optOpen:load("mjk-pkopt",false),hideCtl:false,
   chord:load("mjk-pkchord",{root:0,q:"maj",inv:0,bass:true,parts:{f:1,a:1,b:1}}),scale:load("mjk-pkscale",{root:0,s:"major",oct:1,hand:"R"}),melId:load("mjk-pkmel","ode"),prog:load("mjk-pkprog",0),progStyle:load("mjk-pkpstyle","pulse"),
   ev:[],len:0,running:false,t0:0,lastNow:0,sch:null,raf:null,clickB:0,down:{},lit:{},score:null,fx:[],cv:null,geo:null,midi:null,input:"touch",micOn:false,beats:4,title:"",parts:null};
@@ -4274,7 +4274,29 @@ function pkBuildProg(){const P=PROGS[PK.prog]||PROGS[0],ev=[];let prev=null,b=0;
     else{for(let k=0;k<4;k++)ev.push({b:b+k,dur:0.85,notes:n,hand:"R",fing:fg,chord:k?null:nm,cap:nm+" — on every beat"});}
     ev.push({b:b,dur:3.9,notes:[bass],hand:"L",fing:[5],cap:nm+" — left hand plays the root"});b+=4;});
   PK.title=P.name;return {ev:ev,len:b,beats:4};}
-function pkBuild(){let r;if(PK.mode==="chords")r=pkBuildChord();else if(PK.mode==="scales")r=pkBuildScale();else if(PK.mode==="melody")r=pkBuildMelody();else if(PK.mode==="prog")r=pkBuildProg();else r={ev:[],len:0,beats:4};
+/* ---------- your MIDI chord packs: keep every note, split hands, read BPM + chord names ---------- */
+function pkUserProgs(){return load("mjk-pk-uprog",[]);}
+const PK_CT=[["",[0,4,7]],["m",[0,3,7]],["7",[0,4,7,10]],["maj7",[0,4,7,11]],["m7",[0,3,7,10]],["dim",[0,3,6]],["m7♭5",[0,3,6,10]],["aug",[0,4,8]],["sus4",[0,5,7]],["sus2",[0,2,7]],["add9",[0,2,4,7]],["m(add9)",[0,2,3,7]],["6",[0,4,7,9]],["m6",[0,3,7,9]],["9",[0,2,4,7,10]],["maj9",[0,2,4,7,11]],["m9",[0,2,3,7,10]],["7sus4",[0,5,7,10]]];
+function pkChordName(ns){const pcs=[...new Set(ns.map(m=>((m%12)+12)%12))];if(pcs.length<2)return pkName(ns[0]);const bass=((Math.min.apply(null,ns)%12)+12)%12;let best=null;
+  for(let r=0;r<12;r++){if(pcs.indexOf(r)<0)continue;PK_CT.forEach(([nm,iv])=>{const want=iv.map(x=>(r+x)%12),hit=want.filter(x=>pcs.indexOf(x)>=0).length,extra=pcs.filter(x=>want.indexOf(x)<0).length,miss=want.length-hit;
+    if(miss>1||(miss===1&&iv.length<4))return;const sc=hit*3-extra*4-miss*2+(r===bass?2:0)-iv.length*0.1;if(!best||sc>best.sc)best={sc:sc,r:r,nm:nm};});}
+  if(!best)return null;return PK_NN[best.r]+best.nm+(best.r!==bass?"/"+PK_NN[bass]:"");}
+function pkNiceName(fn){let n=fn.replace(/\.midi?$/i,"").replace(/_+$/,"");const bpm=(n.match(/_(\d{2,3})BPM/i)||[])[1];n=n.replace(/(_\d{2,3}BPM)+$/i,"");
+  const parts=n.split("_"),ci=parts.findIndex(x=>/^[A-G][#b]?[^_]*-/.test(x)),chords=ci>=0?parts.slice(ci).join(" ").replace(/-/g," "):"",words=(ci>=0?parts.slice(0,ci):parts).join(" ").replace(/\s+/g," ").trim();
+  return {name:words||fn,chords:chords,bpm:bpm?+bpm:null};}
+function pkImportChords(files,done){const list=[...files].filter(f=>/\.midi?$/i.test(f.name));if(!list.length){done(0,"No .mid files in that selection.");return;}let ok=0,fail=0,k=0;const u=pkUserProgs();
+  const next=()=>{if(k>=list.length){save("mjk-pk-uprog",u);done(ok,fail?fail+" file"+(fail>1?"s":"")+" couldn’t be read.":"",u.length?u[u.length-1].id:null);return;}const f=list[k++],fr=new FileReader();
+    fr.onload=()=>{try{const mid=parseMidi(fr.result),div=mid.div||480,all=[];mid.tracks.forEach(t=>t.notes.forEach(x=>all.push(x)));if(!all.length)throw 0;
+      const t0=Math.min.apply(null,all.map(x=>x.t)),q=v=>Math.round(v*4)/4,groups={};
+      all.forEach(x=>{const b=q((x.t-t0)/div),dur=Math.max(0.25,q(((x.e||x.t+div)-x.t)/div));(groups[b]=groups[b]||[]).push({m:x.n,d:dur});});
+      const ev=[];let len=0,lastName="";Object.keys(groups).map(Number).sort((a,b)=>a-b).forEach(b=>{const g=groups[b],ns=g.map(x=>x.m).sort((a,b)=>a-b),dur=Math.max.apply(null,g.map(x=>x.d));
+        const L=ns.filter(m=>m<60),R=ns.filter(m=>m>=60);const nm=ns.length>=3?pkChordName(ns):null,show=nm&&nm!==lastName?nm:null;if(nm)lastName=nm;
+        if(R.length)ev.push({b:b,dur:dur*0.95,notes:R,hand:"R",chord:show,cap:(nm||"")+" · right hand"});if(L.length)ev.push({b:b,dur:dur*0.95,notes:L,hand:"L",chord:R.length?null:show,cap:(nm||"")+" · left hand"});len=Math.max(len,b+dur);});
+      const info=pkNiceName(f.name),folder=((f.webkitRelativePath||"").split("/").slice(-2,-1)[0])||"";
+      u.push({id:"up"+Date.now()+"_"+k,name:info.name,sub:info.chords,key:folder,file:f.name,bpm:info.bpm||100,len:Math.ceil(len/4)*4,ev:ev});ok++;}catch(e){fail++;}next();};fr.readAsArrayBuffer(f);};next();}
+function pkBuildUserProg(){const P=pkUserProgs().find(x=>x.id===PK.uprog);if(!P)return {ev:[],len:0,beats:4};PK.title=P.name+(P.key?" ("+P.key+")":"");
+  return {ev:P.ev.map(e=>Object.assign({},e,{notes:e.notes.slice()})),len:P.len,beats:4};}
+function pkBuild(){let r;if(PK.mode==="chords")r=pkBuildChord();else if(PK.mode==="scales")r=pkBuildScale();else if(PK.mode==="melody")r=pkBuildMelody();else if(PK.mode==="prog")r=PK.uprog?pkBuildUserProg():pkBuildProg();else r={ev:[],len:0,beats:4};
   PK.ev=r.ev.sort((a,b)=>a.b-b.b);PK.len=r.len;PK.beats=r.beats;PK.ev.forEach(e=>{e.hit=null;e.sch=false;e.got={};});pkFitRange();}
 /* ---------- keyboard geometry ---------- */
 function pkWhiteUp(m){while(pkIsBlack(m))m++;return m;}function pkWhiteDn(m){while(pkIsBlack(m))m--;return m;}
@@ -4412,8 +4434,11 @@ function pkDrawCtl(){const box=document.getElementById("pkCtl");if(!box)return;c
     '<div class="rrow2"><span class="rlab">Hands</span><span class="rchips tight">'+[["R","Right"],["L","Left"],["B","Both"]].map(x=>chip("",x[1],S.hand===x[0],'data-hand="'+x[0]+'"')).join("")+chip("","1 octave",S.oct===1,'data-oct="1"')+chip("","2 octaves",S.oct===2,'data-oct="2"')+'</span></div>';}
   else if(M==="melody"){const all=(typeof melAll==="function"?melAll():MEL_LIB),groups={};all.forEach(s=>(groups[s.g]=groups[s.g]||[]).push(s));
     h+=Object.keys(groups).map(g=>'<div class="rrow2"><span class="rlab" style="min-width:auto">'+((typeof MEL_GENRE_IC!=="undefined"&&MEL_GENRE_IC[g])||"🎵")+'</span><span class="rchips tight">'+groups[g].map(s=>chip("",esc(s.name),PK.melId===s.id,'data-mel="'+s.id+'"')).join("")+'</span></div>').join("");}
-  else if(M==="prog"){h+='<div class="rrow2"><span class="rlab">Song</span><span class="rchips tight">'+PROGS.map((p,i)=>chip("",esc(p.name),PK.prog===i,'data-prog="'+i+'"')).join("")+'</span></div>'+
-    '<div class="rrow2"><span class="rlab">Style</span><span class="rchips tight">'+[["whole","Whole notes"],["pulse","Pulse — every beat"],["ballad","Ballad — broken"]].map(s=>chip("",s[1],PK.progStyle===s[0],'data-pstyle="'+s[0]+'"')).join("")+'</span></div>';}
+  else if(M==="prog"){const UP=pkUserProgs(),ukeys=[...new Set(UP.map(x=>x.key||""))];
+    h+='<div class="rrow2"><span class="rlab">Song</span><span class="rchips tight">'+PROGS.map((p,i)=>chip("",esc(p.name),!PK.uprog&&PK.prog===i,'data-prog="'+i+'"')).join("")+'</span></div>'+
+    '<div class="rrow2"><span class="rlab">My MIDI</span><span class="rchips tight"><label class="rchip sm" style="cursor:pointer">📂 Import MIDI files<input type="file" id="pkUpFiles" accept=".mid,.midi,audio/midi" multiple hidden></label><label class="rchip sm" style="cursor:pointer">📁 Import a folder<input type="file" id="pkUpDir" webkitdirectory multiple hidden></label>'+(UP.length?'<button class="rchip sm" id="pkUpClr">🗑 Remove all ('+UP.length+')</button>':'')+'</span></div>'+
+    (UP.length?'<div class="rrow2"><span class="rlab">Key</span><span class="rchips tight">'+ukeys.map(k=>chip("",esc(k||"All"),(PK.upKey||ukeys[0])===k,'data-upkey="'+esc(k)+'"')).join("")+'</span></div><div class="rrow2"><span class="rlab">⭐</span><span class="rchips tight">'+UP.filter(x=>(x.key||"")===(PK.upKey!=null&&ukeys.indexOf(PK.upKey)>=0?PK.upKey:ukeys[0])).map(x=>chip("",esc(x.name)+' <span style="opacity:.6;font-size:.72rem">♩'+x.bpm+'</span>',PK.uprog===x.id,'data-uprog="'+x.id+'" title="'+esc(x.sub||x.file)+'"')).join("")+'</span></div>':'')+
+    (PK.uprog?'':'<div class="rrow2"><span class="rlab">Style</span><span class="rchips tight">'+[["whole","Whole notes"],["pulse","Pulse — every beat"],["ballad","Ballad — broken"]].map(s=>chip("",s[1],PK.progStyle===s[0],'data-pstyle="'+s[0]+'"')).join("")+'</span></div>');}
   else if(M==="scores"){const all=pkStats(),ks=Object.keys(all).sort((a,b)=>(all[b].at||0)-(all[a].at||0)),lab={chords:"✋",scales:"🎼",melody:"🎵",prog:"🔁"};
     h+=ks.length?'<div class="site-note" style="margin-bottom:6px">Every run is saved. Tap one to load it and try to beat it. Wait-mode runs are kept separately.</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px">'+ks.map(k=>{const t=all[k],hs=(t.hist||[]).slice(-10),mx=Math.max.apply(null,hs.map(x=>x.s).concat([1]));
       return '<button class="rchip" data-stat="'+esc(k)+'" style="display:block;text-align:left;padding:10px 12px;border-radius:14px;width:100%"><div style="font-weight:800">'+(lab[t.m]||"🎹")+' '+esc(t.t)+(t.w?' <span style="color:var(--muted);font-size:.75rem">· wait</span>':'')+'</div><div style="font-size:.82rem;color:var(--muted);margin:3px 0">🏆 <b style="color:var(--gold)">'+t.best+'</b> pts @ ♩'+t.bestBpm+' · 🎯 best '+t.bestAcc+'% · '+t.tries+' tr'+(t.tries===1?'y':'ies')+'</div><div style="display:flex;align-items:flex-end;gap:3px;height:22px">'+hs.map((x,i)=>'<span style="width:12px;height:'+Math.max(2,Math.round(22*x.s/mx))+'px;border-radius:2px;background:'+(i===hs.length-1?'#7ff0d6':x.s===t.best?'#f3c14a':'rgba(255,255,255,.28)')+'"></span>').join("")+'</div></button>';}).join("")+'</div>'+'<div class="rchips tight" style="margin-top:8px"><button class="rchip sm" id="pkClrStats">🗑 Clear all scores</button></div>'
@@ -4427,7 +4452,14 @@ function pkDrawCtl(){const box=document.getElementById("pkCtl");if(!box)return;c
   box.querySelectorAll("[data-sroot]").forEach(b=>b.onclick=()=>{PK.scale.root=+b.dataset.sroot;re();});box.querySelectorAll("[data-scale]").forEach(b=>b.onclick=()=>{PK.scale.s=b.dataset.scale;re();});
   box.querySelectorAll("[data-hand]").forEach(b=>b.onclick=()=>{PK.scale.hand=b.dataset.hand;re();});box.querySelectorAll("[data-oct]").forEach(b=>b.onclick=()=>{PK.scale.oct=+b.dataset.oct;re();});
   box.querySelectorAll("[data-mel]").forEach(b=>b.onclick=()=>{PK.melId=b.dataset.mel;PK.bpm=pkMelBpm();re();const bv=document.getElementById("pkBpmV");if(bv)bv.textContent=PK.bpm;const br=document.getElementById("pkBpm");if(br)br.value=PK.bpm;});
-  box.querySelectorAll("[data-prog]").forEach(b=>b.onclick=()=>{PK.prog=+b.dataset.prog;re();});box.querySelectorAll("[data-pstyle]").forEach(b=>b.onclick=()=>{PK.progStyle=b.dataset.pstyle;re();});
+  box.querySelectorAll("[data-prog]").forEach(b=>b.onclick=()=>{PK.prog=+b.dataset.prog;PK.uprog=null;re();});
+  const upSet=b=>{const ub=document.getElementById("pkBpmV");if(ub)ub.textContent=PK.bpm;const ur=document.getElementById("pkBpm");if(ur)ur.value=PK.bpm;};
+  box.querySelectorAll("[data-uprog]").forEach(b=>b.onclick=()=>{PK.uprog=b.dataset.uprog;const P=pkUserProgs().find(x=>x.id===PK.uprog);if(P){const sv=load("mjk-pkupbpm",{});PK.bpm=sv[P.id]||Math.max(50,Math.round(P.bpm*0.75/5)*5);}save("mjk-pkuprog",PK.uprog);re();upSet();const P2=pkUserProgs().find(x=>x.id===PK.uprog);if(P2)pkMsg("<b>"+esc(P2.name)+"</b>"+(P2.sub?" · "+esc(P2.sub):"")+" · original ♩"+P2.bpm+", starting at ♩"+PK.bpm+". Right hand green, left hand blue — try ⏸ Wait mode first.");});
+  box.querySelectorAll("[data-upkey]").forEach(b=>b.onclick=()=>{PK.upKey=b.dataset.upkey;pkDrawCtl();});
+  const upDo=fl=>{pkMsg("Reading "+fl.length+" file"+(fl.length>1?"s":"")+"…");pkImportChords(fl,(n,err,last)=>{if(n&&last){PK.uprog=last;const P=pkUserProgs().find(x=>x.id===last);PK.upKey=P?P.key||"":"";if(P)PK.bpm=Math.max(50,Math.round(P.bpm*0.75/5)*5);save("mjk-pkuprog",PK.uprog);}pkStop();pkBuild();pkDrawCtl();upSet();pkMsg(n?"✅ Imported <b>"+n+"</b> MIDI file"+(n>1?"s":"")+". They’re saved under <b>My MIDI</b> — every note kept, split into left and right hand."+(err?" "+err:""):"⚠️ "+(err||"Nothing imported."));});};
+  const uf=document.getElementById("pkUpFiles");if(uf)uf.onchange=function(){if(this.files&&this.files.length)upDo(this.files);this.value="";};
+  const ud=document.getElementById("pkUpDir");if(ud)ud.onchange=function(){if(this.files&&this.files.length)upDo(this.files);this.value="";};
+  const uc=document.getElementById("pkUpClr");if(uc)uc.onclick=()=>{if(uc.dataset.sure){save("mjk-pk-uprog",[]);PK.uprog=null;pkStop();pkBuild();pkDrawCtl();}else{uc.dataset.sure=1;uc.textContent="Tap again to remove all";}};box.querySelectorAll("[data-pstyle]").forEach(b=>b.onclick=()=>{PK.progStyle=b.dataset.pstyle;re();});
   box.querySelectorAll("[data-stat]").forEach(b=>b.onclick=()=>{const k=b.dataset.stat,t=pkStats()[k];if(!t)return;const m=t.m;PK.wait=!!t.w;
     if(m==="melody"){const sng=(typeof melAll==="function"?melAll():MEL_LIB).find(x=>x.name===t.t);if(sng)PK.melId=sng.id;}
     else if(m==="prog"){const i=PROGS.findIndex(p=>p.name===t.t);if(i>=0)PK.prog=i;}
@@ -4471,7 +4503,7 @@ function renderPianoStudio(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
   document.querySelectorAll("#pkTabs [data-tab]").forEach(b=>b.onclick=()=>{PK.mode=b.dataset.tab;pkStop();pkSaveState();if(PK.mode==="melody"){PK.bpm=pkMelBpm();$("#pkBpmV").textContent=PK.bpm;$("#pkBpm").value=PK.bpm;}
     document.querySelectorAll("#pkTabs [data-tab]").forEach(x=>x.classList.toggle("sel",x===b));pkBuild();pkDrawCtl();pkMsg("");setTimeout(size,20);});
   document.querySelectorAll("#pkModes [data-pm]").forEach(b=>b.onclick=()=>{PK.play=b.dataset.pm;pkStop();pkSaveState();document.querySelectorAll("#pkModes [data-pm]").forEach(x=>x.classList.toggle("sel",x===b));});
-  const setB=v=>{const nb=Math.max(30,Math.min(200,Math.round(v)));if(PK.mode==="melody"&&PK.melId){const mm=load("mjk-pkmelbpm",{});mm[PK.melId]=nb;save("mjk-pkmelbpm",mm);}if(PK.running){const now=ac().currentTime,cur=(now-PK.t0)/pkSpb();PK.bpm=nb;PK.t0=now-cur*pkSpb();}else PK.bpm=nb;$("#pkBpmV").textContent=PK.bpm;$("#pkBpm").value=PK.bpm;};
+  const setB=v=>{const nb=Math.max(30,Math.min(200,Math.round(v)));if(PK.mode==="melody"&&PK.melId){const mm=load("mjk-pkmelbpm",{});mm[PK.melId]=nb;save("mjk-pkmelbpm",mm);}if(PK.mode==="prog"&&PK.uprog){const mm=load("mjk-pkupbpm",{});mm[PK.uprog]=nb;save("mjk-pkupbpm",mm);}if(PK.running){const now=ac().currentTime,cur=(now-PK.t0)/pkSpb();PK.bpm=nb;PK.t0=now-cur*pkSpb();}else PK.bpm=nb;$("#pkBpmV").textContent=PK.bpm;$("#pkBpm").value=PK.bpm;};
   $("#pkBpm").oninput=function(){setB(+this.value);};$("#pkBpmDn").onclick=()=>setB(PK.bpm-5);$("#pkBpmUp").onclick=()=>setB(PK.bpm+5);
   $("#pkGo").onclick=()=>{if(PK.running)pkStop();else pkStart();};
   $("#pkOpt").addEventListener("toggle",function(){PK.optOpen=this.open;save("mjk-pkopt",this.open);setTimeout(size,20);});
