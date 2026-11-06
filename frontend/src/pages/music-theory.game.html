@@ -4246,6 +4246,7 @@ function pkMelSong(){return (typeof melAll==="function"?melAll():MEL_LIB).find(x
 function pkMelBpm(){const sg=pkMelSong();if(!sg)return PK.bpm;const m=load("mjk-pkmelbpm",{});return m[sg.id]||Math.max(40,Math.round(sg.bpm*0.7/5)*5);}
 /* one-tap speeds: Full / ¾ / ½ / ¼ of the piece's real tempo */
 function pkOrigBpm(){if(PK.mode==="melody"&&!PK.melNk){const sg=pkMelSong();return sg?sg.bpm:100;}if((PK.mode==="prog"||PK.melNk)&&PK.uprog){const P=PK.uprog.indexOf("nk")===0?pkNikoProg(PK.uprog):pkUserProgs().find(x=>x.id===PK.uprog);if(P&&P.bpm)return P.bpm;}return 100;}
+function pkDefaultBpm(){const o=pkOrigBpm();if(PK.play==="watch")return o;if(PK.mode==="melody"&&!PK.melNk)return pkMelBpm();if(PK.uprog&&(PK.mode==="prog"||PK.melNk)){const sv=load("mjk-pkupbpm",{});return sv[PK.uprog]||Math.max(50,Math.round(o*0.75/5)*5);}return PK.bpm;}
 function pkSpdPaint(){const el=document.getElementById("pkSpd");if(!el)return;const o=pkOrigBpm();el.innerHTML=[[1,"Full"],[0.75,"¾"],[0.5,"½"],[0.25,"¼"]].map(([f,l])=>{const v=Math.max(30,Math.round(o*f));return '<button class="rchip sm'+(PK.bpm===v?" sel":"")+'" data-spd="'+v+'">'+l+' <span style="opacity:.65;font-size:.72rem">♩'+v+'</span></button>';}).join("");
   el.querySelectorAll("[data-spd]").forEach(b=>b.onclick=()=>{if(PK.setB)PK.setB(+b.dataset.spd);});}
 function pkSaveState(){save("mjk-pkchord",PK.chord);save("mjk-pkscale",PK.scale);save("mjk-pkmel",PK.melId);save("mjk-pkprog",PK.prog);save("mjk-pkpstyle",PK.progStyle);save("mjk-pkmode",PK.mode);save("mjk-pkplay",PK.play);}
@@ -4309,15 +4310,19 @@ function pkNikoProg(id){if(NIKO.cache[id])return NIKO.cache[id];const x=NIKO.dat
 function pkBuildUserProg(){const P=(PK.uprog&&PK.uprog.indexOf("nk")===0)?pkNikoProg(PK.uprog):pkUserProgs().find(x=>x.id===PK.uprog);if(!P)return {ev:[],len:0,beats:4};PK.title=P.name+(P.key?" ("+P.key+")":"")+(P.pack?" · Niko":"");
   return {ev:P.ev.map(e=>Object.assign({},e,{notes:e.notes.slice()})),len:P.len,beats:4};}
 function pkBuild(){let r;if(PK.mode==="chords")r=pkBuildChord();else if(PK.mode==="scales")r=pkBuildScale();else if(PK.mode==="melody")r=(PK.melNk&&PK.uprog)?pkBuildUserProg():pkBuildMelody();else if(PK.mode==="prog")r=PK.uprog?pkBuildUserProg():pkBuildProg();else r={ev:[],len:0,beats:4};
-  PK.ev=r.ev.sort((a,b)=>a.b-b.b);PK.len=r.len;PK.beats=r.beats;PK.ev.forEach(e=>{e.hit=null;e.sch=false;e.got={};});pkFitRange();}
+  PK.ev=r.ev.sort((a,b)=>a.b-b.b);PK.len=r.len;PK.beats=r.beats;PK.ev.forEach(e=>{e.hit=null;e.sch=false;e.got={};});pkFitRange();pkFold();}
+/* notes that still don't fit on a narrow screen move by octaves onto the visible keys */
+function pkFold(){const lo=PK.lo,hi=PK.hi;if(hi-lo<12)return;PK.ev.forEach(e=>{let ch=false;const ns=e.notes.map(m=>{let x=m;while(x<lo){x+=12;ch=true;}while(x>hi){x-=12;ch=true;}return x;});if(ch){e.notes=[...new Set(ns)];if(e.fing)e.fing=null;}});}
 /* ---------- keyboard geometry ---------- */
 function pkWhiteUp(m){while(pkIsBlack(m))m++;return m;}function pkWhiteDn(m){while(pkIsBlack(m))m--;return m;}
 function pkCountWhite(a,b){let n=0;for(let m=a;m<=b;m++)if(!pkIsBlack(m))n++;return n;}
 function pkFitRange(){const cv=PK.cv,W=cv?cv.clientWidth:900;let need=null;if(PK.ev.length){let a=999,b=0;PK.ev.forEach(e=>e.notes.forEach(m=>{a=Math.min(a,m);b=Math.max(b,m);}));need=[a,b];}
-  let nWhite;if(PK.real){nWhite=Math.max(7,Math.floor(W/(23.5*PK.pxmm)));}else{const wide=W>=1000,land=(window.innerWidth>window.innerHeight);nWhite=wide?Math.min(36,Math.max(22,Math.round(W/55))):land?15:10;if(need)nWhite=Math.max(nWhite,Math.min(wide?52:22,pkCountWhite(pkWhiteDn(need[0]),pkWhiteUp(need[1]))+2));}
+  let nWhite;if(PK.real){nWhite=Math.max(7,Math.floor(W/(23.5*PK.pxmm)));}else{const wide=W>=1000,land=(window.innerWidth>window.innerHeight);nWhite=wide?Math.min(36,Math.max(22,Math.round(W/55))):land?15:10;if(need)nWhite=Math.max(nWhite,Math.min(wide?52:land?26:22,pkCountWhite(pkWhiteDn(need[0]),pkWhiteUp(need[1]))+2));}
   let lo;if(need){const mid=(need[0]+need[1])/2;lo=pkWhiteDn(Math.round(mid));let k=0;while(k<Math.floor(nWhite/2)){lo--;if(!pkIsBlack(lo))k++;}lo=pkWhiteDn(lo);if(lo>need[0])lo=pkWhiteDn(need[0]-1);}else lo=nWhite>=22?36:48;
   lo=Math.max(21,lo);if(pkName(lo)!=="C"&&pkName(lo)!=="F"&&nWhite>=10){while(pkName(lo)!=="C"&&pkName(lo)!=="F")lo--;}
-  let hi=lo,c=1;while(c<nWhite){hi++;if(!pkIsBlack(hi))c++;}PK.lo=lo;PK.hi=Math.min(108,hi);}
+  let hi=lo,c=1;while(c<nWhite){hi++;if(!pkIsBlack(hi))c++;}
+  if(need){let g=0;while(hi<need[1]&&lo<need[0]&&g++<60){do{lo++;}while(pkIsBlack(lo));do{hi++;}while(pkIsBlack(hi));}}
+  PK.lo=lo;PK.hi=Math.min(108,hi);}
 function pkGeo(W,H){const lo=PK.lo,hi=PK.hi,whites=[];for(let m=lo;m<=hi;m++)if(!pkIsBlack(m))whites.push(m);const ww=W/whites.length,land=W>H;
   const kbH=Math.min(H*(H<420?0.4:0.3),ww*(PK.real?6.4:4.3)),top=H-kbH,keys={};whites.forEach((m,i)=>keys[m]={x:i*ww,w:ww,black:false});
   for(let m=lo+1;m<hi;m++)if(pkIsBlack(m)&&keys[m-1]){const bx=keys[m-1].x+ww,off=({1:-0.12,3:0.12,6:-0.15,8:0,10:0.15})[((m%12)+12)%12]||0;keys[m]={x:bx-ww*0.29+off*ww*0.3,w:ww*0.58,black:true};}
@@ -4474,7 +4479,7 @@ function pkDrawCtl(){const box=document.getElementById("pkCtl");if(!box)return;c
   const upSet=b=>{const ub=document.getElementById("pkBpmV");if(ub)ub.textContent=PK.bpm;const ur=document.getElementById("pkBpm");if(ur)ur.value=PK.bpm;};
   const findP=id=>id&&id.indexOf("nk")===0?pkNikoProg(id):pkUserProgs().find(x=>x.id===id);box.querySelectorAll("[data-uprog]").forEach(b=>b.onclick=()=>{PK.uprog=b.dataset.uprog;if(PK.mode==="melody")PK.melNk=true;const P=findP(PK.uprog);if(P){const sv=load("mjk-pkupbpm",{});PK.bpm=PK.play==="watch"?P.bpm:(sv[P.id]||Math.max(50,Math.round(P.bpm*0.75/5)*5));}save("mjk-pkuprog",PK.uprog);re();upSet();const P2=findP(PK.uprog);if(P2)pkMsg("<b>"+esc(P2.name)+"</b>"+(P2.sub?" · "+esc(P2.sub):"")+" · original ♩"+P2.bpm+", starting at ♩"+PK.bpm+". Right hand green, left hand blue — try ⏸ Wait mode first.");});
   const nkt=document.getElementById("pkNikoT");if(nkt)nkt.onclick=()=>{NIKO.open=!NIKO.open;save("mjk-nikoopen",NIKO.open);pkDrawCtl();};
-  if(NIKO.open&&!NIKO.data&&(M==="prog"||M==="melody"))pkNikoLoad(()=>{if(PK.mode==="prog"||PK.mode==="melody"){if(PK.uprog&&PK.uprog.indexOf("nk")===0&&!PK.running)pkBuild();pkDrawCtl();}});
+  if(NIKO.open&&!NIKO.data&&(M==="prog"||M==="melody"))pkNikoLoad(()=>{if(PK.mode==="prog"||PK.mode==="melody"){if(PK.uprog&&PK.uprog.indexOf("nk")===0&&!PK.running){pkBuild();if(PK.setB)PK.setB(pkDefaultBpm());}pkDrawCtl();}});
   box.querySelectorAll("[data-nkpack]").forEach(b=>b.onclick=()=>{NIKO.pack=b.dataset.nkpack;save("mjk-nikopack",NIKO.pack);pkDrawCtl();});
   box.querySelectorAll("[data-nkkey]").forEach(b=>b.onclick=()=>{NIKO.key=b.dataset.nkkey;save("mjk-nikokey",NIKO.key);pkDrawCtl();});
   box.querySelectorAll("[data-upkey]").forEach(b=>b.onclick=()=>{PK.upKey=b.dataset.upkey;pkDrawCtl();});
@@ -4495,7 +4500,7 @@ function pkDrawCtl(){const box=document.getElementById("pkCtl");if(!box)return;c
 function renderPianoStudio(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);document.body.classList.add("pkWide");if(load("mjk-pkmidi",false)&&navigator.requestMIDIAccess)setTimeout(()=>{try{pkMidi();}catch(e){}},400);try{sfLoadInst("piano");}catch(e){}
   const keyH=e=>pkKey(e);document.addEventListener("keydown",keyH);document.addEventListener("keyup",keyH);const onRes=()=>{pkFitRange();};window.addEventListener("resize",onRes);
   teardown=()=>{pkStop();if(PK.raf)cancelAnimationFrame(PK.raf);PK.raf=null;document.body.classList.remove("pkWide");document.removeEventListener("keydown",keyH);document.removeEventListener("keyup",keyH);window.removeEventListener("resize",onRes);try{if(PK.input==="mic")stopMic();}catch(e){}try{if(document.fullscreenElement)document.exitFullscreen();}catch(e){}};
-  if(PK.mode==="melody"){PK.bpm=pkMelBpm();}
+  PK.bpm=pkDefaultBpm();
   const tabs=[["play","🎹 Play"],["chords","✋ Chords"],["scales","🎼 Scales"],["melody","🎵 Melodies"],["prog","🔁 Progressions"],["scores","🏆 My scores"]];
   view.innerHTML=`<div id="pkTop"><div class="play-top" style="margin-bottom:4px;flex-wrap:wrap;gap:6px"><button class="back" id="eBack">←</button><span class="ttitle">🎹 Piano Studio</span><button class="btn" id="pkGo" style="padding:7px 16px;margin-left:8px">${PK.play==="watch"?"▶ Watch it":"▶ Start"}</button><span style="display:flex;align-items:center;gap:4px"><button class="rchip sm" id="pkBpmDn" style="min-width:30px;justify-content:center">−</button><b style="min-width:62px;text-align:center">♩ <span id="pkBpmV">${PK.bpm}</span></b><button class="rchip sm" id="pkBpmUp" style="min-width:30px;justify-content:center">+</button></span><span class="rchips tight" id="pkSpd"></span><button class="rchip sm" id="pkFs" style="margin-left:auto">⛶ Full screen</button><button class="rchip sm" id="pkHide">▴ Hide controls</button></div>
     <div id="pkCtlWrap"><div class="rchips tight" id="pkTabs" style="margin:2px 0 6px">${tabs.map(t=>'<button class="rchip'+(PK.mode===t[0]?" sel":"")+'" data-tab="'+t[0]+'">'+t[1]+'</button>').join("")}</div>
@@ -4523,7 +4528,7 @@ function renderPianoStudio(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
     const r=document.getElementById("pkRot");if(r)r.style.display=(!land&&phone)?"block":"none";pkFitRange();if(phone&&land&&!PK._wasLand){PK._wasLand=true;setTimeout(()=>{try{pkAutoHide();}catch(_){}},60);}else if(!land)PK._wasLand=false;};
   const resize=()=>{setTimeout(size,30);};window.addEventListener("resize",resize);const td0=teardown;teardown=()=>{window.removeEventListener("resize",resize);td0();};
   $("#eBack").onclick=goHome;
-  document.querySelectorAll("#pkTabs [data-tab]").forEach(b=>b.onclick=()=>{PK.mode=b.dataset.tab;pkStop();pkSaveState();if(PK.mode==="melody"){PK.bpm=pkMelBpm();$("#pkBpmV").textContent=PK.bpm;$("#pkBpm").value=PK.bpm;}
+  document.querySelectorAll("#pkTabs [data-tab]").forEach(b=>b.onclick=()=>{PK.mode=b.dataset.tab;pkStop();pkSaveState();{PK.bpm=pkDefaultBpm();$("#pkBpmV").textContent=PK.bpm;$("#pkBpm").value=PK.bpm;}
     document.querySelectorAll("#pkTabs [data-tab]").forEach(x=>x.classList.toggle("sel",x===b));pkBuild();pkDrawCtl();pkMsg("");setTimeout(size,20);});
   document.querySelectorAll("#pkModes [data-pm]").forEach(b=>b.onclick=()=>{PK.play=b.dataset.pm;pkStop();pkSaveState();if(PK.setB){const o=pkOrigBpm();if(PK.play==="watch")PK.setB(o);else{let v=null;if(PK.mode==="melody"&&!PK.melNk)v=pkMelBpm();else if(PK.uprog&&(PK.mode==="prog"||PK.melNk)){const sv=load("mjk-pkupbpm",{});v=sv[PK.uprog]||Math.max(50,Math.round(o*0.75/5)*5);}if(v)PK.setB(v);}}document.querySelectorAll("#pkModes [data-pm]").forEach(x=>x.classList.toggle("sel",x===b));});
   const setB=v=>{const nb=Math.max(30,Math.min(200,Math.round(v)));if(PK.mode==="melody"&&PK.melId){const mm=load("mjk-pkmelbpm",{});mm[PK.melId]=nb;save("mjk-pkmelbpm",mm);}if(PK.mode==="prog"&&PK.uprog){const mm=load("mjk-pkupbpm",{});mm[PK.uprog]=nb;save("mjk-pkupbpm",mm);}if(PK.running){const now=ac().currentTime,cur=(now-PK.t0)/pkSpb();PK.bpm=nb;PK.t0=now-cur*pkSpb();}else PK.bpm=nb;$("#pkBpmV").textContent=PK.bpm;$("#pkBpm").value=PK.bpm;pkSpdPaint();};PK.setB=setB;pkSpdPaint();
