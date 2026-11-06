@@ -1048,7 +1048,7 @@ function renderAbout(){if(teardown){try{teardown();}catch(e){}teardown=null;}hom
    '<li>If you have epilepsy or a seizure disorder, a pacemaker or other implanted device, are pregnant, or live with a mental-health condition, check with your doctor before using pulsed or binaural sounds and paced breathing.</li>'+
    '<li>Stop any breathing exercise if you feel dizzy, light-headed or uncomfortable, and breathe normally.</li>'+
    '<li>If trouble sleeping lasts more than a few weeks, talk with a doctor — CBT-I (cognitive behavioral therapy for insomnia) is the standard first treatment, and these sessions can sit alongside it.</li>'+
-   '<li>Veterans and anyone supporting one can reach the <b>Veterans Crisis Line</b> 24/7: call 988 and press 1, or text 838255. For PTSD, the VA offers proven treatments (prolonged exposure, cognitive processing therapy, EMDR); the guided sessions for veterans can sit alongside them.</li>'+
+   '<li>If you need to talk to someone, the <b>988 Lifeline</b> is free and open 24/7: call or text 988 (veterans press 1). For PTSD, proven treatments include prolonged exposure, cognitive processing therapy and EMDR; the guided sessions can sit alongside them.</li>'+
    '<li>Heart-rate, HRV and brainwave readings from consumer sensors are for practice feedback, not diagnosis.</li></ul>'+
    '<p class="rlab" style="margin-top:14px">Your data</p><p style="margin:6px 0">Recordings, sessions and sensor logs are saved on your device. Signing in syncs your players and progress.</p>'+
    '<p class="rlab" style="margin-top:14px">Sounds &amp; credits</p><p style="margin:6px 0">Sampled instruments from the MusyngKite soundfonts. Nature recordings are CC0 / Pixabay-licensed field recordings collected by the open-source Moodist project. Niko Kotoulas MIDI packs are included for practice.</p></div>';
@@ -7977,7 +7977,7 @@ function renderMeditation(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();h
    {ic:"🌀",title:"Brainwave Binaural",blurb:"Pick an intention — sleep, meditate, flow, focus, insight — and ride the matching brainwave as a binaural beat. Headphones on.",go:renderBrainwave},
    {ic:"🎙",title:"Voice Journey — Orientation",blurb:"Your own guided journey, recorded one line at a time with the script on screen. Plays over nature sounds and binaural layers on a 33-minute timeline.",go:renderVoiceJourney},
    {ic:"🌲",title:"Nature Sounds",blurb:"A library of real recordings — ocean, mountain river, birds, wind in the pines, rain, night crickets, campfire. Mix your own scenes and add your own recordings.",go:renderNature},
-   {ic:"🎖",title:"Guided Sessions for Veterans",blurb:"Present-focused sessions for steadying the body, coming back to the room, winding down and falling asleep. Narrated, with a Ground me button always on screen.",go:renderStandDown},
+   {ic:"🎖",title:"Guided Sessions",blurb:"Present-focused sessions for steadying the body, coming back to the room, winding down and falling asleep. Narrated, with a Ground me button always on screen.",go:renderStandDown},
    {ic:"🌀",title:"Brainwave Journey",blurb:"A 30-minute ride: start in everyday thinking, drift down to deep theta or delta, rest there, and come back up to calm, clear waking. Headphones on.",go:renderJourney},
    {ic:"🌬️",title:"Breathwork",blurb:"Guided breathing — coherent, box, 4·7·8 — with a breathing circle to follow. Connect a heart monitor to watch your HRV settle.",go:renderBreathwork},
    {ic:"🥁",title:"Rhythm Mind",blurb:"Train your internal clock — the beat plays, then goes silent, and you keep it alive in your head. See how steady your inner pulse is.",go:renderRhythmMind},
@@ -8134,7 +8134,7 @@ const VJ_SCRIPT=[
  [["Now use your voice. Breathe in, and as you breathe out, hum. Any note that feels good. Feel it buzz in your chest, your throat, your face.",20,"H"],["Keep going at your own pace. Hum along with me and with the waves.",120],["Let the hum fade. Breathe normally. Feel how the sound is still moving through you.",10,"h"]],
  [["You're more relaxed now than you've been all day. Just be here. Let the waves carry you.",360],["Notice how everything in you is moving together now, in rhythm, all one piece.",180]],
  [["Time to come back. I'll count from one to five, and at five you'll be wide awake and feeling great.",3],["One. You feel the weight of your body again.",3],["Two. Your hands and feet start to wake up.",3],["Three. You hear the room around you.",3],["Four. You feel the air on your skin, fresh and clear.",3],["Five. Eyes open. Wide awake, rested, and better than when you started.",4],["The vault is still there, everything's safe inside. Take only what you need. Welcome back.",5]]];
-/* ===== GUIDED SESSIONS FOR VETERANS: present-focused, choice-giving, grounding first ===== */
+/* ===== GUIDED SESSIONS: present-focused, choice-giving, grounding first ===== */
 /* step types: {s:text,p:pauseAfter} · {breath:[in,hold,out,hold],n} · {hum:{from,to,dur}} · {count:{from,to,dur}} · {bed:{beat,carrier,scene}} · {quiet:sec} · {fade:sec} */
 var GS_SESS=[
  {id:"tactical",nm:"Box Breathing",len:"5 min",when:"Anytime",tag:"Steady the body fast — before a hard moment, or after one.",bed:{beat:10,carrier:200,scene:"none"},steps:[
@@ -8266,8 +8266,8 @@ function gsRunView(){var S=GS.sess,night=!!S.night;view.innerHTML='<div class="g
   $("#gsBack").onclick=function(){gsEnd(false);};$("#gsStop").onclick=function(){gsEnd(false);};$("#gsG").onclick=gsGround;teardown=function(){GS.run=false;gsClear();medStop();};}
 function renderStandDown(){if(toneRAF)cancelAnimationFrame(toneRAF);GS.run=false;gsClear();medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   var vs=gsVoices(),cur=(gsPickVoice()||{}).name||"",lg=load("mjk-gslog",[]),done=lg.filter(function(x){return x.done;}).length;
-  view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">Guided Sessions for Veterans</span></div><div class="panel">'+
-   '<div class="intro">Guided sessions built for veterans. Every one stays in the here and now. Eyes open or closed, sitting or lying down — always your choice. Tap <b>Ground me</b> anytime to come straight back to the room.</div>'+
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">Guided Sessions</span></div><div class="panel">'+
+   '<div class="intro">Every session stays in the here and now. Eyes open or closed, sitting or lying down — always your choice. Tap <b>Ground me</b> anytime to come straight back to the room.</div>'+
    GS_SESS.map(function(S){return '<button class="card gsCard'+(S.night?' night':'')+'" data-gs="'+S.id+'"><div style="display:flex;justify-content:space-between;gap:8px"><b>'+esc(S.nm)+'</b><span class="site-note" style="font-size:.75rem">'+esc(S.len)+' · '+esc(S.when)+'</span></div><div class="site-note" style="margin-top:4px">'+esc(S.tag)+'</div></button>';}).join("")+
    '<details style="margin-top:12px"><summary class="rlab">Voice &amp; sound</summary><div style="display:grid;gap:8px;margin-top:8px">'+
    '<label class="rrow2"><span class="rlab">Voice</span><select id="gsV" style="flex:1">'+(vs.length?vs.map(function(v){return '<option'+(v.name===cur?' selected':'')+'>'+esc(v.name)+'</option>';}).join(""):'<option>Default</option>')+'</select><button class="rchip sm" id="gsVT">▶</button></label>'+
@@ -8275,7 +8275,7 @@ function renderStandDown(){if(toneRAF)cancelAnimationFrame(toneRAF);GS.run=false
    '<label class="rrow2"><span class="rlab">Background</span><input type="range" id="gsB" min="0.1" max="1" step="0.05" value="'+GS.bedVol+'" style="flex:1;accent-color:var(--gold)"></label>'+
    '<label class="rrow2"><span class="rlab">Show words</span><input type="checkbox" id="gsC"'+(GS.cap?' checked':'')+'></label></div></details>'+
    (done?'<div class="site-note" style="margin-top:10px">Sessions completed: <b>'+done+'</b></div>':'')+
-   '<div class="site-note" style="margin-top:14px;font-size:.82rem">Need to talk to someone now? <b>Veterans Crisis Line</b> — call <a href="tel:988" style="color:var(--gold)">988</a> and press 1, or text <a href="sms:838255" style="color:var(--gold)">838255</a>. Free, confidential, 24/7.</div></div>';
+   '<div class="site-note" style="margin-top:14px;font-size:.82rem">Need to talk to someone now? Call or text <a href="tel:988" style="color:var(--gold)">988</a>, any time.</div></div>';
   $("#eBack").onclick=goHome;view.querySelectorAll("[data-gs]").forEach(function(b){b.onclick=function(){gsStart(GS_SESS.find(function(s){return s.id===b.dataset.gs;}));};});
   var vsel=$("#gsV");vsel.onchange=function(){save("mjk-gsvoice",vsel.value);};$("#gsVT").onclick=function(){try{speechSynthesis.cancel();var u=new SpeechSynthesisUtterance("You're off duty. Time to rest.");var v=gsPickVoice();if(v)u.voice=v;u.rate=GS.rate;u.pitch=0.95;speechSynthesis.speak(u);}catch(e){}};
   $("#gsR").oninput=function(e){GS.rate=+e.target.value;save("mjk-gsrate",GS.rate);};$("#gsB").oninput=function(e){GS.bedVol=+e.target.value;save("mjk-gsbed",GS.bedVol);};$("#gsC").onchange=function(e){GS.cap=e.target.checked;save("mjk-gscap",GS.cap);};
