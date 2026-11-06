@@ -8609,24 +8609,28 @@ async function museConnect(statusEl){
   if(!navigator.bluetooth)throw new Error("no-bt");
   statusEl.textContent="Opening Bluetooth…";
   M.dev=await navigator.bluetooth.requestDevice({filters:[{services:[MUSE_SVC]},{namePrefix:"Muse"},{namePrefix:"MuseS"}],optionalServices:[MUSE_SVC]});
-  statusEl.textContent="Connecting to "+(M.dev.name||"Muse")+"…";
-  M.gatt=await M.dev.gatt.connect();
+  const TO=(pr,ms,step)=>Promise.race([pr,new Promise((_,rj)=>setTimeout(()=>rj(new Error("timed out at: "+step)),ms))]);
+  statusEl.textContent="Connecting to "+(M.dev.name||"Muse")+"… (step 1 of 4)";
+  M.gatt=await TO(M.dev.gatt.connect(),15000,"connecting");
   M.dev.addEventListener("gattserverdisconnected",()=>{M.connected=false;const s=$("#bioStatus");if(s)s.textContent="Disconnected.";});
-  const svc=await M.gatt.getPrimaryService(MUSE_SVC);
-  M.ctrl=await svc.getCharacteristic(MUSE_CTRL);
+  statusEl.textContent="Connected — opening the Muse’s data service… (step 2 of 4)";
+  const svc=await TO(M.gatt.getPrimaryService(MUSE_SVC),10000,"data service");
+  statusEl.textContent="Reading the headband… (step 3 of 4)";
+  M.ctrl=await TO(svc.getCharacteristic(MUSE_CTRL),10000,"control channel");
   // telemetry (battery)
   try{const tc=await svc.getCharacteristic(MUSE_TELE);await tc.startNotifications();
     tc.addEventListener("characteristicvaluechanged",e=>{const d=e.target.value;M.battery=Math.round(d.getUint16(2)/512*100)/100;});}catch(e){}
   // EEG 4 channels
-  for(let ch=0;ch<4;ch++){const c=await svc.getCharacteristic(MUSE_EEG[ch]);await c.startNotifications();
+  statusEl.textContent="Subscribing to brainwave channels… (step 4 of 4)";
+  for(let ch=0;ch<4;ch++){const c=await TO(svc.getCharacteristic(MUSE_EEG[ch]),10000,"EEG channel "+(ch+1));await TO(c.startNotifications(),10000,"EEG stream "+(ch+1));
     c.addEventListener("characteristicvaluechanged",e=>{const d=e.target.value;const s=dec12(new Uint8Array(d.buffer).subarray(2)).map(n=>0.48828125*(n-0x800));
       const buf=M.eeg[ch];for(const v of s)buf.push(v);});}
   // PPG — use infrared (index 1); subscribe all 3 so the stream flows
-  for(let pi=0;pi<3;pi++){const c=await svc.getCharacteristic(MUSE_PPG[pi]);await c.startNotifications();
+  for(let pi=0;pi<3;pi++){let c;try{c=await TO(svc.getCharacteristic(MUSE_PPG[pi]),5000,"PPG");await TO(c.startNotifications(),5000,"PPG");}catch(e){break;}
     if(pi===1)c.addEventListener("characteristicvaluechanged",e=>{const d=e.target.value;const s=dec24(new Uint8Array(d.buffer).subarray(2));
       for(const v of s){M.ppg.push({v,t:M.ppgN/64});M.ppgN++;}});}
   statusEl.textContent="Starting stream…";
-  await museWrite("h");await museSleep(60);await museWrite("p50");await museSleep(60);await museWrite("s");await museSleep(60);await museWrite("d");
+  await TO(museWrite("h"),8000,"start command");await museSleep(60);await museWrite("p50");await museSleep(60);await museWrite("s");await museSleep(60);await museWrite("d");
   M.connected=true;
   M.bandT=setInterval(museBands,500);M.ppgT=setInterval(musePPG,150);
 }
