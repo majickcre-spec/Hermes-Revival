@@ -7727,7 +7727,7 @@ function bioPaint(){const el=document.getElementById("bioLive");if(!el)return;co
   el.innerHTML=h;}
 function bioSummary(){const L=BIO.log.filter(p=>p.t>=BIO.t0);if(L.length<20)return "";const avg=k=>{const v=L.map(p=>p[k]).filter(x=>x!=null&&x>0);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;};const hr=avg("hr"),hv=avg("hrv"),al=avg("al"),th=avg("th");
   const parts=[hr!=null?"avg HR <b>"+Math.round(hr)+"</b>":"",hv!=null?"HRV <b>"+Math.round(hv)+" ms</b>":"",al!=null?"alpha <b>"+Math.round(al)+"%</b>":"",th!=null?"theta <b>"+Math.round(th)+"%</b>":""].filter(Boolean);return parts.length?'<div class="site-note" style="margin-top:6px">📊 This session: '+parts.join(" · ")+'</div>':"";}
-function bioPanelHTML(){return '<details id="bioSet" style="margin:6px 0"'+(HR.connected||M.connected?" open":"")+'><summary style="cursor:pointer;list-style:none;padding:8px 2px;font:800 .9rem system-ui;color:var(--muted)">🫀 Sensors · <span id="bioSum" style="font-weight:600">'+bioStatus()+'</span> ▾</summary>'+
+function bioPanelHTML(){return '<details id="bioSet" style="margin:6px 0"'+(HR.connected||M.connected?" open":"")+'><summary style="cursor:pointer;list-style:none;padding:8px 2px;font:800 .9rem system-ui;color:var(--muted)">🫀 Sensors · <span id="bioSum" style="font-weight:600">'+bioStatus()+'</span> ▾</summary>'+fullPageNote()+
   '<div class="actions" style="flex-wrap:wrap"><button class="btn ghost" id="bioHRb" style="flex:1 1 45%">'+(HR.connected?"❤️ Connected":"❤️ Heart rate / HRV")+'</button><button class="btn ghost" id="bioMuseb" style="flex:1 1 45%">'+(M.connected?"🧠 Connected":"🧠 Muse headband")+'</button></div>'+
   '<div id="bioMsg" class="feedback" style="min-height:18px"></div><div id="bioLive"></div>'+
   '<details style="margin-top:4px"><summary style="cursor:pointer;font-size:.8rem;color:var(--muted);list-style:none">ℹ️ How to connect each device ▾</summary><div class="site-note" style="font-size:.8rem">'+
@@ -8608,7 +8608,7 @@ async function museWrite(s){try{await M.ctrl.writeValue(museCmd(s));}catch(e){tr
 async function museConnect(statusEl){
   if(!navigator.bluetooth)throw new Error("no-bt");
   statusEl.textContent="Opening Bluetooth…";
-  M.dev=await navigator.bluetooth.requestDevice({filters:[{services:[MUSE_SVC]},{namePrefix:"Muse"},{namePrefix:"MuseS"}],optionalServices:[MUSE_SVC]});
+  M.dev=await navigator.bluetooth.requestDevice({filters:[{services:[MUSE_SVC]}],optionalServices:[MUSE_SVC]});
   const TO=(pr,ms,step)=>Promise.race([pr,new Promise((_,rj)=>setTimeout(()=>rj(new Error("timed out at: "+step)),ms))]);
   statusEl.textContent="Connecting to "+(M.dev.name||"Muse")+"… (step 1 of 4)";
   M.gatt=await TO(M.dev.gatt.connect(),15000,"connecting");
@@ -8640,6 +8640,8 @@ function museDisconnect(){
   try{if(M.gatt&&M.gatt.connected)M.gatt.disconnect();}catch(e){}
   M.connected=false;M.eeg=[[],[],[],[]];M.ppg=[];M.ppgN=0;M.lastPeakT=0;M.ibis=[];M.hr=0;M.rmssd=0;M.alpha=M.theta=M.beta=0;
 }
+function inFrame(){try{return window.self!==window.top;}catch(e){return true;}}
+function fullPageNote(){return inFrame()?'<div class="snote" style="border:1px solid #f3c14a;border-radius:10px;padding:8px;color:#f4ead2">📱 <b>On iPhone (Bluefy), Bluetooth only works in the full-page app.</b> <a href="/app.html" target="_blank" rel="noopener" style="color:#f3c14a;font-weight:800">Open full-page MMU ↗</a> then connect there.</div>':'';}
 /* ===== ALWAYS-ON SENSORS — connect once, follows you everywhere, records + tags what you're doing ===== */
 const SENS={rec:false,sid:null,t0:0,data:[],lastSave:0,open:false,offSince:0,lastAct:""};
 function sensActivity(){let a="";try{const tt=document.querySelector("#view .ttitle");a=tt?tt.textContent.replace(/^[^A-Za-z0-9]+/,"").trim():"Home";
@@ -8671,7 +8673,7 @@ function sensUI(){const f=document.getElementById("sensFab");if(f){const on=HR.c
   const rb=document.getElementById("sensRec");if(rb)rb.textContent=SENS.rec?"■ Stop & save session":"● Start recording";}
 function sensPanelOpen(o){SENS.open=o;const p=document.getElementById("sensPanel");if(!p)return;p.hidden=!o;if(!o)return;
   p.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between"><b>🫀 Sensors</b><button class="mbtn" id="sensX">✕</button></div>'+
-    '<div class="srow"><button class="mbtn" id="sensHRb"></button><button class="mbtn" id="sensMb"></button></div><div id="sensMsg" class="snote"></div><div id="sensLive"></div>'+
+    fullPageNote()+'<div class="srow"><button class="mbtn" id="sensHRb"></button><button class="mbtn" id="sensMb"></button></div><div id="sensMsg" class="snote"></div><div id="sensLive"></div>'+
     '<div class="srow"><button class="mbtn" id="sensRec"></button><button class="mbtn" id="sensGo">📊 My sessions</button></div>'+
     '<label class="snote" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="sensAuto"'+(load("mjk-sens-auto",true)?" checked":"")+'> start recording automatically when a sensor connects</label>';
   const msg=t=>{const m=document.getElementById("sensMsg");if(m)m.innerHTML=t;};
