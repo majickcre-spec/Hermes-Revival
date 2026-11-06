@@ -7,36 +7,39 @@ function lvPeaks(key,n){var b=LVB[key];if(!b)return null;var ck=key+":"+n;if(LVP
   for(var i=0;i<n;i++){var m=0,s=i*step,e=Math.min(d.length,s+step);for(var j=s;j<e;j+=4){var v=Math.abs(d[j]);if(v>m)m=v;}out[i]=m;}LVPEAK[ck]=out;return out;}
 function lvIR(a,dur,decay){var rate=a.sampleRate,len=Math.max(1,Math.floor(rate*dur)),b=a.createBuffer(2,len,rate);for(var ch=0;ch<2;ch++){var d=b.getChannelData(ch);for(var i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,decay);}return b;}
 /* ---------- devices ---------- */
+/* every device parameter goes through lvSv so automation can schedule it on the audio clock */
+var LV_SVT=null,LV_SVF=false;
+function lvSv(par,v){if(!isFinite(v))return;if(LV_SVT!=null){if(LV_SVF){try{par.cancelScheduledValues(LV_SVT);}catch(e){}par.setValueAtTime(v,LV_SVT);}else par.linearRampToValueAtTime(v,LV_SVT);}else{try{par.cancelScheduledValues(0);}catch(e){}par.value=v;}}
 function lvDevDefaults(type){var p={};LV_DEVS[type].ps.forEach(function(x){p[x[0]]=x[4];});return p;}
-function lvDW(a){var o={in:a.createGain(),out:a.createGain(),dry:a.createGain(),wet:a.createGain()};o.in.connect(o.dry);o.dry.connect(o.out);o.wet.connect(o.out);o.mix=function(m){o.dry.gain.value=Math.cos(m*Math.PI/2);o.wet.gain.value=Math.sin(m*Math.PI/2);};return o;}
+function lvDW(a){var o={in:a.createGain(),out:a.createGain(),dry:a.createGain(),wet:a.createGain()};o.in.connect(o.dry);o.dry.connect(o.out);o.wet.connect(o.out);o.mix=function(m){lvSv(o.dry.gain,Math.cos(m*Math.PI/2));lvSv(o.wet.gain,Math.sin(m*Math.PI/2));};return o;}
 function lvSatCurve(type){var n=2048,c=new Float32Array(n);for(var i=0;i<n;i++){var x=i/(n-1)*2-1,y;x*=3;
     if(type===1)y=Math.abs(x)<1?Math.sin(x*Math.PI/2):Math.sign(x)*(1-0.15*Math.min(1,Math.abs(x)-1));else if(type===2)y=Math.max(-1,Math.min(1,x*1.2));else y=Math.tanh(x);c[i]=y;}return c;}
 function lvDevBuild(a,dev,bpm){var t=dev.type,p=dev.p,D={in:a.createGain(),out:a.createGain()};
   if(t==="eq8"){var hp=a.createBiquadFilter(),ls=a.createBiquadFilter(),pk=a.createBiquadFilter(),hs=a.createBiquadFilter();hp.type="highpass";ls.type="lowshelf";pk.type="peaking";hs.type="highshelf";
     D.in.connect(hp);hp.connect(ls);ls.connect(pk);pk.connect(hs);hs.connect(D.out);D.filters=[hp,ls,pk,hs];
-    D.set=function(p){hp.frequency.value=p.f1;hp.Q.value=0.71;ls.gain.value=p.g2;ls.frequency.value=p.f2;pk.gain.value=p.g3;pk.frequency.value=p.f3;pk.Q.value=p.q3;hs.gain.value=p.g4;hs.frequency.value=p.f4;};}
+    D.set=function(p){lvSv(hp.frequency,p.f1);lvSv(hp.Q,0.71);lvSv(ls.gain,p.g2);lvSv(ls.frequency,p.f2);lvSv(pk.gain,p.g3);lvSv(pk.frequency,p.f3);lvSv(pk.Q,p.q3);lvSv(hs.gain,p.g4);lvSv(hs.frequency,p.f4);};}
   else if(t==="eq3"){var l=a.createBiquadFilter(),m=a.createBiquadFilter(),h=a.createBiquadFilter();l.type="lowshelf";m.type="peaking";h.type="highshelf";D.in.connect(l);l.connect(m);m.connect(h);h.connect(D.out);D.filters=[l,m,h];
-    D.set=function(p){l.frequency.value=p.flo;l.gain.value=p.lo;h.frequency.value=p.fhi;h.gain.value=p.hi;m.frequency.value=Math.sqrt(p.flo*p.fhi);m.Q.value=0.5;m.gain.value=p.mid;};}
+    D.set=function(p){lvSv(l.frequency,p.flo);lvSv(l.gain,p.lo);lvSv(h.frequency,p.fhi);lvSv(h.gain,p.hi);lvSv(m.frequency,Math.sqrt(p.flo*p.fhi));lvSv(m.Q,0.5);lvSv(m.gain,p.mid);};}
   else if(t==="filter"){var f=a.createBiquadFilter(),lfo=a.createOscillator(),lg=a.createGain();lfo.connect(lg);lg.connect(f.frequency);lfo.start();D.in.connect(f);f.connect(D.out);D.osc=[lfo];D.filters=[f];
-    D.set=function(p){f.type=["lowpass","highpass","bandpass"][p.type|0];f.frequency.value=p.freq;f.Q.value=p.res;lfo.frequency.value=p.rate;lg.gain.value=p.freq*0.9*p.lfo/100;};}
+    D.set=function(p){f.type=["lowpass","highpass","bandpass"][p.type|0];lvSv(f.frequency,p.freq);lvSv(f.Q,p.res);lvSv(lfo.frequency,p.rate);lvSv(lg.gain,p.freq*0.9*p.lfo/100);};}
   else if(t==="comp"){var c=a.createDynamicsCompressor(),g=a.createGain();D.in.connect(c);c.connect(g);g.connect(D.out);D.comp=c;
-    D.set=function(p){c.threshold.value=p.th;c.ratio.value=p.ratio;c.attack.value=p.att/1000;c.release.value=p.rel/1000;c.knee.value=p.knee;g.gain.value=lvDbGain(p.out);};}
+    D.set=function(p){lvSv(c.threshold,p.th);lvSv(c.ratio,p.ratio);lvSv(c.attack,p.att/1000);lvSv(c.release,p.rel/1000);lvSv(c.knee,p.knee);lvSv(g.gain,lvDbGain(p.out));};}
   else if(t==="glue"){var w=lvDW(a),c2=a.createDynamicsCompressor(),mk2=a.createGain();D.in.connect(w.in);w.in.connect(c2);c2.connect(mk2);mk2.connect(w.wet);w.out.connect(D.out);D.comp=c2;
-    D.set=function(p){c2.threshold.value=p.th;c2.ratio.value=[2,4,10][p.ratio|0];c2.knee.value=3;c2.attack.value=p.att/1000;c2.release.value=p.rel;mk2.gain.value=lvDbGain(p.make);w.mix(p.mix/100);};}
+    D.set=function(p){lvSv(c2.threshold,p.th);lvSv(c2.ratio,[2,4,10][p.ratio|0]);lvSv(c2.knee,3);lvSv(c2.attack,p.att/1000);lvSv(c2.release,p.rel);lvSv(mk2.gain,lvDbGain(p.make));w.mix(p.mix/100);};}
   else if(t==="sat"){var w3=lvDW(a),pre=a.createGain(),ws=a.createWaveShaper(),post=a.createGain();ws.oversample="4x";D.in.connect(w3.in);w3.in.connect(pre);pre.connect(ws);ws.connect(post);post.connect(w3.wet);w3.out.connect(D.out);var lastT=-1;
-    D.set=function(p){if((p.type|0)!==lastT){lastT=p.type|0;ws.curve=lvSatCurve(lastT);}pre.gain.value=lvDbGain(p.drive)/3;post.gain.value=lvDbGain(p.out)*Math.max(1,3/Math.max(1,lvDbGain(p.drive)*0.6));w3.mix(p.mix/100);};}
+    D.set=function(p){if((p.type|0)!==lastT){lastT=p.type|0;ws.curve=lvSatCurve(lastT);}lvSv(pre.gain,lvDbGain(p.drive)/3);lvSv(post.gain,lvDbGain(p.out)*Math.max(1,3/Math.max(1,lvDbGain(p.drive)*0.6)));w3.mix(p.mix/100);};}
   else if(t==="util"){var sp=a.createChannelSplitter(2),mg=a.createChannelMerger(2),ll=a.createGain(),rl=a.createGain(),rr=a.createGain(),lr=a.createGain(),gg=a.createGain();
     D.in.connect(gg);gg.connect(sp);sp.connect(ll,0);sp.connect(lr,0);sp.connect(rr,1);sp.connect(rl,1);ll.connect(mg,0,0);rl.connect(mg,0,0);rr.connect(mg,0,1);lr.connect(mg,0,1);mg.connect(D.out);
-    D.set=function(p){var w=p.mono>0.5?0:p.width/100,bl=Math.min(1,1-p.bal/50),br=Math.min(1,1+p.bal/50),sl=p.phl>0.5?-1:1,sr=p.phr>0.5?-1:1;gg.gain.value=lvDbGain(p.gain);
-      ll.gain.value=(1+w)/2*bl*sl;rl.gain.value=(1-w)/2*bl*sr;rr.gain.value=(1+w)/2*br*sr;lr.gain.value=(1-w)/2*br*sl;};}
+    D.set=function(p){var w=p.mono>0.5?0:p.width/100,bl=Math.min(1,1-p.bal/50),br=Math.min(1,1+p.bal/50),sl=p.phl>0.5?-1:1,sr=p.phr>0.5?-1:1;lvSv(gg.gain,lvDbGain(p.gain));
+      lvSv(ll.gain,(1+w)/2*bl*sl);lvSv(rl.gain,(1-w)/2*bl*sr);lvSv(rr.gain,(1+w)/2*br*sr);lvSv(lr.gain,(1-w)/2*br*sl);};}
   else if(t==="delay"){var w4=lvDW(a),dl=a.createDelay(4),fb=a.createGain(),lp=a.createBiquadFilter();lp.type="lowpass";D.in.connect(w4.in);w4.in.connect(dl);dl.connect(lp);lp.connect(fb);fb.connect(dl);lp.connect(w4.wet);w4.out.connect(D.out);
-    D.set=function(p,b){var beats=[0.125,0.25,0.5,0.75,1,1.5,2][p.sync|0];dl.delayTime.value=Math.min(3.9,beats*60/(b||bpm||120));fb.gain.value=p.fb/100;lp.frequency.value=p.flt;w4.mix(p.mix/100);};}
+    D.set=function(p,b){var beats=[0.125,0.25,0.5,0.75,1,1.5,2][p.sync|0];lvSv(dl.delayTime,Math.min(3.9,beats*60/(b||bpm||120)));lvSv(fb.gain,p.fb/100);lvSv(lp.frequency,p.flt);w4.mix(p.mix/100);};}
   else if(t==="reverb"){var w5=lvDW(a),pd=a.createDelay(1),cv=a.createConvolver(),tn=a.createBiquadFilter();tn.type="lowpass";D.in.connect(w5.in);w5.in.connect(pd);pd.connect(cv);cv.connect(tn);tn.connect(w5.wet);w5.out.connect(D.out);var lastD=-1;
-    D.set=function(p){if(Math.abs(p.decay-lastD)>0.05){lastD=p.decay;cv.buffer=lvIR(a,Math.min(10,p.decay),2.6);}pd.delayTime.value=p.pre/1000;tn.frequency.value=p.tone;w5.mix(p.mix/100);};}
+    D.set=function(p){if(Math.abs(p.decay-lastD)>0.05){lastD=p.decay;cv.buffer=lvIR(a,Math.min(10,p.decay),2.6);}lvSv(pd.delayTime,p.pre/1000);lvSv(tn.frequency,p.tone);w5.mix(p.mix/100);};}
   else if(t==="chorus"){var w6=lvDW(a),d1=a.createDelay(0.1),d2=a.createDelay(0.1),o1=a.createOscillator(),o2=a.createOscillator(),g1=a.createGain(),g2=a.createGain(),pl=a.createStereoPanner(),pr=a.createStereoPanner();
-    pl.pan.value=-0.7;pr.pan.value=0.7;o1.connect(g1);g1.connect(d1.delayTime);o2.connect(g2);g2.connect(d2.delayTime);o1.start();o2.start();D.osc=[o1,o2];
+    lvSv(pl.pan,-0.7);lvSv(pr.pan,0.7);o1.connect(g1);g1.connect(d1.delayTime);o2.connect(g2);g2.connect(d2.delayTime);o1.start();o2.start();D.osc=[o1,o2];
     D.in.connect(w6.in);w6.in.connect(d1);w6.in.connect(d2);d1.connect(pl);d2.connect(pr);pl.connect(w6.wet);pr.connect(w6.wet);w6.out.connect(D.out);
-    D.set=function(p){o1.frequency.value=p.rate;o2.frequency.value=p.rate*1.13;d1.delayTime.value=0.012;d2.delayTime.value=0.018;g1.gain.value=0.006*p.amt/100;g2.gain.value=0.007*p.amt/100;w6.mix(p.mix/100);};}
+    D.set=function(p){lvSv(o1.frequency,p.rate);lvSv(o2.frequency,p.rate*1.13);lvSv(d1.delayTime,0.012);lvSv(d2.delayTime,0.018);lvSv(g1.gain,0.006*p.amt/100);lvSv(g2.gain,0.007*p.amt/100);w6.mix(p.mix/100);};}
   else{D.in.connect(D.out);D.set=function(){};}
   D.set(Object.assign(lvDevDefaults(t),p),bpm);return D;}
 /* ---------- the mixer graph (used live and for offline export) ---------- */
@@ -53,12 +56,14 @@ function lvChainSig(t){return (t.devs||[]).map(function(d){return d.id+(d.on===f
 function lvChainBuild(M,t,S){var T=M.tr[t.id],a=M.a;try{T.in.disconnect();}catch(e){}T.devs.forEach(function(D){try{D.out.disconnect();}catch(e){}(D.osc||[]).forEach(function(o){try{o.stop();}catch(e){}});});T.devs=[];
   var last=T.in;(t.devs||[]).forEach(function(d){if(d.on===false)return;var D=lvDevBuild(a,d,S.bpm);D.id=d.id;last.connect(D.in);last=D.out;T.devs.push(D);});last.connect(T.pan);T.sig=lvChainSig(t);}
 function lvMixParams(M,S){var anySolo=S.tracks.some(function(t){return t.solo;}),now=M.a.currentTime;
+  var live=M.a===(typeof AC!=="undefined"?AC:null)||(typeof ac==="function"&&M.a===ac()),play=live&&LVT.playing,pos=live?lvNowA():0;
+  var mp=function(t,pid,par,base,conv){var A=typeof lvAutoActive==="function"&&lvAutoActive(t,pid);if(A&&play)return;var v=A?lvEnvAt(t.auto[pid].pts,pos):base;try{par.cancelScheduledValues(0);}catch(e){}par.setTargetAtTime(conv?conv(v):v,now,0.015);};
   S.tracks.forEach(function(t){var T=M.tr[t.id];if(!T)return;if(T.sig!==lvChainSig(t))lvChainBuild(M,t,S);
-    T.devs.forEach(function(D){var d=(t.devs||[]).find(function(x){return x.id===D.id;});if(d)D.set(Object.assign(lvDevDefaults(d.type),d.p),S.bpm);});
-    T.f.gain.setTargetAtTime(lvDbGain(t.vol),now,0.015);T.pan.pan.setTargetAtTime(t.pan,now,0.015);T.act.gain.setTargetAtTime(t.on&&(!anySolo||t.solo)?1:0,now,0.01);
-    T.sA.gain.setTargetAtTime(t.sendA,now,0.015);T.sB.gain.setTargetAtTime(t.sendB,now,0.015);});
+    T.devs.forEach(function(D){var d=(t.devs||[]).find(function(x){return x.id===D.id;});if(!d)return;var auto=typeof lvDevAutoKeys==="function"?lvDevAutoKeys(t,d):[];if(auto.length&&play)return;var p=Object.assign(lvDevDefaults(d.type),d.p);auto.forEach(function(k){p[k]=lvEnvAt(t.auto["d:"+d.id+":"+k].pts,pos);});D.set(p,S.bpm);});
+    mp(t,"vol",T.f.gain,t.vol,lvDbGain);mp(t,"pan",T.pan.pan,t.pan);T.act.gain.setTargetAtTime(t.on&&(!anySolo||t.solo)?1:0,now,0.01);
+    mp(t,"sA",T.sA.gain,t.sendA);mp(t,"sB",T.sB.gain,t.sendB);});
   S.returns.forEach(function(r){var R=M.ret[r.id];R.f.gain.setTargetAtTime(r.on?lvDbGain(r.vol):0,now,0.015);R.p.pan.setTargetAtTime(r.pan||0,now,0.015);});
-  M.ret.B.dl.delayTime.setTargetAtTime(Math.min(3.9,0.75*60/S.bpm),now,0.05);M.masterF.gain.setTargetAtTime(lvDbGain(S.master.vol),now,0.015);}
+  M.ret.B.dl.delayTime.setTargetAtTime(Math.min(3.9,0.75*60/S.bpm),now,0.05);mp(S.master,"vol",M.masterF.gain,S.master.vol,lvDbGain);}
 /* ---------- instruments ---------- */
 var LVE={M:null,voices:[]};
 function lvEngine(){var a=ac();if(!LVE.M||LVE.M.a!==a){LVE.M=lvMixBuild(a,LV.set,a.destination);}return LVE.M;}
@@ -97,7 +102,7 @@ function lvStopAll(keepPos){var a=ac();if(LVT.rec||LVT.cap)lvRecStop();clearInte
   LVT.regions.forEach(function(r){(r.srcs||[]).forEach(function(s){try{s.stop(now+0.02);}catch(e){}});if(r.rec)lvRecFinishSession(r,lvG(now),true);});LVT.regions=[];
   LVT.arrSrc.forEach(function(x){try{x.s.stop(now+0.02);}catch(e){}});LVT.arrSrc=[];
   LVE.voices.forEach(function(v){try{v.g.gain.cancelScheduledValues(now);v.g.gain.setTargetAtTime(0,now,0.01);v.s.stop(now+0.06);}catch(e){}});LVE.voices.length=0;
-  LVT.playing=false;LVT.pre=false;LV.set.tracks.forEach(function(t){t.arrOff=false;});lvUiTransport();}
+  LVT.playing=false;LVT.pre=false;LV.set.tracks.forEach(function(t){t.arrOff=false;});try{lvMixParams(lvEngine(),LV.set);}catch(e){}lvUiTransport();}
 function lvStopPress(){if(LVT.playing){lvStopAll();}else{LV.insert=LV.set.loop.on?LV.set.loop.s:0;LV.scrollX=0;}lvRenderSoon();}
 /* quantized launch point (in G) — aligned to arrangement bars like Live's global quantization */
 function lvQuantG(qBeats){var g=lvNowG()+0.03;if(!qBeats)return g;var aN=lvA(g),aQ=Math.ceil(aN/qBeats-1e-6)*qBeats;return g+(aQ-aN);}
@@ -138,8 +143,8 @@ function lvTick(){if(!LVT.playing)return;var a=ac(),X=lvLiveX(),g1=lvG(a.current
   LVT.regions.forEach(function(r){var t=lvTrack(r.t);if(!t)return;if(r.rec&&r.recEnd!=null&&r.recEnd<=g1){lvRecFinishSession(r,r.recEnd,false,true);}
     if(r.rec&&!r.recEnd)return;lvSchedClip(X,t,r.clip,r.anchor,r.from,r.to,g0,g1,r.keys,r.srcs,"s"+r.id);});
   /* arrangement, with loop jumps */
-  if(g1>0){var aStart=lvA(Math.max(0,g0)),L=S.loop;if(L.on&&L.l>0&&aStart<L.s+L.l&&aStart+(g1-Math.max(0,g0))>=L.s+L.l){var gJ=Math.max(0,g0)+(L.s+L.l-aStart);lvSchedArr(X,g0,gJ);if(LVT.rec)lvRecLoopWrap(gJ);LVT.maps.push({g:gJ,a:L.s});LVT.pass++;LVT.akeys={};
-      LVT.arrSrc.forEach(function(x){try{x.s.stop(lvTime(gJ));}catch(e){}});LVT.arrSrc=[];lvSchedArr(X,gJ,g1);}else lvSchedArr(X,g0,g1);}
+  if(g1>0){var aStart=lvA(Math.max(0,g0)),L=S.loop;if(L.on&&L.l>0&&aStart<L.s+L.l&&aStart+(g1-Math.max(0,g0))>=L.s+L.l){var gJ=Math.max(0,g0)+(L.s+L.l-aStart);lvSchedArr(X,g0,gJ);lvAutoApply(g0,gJ);if(LVT.rec)lvRecLoopWrap(gJ);LVT.maps.push({g:gJ,a:L.s});LVT.pass++;LVT.akeys={};
+      LVT.arrSrc.forEach(function(x){try{x.s.stop(lvTime(gJ));}catch(e){}});LVT.arrSrc=[];lvSchedArr(X,gJ,g1);lvAutoApply(gJ,g1);}else{lvSchedArr(X,g0,g1);lvAutoApply(g0,g1);}}
   /* finished session regions → recorded into the arrangement when global record is on */
   var keep=[];LVT.regions.forEach(function(r){if(r.to<=g0){if(LVT.rec&&r.recA!=null&&!r.rec)lvRegionToArr(r);}else keep.push(r);});LVT.regions=keep;
   if(LVE.voices.length>400){var now=a.currentTime;for(var i=LVE.voices.length-1;i>=0;i--)if(LVE.voices[i].end<now-0.5)LVE.voices.splice(i,1);}}
