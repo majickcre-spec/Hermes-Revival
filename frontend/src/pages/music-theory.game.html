@@ -447,6 +447,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .scstep.a{color:#e7a6ff;border-color:#7a4e8a}
 .ilalign{overflow:auto;overscroll-behavior:contain;touch-action:pan-x pan-y;max-height:440px;padding:6px;background:var(--bg);border:1px solid var(--line);border-radius:10px}
 .ilbeat{display:inline-block;width:46px;height:46px;border-radius:50%;background:var(--gold);opacity:.28;transition:opacity .32s ease-out,transform .32s ease-out}
+.llcard{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:6px 0}.llcard.foc{border-color:var(--gold);box-shadow:0 0 0 1px rgba(243,193,74,.25)}.llhead{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--muted);margin-bottom:5px;flex-wrap:wrap}.llhead b{color:var(--cream)}.llletter{background:rgba(127,240,214,.15);color:#7ff0d6;border-radius:6px;padding:0 7px;font-weight:900}.llbars{opacity:.75}.llcnt{margin-left:auto;display:flex;gap:6px;align-items:center}.llsyl{font-weight:900;font-size:1rem;color:var(--cream)}.llsyl small{font-weight:600;opacity:.6;font-size:.7rem}.llsyl.ok{color:#7ff0d6}.llsyl.long{color:#ff8f8c}.llsyl.short{color:#8fb8ff}.llvs{font-size:.72rem;opacity:.7}.llrow{display:flex;gap:6px;align-items:center}.llin{flex:1;min-width:0;background:#0b0918;border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:9px 10px;font:inherit;font-size:1.02rem}.llrhy{margin-top:6px}.llrw.p{border-color:rgba(243,193,74,.5)}.llstar{margin-left:6px;opacity:.55}.llstar:hover{opacity:1}
 .ilbeat.on{opacity:1;transform:scale(1.22);transition:none;box-shadow:0 0 22px var(--gold)}
 .prroll{position:relative}
 .prrow{position:absolute;left:0}
@@ -2601,10 +2602,88 @@ function llMiniRoll(vn,orig){
 }
 const LL_PARTS=["Verse","Pre-chorus","Chorus","Hook","Bridge","Intro","Outro"];
 const LL_VOICES=[["piano","🎹 Piano"],["keys","🎵 Keys"],["pluck","🎸 Pluck"],["synth","🎛 Synth"],["voice","🎤 Voice"]];
+/* ===== LYRIC LAB — line by line: each line = 2 bars, syllable targets by genre, rhyme pattern, auto rhymes ===== */
+const LL_GENRES=[
+ {id:"pop",nm:"Pop",syl:[7,10],bpm:100,pat:"ABAB",feel:"even",tip:"Short, singable lines. Put the title on the chorus downbeat."},
+ {id:"hiphop",nm:"Hip-hop",syl:[11,16],bpm:90,pat:"AABB",feel:"busy",tip:"More syllables, fast 16ths. Stack rhymes, inside the line too."},
+ {id:"rnb",nm:"R&B / Soul",syl:[6,9],bpm:80,pat:"ABAB",feel:"long",tip:"Fewer words, longer notes — leave room to bend and hold."},
+ {id:"country",nm:"Country",syl:[8,11],bpm:96,pat:"ABCB",feel:"even",tip:"Tell the story in plain words. Lines 2 and 4 rhyme."},
+ {id:"rock",nm:"Rock",syl:[6,9],bpm:120,pat:"AABB",feel:"even",tip:"Punchy lines that hit beat 1. Strong, simple rhymes."},
+ {id:"worship",nm:"Worship / Gospel",syl:[6,9],bpm:72,pat:"ABCB",feel:"long",tip:"Simple, open lines people can sing together."},
+ {id:"folk",nm:"Folk",syl:[7,10],bpm:90,pat:"ABCB",feel:"even",tip:"Conversational lines; near rhymes feel natural here."},
+ {id:"edm",nm:"EDM / Dance",syl:[4,8],bpm:124,pat:"AAAA",feel:"even",tip:"Very short, repeatable hook lines."}];
+const LL_PATS=["AABB","ABAB","ABCB","AAAA","Free"];
+function llGenre(id){return LL_GENRES.find(g=>g.id===id)||LL_GENRES[0];}
+function llLetter(pat,i){if(pat==="Free")return "";return pat[i%pat.length];}
+function llPartner(lines,pat,i){const L=llLetter(pat,i);if(!L)return -1;for(let j=i-1;j>=0;j--){if(llLetter(pat,j)===L&&lastWord(lines[j].t||""))return j;}return -1;}
+function llSylN(t){return lyricSyllables((t||"").replace(/\[[^\]]*\]/g," ")).length;}
+/* one line → notes inside its 2-bar slot (32 sixteenths); pitches from the existing contour generator */
+function llLineNotes(text,slot,pickup,feel,seed){const n=llSylN(text);if(!n)return [];
+  const pit=llMelodyFromLyrics(text,96,seed).map(x=>x.midi);while(pit.length<n)pit.push(pit[pit.length-1]||60);
+  const room=28+(pickup?2:0);let L=feel==="busy"?(n<=10?2:1):feel==="long"?(n<=6?4:n<=12?2:1):(n<=6?4:n<=13?2:1);while(n*L>room&&L>1)L--;
+  const lens=new Array(n).fill(L);let used=n*L;const extra=Math.max(0,Math.min(8,room-used));lens[n-1]+=extra;
+  let st=slot-(pickup?2:0);if(st<0)st=0;const out=[];for(let k=0;k<n;k++){out.push({midi:pit[k],step:st,len:Math.max(1,lens[k])});st+=lens[k];}return out;}
+function llLinesMelody(lines,feel,seed){let notes=[];lines.forEach((ln,i)=>{notes=notes.concat(llLineNotes(ln.t,i*32,!!ln.pk&&i>0,feel,(seed*97+i*13)>>>0));});return notes;}
 function ideaUI(){
   let notes=[],capRAF=null,capturing=false,capSamples=[],capStart=0,rec=null,recChunks=[],url=null,takeBufs=[],lyricsTyped=false,visTimer=null,lyrics="",level=load("mjk-fblevel","kid");
   let part=load("mjk-ideapart","Verse"),voice=load("mjk-ideavoice","piano"),bpm=load("mjk-ideabpm",96),selIdx=-1,playTimers=[],genSeed=1;
   let clickOn=load("mjk-ideaclick",true),metroTimer=null,capMode="new",capBufI=0,lyricsBase="",_counting=false;
+  let llMode=load("mjk-llmode","lines"),llGen=load("mjk-llgenre","pop"),llPat=load("mjk-llpat",null),llLines=load("mjk-lllines",null),llBank=load("mjk-llbank",[]),llFocus=0;const llRhy={};
+  if(!llPat)llPat=llGenre(llGen).pat;if(!Array.isArray(llLines)||!llLines.length)llLines=[{t:""},{t:""},{t:""},{t:""}];
+  function llSync(){save("mjk-lllines",llLines);if(llMode==="lines"){lyrics=llLines.map(l=>l.t).join("\n");lyricsTyped=!!lyrics.trim();}}
+  if(llMode==="lines")llSync();
+  function llBadge(i){const g=llGenre(llGen),n=llSylN(llLines[i].t),[lo,hi]=g.syl,first=llSylN(llLines[0].t);if(!n)return '<span class="llsyl">0</span>';
+    const cls=n>hi?"long":n<lo?"short":"ok";return '<span class="llsyl '+cls+'" title="'+(cls==="long"?"too long for 2 bars of "+g.nm+" — cut a word":cls==="short"?"short — add a word or hold a note":"right in range")+'">'+n+'<small>/'+lo+'–'+hi+'</small></span>'+(i>0&&first?'<span class="llvs">'+(n===first?"= line 1":(n>first?"+":"")+(n-first)+" vs line 1")+'</span>':'');}
+  function llLinesHTML(){const g=llGenre(llGen);
+    let h='<div class="rrow2"><span class="rlab">Genre</span><span class="rchips tight" id="llGenre">'+LL_GENRES.map(x=>'<button class="rchip sm'+(x.id===llGen?" sel":"")+'" data-g="'+x.id+'">'+esc(x.nm)+'</button>').join("")+'</span></div>'+
+      '<div class="rrow2"><span class="rlab">Rhyme</span><span class="rchips tight" id="llPat">'+LL_PATS.map(x=>'<button class="rchip sm'+(x===llPat?" sel":"")+'" data-p="'+x+'">'+x+'</button>').join("")+'</span></div>'+
+      '<div class="site-note" style="margin:2px 0 8px;font-size:.82rem">'+esc(g.nm)+': aim for <b>'+g.syl[0]+'–'+g.syl[1]+' syllables</b> a line · each line = <b>2 bars</b>. '+esc(g.tip)+'</div><div id="llCards">';
+    llLines.forEach((ln,i)=>{const L=llLetter(llPat,i),pj=llPartner(llLines,llPat,i);
+      h+='<div class="llcard'+(i===llFocus?" foc":"")+'" data-i="'+i+'"><div class="llhead"><b>Line '+(i+1)+'</b>'+(L?'<span class="llletter">'+L+'</span>':'')+'<span class="llbars">bars '+(i*2+1)+'–'+(i*2+2)+(ln.pk&&i>0?' · pickup':'')+'</span><span class="llcnt" id="llc'+i+'">'+llBadge(i)+'</span></div>'+
+        '<div class="llrow"><input class="llin" data-i="'+i+'" value="'+esc(ln.t||"")+'" placeholder="'+(pj>=0?'rhymes with “'+esc(lastWord(llLines[pj].t))+'”…':(i===0?'start your first line…':'next line…'))+'" autocomplete="off" autocapitalize="sentences">'+
+        '<button class="rchip sm" data-play="'+i+'" title="hear this line">▶</button>'+(i>0?'<button class="rchip sm'+(ln.pk?" sel":"")+'" data-pk="'+i+'" title="start half a beat early (pickup)">↰</button>':'')+'<button class="rchip sm" data-del="'+i+'" title="remove line">✕</button></div>'+
+        (i===llFocus?'<div class="llrhy" id="llRhy"></div>':'')+'</div>';});
+    h+='</div><div class="rchips tight" style="margin:6px 0"><button class="rchip sm" id="llAdd">＋ Line</button><button class="rchip sm" id="llAdd4">＋ 4 lines</button></div>'+
+      '<div class="rrow2" style="align-items:flex-start"><span class="rlab">🧺 Word bank</span><span class="rchips tight" id="llBank">'+(llBank.length?llBank.map((w,k)=>'<button class="rchip sm" data-bw="'+k+'">'+esc(w)+' <span data-bx="'+k+'" style="opacity:.5">✕</span></button>').join(""):'<span class="site-note" style="font-size:.8rem">tap ★ on any rhyme to save it here</span>')+'</span></div>'+
+      '<div class="actions" style="margin:8px 0 2px"><button class="btn" id="llMake">'+(notes.length?'🎲 Another melody':'🎹 Make the melody')+'</button><button class="btn ghost" id="llPlayAll">▶ Play all lines</button><button class="btn ghost" id="llClr">↺ Clear lines</button></div>';
+    return h;}
+  function llRhymePanel(){const box=document.getElementById("llRhy");if(!box)return;const i=llFocus,pj=llPartner(llLines,llPat,i);
+    if(pj<0){const prev=i>0?lastWord(llLines[i-1].t):"";box.innerHTML=(llPat==="Free"||!llLetter(llPat,i))?'':'<div class="site-note" style="font-size:.8rem">Line '+(i+1)+' is a <b>'+llLetter(llPat,i)+'</b> line — '+(i===0?'it sets the first rhyme.':'free line, no rhyme needed.')+(prev?' <button class="rchip sm" id="llAny">rhyme with “'+esc(prev)+'” anyway</button>':'')+'</div>';
+      const an=document.getElementById("llAny");if(an)an.onclick=()=>llShowRhymes(prev,i-1);return;}
+    llShowRhymes(lastWord(llLines[pj].t),pj);}
+  function llShowRhymes(w,pj){const box=document.getElementById("llRhy");if(!box||!w)return;const key=w.toLowerCase();
+    const paint=r=>{const b2=document.getElementById("llRhy");if(!b2)return;if(!r){b2.innerHTML='<div class="site-note" style="font-size:.8rem">Rhymes need internet — try again when online.</div>';return;}
+      const chip=(x,k)=>'<button class="rchip sm llrw '+k+'" data-w="'+esc(x)+'">'+esc(x)+'<span class="llstar" data-star="'+esc(x)+'">★</span></button>';
+      b2.innerHTML='<div class="site-note" style="font-size:.8rem;margin:4px 0 2px">✨ Rhymes with <b>“'+esc(w)+'”</b> (line '+(pj+1)+') — tap to end your line with it, ★ to save</div>'+
+        (r.perfect.length?'<div class="rchips tight"><span class="rlab" style="min-width:auto">perfect</span>'+r.perfect.slice(0,14).map(x=>chip(x,"p")).join("")+'</div>':'')+
+        (r.near.length?'<div class="rchips tight" style="margin-top:3px"><span class="rlab" style="min-width:auto">near</span>'+r.near.slice(0,14).map(x=>chip(x,"n")).join("")+'</div>':'')+(!r.perfect.length&&!r.near.length?'<div class="site-note">No rhymes found — try a different last word.</div>':'');
+      b2.querySelectorAll("[data-w]").forEach(b=>b.onclick=e=>{const st=e.target.closest("[data-star]");if(st){const ww=st.dataset.star;if(llBank.indexOf(ww)<0){llBank.push(ww);save("mjk-llbank",llBank);llBankPaint();}st.textContent="✓";return;}llUseWord(b.dataset.w);});};
+    if(llRhy[key]){paint(llRhy[key]);return;}box.innerHTML='<div class="site-note" style="font-size:.8rem">Finding rhymes for “'+esc(w)+'”…</div>';rhymeFind(key,(r)=>{if(r)llRhy[key]=r;paint(r);});}
+  function llUseWord(w){const i=llFocus,inp=document.querySelector('.llin[data-i="'+i+'"]');let t=(llLines[i].t||"").replace(/\s+$/,"");t=t?t+" "+w:w;llLines[i].t=t;if(inp){inp.value=t;inp.focus();}llAfterEdit(i);}
+  function llBankPaint(){const b=document.getElementById("llBank");if(!b)return;b.innerHTML=llBank.length?llBank.map((w,k)=>'<button class="rchip sm" data-bw="'+k+'">'+esc(w)+' <span data-bx="'+k+'" style="opacity:.5">✕</span></button>').join(""):'<span class="site-note" style="font-size:.8rem">tap ★ on any rhyme to save it here</span>';
+    b.querySelectorAll("[data-bw]").forEach(x=>x.onclick=e=>{const bx=e.target.closest("[data-bx]");if(bx){llBank.splice(+bx.dataset.bx,1);save("mjk-llbank",llBank);llBankPaint();return;}llUseWord(llBank[+x.dataset.bw]);});}
+  function llAfterEdit(i){llSync();const c=document.getElementById("llc"+i);if(c)c.innerHTML=llBadge(i);for(let j=1;j<llLines.length;j++){const cj=document.getElementById("llc"+j);if(cj&&j!==i)cj.innerHTML=llBadge(j);}
+    // refresh placeholders of lines that rhyme with this one
+    document.querySelectorAll(".llin").forEach(inp=>{const k=+inp.dataset.i,pj=llPartner(llLines,llPat,k);inp.placeholder=pj>=0?'rhymes with “'+lastWord(llLines[pj].t)+'”…':(k===0?'start your first line…':'next line…');});
+    try{renderRoll();}catch(e){}}
+  function llSetFocus(i){if(i===llFocus&&document.getElementById("llRhy"))return;llFocus=i;document.querySelectorAll(".llcard").forEach(c=>{const k=+c.dataset.i;c.classList.toggle("foc",k===i);const old=c.querySelector(".llrhy");if(old&&k!==i)old.remove();if(k===i&&!old){const d=document.createElement("div");d.className="llrhy";d.id="llRhy";c.appendChild(d);}});llRhymePanel();}
+  function llPlayLine(i){unlockAudio();const s16=(60/bpm)/4;let ns=notes.filter(n=>n.step>=i*32-2&&n.step<i*32+30);if(!ns.length)ns=llLineNotes(llLines[i].t,0,false,llGenre(llGen).feel,(genSeed*97+i*13)>>>0);if(!ns.length)return;const t0=Math.min.apply(null,ns.map(n=>n.step));ns.forEach(n=>melNote(n.midi,(n.step-t0)*s16,Math.max(0.12,n.len*s16*0.9),voice));}
+  function llBind(){const ge=document.getElementById("llGenre");if(!ge)return;
+    ge.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{llGen=b.dataset.g;save("mjk-llgenre",llGen);const g=llGenre(llGen);llPat=g.pat;save("mjk-llpat",llPat);setBpm(g.bpm);draw();});
+    document.querySelectorAll("#llPat [data-p]").forEach(b=>b.onclick=()=>{llPat=b.dataset.p;save("mjk-llpat",llPat);draw();});
+    document.querySelectorAll(".llin").forEach(inp=>{const i=+inp.dataset.i;inp.onfocus=()=>llSetFocus(i);inp.oninput=()=>{llLines[i].t=inp.value;llAfterEdit(i);};
+      inp.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();if(i===llLines.length-1){llLines.push({t:""});llSync();llFocus=i+1;draw();setTimeout(()=>{const n=document.querySelector('.llin[data-i="'+(i+1)+'"]');if(n)n.focus();},30);}else{const n=document.querySelector('.llin[data-i="'+(i+1)+'"]');if(n)n.focus();}}};
+      inp.onblur=()=>{const pj=i+1;if(pj<llLines.length&&!llLines[pj].t){/* pre-load rhymes for the next line */const q=llPartner(llLines,llPat,pj);if(q>=0){const w=lastWord(llLines[q].t).toLowerCase();if(w&&!llRhy[w])rhymeFind(w,r=>{if(r)llRhy[w]=r;});}}};});
+    document.querySelectorAll("[data-play]").forEach(b=>b.onclick=()=>llPlayLine(+b.dataset.play));
+    document.querySelectorAll("[data-pk]").forEach(b=>b.onclick=()=>{const i=+b.dataset.pk;llLines[i].pk=!llLines[i].pk;llSync();if(notes.length){notes=llLinesMelody(llLines,llGenre(llGen).feel,genSeed);}draw();});
+    document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{const i=+b.dataset.del;if(llLines.length<=1){llLines[0].t="";}else llLines.splice(i,1);llFocus=Math.min(llFocus,llLines.length-1);llSync();draw();});
+    const a1=document.getElementById("llAdd");if(a1)a1.onclick=()=>{llLines.push({t:""});llSync();draw();};
+    const a4=document.getElementById("llAdd4");if(a4)a4.onclick=()=>{for(let k=0;k<4;k++)llLines.push({t:""});llSync();draw();};
+    const mk=document.getElementById("llMake");if(mk)mk.onclick=()=>{unlockAudio();if(!llLines.some(l=>llSylN(l.t))){const f=document.querySelector(".llin");if(f)f.focus();return;}genSeed++;llSync();notes=llLinesMelody(llLines,llGenre(llGen).feel,genSeed);selIdx=-1;draw();const pm=document.getElementById("pmel");if(pm)pm.scrollIntoView({block:"center",behavior:"smooth"});};
+    const pa=document.getElementById("llPlayAll");if(pa)pa.onclick=()=>{unlockAudio();if(!notes.length){genSeed++;notes=llLinesMelody(llLines,llGenre(llGen).feel,genSeed);draw();}playMelody();};
+    const cl=document.getElementById("llClr");if(cl)cl.onclick=()=>{if(!cl.dataset.sure){cl.dataset.sure=1;cl.textContent="Tap again to clear";return;}llLines=[{t:""},{t:""},{t:""},{t:""}];notes=[];llFocus=0;llSync();draw();};
+    llBankPaint();llRhymePanel();}
+
   function setBpm(v){bpm=Math.max(50,Math.min(180,Math.round(v)));save("mjk-ideabpm",bpm);}
   function metroClick(t,accent){try{var a=ac(),o=a.createOscillator(),g=a.createGain();o.type="square";o.frequency.value=accent?1800:1200;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(accent?0.55:0.32,t+0.002);g.gain.exponentialRampToValueAtTime(0.0001,t+0.05);o.connect(g);g.connect(pianoMaster(a));o.start(t);o.stop(t+0.06);}catch(e){}}
   function stopMetro(){if(metroTimer){clearInterval(metroTimer);metroTimer=null;}}
@@ -2674,11 +2753,12 @@ function ideaUI(){
         <div class="actions"><button class="btn" id="sing">${capturing?"■ Stop":"🎤 Sing this part"}</button>${notes.length&&!capturing?'<button class="btn" id="singmore">🎤 Sing more</button>':""}${notes.length&&!capturing?'<button class="btn ghost" id="pmel">▶ Play melody</button>':""}${url&&!capturing?'<button class="btn ghost" id="ptake">▶ My take</button>':""}</div>
         <div class="feedback" id="ilStatus">${capturing?((capMode==="more"?"🎤 Singing the next part — it adds on after your first half":"🎤 Singing… tap Stop when done")+(SR?" (listening for words)":"")):(notes.length?notes.length+" notes mapped at "+Math.round(bpm)+" BPM":"Pick the part, set the tempo, then tap and sing")}</div>
         ${capturing?'<div style="text-align:center;margin:8px 0"><span id="ilBeat" class="ilbeat"></span><div class="site-note" style="margin-top:4px">keep the beat 👆</div></div>':""}
-        <div class="rlab" style="display:block;margin:10px 0 4px">Words <span style="opacity:.7">— write them first, or sing and I’ll catch them</span></div>
+        <div class="rrow2" style="margin-top:10px"><span class="rlab">Words</span><span class="rchips tight" id="llMode"><button class="rchip sm${llMode==="lines"?" sel":""}" data-m="lines">✍️ Line by line</button><button class="rchip sm${llMode!=="lines"?" sel":""}" data-m="free">📝 Free write</button></span></div>
+        ${llMode==="lines"?llLinesHTML():`        <div class="rlab" style="display:block;margin:10px 0 4px">Words <span style="opacity:.7">— write them first, or sing and I’ll catch them</span></div>
         <div class="rchips tight" id="ilForms" style="margin:2px 0 6px"></div>
         <textarea id="ilLyrics" placeholder="your words…" style="width:100%;min-height:54px;background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:9px;font:inherit"></textarea>
         <div class="actions" style="margin:8px 0 2px"><button class="btn" id="ilGen">${notes.length?'🎲 Another melody':'🎹 Make a melody'}</button>${(notes.length||(lyrics&&lyrics.trim()))?'<button class="btn ghost" id="ilClear">↺ Clear</button>':""}</div>
-        <div class="site-note" id="ilGenHint" style="margin:0 0 6px">${notes.length?'Not quite? Tap <b>Another melody</b> for a new tune, drag notes to tweak, or ▶ Play melody to hear it.':'Type or paste your words above, then tap <b>Make a melody</b> — I’ll put a singable tune under them, one note per syllable.'}</div>
+        <div class="site-note" id="ilGenHint" style="margin:0 0 6px">${notes.length?'Not quite? Tap <b>Another melody</b> for a new tune, drag notes to tweak, or ▶ Play melody to hear it.':'Type or paste your words above, then tap <b>Make a melody</b> — I’ll put a singable tune under them, one note per syllable.'}</div>`}
         <div class="rrow2" style="margin-top:6px"><span class="rlab">Rhymes</span><input id="ilRhymeW" placeholder="a word…" style="flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:6px 9px;font:inherit"><button class="rchip sm" id="ilRhymeGo">Find</button></div>
         <div class="site-note" id="ilRhymeOut" style="margin-top:4px"></div>
         ${notes.length&&!capturing?`
@@ -2696,6 +2776,8 @@ function ideaUI(){
         <div class="label" style="margin:16px 0 6px">Saved ideas</div><div id="ilList"></div>
       </div>`;
     $("#eBack").onclick=goHome;
+    document.querySelectorAll("#llMode [data-m]").forEach(x=>x.onclick=()=>{llMode=x.dataset.m;save("mjk-llmode",llMode);if(llMode==="lines"){if(!llLines.some(l=>l.t)&&lyrics.trim()){llLines=lyrics.split(/\n/).filter(l=>l.trim()&&!/^\s*\[/.test(l)).map(t=>({t:t.trim()}));if(!llLines.length)llLines=[{t:""}];}llSync();}draw();});
+    try{llBind();}catch(e){console.warn(e);}
     const pc=$("#ilPart");LL_PARTS.forEach(function(p){const b=document.createElement("button");b.className="rchip sm"+(p===part?" sel":"");b.textContent=p;b.onclick=function(){part=p;save("mjk-ideapart",p);draw();};pc.appendChild(b);});
     $("#sing").onclick=()=>{if(capturing)stopCap();else beginCapture("new");};
     const smb=$("#singmore");if(smb)smb.onclick=()=>{if(!capturing)beginCapture("more");};
