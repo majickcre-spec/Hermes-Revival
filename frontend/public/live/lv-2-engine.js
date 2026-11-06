@@ -63,7 +63,7 @@ function lvMixParams(M,S){var anySolo=S.tracks.some(function(t){return t.solo;})
     mp(t,"vol",T.f.gain,t.vol,lvDbGain);mp(t,"pan",T.pan.pan,t.pan);T.act.gain.setTargetAtTime(t.on&&(!anySolo||t.solo)?1:0,now,0.01);
     mp(t,"sA",T.sA.gain,t.sendA);mp(t,"sB",T.sB.gain,t.sendB);});
   S.returns.forEach(function(r){var R=M.ret[r.id];R.f.gain.setTargetAtTime(r.on?lvDbGain(r.vol):0,now,0.015);R.p.pan.setTargetAtTime(r.pan||0,now,0.015);});
-  M.ret.B.dl.delayTime.setTargetAtTime(Math.min(3.9,0.75*60/S.bpm),now,0.05);mp(S.master,"vol",M.masterF.gain,S.master.vol,lvDbGain);}
+  if(M.ret.B&&M.ret.B.dl)M.ret.B.dl.delayTime.setTargetAtTime(Math.min(3.9,0.75*60/S.bpm),now,0.05);mp(S.master,"vol",M.masterF.gain,S.master.vol,lvDbGain);}
 /* ---------- instruments ---------- */
 var LVE={M:null,voices:[]};
 function lvEngine(){var a=ac();if(!LVE.M||LVE.M.a!==a){LVE.M=lvMixBuild(a,LV.set,a.destination);}return LVE.M;}
@@ -71,7 +71,7 @@ function lvEngineSync(){var M=lvEngine(),S=LV.set;S.tracks.forEach(function(t){i
   Object.keys(M.tr).forEach(function(id){if(!S.tracks.some(function(t){return t.id===id;})){try{M.tr[id].act.disconnect();}catch(e){}delete M.tr[id];}});lvMixParams(M,S);lvPreload();}
 function lvPreload(){var S=LV.set;S.tracks.forEach(function(t){if(t.inst&&t.inst.indexOf("sf:")===0){try{sfLoadInst(t.inst.slice(3));}catch(e){}}if(t.inst&&t.inst.indexOf("dr:acoustic")===0){try{drsLoad();}catch(e){}}
   var cl=t.slots.concat(t.arr.map(function(x){return x.clip;}));cl.forEach(function(c){if(c&&c.audio&&c.audio.key&&!LVB[c.audio.key])lvLoadAudio(c.audio.key);});});}
-function lvVoice(X,src,g,end){X.voices.push({s:src,g:g,end:end});}
+function lvVoice(X,src,g,end,rel){X.voices.push({s:src,g:g,end:end,rel:rel});}
 function lvPlayNote(X,t,m,when,dur,vel){var a=X.a,T=X.M.tr[t.id];if(!T||!t.inst)return;var out=T.in,v=Math.max(0.05,Math.min(1.27,(vel||100)/100)),inst=t.inst;
   if(inst.indexOf("dr:")===0){var dm=LV_DRUMMAP[m];if(!dm)return;var id=dm[0],kit=inst.slice(3),g=a.createGain();g.gain.value=v;g.connect(out);
     try{if(kit==="acoustic"&&typeof DRS!=="undefined"&&(DRS.buf[id]||(id==="floor"&&DRS.buf.tom2))){var s=a.createBufferSource();s.buffer=DRS.buf[id]||DRS.buf.tom2;if(id==="floor")s.playbackRate.value=0.82;s.connect(g);s.start(when);lvVoice(X,s,g,when+s.buffer.duration);return;}
@@ -160,7 +160,7 @@ var LVHELD={};
 function lvNoteIn(m,vel,on){unlockAudio();var X=lvLiveX(),a=X.a,now=a.currentTime,tracks=lvInputTracks();
   if(on){tracks.forEach(function(t){var k=t.id+":"+m;if(LVHELD[k])lvHeldOff(k,now);var before=X.voices.length;lvPlayNote(X,t,m,now+0.003,30,vel);LVHELD[k]={vs:X.voices.slice(before),g:LVT.playing?lvNowG():null};});lvRecNote(m,vel,true,tracks);}
   else{tracks.forEach(function(t){var k=t.id+":"+m;lvHeldOff(k,now);});lvRecNote(m,vel,false,tracks);}lvKeysPaint&&lvKeysPaint(m,on);}
-function lvHeldOff(k,now){var h=LVHELD[k];if(!h)return;h.vs.forEach(function(v){try{v.g.gain.cancelScheduledValues(now);v.g.gain.setValueAtTime(v.g.gain.value,now);v.g.gain.setTargetAtTime(0.0001,now,0.08);v.s.stop(now+0.6);}catch(e){}});delete LVHELD[k];}
+function lvHeldOff(k,now){var h=LVHELD[k];if(!h)return;h.vs.forEach(function(v){var r=Math.max(0.02,v.rel||0.25);try{v.g.gain.cancelScheduledValues(now);v.g.gain.setValueAtTime(v.g.gain.value,now);v.g.gain.setTargetAtTime(0.0001,now,r/4);v.s.stop(now+r*1.6+0.05);}catch(e){}if(v.f){try{v.f.cancelScheduledValues(now);v.f.setTargetAtTime(v.fb||400,now,r/3);}catch(e){}}});delete LVHELD[k];}
 /* ---------- recording ---------- */
 function lvRecOffset(){if(LV.recOffMs!=null)return LV.recOffMs/1000;var v=load("mjk-latms",0);if(v>0)return v/1000;var a=ac();return (a.outputLatency||a.baseLatency||0.02)+0.01;}
 function lvRecToggle(){if(LVT.rec||LVT.recPending){lvRecStop();lvRenderSoon();return;}var arm=LV.set.tracks.filter(function(t){return t.arm;});if(!arm.length){lvStatus("Arm a track first (● button) to record into the Arrangement.");return;}

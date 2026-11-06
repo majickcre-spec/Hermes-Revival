@@ -3610,7 +3610,7 @@ function renderPianoRoll(clipId){if(toneRAF)cancelAnimationFrame(toneRAF);home.h
   draw();
 }
 /* the Ableton-style Studio lives in /live/*.js and loads the first time it's opened */
-const LIVE_PARTS=["lv-1-core","lv-2-engine","lv-3-session","lv-4-arr","lv-5-detail","lv-6-app","lv-7-auto"],LIVE_VER="2";
+const LIVE_PARTS=["lv-1-core","lv-2-engine","lv-3-session","lv-4-arr","lv-5-detail","lv-6-app","lv-7-auto","lv-8-pro","lv-9-proui"],LIVE_VER="3";
 function liveOpen(){if(window.lvOpen){window.lvOpen();return;}home.hidden=true;view.hidden=false;view.innerHTML='<div class="panel" style="text-align:center;padding:40px">Loading Studio…</div>';
   let i=0;const next=()=>{if(i>=LIVE_PARTS.length){if(window.lvOpen)window.lvOpen();return;}const sc=document.createElement("script");sc.src="/live/"+LIVE_PARTS[i++]+".js?v="+LIVE_VER;sc.onload=next;sc.onerror=()=>{view.innerHTML='<div class="panel" style="text-align:center;padding:40px">Couldn’t load the Studio — check your connection. <button class="btn" onclick="renderStudio()">Open Classic Studio</button></div>';};document.head.appendChild(sc);};next();}
 function renderStudio(){
