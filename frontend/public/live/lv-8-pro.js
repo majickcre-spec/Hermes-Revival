@@ -1,71 +1,13 @@
 /* part 8: professional sound engine — analog synth, modeled 808/909 drums, velocity-aware sampler, return device chains,
    new reverb + ping-pong delay, worklet compressor with sidechain, WSOLA time-stretch warping */
 /* ---------- instruments list ---------- */
-var LV_SYN2={
- saw:{nm:"Supersaw Lead",o1:"sawtooth",o2:"sawtooth",o2oct:0,o2det:12,o2lvl:0.7,sub:0,noise:0,uni:4,spread:22,width:0.8,ft:0,cut:2600,res:2,fenv:2.5,fa:0.005,fd:0.35,fs:0.35,fr:0.3,a:0.004,d:0.3,s:0.75,r:0.28,lfoR:5,lfoP:0,lfoF:0,glide:0,vel:0.5,drive:0.15,lvl:0.8},
- pad:{nm:"Warm Pad",o1:"sawtooth",o2:"triangle",o2oct:1,o2det:6,o2lvl:0.5,sub:0.2,noise:0.02,uni:3,spread:18,width:1,ft:0,cut:900,res:1,fenv:1.2,fa:1.2,fd:2,fs:0.4,fr:2,a:0.9,d:1.5,s:0.85,r:2.2,lfoR:0.25,lfoP:0,lfoF:0.4,glide:0,vel:0.3,drive:0,lvl:0.75},
- ambient:{nm:"Ambient Pad",o1:"sawtooth",o2:"sawtooth",o2oct:1,o2det:10,o2lvl:0.6,sub:0,noise:0.06,uni:4,spread:30,width:1,ft:0,cut:600,res:0.8,fenv:1.5,fa:3,fd:4,fs:0.5,fr:4,a:2.5,d:3,s:0.9,r:4,lfoR:0.12,lfoP:0,lfoF:0.8,glide:0,vel:0.2,drive:0,lvl:0.7},
- sub:{nm:"Sub Bass",o1:"sine",o2:"triangle",o2oct:0,o2det:0,o2lvl:0.25,sub:0,noise:0,uni:1,spread:0,width:0,ft:1,cut:420,res:0.7,fenv:0.6,fa:0.002,fd:0.12,fs:0.2,fr:0.1,a:0.003,d:0.25,s:0.95,r:0.12,lfoR:0,lfoP:0,lfoF:0,glide:0.04,vel:0.4,drive:0.35,lvl:0.95},
- reese:{nm:"Reese Bass",o1:"sawtooth",o2:"sawtooth",o2oct:0,o2det:18,o2lvl:1,sub:0.5,noise:0,uni:2,spread:14,width:0.5,ft:0,cut:700,res:2,fenv:1,fa:0.01,fd:0.4,fs:0.6,fr:0.2,a:0.005,d:0.3,s:0.9,r:0.15,lfoR:0.3,lfoP:0,lfoF:0.3,glide:0,vel:0.3,drive:0.4,lvl:0.85},
- acid:{nm:"Acid Bass",o1:"sawtooth",o2:"sawtooth",o2oct:0,o2det:0,o2lvl:0,sub:0,noise:0,uni:1,spread:0,width:0,ft:0,cut:300,res:14,fenv:4,fa:0.001,fd:0.18,fs:0.1,fr:0.1,a:0.001,d:0.2,s:0.7,r:0.08,lfoR:0,lfoP:0,lfoF:0,glide:0.06,vel:0.9,drive:0.5,lvl:0.75},
- pluck:{nm:"Pluck",o1:"sawtooth",o2:"square",o2oct:1,o2det:5,o2lvl:0.35,sub:0,noise:0.03,uni:2,spread:10,width:0.6,ft:0,cut:500,res:3,fenv:4.5,fa:0.001,fd:0.22,fs:0,fr:0.2,a:0.001,d:0.45,s:0,r:0.3,lfoR:0,lfoP:0,lfoF:0,glide:0,vel:0.8,drive:0.1,lvl:0.8},
- brass:{nm:"Analog Brass",o1:"sawtooth",o2:"sawtooth",o2oct:0,o2det:9,o2lvl:0.8,sub:0,noise:0,uni:2,spread:8,width:0.5,ft:0,cut:600,res:1,fenv:2.6,fa:0.08,fd:0.5,fs:0.5,fr:0.3,a:0.05,d:0.4,s:0.8,r:0.3,lfoR:5,lfoP:4,lfoF:0,glide:0,vel:0.6,drive:0.2,lvl:0.75},
- keys:{nm:"Soft Keys",o1:"triangle",o2:"sine",o2oct:1,o2det:0,o2lvl:0.3,sub:0,noise:0,uni:1,spread:0,width:0.3,ft:1,cut:2400,res:0.7,fenv:1.2,fa:0.002,fd:0.6,fs:0.2,fr:0.4,a:0.003,d:1.2,s:0.3,r:0.4,lfoR:0,lfoP:0,lfoF:0,glide:0,vel:0.8,drive:0,lvl:1.25},
- square:{nm:"Square Lead",o1:"square",o2:"square",o2oct:-1,o2det:3,o2lvl:0.4,sub:0,noise:0,uni:1,spread:0,width:0.3,ft:0,cut:2200,res:1.5,fenv:1.5,fa:0.005,fd:0.3,fs:0.5,fr:0.3,a:0.005,d:0.2,s:0.8,r:0.2,lfoR:5.5,lfoP:8,lfoF:0,glide:0.03,vel:0.5,drive:0.1,lvl:0.7}};
 var LV_SYNP=[["Oscillators",[["o2oct","Osc 2 Oct",-2,2,1],["o2det","Osc 2 Detune",-50,50],["o2lvl","Osc 2 Level",0,1],["sub","Sub",0,1],["noise","Noise",0,1],["uni","Unison",1,6,1],["spread","Spread",0,50],["width","Width",0,1]]],
   ["Filter",[["cut","Cutoff",40,18000,0,1],["res","Resonance",0.3,20],["fenv","Env Amount",-4,6],["fa","F Attack",0.001,4,0,1],["fd","F Decay",0.01,6,0,1],["fs","F Sustain",0,1],["fr","F Release",0.01,8,0,1],["drive","Drive",0,1]]],
   ["Amp",[["a","Attack",0.001,5,0,1],["d","Decay",0.01,6,0,1],["s","Sustain",0,1],["r","Release",0.01,8,0,1],["vel","Velocity",0,1],["lvl","Level",0,1.2]]],
   ["LFO & Glide",[["lfoR","LFO Rate",0.05,12,0,1],["lfoP","→ Pitch",0,50],["lfoF","→ Filter",0,2],["glide","Glide",0,0.5]]]];
 (function(){var g=LV_INSTS.find(function(x){return x[0]==="Synths";});g[1]=Object.keys(LV_SYN2).map(function(k){return ["syn:"+k,LV_SYN2[k].nm];}).concat([["sf:pad","Sampled Pad"],["sf:lead","Sampled Lead"],["sf:handpan","Steel Drum"]]);
   var d=LV_INSTS.find(function(x){return x[0]==="Drum Racks";});d[1]=[["dr:acoustic","Acoustic Kit"],["dr:808","808 Kit"],["dr:909","909 Kit"]];})();
-function lvSynP(t){var k=(t.inst||"syn:saw").slice(4);return Object.assign({},LV_SYN2.saw,LV_SYN2[k]||LV_SYN2.saw,t.syn||{});}
-var LVNOISE=null;function lvNoiseBuf(a){if(LVNOISE&&LVNOISE.sampleRate===a.sampleRate)return LVNOISE;var n=a.sampleRate*2,b=a.createBuffer(1,n,a.sampleRate),d=b.getChannelData(0);for(var i=0;i<n;i++)d[i]=Math.random()*2-1;LVNOISE=b;return b;}
-var LVCURVE={};function lvTanh(k){k=Math.round(k*20)/20;if(LVCURVE[k])return LVCURVE[k];var n=1024,c=new Float32Array(n),g=1+k*6;for(var i=0;i<n;i++){var x=i/(n-1)*2-1;c[i]=Math.tanh(x*g)/Math.tanh(g);}return LVCURVE[k]=c;}
-/* ---------- analog-style synth voice ---------- */
-function lvSynVoice(X,t,m,when,dur,vel,out){var a=X.a,P=lvSynP(t),vs=Math.max(0.05,Math.min(1,(vel||100)/127)),va=1-P.vel+P.vel*vs,f=440*Math.pow(2,(m-69)/12),end=when+Math.max(0.03,dur),stopAt=end+P.r*1.4+0.1;
-  X.lastF=X.lastF||{};var gl=P.glide>0.001?X.lastF[t.id]:null;X.lastF[t.id]=f;
-  var mix=a.createGain();mix.gain.value=1;var node=mix;
-  if(P.drive>0.01){var sh=a.createWaveShaper();sh.curve=lvTanh(P.drive);sh.oversample="2x";mix.connect(sh);node=sh;}
-  var fl=[],nf=(P.ft|0)===0?2:1,ftype=["lowpass","lowpass","highpass","bandpass"][P.ft|0]||"lowpass";for(var i=0;i<nf;i++){var bq=a.createBiquadFilter();bq.type=ftype;bq.Q.value=nf===2?Math.max(0.3,P.res*0.7):P.res;node.connect(bq);node=bq;fl.push(bq);}
-  var amp=a.createGain();node.connect(amp);amp.connect(out);
-  /* filter envelope (exponential, Hz) */
-  var base=Math.max(30,Math.min(18000,P.cut*(0.55+0.45*va))),peak=Math.max(30,Math.min(19000,base*Math.pow(2,P.fenv*va))),sus=Math.max(30,Math.min(19000,base*Math.pow(2,P.fenv*va*P.fs)));
-  fl.forEach(function(q){var fr=q.frequency;fr.setValueAtTime(base,when);fr.exponentialRampToValueAtTime(peak,when+Math.max(0.001,P.fa));fr.setTargetAtTime(sus,when+P.fa,Math.max(0.005,P.fd/3));fr.setValueAtTime(sus,end);fr.setTargetAtTime(base,end,Math.max(0.005,P.fr/3));});
-  var pk=0.22*P.lvl*va;amp.gain.setValueAtTime(0.0001,when);amp.gain.linearRampToValueAtTime(pk,when+Math.max(0.002,P.a));amp.gain.setTargetAtTime(Math.max(0.0001,pk*P.s),when+P.a,Math.max(0.005,P.d/3));
-  amp.gain.setValueAtTime(Math.max(0.0001,P.s>0.001?pk*P.s:pk*Math.exp(-dur/Math.max(0.01,P.d/3))),end);amp.gain.setTargetAtTime(0.0001,end,Math.max(0.005,P.r/4));
-  var lfo=null;if(P.lfoR>0.01&&(P.lfoP>0.1||P.lfoF>0.01)){lfo=a.createOscillator();lfo.frequency.value=P.lfoR;lfo.start(when);lfo.stop(stopAt);if(P.lfoF>0.01){var lf=a.createGain();lf.gain.value=base*P.lfoF*0.5;lfo.connect(lf);fl.forEach(function(q){lf.connect(q.frequency);});}}
-  var oscs=[],U=Math.max(1,Math.round(P.uni)),addOsc=function(type,freq,det,lvl,pan){var o=a.createOscillator();o.type=type;o.detune.value=det;if(gl){o.frequency.setValueAtTime(gl*freq/f,when);o.frequency.exponentialRampToValueAtTime(freq,when+P.glide);}else o.frequency.value=freq;
-    var g=a.createGain();g.gain.value=lvl;o.connect(g);if(pan&&a.createStereoPanner){var p=a.createStereoPanner();p.pan.value=pan;g.connect(p);p.connect(mix);}else g.connect(mix);
-    if(lfo&&P.lfoP>0.1){var lp=a.createGain();lp.gain.value=P.lfoP;lfo.connect(lp);lp.connect(o.detune);}o.start(when);o.stop(stopAt);oscs.push(o);};
-  var norm=1/Math.sqrt(U);for(var u=0;u<U;u++){var sp=U>1?(u/(U-1)-0.5)*2:0;addOsc(P.o1,f,sp*P.spread,norm,sp*P.width);if(P.o2lvl>0.01)addOsc(P.o2,f*Math.pow(2,Math.round(P.o2oct)),sp*P.spread+P.o2det,P.o2lvl*norm,-sp*P.width);}
-  if(P.sub>0.01)addOsc("sine",f/2,0,P.sub,0);
-  if(P.noise>0.005){var nb=a.createBufferSource();nb.buffer=lvNoiseBuf(a);nb.loop=true;var ng=a.createGain();ng.gain.value=P.noise*0.6;nb.connect(ng);ng.connect(mix);nb.start(when,Math.random());nb.stop(stopAt);oscs.push(nb);}
-  oscs.forEach(function(o,i){X.voices.push({s:o,g:amp,end:stopAt,rel:P.r,f:i===0?fl[0]&&fl[0].frequency:null,fb:base});});}
 /* ---------- modeled drum machines ---------- */
-var LV_METAL=[205.3,304.4,369.6,522.7,540,800];
-function lvMetal(a,t,mul,end){var mg=a.createGain();mg.gain.value=0.16;LV_METAL.forEach(function(f){var o=a.createOscillator();o.type="square";o.frequency.value=f*mul;o.connect(mg);o.start(t);o.stop(end);});return mg;}
-function lvEnvG(a,t,peak,dec,curve){var g=a.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(peak,t+0.0015);g.gain.setTargetAtTime(0.0001,t+0.0015,Math.max(0.003,dec/(curve||4.5)));return g;}
-function lvNoiseSrc(a,t,len){var s=a.createBufferSource();s.buffer=lvNoiseBuf(a);s.start(t,Math.random()*1.5);s.stop(t+len);return s;}
-function lvFilt(a,type,f,q){var b=a.createBiquadFilter();b.type=type;b.frequency.value=f;if(q!=null)b.Q.value=q;return b;}
-function lvDrumSynth(a,out,t,id,kit,tune,dec){var tm=Math.pow(2,(tune||0)/12),dk=dec||1,is9=kit==="909";
-  var osc=function(type,f){var o=a.createOscillator();o.type=type;o.frequency.value=f;return o;};
-  if(id==="kick"){var f0=(is9?52:47)*tm,o=osc("sine",f0),len=(is9?0.5:0.95)*dk+0.05,g=lvEnvG(a,t,1,len,is9?4:3.2),sh=a.createWaveShaper();sh.curve=lvTanh(is9?0.45:0.25);
-    o.frequency.setValueAtTime(f0*(is9?6:3.3),t);o.frequency.exponentialRampToValueAtTime(f0*1.04,t+(is9?0.045:0.03));o.frequency.exponentialRampToValueAtTime(f0*0.92,t+len);o.connect(sh);sh.connect(g);g.connect(out);o.start(t);o.stop(t+len+0.05);
-    var c=lvNoiseSrc(a,t,0.02),cf=lvFilt(a,"bandpass",is9?4200:2500,0.9),cg=lvEnvG(a,t,is9?0.55:0.3,is9?0.012:0.006,3);c.connect(cf);cf.connect(cg);cg.connect(out);return;}
-  if(id==="snare"){var len2=(is9?0.26:0.2)*dk;[[is9?180:185,0.55],[is9?330:330,0.32]].forEach(function(p){var o2=osc("triangle",p[0]*tm),g2=lvEnvG(a,t,p[1],0.12*dk,4);if(is9){o2.frequency.setValueAtTime(p[0]*tm*1.18,t);o2.frequency.exponentialRampToValueAtTime(p[0]*tm,t+0.03);}o2.connect(g2);g2.connect(out);o2.start(t);o2.stop(t+0.4*dk);});
-    var n=lvNoiseSrc(a,t,len2+0.1),hp=lvFilt(a,"highpass",is9?1400:1800),lp=lvFilt(a,"lowpass",is9?10000:7500),ng=lvEnvG(a,t,is9?0.85:0.6,len2,4);n.connect(hp);hp.connect(lp);lp.connect(ng);ng.connect(out);return;}
-  if(id==="hhc"||id==="hho"){var open=id==="hho",ln=(open?(is9?0.38:0.5):(is9?0.05:0.055))*dk,end=t+ln+0.05,mtl=lvMetal(a,t,tm,end),bp=lvFilt(a,"bandpass",10000,0.7),hp2=lvFilt(a,"highpass",7000),g3=lvEnvG(a,t,is9?1.1:2.6,ln,open?3.5:4.5);
-    mtl.connect(bp);if(is9){var n2=lvNoiseSrc(a,t,ln+0.05),ng2=a.createGain();ng2.gain.value=0.5;n2.connect(ng2);ng2.connect(bp);}bp.connect(hp2);hp2.connect(g3);g3.connect(out);return;}
-  if(id==="crash"||id==="ride"){var ride=id==="ride",ln2=(ride?1.3:1.8)*dk,mt2=lvMetal(a,t,tm*(ride?1.18:1),t+ln2+0.1),bp2=lvFilt(a,"bandpass",ride?7500:8500,0.6),hp3=lvFilt(a,"highpass",ride?4500:3500),g4=lvEnvG(a,t,ride?0.4:0.5,ln2,3.5);
-    mt2.connect(bp2);var n3=lvNoiseSrc(a,t,ln2+0.1),ng3=a.createGain();ng3.gain.value=ride?0.25:0.6;n3.connect(ng3);ng3.connect(bp2);bp2.connect(hp3);hp3.connect(g4);g4.connect(out);
-    if(ride){var bl=osc("sine",3100*tm),bg=lvEnvG(a,t,0.12,0.5,4);bl.connect(bg);bg.connect(out);bl.start(t);bl.stop(t+0.7);}return;}
-  if(id==="clap"){var n4=lvNoiseSrc(a,t,0.4*dk+0.1),bp4=lvFilt(a,"bandpass",is9?1500:1100,0.9),g5=a.createGain();g5.gain.setValueAtTime(0.0001,t);
-    [0,0.009,0.018,0.027].forEach(function(o,i){g5.gain.setValueAtTime(1.3,t+o);g5.gain.setTargetAtTime(0.05,t+o+0.001,0.003);});g5.gain.setValueAtTime(0.85,t+0.03);g5.gain.setTargetAtTime(0.0001,t+0.03,0.05*dk);n4.connect(bp4);bp4.connect(g5);g5.connect(out);return;}
-  if(id==="tom1"||id==="tom2"||id==="floor"){var tf=({tom1:220,tom2:160,floor:108})[id]*tm,o5=osc("sine",tf),g6=lvEnvG(a,t,0.85,0.4*dk,4);o5.frequency.setValueAtTime(tf*1.5,t);o5.frequency.exponentialRampToValueAtTime(tf,t+0.06);o5.connect(g6);g6.connect(out);o5.start(t);o5.stop(t+0.6*dk);
-    var n5=lvNoiseSrc(a,t,0.05),f5=lvFilt(a,"bandpass",tf*6,1),g7=lvEnvG(a,t,0.12,0.03,3);n5.connect(f5);f5.connect(g7);g7.connect(out);return;}
-  if(id==="rim"){var o6=osc("triangle",1700*tm),g8=lvEnvG(a,t,0.6,0.03,3);o6.connect(g8);g8.connect(out);o6.start(t);o6.stop(t+0.08);var n6=lvNoiseSrc(a,t,0.04),f6=lvFilt(a,"bandpass",3200,2),g9=lvEnvG(a,t,0.4,0.02,3);n6.connect(f6);f6.connect(g9);g9.connect(out);return;}
-  if(id==="cow"){var bp6=lvFilt(a,"bandpass",2640*tm,1.8),g10=a.createGain();g10.gain.setValueAtTime(0.0001,t);g10.gain.linearRampToValueAtTime(0.5,t+0.002);g10.gain.setTargetAtTime(0.15,t+0.002,0.015);g10.gain.setTargetAtTime(0.0001,t+0.06,0.08*dk);
-    [540,800].forEach(function(f){var o7=osc("square",f*tm);o7.connect(bp6);o7.start(t);o7.stop(t+0.5*dk+0.1);});bp6.connect(g10);g10.connect(out);return;}}
 /* ---------- the note dispatcher (replaces the basic one) ---------- */
 lvPlayNote=function(X,t,m,when,dur,vel){var a=X.a,T=X.M.tr[t.id];if(!T||!t.inst)return;var out=T.in,inst=t.inst,vs=Math.max(0.03,Math.min(1,(vel||100)/127));
   if(inst.indexOf("dr:")===0){var dm=LV_DRUMMAP[m];if(!dm)return;var id=dm[0],kit=inst.slice(3);if(kit==="classic")kit="909";var pd=(t.pads&&t.pads[id])||{},g=a.createGain();g.gain.value=Math.pow(vs,1.2)*lvDbGain(pd.vol||0)*1.1;g.connect(out);
@@ -84,15 +26,6 @@ LV_DEVS.reverb={nm:"Reverb",ps:[["size","Size",0.2,1,0.7,""],["decay","Decay",0.
 LV_DEVS.delay={nm:"Delay",ps:[["sync","Time",0,8,4,"",0,["1/32","1/16","1/16.","1/8","1/8.","1/4","1/4.","1/2","1 bar"]],["fb","Feedback",0,95,40,"%"],["pp","Ping Pong",0,1,1,"",0,["Off","On"]],["lo","Lo Cut",20,2000,150,"Hz",1],["flt","Hi Cut",500,16000,5000,"Hz",1],["mix","Dry/Wet",0,100,30,"%"]]};
 LV_DEVS.comp={nm:"Compressor",ps:[["th","Threshold",-60,0,-18,"dB"],["ratio","Ratio",1,20,4,":1"],["att","Attack",0.05,200,10,"ms",1],["rel","Release",5,2000,120,"ms",1],["knee","Knee",0,24,6,"dB"],["out","Makeup",-12,24,0,"dB"],["mix","Dry/Wet",0,100,100,"%"]]};
 LV_DEVS.glue={nm:"Glue Compressor",ps:[["th","Threshold",-40,0,-10,"dB"],["ratio","Ratio",0,2,0,"",0,["2","4","10"]],["att","Attack",0,6,2,"",0,["0.01","0.1","0.3","1","3","10","30"]],["rel","Release",0,6,6,"",0,["0.1","0.2","0.4","0.6","0.8","1.2","Auto"]],["make","Makeup",0,20,2,"dB"],["mix","Dry/Wet",0,100,100,"%"]]};
-var LVRB={};function lvReverbIR(a,P){var key=[a.sampleRate,P.size,P.decay,P.damp,P.width].map(function(x){return Math.round(x*100)/100;}).join("|");if(LVRB[key])return LVRB[key];
-  var sr=a.sampleRate,T=Math.min(12,P.decay),len=Math.floor(sr*(T*1.25+0.12)),b=a.createBuffer(2,len,sr),L=b.getChannelData(0),R=b.getChannelData(1),er=Math.floor(sr*0.012*P.size*6),k=6.9/(T*sr),kh=6.9/(Math.max(0.15,T*(1.05-P.damp))*sr),kl=6.9/(T*1.18*sr);
-  for(var ch=0;ch<2;ch++){var d=ch?R:L,lp=0,lp2=0;for(var i=0;i<len;i++){var w=Math.random()*2-1;lp+=0.08*(w-lp);lp2+=0.5*(w-lp2);var low=lp,high=w-lp2,mid=lp2-lp;
-      var v=low*Math.exp(-i*kl)*1.6+mid*Math.exp(-i*k)+high*Math.exp(-i*kh)*0.8;d[i]=v*(i<er?Math.pow(i/er,1.5):1)*0.6;}}
-  /* early reflections */
-  for(var r=0;r<14;r++){var tt=Math.floor(sr*(0.004+Math.random()*0.075*P.size)),gn=(0.6-r*0.03)*(Math.random()*0.5+0.5),side=Math.random();if(tt<len){L[tt]+=gn*(side<0.5?1:0.55);R[tt+Math.floor(sr*0.0007*Math.random())]+=gn*(side>=0.5?1:0.55);}}
-  /* width (mid/side) and normalize */
-  var w=P.width/100,pk=0;for(var j=0;j<len;j++){var mm=(L[j]+R[j])/2,ss=(L[j]-R[j])/2*w;L[j]=mm+ss;R[j]=mm-ss;pk=Math.max(pk,Math.abs(L[j]),Math.abs(R[j]));}var nrm=0.5/Math.max(1e-6,pk);for(var q=0;q<len;q++){L[q]*=nrm;R[q]*=nrm;}
-  var ks=Object.keys(LVRB);if(ks.length>12)delete LVRB[ks[0]];return LVRB[key]=b;}
 var LV_WK={ready:new WeakMap(),pending:new WeakMap(),src:"class LvComp extends AudioWorkletProcessor{static get parameterDescriptors(){return [{name:'th',defaultValue:-18},{name:'ratio',defaultValue:4},{name:'att',defaultValue:10},{name:'rel',defaultValue:120},{name:'knee',defaultValue:6},{name:'make',defaultValue:0},{name:'mix',defaultValue:1},{name:'sc',defaultValue:0}];}"+
   "constructor(){super();this.env=0;this.n=0;this.mx=0;}process(I,O,P){const inp=I[0],sc=I[1],out=O[0];if(!inp||!inp.length){for(const c of out)c.fill(0);return true;}const det=(P.sc[0]>0.5&&sc&&sc.length)?sc:inp;"+
   "const th=P.th[0],ratio=Math.max(1,P.ratio[0]),knee=Math.max(0.01,P.knee[0]),mk=Math.pow(10,P.make[0]/20),mix=P.mix[0],aC=Math.exp(-1/(sampleRate*Math.max(0.00005,P.att[0]/1000))),rC=Math.exp(-1/(sampleRate*Math.max(0.002,P.rel[0]/1000)));const n=inp[0].length;"+
