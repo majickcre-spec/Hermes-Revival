@@ -4643,7 +4643,7 @@ function pkDraw(cv,now,dt){const dpr=Math.min(2.5,window.devicePixelRatio||1),W=
   if(!PK.running&&!PK.ev.length&&PK.mode==="play"){c.fillStyle="rgba(255,255,255,.55)";c.font="700 15px system-ui";c.textAlign="center";c.fillText("Play anything — tap the keys, use your computer keyboard, or connect a MIDI keyboard.",W/2,top/2);}}
 /* ---------- screen ---------- */
 function pkNikoHTML(chip){const L=[["🌱 Beginner","easy keys, slow chord changes"],["🎹 Intermediate","more black keys, richer chords"],["🔥 Pro","busy rhythms, hard keys"]];
-  return '<div class="rrow2"><span class="rlab">Packs</span><span class="rchips tight">'+chip("pkNikoT","🎛 Niko Kotoulas · MusicCreator "+(NIKO.open?"▾":"▸")+(NIKO.data?' <span style="opacity:.6;font-size:.72rem">'+NIKO.data.length+'</span>':''),NIKO.open)+'</span></div>'+
+  return '<div class="rrow2"><span class="rchips tight">'+chip("pkNikoT","🎛 Niko Kotoulas "+(NIKO.open?"▾":"▸")+(NIKO.data?' <span style="opacity:.6;font-size:.72rem">'+NIKO.data.length+'</span>':''),NIKO.open)+'</span></div>'+
     (NIKO.open?(NIKO.data?(()=>{const D=NIKO.data,KO=["C","G","F","D","Bb","A","Eb","E","Ab","B","Db","Gb"],inL=D.filter(x=>x.lvl===NIKO.lvl),keys=[...new Set(inL.map(x=>x.k))].sort((a,b)=>KO.indexOf(a.split(" ")[0])-KO.indexOf(b.split(" ")[0]));if(keys.indexOf(NIKO.key)<0)NIKO.key=keys[0];
       const songs=inL.filter(x=>x.k===NIKO.key);
       return '<div style="border-left:3px solid var(--gold);padding-left:8px;margin:2px 0 8px"><div class="rrow2"><span class="rlab">Level</span><span class="rchips tight">'+L.map((l,n)=>chip("",l[0]+' <span style="opacity:.6;font-size:.72rem">'+D.filter(x=>x.lvl===n).length+'</span>',NIKO.lvl===n,'data-nklvl="'+n+'" title="'+l[1]+'"')).join("")+'</span></div>'+
