@@ -2073,7 +2073,8 @@ const RHYTHM_CARDS=[
  {ic:"🥁",title:"Metronome Flow",blurb:"A magical metronome — pick a rhythm shape and count along, slow and steady.",go:()=>renderRhythm(false)},
  {ic:"👆",title:"Tap It Back",blurb:"Hear a rhythm, then tap it back on the pad — scored, no mic needed.",go:()=>tapBackMenu()},
  {ic:"🧠",title:"Name That Rhythm",blurb:"Hear a rhythm and pick which one it was — train your ear to read the beat.",go:()=>rhythmNameQuiz()},
- {ic:"🧘",title:"Speak the Rhythm",blurb:"Count the rhythm out loud into the mic — a breath-and-beat meditation that scores how in-time you are.",go:()=>renderRhythm(true)}
+ {ic:"🧘",title:"Speak the Rhythm",blurb:"Count the rhythm out loud into the mic — a breath-and-beat meditation that scores how in-time you are.",go:()=>renderRhythm(true)},
+ {ic:"⏱",title:"Inner Clock",blurb:"The beat plays for 4 counts, then goes silent for 4 — keep it going and tap. Shows how steady your internal pulse is.",go:()=>renderRhythmMind(true)}
 ];
 /* click voices */
 const SOUNDS=[
@@ -8018,7 +8019,7 @@ function renderMeditation(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();h
    {ic:"🕯️",title:"Meditation Session",blurb:"Set an intention and a length, and sit with a soft ground tone and gentle bells. A clean, quiet timer.",go:renderMedSession},
    {ic:"🌀",title:"Brainwave Binaural",blurb:"Pick an intention — sleep, meditate, flow, focus, insight — and ride the matching brainwave as a binaural beat. Headphones on.",go:renderBrainwave},
    {ic:"🎧",title:"Soundscapes",blurb:"Background sound to sleep, relax or focus to — real nature, sacred spaces, deep space and late-night city scenes, with slow ambient music woven in.",go:renderNature},
-   {ic:"🥁",title:"Rhythm Mind",blurb:"Train your internal clock — the beat plays, then goes silent, and you keep it alive in your head. See how steady your inner pulse is.",go:renderRhythmMind},
+   {ic:"🥁",title:"Rhythm Mind",blurb:"Hold the pulse inside you through growing silence. It adapts as you steady — longer silences, slower tempos, one hand or both — to train focus and your brain's timing networks.",go:renderMindPulse},
    {ic:"🎙",title:"Record a Voice Journey",blurb:"Build your own guided journey: read the script one line at a time, record it in your voice, and it plays back over nature sounds and binaural layers.",go:renderVoiceJourney,mk:1},
    {ic:"🎧",title:"Record the Guided Sessions",blurb:"Read each guided session line by line in your own voice. Then choose My recordings as the voice and the sessions play in yours.",go:gsRecMenu,mk:1}
   ];
@@ -8663,18 +8664,86 @@ function renderBreathwork(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();h
     raf=requestAnimationFrame(loop);}
   draw();
 }
-function renderRhythmMind(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+/* ===== RHYTHM MIND (meditation) — adaptive inner-pulse training: hold the beat through longer silences at slower tempos; one hand or alternating hands ===== */
+function renderMindPulse(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  const HK=mk("mindpulse","hist"),ST=mk("mindpulse","lvl");let mins=load("mjk-mpmin",5),hands=load("mjk-mphands",1),bed=load("mjk-mpbed",true),lv=load(ST,{bpm:60,sil:4});
+  let run=false,sch=null,raf=null,beat=0,nextT=0,blk=null,exp=[],taps=[],ses=null,out=null,natH=null,lastHit=null;
+  teardown=()=>stopS(true);
+  const hist=()=>load(HK,[]);
+  window.__mp={exp:()=>exp,tap:h=>tap(h),lv:()=>lv};
+  function paint(){const h=hist(),last=h.slice(-12);
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🥁 Rhythm Mind</span></div><div class="panel mpw">'+
+      '<div class="intro">Hold the pulse inside you. The beat plays, then falls silent. Keep it alive and tap on every silent beat. As you steady, the silences grow longer and the tempo slower — every beat held in stillness trains your focus and your brain&rsquo;s timing networks.</div>'+
+      '<div class="mpStage" id="mpStage"><div class="mpRing" id="mpRing"></div><div class="mpOrb" id="mpOrb"></div><div class="mpTxt"><div id="mpCue">'+(run?"":"Tap anywhere here")+'</div><div id="mpSub" class="mpSub">'+(run?"":"Level "+mpLevelNo(lv)+" · "+lv.bpm+" BPM · "+lv.sil+" silent beats")+'</div></div>'+(hands===2?'<div class="mpHand L" id="mpL">L</div><div class="mpHand R" id="mpR">R</div>':'')+'</div>'+
+      (run?'':'<div class="rrow2"><span class="rlab">Length</span><span class="rchips tight">'+[3,5,10,15].map(m=>'<button class="rchip sm'+(m===mins?' sel':'')+'" data-m="'+m+'">'+m+' min</button>').join("")+'</span></div>'+
+      '<div class="rrow2"><span class="rlab">Hands</span><span class="rchips tight"><button class="rchip sm'+(hands===1?' sel':'')+'" data-h="1">One hand</button><button class="rchip sm'+(hands===2?' sel':'')+'" data-h="2">Alternate left · right</button></span></div>'+
+      '<div class="rrow2"><span class="rlab">Soundscape</span><span class="rchips tight"><button class="rchip sm'+(bed?' sel':'')+'" id="mpBed">'+(bed?"Deep space on":"Off")+'</button></span></div>')+
+      '<div class="actions"><button class="btn" id="mpGo">'+(run?"■ End":"▶ Begin")+'</button></div>'+
+      (!run&&h.length?'<div class="mpHist"><div class="rlab" style="display:block;margin:12px 0 6px">Your inner pulse</div>'+mpSpark(last)+'<div class="site-note" style="margin-top:6px">Last: ±'+h[h.length-1].ms+' ms · held '+h[h.length-1].sil+' silent beats at '+h[h.length-1].bpm+' BPM · '+h.length+' sessions</div></div>':'')+
+      '<div id="mpRes"></div></div>';
+    $("#eBack").onclick=()=>{stopS(true);renderMeditation();};
+    view.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{mins=+b.dataset.m;save("mjk-mpmin",mins);paint();});
+    view.querySelectorAll("[data-h]").forEach(b=>b.onclick=()=>{hands=+b.dataset.h;save("mjk-mphands",hands);paint();});
+    const bb=$("#mpBed");if(bb)bb.onclick=()=>{bed=!bed;save("mjk-mpbed",bed);paint();};
+    $("#mpGo").onclick=()=>{run?stopS(false):startS();};
+    const st=$("#mpStage");st.onpointerdown=e=>{e.preventDefault();const r=st.getBoundingClientRect();tap(e.clientX<r.left+r.width/2?"L":"R");};}
+  function startS(){unlockAudio();medWake(true);const a=ac();out=a.createGain();out.gain.value=0.9;out.connect(a.destination);MED.master=out;MED.oscs=[];
+    if(bed){const m=NAT_SCENES.find(x=>x.id==="space"),g=a.createGain();g.gain.value=0.55;g.connect(out);natH=natStart({g_drone:0.5,g_shimmer:0.35},g,m.key);MED.nat=natH;}
+    run=true;ses={t0:a.currentTime,end:a.currentTime+mins*60,res:[],miss:0,maxSil:lv.sil,startLv:mpLevelNo(lv)};beat=0;nextT=a.currentTime+1.2;newBlock();paint();sch=setInterval(sched,25);raf=requestAnimationFrame(frame);}
+  function newBlock(){blk={hear:4,sil:lv.sil,i:0,res:[],miss:0};exp=[];taps=[];}
+  function sched(){const a=ac();while(run&&!blk.pending&&nextT<a.currentTime+0.12){const spb=60/lv.bpm,i=blk.i,heard=i<blk.hear;
+      if(heard){proClick(a,out,nextT,i===0?"accent":"beat",0.55,"soft");mpPulse(nextT,1);}else exp.push({t:nextT,n:i-blk.hear,hand:hands===2?((i-blk.hear)%2?"R":"L"):null,got:false});
+      blk.i++;nextT+=spb;
+      if(blk.i>=blk.hear+blk.sil){const endT=nextT;blk.pending=true;blk.endT=endT;setTimeout(()=>closeBlock(),Math.max(0,(endT-spb*0.55-a.currentTime)*1000+spb*450));}}}
+  function closeBlock(){if(!run)return;const spb=60/lv.bpm,win=spb*0.45;let errs=[],miss=0;
+    exp.forEach(e=>{let bd=1e9;taps.forEach(t=>{if(hands===2&&e.hand&&t.h!==e.hand)return;const d=t.t-e.t;if(Math.abs(d)<Math.abs(bd))bd=d;});if(Math.abs(bd)<=win)errs.push(bd*1000);else miss++;});
+    const ab=errs.map(Math.abs),avg=ab.length?ab.reduce((x,y)=>x+y,0)/ab.length:999;ses.res.push(...ab);ses.miss+=miss;
+    const tight=Math.max(25,Math.min(70,spb*1000*0.07));
+    if(!miss&&avg<=tight){if(lv.sil<16)lv.sil+=4;else if(lv.bpm>40){lv.bpm-=5;lv.sil=8;}mpMsg("Steady. The silence grows.");}
+    else if(miss>=2||avg>tight*2.2){if(lv.sil>4)lv.sil-=4;else if(lv.bpm<72)lv.bpm+=5;mpMsg("Listen again. Let the pulse settle in.");}
+    else mpMsg("Again. Stay with it.");
+    ses.maxSil=Math.max(ses.maxSil,lv.sil);save(ST,lv);
+    if(ac().currentTime>=ses.end){stopS(false);return;}const nt=Math.max(blk.endT+60/lv.bpm,ac().currentTime+0.15);newBlock();nextT=nt;}
+  function tap(h){if(!run)return;const t=ac().currentTime;taps.push({t:t,h:h});lastHit={t:performance.now(),h:h};
+    let bd=1e9;exp.forEach(e=>{const d=t-e.t;if(Math.abs(d)<Math.abs(bd))bd=d;});const spb=60/lv.bpm,ring=$("#mpRing");
+    if(ring&&Math.abs(bd)<spb*0.45){const q=Math.abs(bd)*1000,c=q<30?"#e9c46a":q<70?"#7ff0d6":"rgba(160,170,255,.7)";ring.style.borderColor=c;ring.style.transform="scale(1.08)";setTimeout(()=>{ring.style.transform="scale(1)";},140);}
+    const hd=h&&$("#mp"+h);if(hd){hd.classList.add("on");setTimeout(()=>hd.classList.remove("on"),160);}}
+  let pulses=[];function mpPulse(t,k){pulses.push({t:t,k:k});}
+  function mpMsg(m){const s=$("#mpSub");if(s)s.textContent=m;}
+  function frame(){if(!run)return;raf=requestAnimationFrame(frame);const a=ac(),now=a.currentTime,orb=$("#mpOrb"),cue=$("#mpCue");
+    let sc=0.82;pulses=pulses.filter(p=>now-p.t<1);pulses.forEach(p=>{const d=now-p.t;if(d>=0)sc=Math.max(sc,0.82+0.18*Math.exp(-d*6));});
+    if(orb)orb.style.transform="scale("+sc.toFixed(3)+")";
+    const silent=!blk.pending&&exp.length>0&&exp[0].t<=now+0.15;
+    if(cue){const rem=Math.max(0,ses.end-now);cue.textContent=silent?(hands===2?"Hold it · left, right…":"Hold it · tap"):"Listen";cue.dataset.r=Math.floor(rem/60)+":"+String(Math.floor(rem%60)).padStart(2,"0");}
+    if(orb)orb.style.opacity=silent?0.55:1;
+    if(hands===2){const nx=exp.find(e=>e.t>now-0.08),L=$("#mpL"),R=$("#mpR");if(L&&R){L.classList.toggle("nx",!!(silent&&nx&&nx.hand==="L"));R.classList.toggle("nx",!!(silent&&nx&&nx.hand==="R"));}}}
+  function stopS(silent){if(!run&&!natH)return;const was=run;run=false;if(sch)clearInterval(sch);sch=null;if(raf)cancelAnimationFrame(raf);medWake(false);
+    if(natH){try{natH.stop();}catch(e){}natH=null;MED.nat=null;}if(out){try{out.gain.setTargetAtTime(0,ac().currentTime,0.4);}catch(e){}const o=out;setTimeout(()=>{try{o.disconnect();}catch(e){}},2500);out=null;MED.master=null;}
+    if(silent||!was||!ses)return;const r=ses.res,ms=r.length?Math.round(r.reduce((x,y)=>x+y,0)/r.length):null;
+    if(ms!=null){const h=hist();h.push({t:Date.now(),ms:ms,sil:ses.maxSil,bpm:lv.bpm,lvl:mpLevelNo(lv),hands:hands,min:mins});save(HK,h.slice(-200));if(activeId())addBeans(3);try{medMarkDone();}catch(e){}}
+    paint();const el=$("#mpRes");if(el&&ms!=null)el.innerHTML='<div class="idea-fb" style="text-align:center;margin-top:10px"><div style="font-size:2rem;font-weight:800;color:var(--gold)">±'+ms+' ms</div><div class="site-note">your inner pulse against true time · '+r.length+' silent beats held · level '+ses.startLv+' → '+mpLevelNo(lv)+'</div></div>';}
+  paint();}
+function mpLevelNo(lv){return Math.max(1,Math.round((60-lv.bpm)/5*3+lv.sil/4));}
+function mpSpark(h){if(h.length<2)return '';const W=300,Hh=60,mx=Math.max(...h.map(x=>x.ms),40),pts=h.map((x,i)=>(i/(h.length-1)*W).toFixed(1)+","+(Hh-4-(1-x.ms/mx)*(Hh-12)).toFixed(1)).join(" ");
+  return '<svg viewBox="0 0 '+W+' '+Hh+'" style="width:100%;height:60px"><polyline points="'+pts+'" fill="none" stroke="#e9c46a" stroke-width="2.5" stroke-linejoin="round"/></svg><div class="site-note" style="display:flex;justify-content:space-between;font-size:.72rem"><span>higher = steadier</span><span>last '+h.length+'</span></div>';}
+(function(){try{var s=document.createElement("style");s.textContent=
+ ".mpStage{position:relative;height:min(64vh,460px);margin:12px -4px;border-radius:22px;background:radial-gradient(circle at 50% 45%,rgba(40,50,110,.55),rgba(8,10,24,.9));display:flex;align-items:center;justify-content:center;touch-action:manipulation;user-select:none;-webkit-user-select:none;cursor:pointer;overflow:hidden}"+
+ ".mpOrb{width:min(62vw,250px);height:min(62vw,250px);border-radius:50%;background:radial-gradient(circle at 50% 40%,rgba(233,196,106,.85),rgba(170,90,200,.35) 60%,rgba(40,40,120,.1));box-shadow:0 0 60px rgba(233,196,106,.35);transform:scale(.82);transition:opacity .6s}"+
+ ".mpRing{position:absolute;width:min(74vw,300px);height:min(74vw,300px);border-radius:50%;border:2px solid rgba(160,170,255,.25);transition:transform .14s,border-color .4s}"+
+ ".mpTxt{position:absolute;bottom:18px;left:0;right:0;text-align:center;pointer-events:none}#mpCue{font-size:1.25rem;font-weight:700;letter-spacing:.04em}#mpCue::after{content:attr(data-r);display:block;font-size:.8rem;opacity:.55;font-weight:400;margin-top:2px}.mpSub{font-size:.85rem;opacity:.75;margin-top:4px}"+
+ ".mpHand{position:absolute;top:14px;font-weight:800;opacity:.3;font-size:1.1rem;transition:opacity .12s}.mpHand.L{left:18px}.mpHand.R{right:18px}.mpHand.nx{opacity:.75}.mpHand.on{opacity:1;color:var(--gold)}";document.head.appendChild(s);}catch(e){}})();
+function renderRhythmMind(fromRhythm){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   let bpm=80,running=false,schID=null,raf=null,beat=0,nextT=0,taps=[],expect=[],phase="audible",round=0,results=[];
   teardown=()=>{running=false;if(schID)clearInterval(schID);if(raf)cancelAnimationFrame(raf);};
   function draw(){
-    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🥁 Rhythm Mind</span></div><div class="panel">'+
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">⏱ Inner Clock</span></div><div class="panel">'+
       '<div class="intro">Your inner clock is a trainable muscle. The beat plays for <b>4 counts</b>, then goes <b>silent for 4</b> — keep it alive in your head and <b>tap</b> on the silent beats. I&rsquo;ll show how steady your internal pulse is.</div>'+
       '<div class="rrow"><span class="rlab">Tempo</span><input type="range" id="rmBpm" min="50" max="140" value="'+bpm+'" style="flex:1"><span class="rbpm" id="rmBpmV">'+bpm+'</span></div>'+
       '<div class="rbanner" id="rmPhase" style="margin:10px 0">Press Start, then listen</div>'+
       '<div class="actions"><button class="btn" id="rmTap" style="font-size:1.3rem;padding:22px">TAP</button></div>'+
       '<div class="actions"><button class="btn ghost" id="rmStart">▶ Start</button></div>'+
       '<div class="idea-fb" id="rmScore" style="margin-top:12px">Tap on every silent beat — aim for dead-on.</div></div>';
-    $("#eBack").onclick=()=>{running=false;if(schID)clearInterval(schID);renderMeditation();};
+    $("#eBack").onclick=()=>{running=false;if(schID)clearInterval(schID);if(fromRhythm)goHome();else renderMeditation();};
     const bp=$("#rmBpm");bp.oninput=()=>{if(running)return;bpm=+bp.value;$("#rmBpmV").textContent=bpm;};
     $("#rmStart").onclick=()=>{if(running)stopR();else startR();};
     const tp=$("#rmTap");tp.onclick=()=>tap();
