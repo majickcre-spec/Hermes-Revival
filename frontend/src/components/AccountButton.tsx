@@ -11,6 +11,7 @@ export default function AccountButton() {
   const [tab, setTab] = useState<"login" | "create">("login");
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
+  const [showCode, setShowCode] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [user, setUser] = useState<string | null>(null);
@@ -35,7 +36,7 @@ export default function AccountButton() {
       if (tab === "create") await register(name.trim(), code.trim());
       else await login(name.trim(), code.trim());
       setUser(getUser()); setOpen(false); setName(""); setCode("");
-    } catch (e: any) { setErr(e?.message || "Something went wrong."); }
+    } catch (e: any) { const m = String(e?.message || ""); setErr(/load failed|failed to fetch|network/i.test(m) ? "Can't reach the server from this browser — check your connection and try again. (" + m + ")" : (m || "Something went wrong.")); }
     finally { setBusy(false); }
   }
 
@@ -90,12 +91,13 @@ export default function AccountButton() {
                     : "Enter the name and code you created. Your players, progress and saved instruments will come with you."}
                 </div>
                 <label style={{ color: C.cream, font: "600 13px system-ui" }}>Name
-                  <input style={input} value={name} maxLength={24} autoComplete="off" onChange={(e) => setName(e.target.value)} placeholder="e.g. travis" />
+                  <input style={input} value={name} maxLength={24} autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} onChange={(e) => setName(e.target.value)} placeholder="e.g. travis" />
                 </label>
                 <label style={{ color: C.cream, font: "600 13px system-ui", display: "block", marginTop: 10 }}>Code
-                  <input style={input} value={code} type="password" maxLength={64} autoComplete="off" onChange={(e) => setCode(e.target.value)}
+                  <input style={input} value={code} type={showCode ? "text" : "password"} maxLength={64} autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} onChange={(e) => setCode(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") submit(); }} placeholder="your secret code" />
                 </label>
+                <label style={{ color: C.muted, font: "12px system-ui", display: "flex", gap: 6, alignItems: "center", marginTop: 6 }}><input type="checkbox" checked={showCode} onChange={(e) => setShowCode(e.target.checked)} /> show code</label>
                 {err && <div style={{ color: "#ff8f8c", font: "13px system-ui", marginTop: 10 }}>{err}</div>}
                 <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
                   <button style={btn(false)} onClick={() => setOpen(false)}>Cancel</button>
