@@ -1314,9 +1314,16 @@ function pianoMaster(a){
 /* one struck-piano note: fast hammer attack, exponential decay, timbre mellows as it rings */
 /* ===== Real sampled instruments — multi-instrument, loaded in the browser; silent fallback to the built-in engine ===== */
 var SF={ready:{},loading:{},buf:{},anchors:{},base:"https://cdn.jsdelivr.net/gh/gleitz/midi-js-soundfonts@gh-pages/MusyngKite/",
-  folder:{piano:"acoustic_grand_piano-mp3",guitar:"acoustic_guitar_nylon-mp3",bass:"electric_bass_finger-mp3",handpan:"steel_drums-mp3"},
-  range:{piano:[33,96],guitar:[40,86],bass:[28,67],handpan:[48,84]},
-  ring:{piano:1.3,guitar:0.9,bass:1.0,handpan:1.5}};
+  folder:{piano:"acoustic_grand_piano-mp3",guitar:"acoustic_guitar_nylon-mp3",bass:"electric_bass_finger-mp3",handpan:"steel_drums-mp3",
+    epiano:"electric_piano_1-mp3",organ:"drawbar_organ-mp3",vibes:"vibraphone-mp3",marimba:"marimba-mp3",musicbox:"music_box-mp3",celesta:"celesta-mp3",
+    strings:"string_ensemble_1-mp3",violin:"violin-mp3",cello:"cello-mp3",harp:"orchestral_harp-mp3",eguitar:"electric_guitar_clean-mp3",
+    flute:"flute-mp3",clarinet:"clarinet-mp3",sax:"alto_sax-mp3",trumpet:"trumpet-mp3",harmonica:"harmonica-mp3",panflute:"pan_flute-mp3",
+    choir:"choir_aahs-mp3",oohs:"voice_oohs-mp3",pad:"pad_2_warm-mp3",lead:"lead_2_sawtooth-mp3",kalimba:"kalimba-mp3"},
+  range:{piano:[33,96],guitar:[40,86],bass:[28,67],handpan:[48,84],epiano:[36,96],organ:[36,96],vibes:[53,89],marimba:[45,96],musicbox:[60,96],celesta:[60,96],
+    strings:[36,96],violin:[55,96],cello:[36,76],harp:[36,96],eguitar:[40,86],flute:[60,96],clarinet:[50,91],sax:[49,81],trumpet:[52,84],harmonica:[60,84],panflute:[60,96],
+    choir:[48,84],oohs:[48,84],pad:[36,90],lead:[36,90],kalimba:[60,90]},
+  ring:{piano:1.3,guitar:0.9,bass:1.0,handpan:1.5,epiano:0.9,organ:0.15,vibes:1.6,marimba:0.7,musicbox:1.4,celesta:1.2,strings:0.45,violin:0.3,cello:0.35,harp:1.4,eguitar:0.8,
+    flute:0.2,clarinet:0.2,sax:0.2,trumpet:0.18,harmonica:0.2,panflute:0.25,choir:0.5,oohs:0.45,pad:0.9,lead:0.2,kalimba:1.0}};
 var SF_NN=["C","Cs","D","Ds","E","F","Fs","G","Gs","A","As","B"];
 function sfFile(midi){return SF_NN[((midi%12)+12)%12]+(Math.floor(midi/12)-1);}
 function sfOn(){return load("mjk-realsound",1)?true:false;}
@@ -2471,7 +2478,7 @@ function renderIdeaLab(){
 function sylSplit(word){var core=(word||"").toLowerCase().replace(/[^a-z']/g,"");if(!core)return [word];var n=sylCount(core);if(n<=1)return [word];var idxs=[],m,re=/[aeiouy]+/g;while((m=re.exec(core)))idxs.push(m.index+m[0].length);var cuts=idxs.slice(0,Math.min(n-1,idxs.length)),parts=[],prev=0;cuts.forEach(function(c){parts.push(word.slice(prev,c));prev=c;});parts.push(word.slice(prev));return parts.filter(function(x){return x;});}
 function lyricSyllables(text){var out=[];(text||"").replace(/\n/g," ").split(/\s+/).filter(Boolean).forEach(function(w){sylSplit(w).forEach(function(s){out.push(s);});});return out;}
 function noteValName(steps){var b=steps/4;if(b>=3.5)return "whole";if(b>=2.5)return "dotted half";if(b>=1.75)return "half";if(b>=1.25)return "dotted ♩";if(b>=0.875)return "quarter";if(b>=0.6)return "dotted ♪";if(b>=0.45)return "eighth";return "16th";}
-function melNote(midi,t,dur,voice){var f=midiToFreq(midi);if(voice==="piano"){playTone(f,t,dur);}else if(voice==="voice"){playSustain(f,t,dur,0.9);}else{try{var a=ac();prVoice(a,pianoMaster(a),a.currentTime+t,midi,dur,voice,100);}catch(e){playTone(f,t,dur);}}}
+function melNote(midi,t,dur,voice){var f=midiToFreq(midi);if(voice!=="piano"&&SF.folder[voice]){if(!sfInstReady(voice))sfLoadInst(voice);if(sfPlayKey(voice,midi,t,dur,0.95))return;voice="keys";}if(voice==="piano"){playTone(f,t,dur);}else if(voice==="voice"){playSustain(f,t,dur,0.9);}else{try{var a=ac();prVoice(a,pianoMaster(a),a.currentTime+t,midi,dur,voice,100);}catch(e){playTone(f,t,dur);}}}
 function playSeqV(notes,beats,bpm,voice){var spb=60/(bpm||96),t=0;for(var i=0;i<notes.length;i++){var b=(beats&&beats[i])?beats[i]:1;melNote(notes[i],t,Math.max(0.12,b*spb*0.9),voice||"piano");t+=b*spb;}}
 function hookInsights(ms){if(!ms.length)return "";
   var MAJ=[0,2,4,5,7,9,11],MIN=[0,2,3,5,7,8,10];
@@ -2606,6 +2613,12 @@ function llMiniRoll(vn,orig){
 }
 const LL_PARTS=["Verse","Pre-chorus","Chorus","Hook","Bridge","Intro","Outro"];
 const LL_VOICES=[["piano","🎹 Piano"],["keys","🎵 Keys"],["pluck","🎸 Pluck"],["synth","🎛 Synth"],["voice","🎤 Voice"]];
+const LL_SOUNDS=[["🎹 Keys",[["piano","Grand piano"],["epiano","Electric piano"],["organ","Organ"],["vibes","Vibraphone"],["marimba","Marimba"],["musicbox","Music box"],["celesta","Celesta"],["kalimba","Kalimba"]]],
+  ["🎻 Strings",[["strings","String section"],["violin","Violin"],["cello","Cello"],["harp","Harp"],["guitar","Nylon guitar"],["eguitar","Clean electric"]]],
+  ["🎷 Winds & brass",[["flute","Flute"],["clarinet","Clarinet"],["sax","Alto sax"],["trumpet","Trumpet"],["harmonica","Harmonica"],["panflute","Pan flute"]]],
+  ["🎤 Voices",[["choir","Choir “aah”"],["oohs","Soft “ooh”"],["voice","Hum (simple)"]]],
+  ["🎛 Synth",[["pad","Warm pad"],["lead","Saw lead"],["synth","Retro synth"],["pluck","Synth pluck"],["keys","Simple keys"]]]];
+function llSoundName(v){for(const g of LL_SOUNDS)for(const x of g[1])if(x[0]===v)return x[1];return v;}
 /* ===== LYRIC LAB — line by line: each line = 2 bars, syllable targets by genre, rhyme pattern, auto rhymes ===== */
 const LL_GENRES=[
  {id:"pop",nm:"Pop",syl:[7,10],bpm:100,pat:"ABAB",feel:"even",tip:"Short, singable lines. Put the title on the chorus downbeat."},
@@ -2908,7 +2921,12 @@ h+=act;return h;}
       mk(clickOn?"🔊 Click on":"🔇 Click off",function(){clickOn=!clickOn;save("mjk-ideaclick",clickOn);draw();},clickOn);})();
     const pm=$("#pmel");if(pm)pm.onclick=playMelody;
     const pt=$("#ptake");if(pt)pt.onclick=()=>{if(url)playClip(url);};
-    const vc=$("#ilVoice");if(vc)LL_VOICES.forEach(function(o){const b=document.createElement("button");b.className="rchip sm"+(o[0]===voice?" sel":"");b.textContent=o[1];b.onclick=function(){voice=o[0];save("mjk-ideavoice",voice);unlockAudio();melNote(notes.length?notes[0].midi:60,0,0.5,voice);vc.querySelectorAll(".rchip").forEach(x=>x.classList.remove("sel"));b.classList.add("sel");};vc.appendChild(b);});
+    const vc=$("#ilVoice");if(vc){const grpOf=v=>{for(const g of LL_SOUNDS)if(g[1].some(x=>x[0]===v))return g[0];return LL_SOUNDS[0][0];};let open=window.__llSndGrp||grpOf(voice);
+      const paint=()=>{vc.innerHTML='<span style="display:flex;flex-wrap:wrap;gap:6px;width:100%">'+LL_SOUNDS.map(g=>'<button class="rchip sm'+(g[0]===open?" sel":"")+'" data-sg="'+g[0]+'">'+g[0]+'</button>').join("")+'</span><span style="display:flex;flex-wrap:wrap;gap:6px;width:100%;margin-top:6px;padding-left:8px;border-left:3px solid var(--gold)">'+LL_SOUNDS.find(g=>g[0]===open)[1].map(x=>'<button class="rchip sm'+(x[0]===voice?" sel":"")+'" data-snd="'+x[0]+'">'+x[1]+(SF.folder[x[0]]&&SF.loading[x[0]]?" …":"")+'</button>').join("")+'</span>';
+        vc.querySelectorAll("[data-sg]").forEach(b=>b.onclick=()=>{open=b.dataset.sg;window.__llSndGrp=open;paint();});
+        vc.querySelectorAll("[data-snd]").forEach(b=>b.onclick=()=>{voice=b.dataset.snd;save("mjk-ideavoice",voice);unlockAudio();const demo=()=>{const ns=notes.length?notes.slice().sort((x,y)=>x.step-y.step).slice(0,6):[{midi:60,step:0,len:2},{midi:64,step:2,len:2},{midi:67,step:4,len:4}],t0=ns[0].step,s16=(60/bpm)/4;ns.forEach(n=>melNote(n.midi,(n.step-t0)*s16,Math.max(0.15,n.len*s16*0.9),voice));};
+          if(SF.folder[voice]&&!sfInstReady(voice)){sfLoadInst(voice);paint();const st=$("#ilStatus");if(st)st.textContent="Loading "+llSoundName(voice)+"…";let n=0;const iv=setInterval(()=>{n++;if(sfInstReady(voice)||n>60){clearInterval(iv);paint();if(st)st.textContent=sfInstReady(voice)?"🎧 "+llSoundName(voice)+" ready":"Couldn’t load that sound — check your connection.";if(sfInstReady(voice))demo();}},150);}else{paint();demo();}});};
+      paint();if(SF.folder[voice]&&!sfInstReady(voice))sfLoadInst(voice);}
     const lk=$("#lvKid"),lp=$("#lvPro");if(lk)lk.onclick=()=>{level="kid";save("mjk-fblevel",level);draw();};if(lp)lp.onclick=()=>{level="pro";save("mjk-fblevel",level);draw();};
     const ta=$("#ilLyrics");if(ta){ta.value=lyrics;ta.oninput=()=>{lyrics=ta.value;lyricsTyped=true;renderRoll();};}
     (function(){var ff=$("#ilForms");if(ff){ff.innerHTML="";SONG_FORMS.forEach(function(fm){var b=document.createElement("button");b.className="rchip sm";b.textContent=fm.name;b.title=fm.hint;b.onclick=function(){var txt=fm.parts.map(function(p){return "["+p+"]";}).join("\n\n");lyrics=(lyrics&&lyrics.trim())?(lyrics.replace(/\s+$/,"")+"\n\n"+txt):txt;lyricsTyped=true;var _t=$("#ilLyrics");if(_t){_t.value=lyrics;_t.focus();}renderRoll();};ff.appendChild(b);});}var rg=$("#ilRhymeGo"),rw=$("#ilRhymeW");function _rr(){var out=$("#ilRhymeOut");if(!out||!rw)return;var word=(rw.value||"").trim();if(!word){out.textContent="Type a word.";return;}out.textContent="finding rhymes…";if(typeof rhymeFind!=="function"){out.textContent="";return;}rhymeFind(word,function(res,err){if(!res){out.textContent=(err==="offline")?"Rhyme finder needs a connection.":"No rhymes found.";return;}var pp=(res.perfect||[]).slice(0,8),nn=(res.near||[]).slice(0,6);out.innerHTML=(pp.length?'<b style="color:#7fd7c4">Perfect:</b> '+pp.map(esc).join(", "):"")+(nn.length?((pp.length?"<br>":"")+'<b style="color:#e9c46a">Near:</b> '+nn.map(esc).join(", ")):"");});}if(rg)rg.onclick=_rr;if(rw)rw.onkeydown=function(e){if(e.key==="Enter"){e.preventDefault();_rr();}};})();
