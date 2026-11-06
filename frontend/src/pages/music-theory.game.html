@@ -7656,10 +7656,10 @@ function medOceanStart(){if(!MED.master)return;medOceanStop(true);const a=ac(),s
     foam.f.frequency.setValueAtTime(2000+r()*2200,crash);if(foam.p)foam.p.pan.setValueAtTime(pan+(r()-0.5)*0.4,crash);
     const BG=back.e.gain,bk=pk*(0.35+r()*0.35);ramp(BG,0,t);BG.setValueAtTime(0.0001,crash+0.4);BG.linearRampToValueAtTime(bk,crash+1.2+r());BG.linearRampToValueAtTime(0.0001,crash+fall+gap*0.6+0.5);if(back.p)back.p.pan.setValueAtTime(-pan*0.6,crash);
     O.t=setTimeout(wave,(rise+hold+fall+gap)*1000);};
-  wave();medGullsSched();}
-function medGullsSched(){const O=MED.ocean;if(!O)return;clearTimeout(O.gt);if(!MEDOCEAN.gulls)return;O.gt=setTimeout(()=>{if(MED.ocean!==O)return;try{medGull();}catch(e){}medGullsSched();},(18+Math.random()*70)*1000);}
+  wave();medGullsSched(true);}
+function medGullsSched(first){const O=MED.ocean;if(!O)return;clearTimeout(O.gt);if(!MEDOCEAN.gulls)return;O.gt=setTimeout(()=>{if(MED.ocean!==O)return;try{medGull();}catch(e){}medGullsSched();},(first?(4+Math.random()*6):(12+Math.random()*30))*1000);}
 function medGull(){const O=MED.ocean;if(!O||!MED.master)return;const a=ac(),r=Math.random,t=a.currentTime+0.05,calls=1+Math.floor(r()*4),base=1050+r()*600,dist=0.35+r()*0.65;
-  const out=a.createGain();out.gain.value=0.11*dist*MEDOCEAN.lvl;const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=2200+dist*2600;const p=a.createStereoPanner?a.createStereoPanner():null;
+  const out=a.createGain();out.gain.value=0.3*dist*Math.max(0.35,MEDOCEAN.lvl);const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=2200+dist*2600;const p=a.createStereoPanner?a.createStereoPanner():null;
   const dl=a.createDelay(1),fb=a.createGain();dl.delayTime.value=0.16+r()*0.12;fb.gain.value=0.22;lp.connect(out);lp.connect(dl);dl.connect(fb);fb.connect(dl);dl.connect(out);
   if(p){p.pan.value=(r()-0.5)*1.6;p.pan.linearRampToValueAtTime((r()-0.5)*1.6,t+calls*0.7+1);out.connect(p);p.connect(MED.master);}else out.connect(MED.master);
   let st=t;for(let i=0;i<calls;i++){const d=0.2+r()*0.3,f0=base*(0.9+r()*0.2),o=a.createOscillator(),vib=a.createOscillator(),vg=a.createGain(),bp=a.createBiquadFilter(),g=a.createGain();
