@@ -7844,7 +7844,7 @@ function renderMelodyLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=
 }
 /* ===== MEDITATION — binaural brainwaves, breathwork + HRV, rhythm mind, sessions ===== */
 let MED={master:null,oscs:[],timer:null};
-function medStop(){if(MED.timer){clearInterval(MED.timer);MED.timer=null;}try{if(MED.nat){MED.nat.stop();MED.nat=null;}}catch(e){}MED.layers=[];try{if(MED.ocean){clearTimeout(MED.ocean.t);MED.ocean=null;}}catch(e){}MED.hum=null;clearTimeout(MED.doneT);medWake(false);if(!MED.master)return;const a=ac(),m=MED.master,os=MED.oscs,now=a.currentTime;MED.master=null;MED.oscs=[];try{if(MED.body){MED.body.stop(now);MED.body=null;}if(MED.bodyDepth){MED.bodyDepth.disconnect();MED.bodyDepth=null;}}catch(e){}try{m.gain.cancelScheduledValues(now);m.gain.setValueAtTime(Math.max(0,m.gain.value),now);m.gain.linearRampToValueAtTime(0,now+0.6);}catch(e){}os.forEach(o=>{try{o.stop(now+0.65);}catch(e){}});}
+function medStop(){if(MED.timer){clearInterval(MED.timer);MED.timer=null;}try{if(MED.nat){MED.nat.stop();MED.nat=null;}}catch(e){}MED.layers=[];try{if(MED.ocean){if(MED.ocean.nat)MED.ocean.nat.stop();MED.ocean=null;}}catch(e){}MED.hum=null;clearTimeout(MED.doneT);medWake(false);if(!MED.master)return;const a=ac(),m=MED.master,os=MED.oscs,now=a.currentTime;MED.master=null;MED.oscs=[];try{if(MED.body){MED.body.stop(now);MED.body=null;}if(MED.bodyDepth){MED.bodyDepth.disconnect();MED.bodyDepth=null;}}catch(e){}try{m.gain.cancelScheduledValues(now);m.gain.setValueAtTime(Math.max(0,m.gain.value),now);m.gain.linearRampToValueAtTime(0,now+0.6);}catch(e){}os.forEach(o=>{try{o.stop(now+0.65);}catch(e){}});}
 var MED_WL=null;function medWake(on){try{if(on){if(!MED_WL&&navigator.wakeLock)navigator.wakeLock.request("screen").then(function(l){MED_WL=l;l.addEventListener&&l.addEventListener("release",function(){MED_WL=null;});}).catch(function(){});}else if(MED_WL){MED_WL.release();MED_WL=null;}}catch(e){}}
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&MED.master&&!MED_WL)medWake(true);});
 function medRetune(beatHz,carrier){if(!MED.master||!MED.leftO||!MED.right)return false;const a=ac(),t=a.currentTime;MED.leftO.frequency.setTargetAtTime(carrier,t,0.08);MED.right.frequency.setTargetAtTime(carrier+beatHz,t,0.08);if(MED.lfo)MED.lfo.frequency.setTargetAtTime(beatHz,t,0.08);if(MED.pulseO)MED.pulseO.frequency.setTargetAtTime(carrier,t,0.08);(MED.drones||[]).forEach(([o,n])=>o.frequency.setTargetAtTime(carrier*Math.pow(2,n/12)/2,t,0.2));return true;}
@@ -7860,43 +7860,12 @@ const MEDDRIFT={on:load("mjk-meddrift",true)};
 function medDrift(on){MEDDRIFT.on=on;save("mjk-meddrift",on);try{const a=ac();(MED.driftG||[]).forEach(g=>{g.gain.cancelScheduledValues(a.currentTime);g.gain.setTargetAtTime(on?g._d:0,a.currentTime,1.5);});}catch(e){}}
 /* ---- ocean waves (generated, uneven swells) + humming guide ---- */
 const MEDOCEAN={on:load("mjk-medocean",false),lvl:load("mjk-medoceanlvl",0.55),gulls:load("mjk-medgulls",true)};
-function medOceanStart(){if(!MED.master)return;medOceanStop(true);const a=ac(),secs=13,len=Math.floor(a.sampleRate*secs),buf=a.createBuffer(2,len,a.sampleRate);
-  for(let ch=0;ch<2;ch++){const d=buf.getChannelData(ch);let b0=0,b1=0,b2=0;for(let i=0;i<len;i++){const w=Math.random()*2-1;b0=0.99765*b0+w*0.099;b1=0.963*b1+w*0.2965;b2=0.57*b2+w*1.0527;d[i]=(b0+b1+b2+w*0.1848)*0.18;}
-    const fade=Math.floor(a.sampleRate*0.5);for(let i=0;i<fade;i++){const k=i/fade;d[i]=d[i]*k+d[len-fade+i]*(1-k);}}
-  const out=a.createGain();out.gain.value=MEDOCEAN.lvl;out.connect(MED.master);
-  const mkLayer=(type,freq,q,rate,offset)=>{const s=a.createBufferSource();s.buffer=buf;s.loop=true;s.playbackRate.value=rate;const f=a.createBiquadFilter();f.type=type;f.frequency.value=freq;f.Q.value=q;const e=a.createGain();e.gain.value=0.0001;const p=a.createStereoPanner?a.createStereoPanner():null;
-    s.connect(f);f.connect(e);if(p){e.connect(p);p.connect(out);}else e.connect(out);
-    const dr=a.createOscillator(),dg=a.createGain();dr.frequency.value=0.007+Math.random()*0.01;dg.gain.value=0.035;dr.connect(dg);dg.connect(s.playbackRate);dr.start();
-    s.start(0,offset);MED.oscs.push(s,dr);return {s:s,f:f,e:e,p:p};};
-  const body=mkLayer("lowpass",500,0.4,1,0),foam=mkLayer("highpass",2600,0.5,1.09,6.1),back=mkLayer("lowpass",260,0.7,0.82,9.4);
-  const O={body:body,foam:foam,back:back,out:out,t:null,gt:null,sea:0.45+Math.random()*0.2,setLeft:0};MED.ocean=O;
-  const ramp=(p,v,t)=>{p.cancelScheduledValues(t);p.setValueAtTime(Math.max(0.0001,p.value),t);};
-  const wave=()=>{if(MED.ocean!==O)return;const r=Math.random;
-    O.sea=Math.max(0.12,Math.min(0.95,O.sea+(r()-0.5)*0.14+(r()<0.04?(r()-0.5)*0.5:0)));
-    if(O.setLeft<=0&&r()<0.12+0.3*O.sea)O.setLeft=2+Math.floor(r()*4);const big=O.setLeft>0;if(big)O.setLeft--;
-    const t=a.currentTime+0.05,pk=Math.min(1,(0.22+0.55*O.sea)*(big?1.2+r()*0.25:0.55+r()*0.5)),rise=big?2.8+r()*2.6:1.6+r()*2.2,hold=0.2+r()*0.9,fall=big?5+r()*4.5:2.8+r()*3.2,
-      lull=r()<0.07?4+r()*6:0,gap=(big?r()*0.8:0.4+r()*3*(1.2-O.sea))+lull,floor=0.03+0.08*O.sea*r(),pan=(r()-0.5)*0.8;
-    const E=body.e.gain;ramp(E,0,t);E.linearRampToValueAtTime(pk,t+rise);E.setValueAtTime(pk,t+rise+hold);E.linearRampToValueAtTime(floor,t+rise+hold+fall);
-    const F=body.f.frequency;F.cancelScheduledValues(t);F.setValueAtTime(F.value,t);F.linearRampToValueAtTime(500+pk*1700+r()*300,t+rise);F.linearRampToValueAtTime(320+r()*150,t+rise+hold+fall);
-    if(body.p){body.p.pan.cancelScheduledValues(t);body.p.pan.setValueAtTime(body.p.pan.value,t);body.p.pan.linearRampToValueAtTime(pan,t+rise);}
-    const crash=t+rise+hold*0.5,fz=pk*(big?0.55:0.18+r()*0.2),FG=foam.e.gain;ramp(FG,0,t);FG.setValueAtTime(0.0001,crash-0.2);FG.linearRampToValueAtTime(fz,crash+0.12);FG.exponentialRampToValueAtTime(0.0001,crash+fall*0.55+0.3);
-    foam.f.frequency.setValueAtTime(2000+r()*2200,crash);if(foam.p)foam.p.pan.setValueAtTime(pan+(r()-0.5)*0.4,crash);
-    const BG=back.e.gain,bk=pk*(0.35+r()*0.35);ramp(BG,0,t);BG.setValueAtTime(0.0001,crash+0.4);BG.linearRampToValueAtTime(bk,crash+1.2+r());BG.linearRampToValueAtTime(0.0001,crash+fall+gap*0.6+0.5);if(back.p)back.p.pan.setValueAtTime(-pan*0.6,crash);
-    O.t=setTimeout(wave,(rise+hold+fall+gap)*1000);};
-  natLoad("gulls");wave();medGullsSched(true);}
-function medGullsSched(first){const O=MED.ocean;if(!O)return;clearTimeout(O.gt);if(!MEDOCEAN.gulls)return;O.gt=setTimeout(()=>{if(MED.ocean!==O)return;try{medGull();}catch(e){}medGullsSched();},(first?(4+Math.random()*6):(12+Math.random()*30))*1000);}
-function medGull(){const O=MED.ocean;if(!O||!MED.master)return;if(natGull())return;const a=ac(),r=Math.random,t=a.currentTime+0.05,calls=1+Math.floor(r()*4),base=1050+r()*600,dist=0.35+r()*0.65;
-  const out=a.createGain();out.gain.value=0.3*dist*Math.max(0.35,MEDOCEAN.lvl);const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=2200+dist*2600;const p=a.createStereoPanner?a.createStereoPanner():null;
-  const dl=a.createDelay(1),fb=a.createGain();dl.delayTime.value=0.16+r()*0.12;fb.gain.value=0.22;lp.connect(out);lp.connect(dl);dl.connect(fb);fb.connect(dl);dl.connect(out);
-  if(p){p.pan.value=(r()-0.5)*1.6;p.pan.linearRampToValueAtTime((r()-0.5)*1.6,t+calls*0.7+1);out.connect(p);p.connect(MED.master);}else out.connect(MED.master);
-  let st=t;for(let i=0;i<calls;i++){const d=0.2+r()*0.3,f0=base*(0.9+r()*0.2),o=a.createOscillator(),vib=a.createOscillator(),vg=a.createGain(),bp=a.createBiquadFilter(),g=a.createGain();
-    o.type="sawtooth";o.frequency.setValueAtTime(f0*0.78,st);o.frequency.linearRampToValueAtTime(f0*1.32,st+d*0.28);o.frequency.exponentialRampToValueAtTime(f0*0.62,st+d);
-    vib.frequency.value=24+r()*14;vg.gain.value=f0*0.03;vib.connect(vg);vg.connect(o.frequency);
-    bp.type="bandpass";bp.Q.value=4;bp.frequency.setValueAtTime(f0*1.1,st);bp.frequency.linearRampToValueAtTime(f0*1.7,st+d*0.3);bp.frequency.linearRampToValueAtTime(f0*1.0,st+d);
-    g.gain.setValueAtTime(0.0001,st);g.gain.exponentialRampToValueAtTime(1,st+0.03);g.gain.setValueAtTime(1,st+d*0.6);g.gain.exponentialRampToValueAtTime(0.0001,st+d);
-    o.connect(bp);bp.connect(g);g.connect(lp);o.start(st);vib.start(st);o.stop(st+d+0.05);vib.stop(st+d+0.05);st+=d+0.12+r()*0.3;}}
-function medOceanStop(fast){const o=MED.ocean;if(!o)return;MED.ocean=null;clearTimeout(o.t);clearTimeout(o.gt);try{const a=ac();o.out.gain.setTargetAtTime(0.0001,a.currentTime,fast?0.05:1.2);setTimeout(()=>{[o.body,o.foam,o.back].forEach(l=>{try{l.s.stop();}catch(e){}});},fast?300:5000);}catch(e){}}
-function medGulls(on){MEDOCEAN.gulls=on;save("mjk-medgulls",on);medGullsSched();if(on&&MED.ocean)setTimeout(()=>{try{medGull();}catch(e){}},1500);}
+function medOceanStart(){if(!MED.master)return;medOceanStop(true);const a=ac(),out=a.createGain();out.gain.value=MEDOCEAN.lvl;out.connect(MED.master);
+  const H=natStart({waves:0.85,gulls:MEDOCEAN.gulls?0.5:0},out);MED.ocean={out:out,nat:H};}
+function medGullsSched(){}
+function medGull(){try{natGull();}catch(e){}}
+function medOceanStop(fast){const o=MED.ocean;if(!o)return;MED.ocean=null;try{o.out.gain.setTargetAtTime(0.0001,ac().currentTime,fast?0.05:1.2);o.nat.stop(fast);}catch(e){}}
+function medGulls(on){MEDOCEAN.gulls=on;save("mjk-medgulls",on);if(MED.ocean&&MED.ocean.nat)MED.ocean.nat.set("gulls",on?0.5:0);}
 
 function medOcean(on){MEDOCEAN.on=on;save("mjk-medocean",on);if(!MED.master)return;if(on)medOceanStart();else medOceanStop();}
 function medOceanLevel(v){MEDOCEAN.lvl=v;save("mjk-medoceanlvl",v);if(MED.ocean)MED.ocean.out.gain.setTargetAtTime(v,ac().currentTime,0.3);}
@@ -8179,7 +8148,7 @@ function natGenRun(H,Ly){var a=ac(),K=natKeyOf(H.key),kind=Ly.inf.gen,rv=natRev(
 function natGull(){const b=NAT.bufs.gulls;if(!b||!MED.master)return false;const a=ac(),t=a.currentTime+0.05,len=4+Math.random()*6,off=Math.random()*Math.max(0,b.duration-len),dist=0.35+Math.random()*0.65;
   const s=a.createBufferSource(),e=a.createGain(),p=a.createStereoPanner?a.createStereoPanner():null;s.buffer=b;s.connect(e);if(p){p.pan.value=(Math.random()-0.5)*1.5;e.connect(p);p.connect(MED.master);}else e.connect(MED.master);
   const v=1.6*dist*Math.max(0.35,MEDOCEAN.lvl);e.gain.setValueAtTime(0,t);e.gain.linearRampToValueAtTime(v,t+0.8);e.gain.setValueAtTime(v,t+len-1.2);e.gain.linearRampToValueAtTime(0,t+len);s.start(t,off);s.stop(t+len+0.1);MED.oscs.push(s);return true;}
-function natSceneHTML(sel,id){return '<select id="'+id+'" class="vjsel"><option value="classic"'+(sel==="classic"?" selected":"")+'>🌊 Classic ocean</option>'+natAllMixes().map(m=>'<option value="'+esc(m.id)+'"'+(sel===m.id?" selected":"")+'>'+(m.mine?"★ ":"")+esc(m.nm)+'</option>').join("")+'<option value="none"'+(sel==="none"?" selected":"")+'>No nature sound</option></select>';}
+function natSceneHTML(sel,id){return '<select id="'+id+'" class="vjsel"><option value="classic"'+(sel==="classic"?" selected":"")+'>🌊 Ocean waves</option>'+natAllMixes().map(m=>'<option value="'+esc(m.id)+'"'+(sel===m.id?" selected":"")+'>'+(m.mine?"★ ":"")+esc(m.nm)+'</option>').join("")+'<option value="none"'+(sel==="none"?" selected":"")+'>No nature sound</option></select>';}
 /* start the chosen scene under MED.master (classic = the existing synthesized ocean) */
 function natSceneStart(scene){if(!MED.master)return;if(scene==="none")return;if(scene==="classic"||!scene){natLoad("gulls");try{medOceanStart();}catch(e){}return;}
   const m=natAllMixes().find(x=>x.id===scene);if(!m)return;const out=ac().createGain();out.gain.value=1;out.connect(MED.master);MED.nat=natStart(m.mix,out,m.key);}
