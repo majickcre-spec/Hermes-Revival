@@ -4659,7 +4659,9 @@ function pkDrawCtl(){const box=document.getElementById("pkCtl");if(!box)return;c
     '<div class="rrow2"><span class="rlab">Scale</span><span class="rchips tight">'+Object.keys(PKS).map(s=>chip("",PKS[s].nm,S.s===s,'data-scale="'+s+'"')).join("")+'</span></div>'+
     '<div class="rrow2"><span class="rlab">Hands</span><span class="rchips tight">'+[["R","Right"],["L","Left"],["B","Both"]].map(x=>chip("",x[1],S.hand===x[0],'data-hand="'+x[0]+'"')).join("")+chip("","1 octave",S.oct===1,'data-oct="1"')+chip("","2 octaves",S.oct===2,'data-oct="2"')+'</span></div>';}
   else if(M==="melody"){h+=pkNikoHTML(chip);const all=(typeof melAll==="function"?melAll():MEL_LIB),groups={};all.forEach(s=>(groups[s.g]=groups[s.g]||[]).push(s));
-    h+=Object.keys(groups).map(g=>'<div class="rrow2"><span class="rlab" style="min-width:auto">'+((typeof MEL_GENRE_IC!=="undefined"&&MEL_GENRE_IC[g])||"🎵")+'</span><span class="rchips tight">'+groups[g].map(s=>chip("",esc(s.name),!PK.melNk&&PK.melId===s.id,'data-mel="'+s.id+'"')).join("")+'</span></div>').join("");}
+    const gi=g=>((typeof MEL_GENRE_IC!=="undefined"&&MEL_GENRE_IC[g])||"🎵"),curG=(all.find(x=>x.id===PK.melId)||{}).g;
+    h+='<div class="rrow2"><span class="rlab">Songs</span><span class="rchips tight">'+Object.keys(groups).map(g=>chip("",gi(g)+' '+esc(g)+' '+(PK.melFolder===g?"▾":"▸")+' <span style="opacity:.6;font-size:.72rem">'+groups[g].length+'</span>',PK.melFolder===g,'data-melf="'+esc(g)+'"'+(!PK.melNk&&curG===g?' style="border-color:var(--gold)"':''))).join("")+'</span></div>'+
+      (PK.melFolder&&groups[PK.melFolder]?'<div style="border-left:3px solid var(--gold);padding-left:8px;margin:2px 0 8px"><div class="rchips tight">'+groups[PK.melFolder].map(s=>chip("",esc(s.name),!PK.melNk&&PK.melId===s.id,'data-mel="'+s.id+'"')).join("")+'</div></div>':'');}
   else if(M==="prog"){const UP=pkUserProgs(),ukeys=[...new Set(UP.map(x=>x.key||""))];
     h+='<div class="rrow2"><span class="rlab">Song</span><span class="rchips tight">'+PROGS.map((p,i)=>chip("",esc(p.name),!PK.uprog&&PK.prog===i,'data-prog="'+i+'"')).join("")+'</span></div>'+
     pkNikoHTML(chip)+
@@ -4678,6 +4680,7 @@ function pkDrawCtl(){const box=document.getElementById("pkCtl");if(!box)return;c
   box.querySelectorAll("[data-part]").forEach(b=>b.onclick=()=>{const P=Object.assign({f:1,a:1,b:1},PK.chord.parts||{}),k=b.dataset.part;P[k]=P[k]?0:1;if(!P.f&&!P.a&&!P.b)return;PK.chord.parts=P;re();});
   box.querySelectorAll("[data-sroot]").forEach(b=>b.onclick=()=>{PK.scale.root=+b.dataset.sroot;re();});box.querySelectorAll("[data-scale]").forEach(b=>b.onclick=()=>{PK.scale.s=b.dataset.scale;re();});
   box.querySelectorAll("[data-hand]").forEach(b=>b.onclick=()=>{PK.scale.hand=b.dataset.hand;re();});box.querySelectorAll("[data-oct]").forEach(b=>b.onclick=()=>{PK.scale.oct=+b.dataset.oct;re();});
+  box.querySelectorAll("[data-melf]").forEach(b=>b.onclick=()=>{PK.melFolder=PK.melFolder===b.dataset.melf?null:b.dataset.melf;pkDrawCtl();});
   box.querySelectorAll("[data-mel]").forEach(b=>b.onclick=()=>{PK.melId=b.dataset.mel;PK.melNk=false;PK.bpm=PK.play==="watch"?(pkMelSong()||{bpm:PK.bpm}).bpm:pkMelBpm();re();const bv=document.getElementById("pkBpmV");if(bv)bv.textContent=PK.bpm;const br=document.getElementById("pkBpm");if(br)br.value=PK.bpm;});
   box.querySelectorAll("[data-prog]").forEach(b=>b.onclick=()=>{PK.prog=+b.dataset.prog;PK.uprog=null;re();});
   const upSet=b=>{const ub=document.getElementById("pkBpmV");if(ub)ub.textContent=PK.bpm;const ur=document.getElementById("pkBpm");if(ur)ur.value=PK.bpm;};
