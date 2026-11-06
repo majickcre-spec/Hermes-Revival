@@ -1087,12 +1087,29 @@ function renderScaleBuild(){var body=document.getElementById("tbody");if(!body)r
   document.getElementById("scbPlay").onclick=function(){play(false);};
   document.getElementById("scbDown").onclick=function(){play(true);};
 }
+/* interactive circle of fifths: key signatures on a staff + the six diatonic chords of the chosen key */
+var COF={maj:["C","G","D","A","E","B","F#","Db","Ab","Eb","Bb","F"],min:["Am","Em","Bm","F#m","C#m","G#m","D#m","Bbm","Fm","Cm","Gm","Dm"],acc:[0,1,2,3,4,5,6,-5,-4,-3,-2,-1],sel:0};
+function cofPc(n){var b={C:0,D:2,E:4,F:5,G:7,A:9,B:11}[n[0]],r=n.slice(1).replace("m","");return (b+(r==="#"?1:r==="b"?-1:0)+12)%12;}
+function cofChord(name){var minor=/m$/.test(name),pc=cofPc(name),root=48+pc+(pc>7?-12:0)+12;var iv=minor?[0,3,7]:[0,4,7];iv.forEach(function(s,i){playTone(midiToFreq(root+s),i*0.03,1.6);});}
+function cofStaff(n){var W=200,top=20,sp=5,sh={F5:20,G5:15,E5:25,D5:30,C5:35,B4:40,A4:45,G4:50,F4:55},sOrd=["F5","C5","G5","D5","A4","E5","B4"],fOrd=["B4","E5","A4","D5","G4","C5","F4"],h='<svg viewBox="0 0 '+W+' 80" style="width:100%;max-width:260px;display:block;margin:0 auto">';
+  for(var i=0;i<5;i++)h+='<line x1="4" x2="'+(W-4)+'" y1="'+(top+i*10)+'" y2="'+(top+i*10)+'" stroke="currentColor" stroke-width="1" opacity=".6"/>';h+='<text x="6" y="'+(top+36)+'" font-size="44" fill="currentColor" opacity=".85">𝄞</text>';
+  var list=n>0?sOrd.slice(0,n):fOrd.slice(0,-n),g=n>0?"♯":"♭";list.forEach(function(k,i){h+='<text x="'+(44+i*13)+'" y="'+(sh[k]+(n>0?5:3))+'" font-size="18" fill="var(--gold)">'+g+'</text>';});return h+'</svg>';}
+function renderCircleWheel(){var tb=$("#tbody");if(!tb)return;var R1=118,R2=82,C=140,s=COF.sel,h='<div class="panel"><svg viewBox="0 0 280 280" style="width:100%;max-width:340px;display:block;margin:0 auto" id="cofSvg">';
+  var near=[(s+11)%12,s,(s+1)%12];for(var i=0;i<12;i++){var a=(i*30-90)*Math.PI/180,x=C+R1*Math.cos(a),y=C+R1*Math.sin(a),x2=C+R2*Math.cos(a),y2=C+R2*Math.sin(a),on=near.indexOf(i)>=0,me=i===s;
+    h+='<g data-k="'+i+'" style="cursor:pointer"><circle cx="'+x+'" cy="'+y+'" r="20" fill="'+(me?"var(--gold)":on?"rgba(244,183,64,.25)":"var(--card)")+'" stroke="var(--line)"/><text x="'+x+'" y="'+(y+5)+'" text-anchor="middle" font-size="14" font-weight="700" fill="'+(me?"#111":"var(--cream)")+'">'+COF.maj[i]+'</text>'+
+      '<circle cx="'+x2+'" cy="'+y2+'" r="16" fill="'+(on?"rgba(95,224,168,.18)":"transparent")+'" stroke="var(--line)"/><text x="'+x2+'" y="'+(y2+4)+'" text-anchor="middle" font-size="11" fill="var(--muted)">'+COF.min[i]+'</text></g>';}
+  var n=COF.acc[s];h+='<text x="'+C+'" y="'+(C-6)+'" text-anchor="middle" font-size="22" font-weight="800" fill="var(--cream)">'+COF.maj[s]+'</text><text x="'+C+'" y="'+(C+16)+'" text-anchor="middle" font-size="11" fill="var(--muted)">'+(n===0?"no sharps or flats":Math.abs(n)+(n>0?" sharp":" flat")+(Math.abs(n)>1?"s":""))+'</text></svg>'+cofStaff(n);
+  var ch=[["I",COF.maj[s]],["ii",COF.min[(s+11)%12]],["iii",COF.min[(s+1)%12]],["IV",COF.maj[(s+11)%12]],["V",COF.maj[(s+1)%12]],["vi",COF.min[s]]];
+  h+='<div class="rlab" style="display:block;margin:10px 0 6px;text-align:center">Chords in '+COF.maj[s]+' major — tap to hear</div><div class="rchips" style="justify-content:center">'+ch.map(function(c){return '<button class="rchip" data-cof="'+c[1]+'"><b>'+c[0]+'</b> '+c[1]+'</button>';}).join("")+'</div>'+
+    '<div class="site-note" style="text-align:center;margin-top:8px">Neighbours on the wheel share six of seven notes — that’s why I, IV and V (and their relative minors) sound so good together.</div></div>';
+  tb.innerHTML=h;tb.querySelectorAll("[data-k]").forEach(function(g){g.onclick=function(){COF.sel=+g.dataset.k;unlockAudio();cofChord(COF.maj[COF.sel]);renderCircleWheel();};});tb.querySelectorAll("[data-cof]").forEach(function(b){b.onclick=function(){unlockAudio();cofChord(b.dataset.cof);};});}
 function renderTopic(){
   view.innerHTML=`<div class="play-top"><button class="back" id="tBack" aria-label="Back">←</button><span class="ttitle">${T.icon} ${esc(T.title)}</span></div>
     <div class="tabs">
       <button class="tab ${tab==="learn"?"on":""}" data-t="learn">Learn</button>
       ${T.id==="staff"?`<button class="tab ${tab==="clefs"?"on":""}" data-t="clefs">Clefs</button>`:""}
       ${T.id==="scales"?`<button class="tab ${tab==="build"?"on":""}" data-t="build">Build</button>`:""}
+      ${T.id==="circle"?`<button class="tab ${tab==="wheel"?"on":""}" data-t="wheel">Wheel</button>`:""}
       <button class="tab ${tab==="quiz"?"on":""}" data-t="quiz">Quiz</button>
       <button class="tab ${tab==="match"?"on":""}" data-t="match">Match</button>
     </div>
@@ -1106,7 +1123,7 @@ function renderTopic(){
   $("#tBack").onclick=goHome;
   {const eb=$("#tEarBtn");if(eb&&T.ear&&T.ear.go)eb.onclick=T.ear.go;}
   view.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{tab=t.dataset.t;renderTopic();});
-  if(tab==="learn")renderLearn();else if(tab==="clefs")renderClefs();else if(tab==="build")renderScaleBuild();else if(tab==="quiz")renderQuiz();else renderMatch();
+  if(tab==="learn")renderLearn();else if(tab==="clefs")renderClefs();else if(tab==="build")renderScaleBuild();else if(tab==="wheel")renderCircleWheel();else if(tab==="quiz")renderQuiz();else renderMatch();
   beanChip();window.scrollTo(0,0);
 }
 
@@ -1371,7 +1388,16 @@ function playTone(freq,start,dur){
   o.connect(g);g.connect(lp);o.start(t0);o.stop(t0+dur+0.08);
   partial(2,peak*0.12,-2); // faint octave for warmth
 }
-function playInterval(root,semis){playTone(midiToFreq(root),0,1.4);playTone(midiToFreq(root+semis),1.45,1.55);}
+function ivMode(){return load("mjk-ivmode","up");}
+function playInterval(root,semis,mode){mode=mode||"up";if(mode==="together"){playTone(midiToFreq(root),0,2.2);playTone(midiToFreq(root+semis),0,2.2);return;}
+  if(mode==="down"){playTone(midiToFreq(root+semis),0,1.4);playTone(midiToFreq(root),1.45,1.55);return;}playTone(midiToFreq(root),0,1.4);playTone(midiToFreq(root+semis),1.45,1.55);}
+/* small settings rows shared by the ear and rhythm drills */
+function drillBpm(){return load("mjk-drillbpm",84);}
+function drillRow(before,kind){var el=typeof before==="string"?document.querySelector(before):before;if(!el)return;var d=document.createElement("div");d.className="rrow2";d.style.margin="8px 0";
+  if(kind==="tempo"){d.innerHTML='<span class="rlab">Tempo</span><input type="range" min="50" max="160" value="'+drillBpm()+'" style="flex:1;accent-color:var(--gold)"><span class="rbpm">'+drillBpm()+'</span>';var r=d.querySelector("input"),v=d.querySelector(".rbpm");r.oninput=function(){v.textContent=r.value;save("mjk-drillbpm",+r.value);};}
+  else{var m=ivMode();d.innerHTML='<span class="rlab">Play as</span><span class="rchips tight">'+[["up","Rising"],["down","Falling"],["together","Together"],["mixed","Mixed"]].map(function(o){return '<button class="rchip sm'+(m===o[0]?' sel':'')+'" data-ivm="'+o[0]+'">'+o[1]+'</button>';}).join("")+'</span>';
+    d.querySelectorAll("[data-ivm]").forEach(function(b){b.onclick=function(){save("mjk-ivmode",b.dataset.ivm);d.querySelectorAll("[data-ivm]").forEach(function(x){x.classList.toggle("sel",x===b);});};});}
+  el.parentNode.insertBefore(d,el);}
 function playNote(root){playTone(midiToFreq(root),0,1.5);}
 /* sustained reference tone for singing — selectable instrument voices, HELD loud, gentle release */
 let toneVoice=load("mjk-tonevoice","piano");
@@ -2095,7 +2121,7 @@ function rScoreUI(inCount){
   const meanAbs=R.matched?Math.round(1000*R.errAbsSum/R.matched):0;
   const bias=R.matched?R.errSum/R.matched:0;
   if(!feel.classList.contains("beat"))
-    feel.textContent=!R.resolved?"Count out loud with the clicks":"±"+meanAbs+" ms avg · "+(Math.abs(bias)<0.02?"right in the pocket ✨":(bias>0?"a bit late":"a bit early"));
+    feel.textContent=!R.resolved?"Count out loud with the clicks":"±"+meanAbs+" ms avg · "+(Math.abs(bias)<0.02?"centred on the beat":(bias>0?"a bit late":"a bit early"));
   if(R.speak&&!R.beaned&&R.barCount>=5&&R.resolved>=6&&acc>=70&&activeId()&&!load(mk("rhythm","speak-"+R.patIdx+"-paid"),false)){
     R.beaned=true;addBeans(12);save(mk("rhythm","speak-"+R.patIdx+"-paid"),true);beanChip();
     feel.textContent="＋12 🫘 — "+acc+"% in the pocket!";burst(accEl,10);
@@ -2246,7 +2272,7 @@ function tapBackMenu(){
 }
 function tapRound(pat){
   if(toneRAF)cancelAnimationFrame(toneRAF);
-  const bpm=84,beat=60/bpm,cellDur=beat/pat.div,barDur=beat*4;
+  const bpm=drillBpm(),beat=60/bpm,cellDur=beat/pat.div,barDur=beat*4;
   let taps=[],expected=[],phase="idle",winTimer=null;
   function hear(){const a=ac();let t=a.currentTime+0.2;for(let b=0;b<4;b++){click(t,b===0?"accent":"beat");t+=beat;}
     for(let c=0;c<4*pat.div;c++){if(pat.active.indexOf(c)>=0)click(t,c===0?"accent":(c%pat.div===0?"beat":"sub"));t+=cellDur;}}
@@ -2272,7 +2298,7 @@ function tapRound(pat){
     <div class="panel"><div class="ask">${esc(pat.say)}</div>
       <div class="actions"><button class="btn" id="hear">▶ Hear it</button><button class="btn" id="go">Tap it →</button></div>
       <button class="tappad" id="tapPad">TAP</button>
-      <div class="feedback" id="tapStatus">Hear it, then tap “Tap it” and tap the rhythm on the pad.</div></div>`;
+      <div class="feedback" id="tapStatus">Hear it, then tap “Tap it” and tap the rhythm on the pad.</div></div>`;{const _hr=$("#hear");if(_hr){drillRow(_hr.parentNode,"tempo");const _r=view.querySelector(".rrow2 input[type=range]");if(_r)_r.onchange=()=>tapRound(pat);}}
   $("#eBack").onclick=goHome;$("#hear").onclick=hear;$("#go").onclick=go;
   const pad=$("#tapPad");pad.addEventListener("pointerdown",e=>{e.preventDefault();onTap();});
 }
@@ -2290,7 +2316,7 @@ function rhythmNameQuiz(){
     const ans=pool[Math.floor(Math.random()*pool.length)];
     const others=pool.filter(p=>p.id!==ans.id);for(let i=others.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[others[i],others[j]]=[others[j],others[i]];}
     const opts=[ans,...others.slice(0,3)];for(let i=opts.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[opts[i],opts[j]]=[opts[j],opts[i]];}
-    const playIt=()=>{const a=ac();let t=a.currentTime+0.15;const div=ans.div,cd=(60/84)/div;for(let c=0;c<4*div;c++){if(ans.active.indexOf(c)>=0)click(t,c===0?"accent":(c%div===0?"beat":"sub"));t+=cd;}};
+    const playIt=()=>{const a=ac();let t=a.currentTime+0.15;const div=ans.div,cd=(60/drillBpm())/div;for(let c=0;c<4*div;c++){if(ans.active.indexOf(c)>=0)click(t,c===0?"accent":(c%div===0?"beat":"sub"));t+=cd;}};
     view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🧠 Which rhythm?</span>
        <span style="margin-left:auto;color:var(--muted);font-weight:800;font-size:.8rem">${qi+1}/${TOTAL}</span></div>
       <div class="panel"><div class="ask">Listen, then pick the rhythm you heard</div>
@@ -2298,7 +2324,7 @@ function rhythmNameQuiz(){
       <div class="opts" id="opts" style="margin-top:14px"></div><div class="feedback" id="fb"></div>
       <div class="actions"><button class="btn" id="next" disabled>Next</button></div></div>`;
     $("#eBack").onclick=goHome;$("#play").onclick=playIt;$("#replay").onclick=playIt;
-    const box=$("#opts");
+    drillRow("#opts","tempo");const box=$("#opts");
     opts.forEach(o=>{const b=document.createElement("button");b.className="opt";b.textContent=o.name;
       b.onclick=()=>{if(box.dataset.lock)return;if(o.id===ans.id){box.dataset.lock="1";b.classList.add("correct");[...box.children].forEach(c=>c.disabled=true);if(!box.dataset.miss)correct++;$("#fb").textContent=(box.dataset.miss?"That's it (not counted — first answers only): ":"Correct — ")+ans.name;$("#fb").className="feedback good";$("#next").disabled=false;$("#next").focus();}
         else{box.dataset.miss="1";b.classList.add("wrong");b.disabled=true;$("#fb").textContent="Not that one — listen again ↻";$("#fb").className="feedback try";}};
@@ -4127,6 +4153,7 @@ function djRenderCells(){const box=$("#djCells");if(!box)return;const P=DJP(),di
     box.appendChild(grp);}
   DJ.litCell=-1;}
 /* ===== BEAT MAKER — layered step sequencer: djembe + handpan together ===== */
+(function(){try{var s=document.createElement("style");s.textContent=".bmcell.on.ghost{opacity:.5}";document.head.appendChild(s);}catch(e){}})();
 function beatRowsAll(){
   const dj=[{label:"Slap",kind:"slap",group:"djembe"},{label:"Tone",kind:"tone",group:"djembe"},{label:"Bass",kind:"bass",group:"djembe"}];
   const sc=(hpScaleList()[HP.scaleIdx]||hpScaleList()[0]).notes;const hp=sc.slice().reverse().map(m=>({label:midiName(m),midi:m,group:"handpan"}));
@@ -4138,10 +4165,10 @@ function saveBeatLib(l){save(mk("beat","lib"),l);}
 function vlqPush(arr,v){let buf=v&0x7F;while((v>>=7)){buf<<=8;buf|=((v&0x7F)|0x80);}while(true){arr.push(buf&0xFF);if(buf&0x80)buf>>=8;else break;}}
 function beatToMidi(bt){const PPQ=480,stepTicks=Math.round(PPQ*4/bt.steps),DRUM={bass:64,tone:63,slap:62};
   const ev=[];bt.rows.forEach((row,r)=>{const isDj=(row.g==="djembe"||typeof row.v==="string");const ch=isDj?9:0,note=isDj?(DRUM[row.v]||60):row.v;
-    for(let c=0;c<bt.steps;c++){if(bt.grid[r]&&bt.grid[r][c]){const t=c*stepTicks;ev.push({t,on:1,ch,note});ev.push({t:t+Math.max(10,stepTicks-8),on:0,ch,note});}}});
+    for(let c=0;c<bt.steps;c++){if(bt.grid[r]&&bt.grid[r][c]){const t=c*stepTicks;ev.push({t,on:1,ch,note,vel:Math.max(20,Math.round(110*bt.grid[r][c]))});ev.push({t:t+Math.max(10,stepTicks-8),on:0,ch,note});}}});
   ev.sort((a,b)=>a.t-b.t||a.on-b.on);
   const trk=[];vlqPush(trk,0);const mpqn=Math.round(60000000/bt.bpm);trk.push(0xFF,0x51,0x03,(mpqn>>16)&255,(mpqn>>8)&255,mpqn&255);
-  let last=0;ev.forEach(e=>{vlqPush(trk,e.t-last);last=e.t;trk.push(((e.on?0x90:0x80)|e.ch),e.note&127,e.on?100:0);});
+  let last=0;ev.forEach(e=>{vlqPush(trk,e.t-last);last=e.t;trk.push(((e.on?0x90:0x80)|e.ch),e.note&127,e.on?(e.vel||100):0);});
   vlqPush(trk,0);trk.push(0xFF,0x2F,0x00);
   const head=[0x4D,0x54,0x68,0x64,0,0,0,6,0,0,0,1,(PPQ>>8)&255,PPQ&255];
   const th=[0x4D,0x54,0x72,0x6B,(trk.length>>24)&255,(trk.length>>16)&255,(trk.length>>8)&255,trk.length&255];
@@ -4158,14 +4185,15 @@ function renderBeat(focus){try{sfLoadInst("handpan");}catch(e){}try{drsLoad();}c
   let collapsed={djembe:focus==="handpan",handpan:focus==="djembe"};
   let perform=(focus==="djembe")?"djembe":"handpan";
   teardown=()=>{running=false;if(raf)cancelAnimationFrame(raf);if(schID)clearInterval(schID);};
-  function playRow(row,t){if(row.kind)djembe(t,row.kind);else handpan(t,row.midi);}
+  function playRow(row,t,v){if(row.kind)djembe(t,row.kind,v==null?1:v);else handpan(t,row.midi,v==null?1:v);}
   function stepDur(idx){const base=(60/bpm)*4/steps,sw=Math.max(0,Math.min(60,swing))/100*0.6;return base*(idx%2===0?1+sw:1-sw);}
   function stop(){running=false;if(raf)cancelAnimationFrame(raf);raf=null;if(schID)clearInterval(schID);schID=null;const b=$("#bmPlay");if(b)b.textContent="▶ Play";}
-  function schedule(){const ahead=0.2;while(nextTime<ac().currentTime+ahead){const st=curStep;rows.forEach((row,r)=>{if(grid[r][st])playRow(row,nextTime);});vq.push({t:nextTime,step:st});nextTime+=stepDur(st);curStep=(curStep+1)%steps;}}
+  function schedule(){const ahead=0.2;while(nextTime<ac().currentTime+ahead){const st=curStep;rows.forEach((row,r)=>{if(grid[r][st])playRow(row,nextTime,grid[r][st]);});vq.push({t:nextTime,step:st});nextTime+=stepDur(st);curStep=(curStep+1)%steps;}}
   function frame(){const now=ac().currentTime;while(vq.length&&vq[0].t<=now){playStep=vq.shift().step;document.querySelectorAll(".bmcol-on").forEach(c=>c.classList.remove("bmcol-on"));document.querySelectorAll('.bmcell[data-c="'+playStep+'"]').forEach(c=>c.classList.add("bmcol-on"));
     document.querySelectorAll(".bmperf [data-pr]").forEach(el=>{const r=+el.getAttribute("data-pr");if(grid[r]&&grid[r][playStep]){el.classList.remove("glow");void el.offsetWidth;el.classList.add("glow");setTimeout(()=>{if(el)el.classList.remove("glow");},150);}});}if(running)raf=requestAnimationFrame(frame);}
   function start(){unlockAudio();if(running)return;running=true;curStep=0;vq=[];nextTime=ac().currentTime+0.12;schID=setInterval(schedule,25);raf=requestAnimationFrame(frame);const b=$("#bmPlay");if(b)b.textContent="⏸ Stop";}
-  function hit(r,c){unlockAudio();grid[r][c]=grid[r][c]?0:1;const cell=document.querySelector('.bmcell[data-r="'+r+'"][data-c="'+c+'"]');if(cell)cell.classList.toggle("on",!!grid[r][c]);if(grid[r][c])playRow(rows[r],ac().currentTime+0.01);updSummary();}
+  /* tap cycles: off → accent → ghost (soft) → off */
+  function hit(r,c){unlockAudio();const v=grid[r][c];grid[r][c]=!v?1:(v>=0.99?0.5:0);const cell=document.querySelector('.bmcell[data-r="'+r+'"][data-c="'+c+'"]');if(cell){cell.classList.toggle("on",!!grid[r][c]);cell.classList.toggle("ghost",grid[r][c]>0&&grid[r][c]<0.99);}if(grid[r][c])playRow(rows[r],ac().currentTime+0.01,grid[r][c]);updSummary();}
   function padTap(r,el){unlockAudio();playRow(rows[r],ac().currentTime+0.01);if(el){el.classList.remove("glow");void el.offsetWidth;el.classList.add("glow");setTimeout(()=>{if(el)el.classList.remove("glow");},200);}if(armed){const c=running?playStep:0;grid[r][c]=1;const cell=document.querySelector('.bmcell[data-r="'+r+'"][data-c="'+c+'"]');if(cell)cell.classList.add("on");updSummary();}}
   function perfPan(){const hp=rows.map((row,r)=>({row,r})).filter(x=>x.row.group==="handpan");hp.sort((a,b)=>a.row.midi-b.row.midi);
     const box=document.createElement("div");box.className="handpan";if(!hp.length)return box;const center=hp[0],ring=hp.slice(1),CX=130,CY=130,R=92,nF=Math.max(1,ring.length);
@@ -4239,7 +4267,7 @@ function renderBeat(focus){try{sfLoadInst("handpan");}catch(e){}try{drsLoad();}c
       rows.forEach((row,r)=>{if(row.group!==group)return;const lane=document.createElement("div");lane.className="bmrow";
         const lab=document.createElement("span");lab.className="bmlabel";lab.textContent=row.label;lane.appendChild(lab);
         const cells=document.createElement("div");cells.className="bmcells";cells.style.gridTemplateColumns="repeat("+steps+",1fr)";
-        for(let c=0;c<steps;c++){const cell=document.createElement("div");cell.className="bmcell"+(grid[r][c]?" on":"")+(c%4===0?" beatstart":"");cell.setAttribute("data-r",r);cell.setAttribute("data-c",c);cell.onclick=()=>hit(r,c);cells.appendChild(cell);}
+        for(let c=0;c<steps;c++){const cell=document.createElement("div");cell.className="bmcell"+(grid[r][c]?" on":"")+(grid[r][c]>0&&grid[r][c]<0.99?" ghost":"")+(c%4===0?" beatstart":"");cell.setAttribute("data-r",r);cell.setAttribute("data-c",c);cell.onclick=()=>hit(r,c);cells.appendChild(cell);}
         lane.appendChild(cells);gw.appendChild(lane);});}
     fillGrid("#bmGridDj","djembe");fillGrid("#bmGridHp","handpan");
     $("#bmPerfHp").onclick=()=>{perform="handpan";draw();};
@@ -5923,7 +5951,8 @@ function sessChip(){var c=document.getElementById("sessChipM");if(!c)return;var 
 var _sessIv=null;
 function sessStartTicker(){if(_sessIv)clearInterval(_sessIv);_sessIv=setInterval(function(){sessChip();try{medRemTick();}catch(e){}},1000);sessChip();try{medRemTick();}catch(e){}}
 function startSession(id){var d=sessDef(id);if(!d)return;sessSet({id:d.id,len:d.len,focus:d.focus,title:d.title,startedAt:Date.now()});sessChip();try{d.go();}catch(e){}}
-function finishSession(ok){var st=sessGet();sessClear();sessChip();if(ok&&st){var c=load(mk("sess","count"),0)+1;save(mk("sess","count"),c);if(!isAdult()&&activeId()){var bn=st.len>=45?40:(st.len>=15?20:10);addBeans(bn);try{beanChip();}catch(e){}}}}
+function finishSession(ok){var st=sessGet();sessClear();sessChip();if(ok&&st){var mins=(Date.now()-(st.startedAt||Date.now()))/60000,full=mins>=st.len*0.8,lg=load(mk("sess","log"),[]);lg.unshift({t:Date.now(),title:st.title,focus:st.focus,planned:st.len,minutes:Math.round(mins*10)/10,complete:full});save(mk("sess","log"),lg.slice(0,500));
+  if(!full){try{alert("Logged "+Math.round(mins)+" of "+st.len+" minutes. A session counts toward your streak once you\u2019ve done at least 80% of it.");}catch(e){}return;}var c=load(mk("sess","count"),0)+1;save(mk("sess","count"),c);if(!isAdult()&&activeId()){var bn=st.len>=45?40:(st.len>=15?20:10);addBeans(bn);try{beanChip();}catch(e){}}}}
 function sessPanel(){var st=sessGet();if(!st){renderSessions();return;}var over=sessRemain(st)<=0;home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){};
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">⏱ '+esc(st.title)+'</span></div><div class="panel">'+
     '<div class="intro"><b>'+esc(st.focus)+' · '+st.len+' min</b><br>'+(over?'⏰ Time’s up — nice work! Finish to log it.':'Time left: <b>'+sessFmt(sessRemain(st))+'</b>. Keep going — the timer follows you into the tools.')+'</div>'+
@@ -5975,8 +6004,8 @@ const MAKE_CARDS=[
  {ic:"🔬",title:"Song Analysis",blurb:"Learn to make songs by taking apart songs you love — one layer a week: structure, low end, groove, harmony, melody, lyrics, arrangement, the mix. Guided listening prompts + a worksheet that saves.",go:()=>renderSongAnalysis()}
 ];
 /* handpan voice — mellow metallic bell with octave + twelfth overtones, long decay */
-function handpan(time,midi){var a=ac(),out=pianoMaster(a),f=midiToFreq(midi),t=time;
-  [[1,0.52,0,1.9],[2,0.34,4,1.6],[3.01,0.2,-5,1.3],[4.02,0.08,7,1.0],[6.0,0.03,10,0.75]].forEach(function(p){var o=a.createOscillator();o.type="sine";o.frequency.value=f*p[0];o.detune.value=p[2]||0;var g=a.createGain(),dur=p[3];g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(p[1],t+0.009);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+function handpan(time,midi,vel){var a=ac(),out0=pianoMaster(a),f=midiToFreq(midi),t=time,vv=vel==null?1:Math.max(0.15,Math.min(1,vel)),out=a.createGain(),ring=Math.max(0.7,1.35-(midi-48)/40);out.gain.value=0.25+0.75*vv;out.connect(out0);
+  [[1,0.52,0,1.9],[2,0.34,4,1.6],[3.01,0.2,-5,1.3],[4.02,0.08,7,1.0],[6.0,0.03,10,0.75]].forEach(function(p){var o=a.createOscillator();o.type="sine";o.frequency.value=f*p[0];o.detune.value=p[2]||0;var g=a.createGain(),dur=p[3]*ring;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(p[1],t+0.009);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
     if(p[0]>=2){var lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=4+p[0]*0.6;var lg=a.createGain();lg.gain.value=p[1]*0.2;lfo.connect(lg);lg.connect(g.gain);lfo.start(t);lfo.stop(t+dur);}
     o.connect(g);g.connect(out);o.start(t);o.stop(t+dur+0.1);});
   djNoise(a,t,0.03,2400,0.045,out,true);}
@@ -8129,7 +8158,7 @@ function renderVoiceJourney(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop()
     const st=$("#vjNow");if(st)st.textContent="Loading your voice…";
     const tl=vjTimeline(S),C=vjCues(S),bufs=await Promise.all(tl.map(x=>x.ln.has?vjClipBuf(key(x.pi,x.ln)):Promise.resolve(null))),humB=S.hum.has?await vjClipBuf("vj-hum"):null;
     if(MED.master!==master)return;t0=a.currentTime+0.3;MED.oscs=vjBuildBed(a,master,t0,from,C,LEN);natSceneStart(S.scene);
-    const vg=a.createGain();vg.gain.value=S.voice*1.6;vg.connect(a.destination);
+    const vg=a.createGain();vg.gain.value=S.voice*1.6;{const vl=a.createDynamicsCompressor();vl.threshold.value=-6;vl.knee.value=6;vl.ratio.value=8;vl.attack.value=0.003;vl.release.value=0.15;vg.connect(vl);vl.connect(a.destination);}
     tl.forEach((x,i)=>{const b=bufs[i];if(!b)return;const ts=x.ln.ts||0,te=x.ln.te>ts?Math.min(x.ln.te,b.duration):b.duration,d=te-ts;if(x.t+d<from)return;const s=a.createBufferSource();s.buffer=b;s.connect(vg);
       if(x.t>=from)s.start(t0+(x.t-from),ts,d);else s.start(t0,ts+(from-x.t),d-(from-x.t));srcs.push(s);});
     if(humB&&C.h>from){const s=a.createBufferSource(),g=a.createGain();s.buffer=humB;s.loop=true;g.gain.value=0;s.connect(g);g.connect(vg);const tA=t0+Math.max(0,C.H-from),tB=t0+(C.h-from)+6;
@@ -8324,7 +8353,7 @@ function renderBreathwork(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();h
   function startHRLoop(){if(hrRAF)cancelAnimationFrame(hrRAF);(function loop(){if(!HR.connected)return;const bp=$("#brBpm");if(bp)bp.textContent=HR.bpm||"—";const hv=$("#brHrv"),v=hrv();if(hv)hv.textContent=v==null?"—":v;const co=$("#brCoh"),cz=bioCoherence();if(co)co.textContent=cz?("Coherence "+cz.score.toFixed(1)+" at "+(cz.freq*60).toFixed(1)+" breaths/min — "+(cz.score>=2?"high: heart rhythm is following the breath":cz.score>=0.9?"medium: keep the breath slow and even":"low: settle into the pace")):(v!=null?"Measuring coherence — it needs about 45 seconds of beats.":"");hrRAF=requestAnimationFrame(loop);})();}
   function onPhase(ph){const cue=$("#brCue"),pt=$("#brPhT");if(cue)cue.textContent=ph[0];const a=ac();
     if(toneOn&&breathGain){const t=a.currentTime,d=ph[1];breathGain.gain.cancelScheduledValues(t);if(ph[0]==="In"){breathGain.gain.linearRampToValueAtTime(0.09,t+d);}else if(ph[0]==="Out"){breathGain.gain.linearRampToValueAtTime(0.012,t+d);}else{breathGain.gain.setValueAtTime(breathGain.gain.value,t);}}}
-  function start(){unlockAudio();medStop();const a=ac();running=true;startT=a.currentTime;phaseIdx=-1;
+  function start(){unlockAudio();medStop();medWake(true);const a=ac();running=true;startT=a.currentTime;phaseIdx=-1;
     if(toneOn){const master=a.createGain();master.gain.value=0.6;master.connect(a.destination);const o=a.createOscillator();o.type="sine";o.frequency.value=174;breathGain=a.createGain();breathGain.gain.value=0.012;o.connect(breathGain);breathGain.connect(master);const o2=a.createOscillator();o2.type="sine";o2.frequency.value=261;const g2=a.createGain();g2.gain.value=0.5;o2.connect(g2);g2.connect(breathGain);o.start();o2.start();MED.master=master;MED.oscs=[o,o2];}
     efBell(a,MED.master||pianoMaster(a),a.currentTime,528,1.6);
     $("#brStart").textContent="■ Stop";loop();}
@@ -8394,13 +8423,13 @@ function renderMedSession(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();h
     $("#msIntShow").textContent=intention?("“"+intention+"”"):"";
     $("#msStart").onclick=()=>{if(running)endS();else startS();};
   }
-  function startS(){unlockAudio();medStop();const a=ac();running=true;startT=a.currentTime;const ii=$("#msInt");if(ii){intention=ii.value;save(mk("med","intention"),intention);}
+  function startS(){unlockAudio();medStop();medWake(true);const a=ac();running=true;startT=a.currentTime;const ii=$("#msInt");if(ii){intention=ii.value;save(mk("med","intention"),intention);}
     const master=a.createGain();master.gain.value=0.0001;master.connect(a.destination);master.gain.setTargetAtTime(0.42,a.currentTime,1.2);const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=1200;lp.connect(master);const oscs=[];
     [7.83*32,7.83*48].forEach((f,i)=>{const o=a.createOscillator();o.type="sine";o.frequency.value=f;const g=a.createGain();g.gain.value=i?0.03:0.06;o.connect(g);g.connect(lp);o.start();oscs.push(o);});
     const po=a.createOscillator();po.type="sine";po.frequency.value=7.83*32;const pg=a.createGain();pg.gain.value=0.04;const lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=7.83;const lg=a.createGain();lg.gain.value=0.04;lfo.connect(lg);lg.connect(pg.gain);lfo.start();oscs.push(lfo);po.connect(pg);pg.connect(lp);po.start();oscs.push(po);
     MED.master=master;MED.oscs=oscs;efBell(a,master,a.currentTime+0.2,528,2.2);
     $("#msStart").textContent="■ End";loopS();}
-  function endS(){running=false;if(raf)cancelAnimationFrame(raf);const a=ac();efBell(a,pianoMaster(a),a.currentTime,396,2.6);medStop();const b=$("#msStart");if(b)b.textContent="▶ Begin";}
+  function endS(){running=false;medWake(false);if(raf)cancelAnimationFrame(raf);const a=ac();efBell(a,pianoMaster(a),a.currentTime,396,2.6);medStop();const b=$("#msStart");if(b)b.textContent="▶ Begin";}
   let lastBell=0;
   function loopS(){if(!running)return;const a=ac(),el=a.currentTime-startT,rem=Math.max(0,mins*60-el);const tm=$("#msTime");if(tm)tm.textContent=Math.floor(rem/60)+":"+String(Math.floor(rem%60)).padStart(2,"0");
     if(bellEvery>0){const mark=Math.floor(el/(bellEvery*60));if(mark>lastBell&&rem>5){lastBell=mark;efBell(a,MED.master||pianoMaster(a),a.currentTime,639,1.8);}}
@@ -8949,10 +8978,10 @@ function museBands(){
   let T=0,A=0,B=0,used=0;
   for(let ch=0;ch<4;ch++){const buf=M.eeg[ch];if(buf.length<256)continue;
     const r=bandPowers(buf.slice(buf.length-256));
-    M.qual[ch]=(r.rms>1&&r.rms<400)?1:0;
-    if(M.qual[ch]){T+=r.theta;A+=r.alpha;B+=r.beta;used++;}
+    M.qual[ch]=(r.rms>1&&r.rms<150)?1:0; /* >150 µV is usually a blink or movement — leave that channel out */
+    if(M.qual[ch]){const tt=r.theta+r.alpha+r.beta||1;T+=r.theta/tt;A+=r.alpha/tt;B+=r.beta/tt;used++;} /* relative power per channel, then averaged, so one noisy sensor can't dominate */
     if(buf.length>512)buf.splice(0,buf.length-512);}
-  if(used){const tot=T+A+B||1;M.theta=100*T/tot;M.alpha=100*A/tot;M.beta=100*B/tot;}
+  if(used){const s=M.theta==null?1:0.3;M.theta=(M.theta==null?0:M.theta*(1-s))+s*100*T/used;M.alpha=(M.alpha==null?0:M.alpha*(1-s))+s*100*A/used;M.beta=(M.beta==null?0:M.beta*(1-s))+s*100*B/used;}
 }
 function musePPG(){
   const buf=M.ppg;if(buf.length<96)return;
@@ -9264,7 +9293,7 @@ function renderRound(level){
   }
   function step(){
     if(qi>=TOTAL){done();return;}
-    const root=57+Math.floor(Math.random()*9),semis=set[Math.floor(Math.random()*set.length)];
+    const root=48+Math.floor(Math.random()*20),semis=set[Math.floor(Math.random()*set.length)],qMode=ivMode()==="mixed"?["up","down","together"][Math.floor(Math.random()*3)]:ivMode();
     view.innerHTML=`<div class="play-top"><button class="back" id="eBack" aria-label="Back">←</button><span class="ttitle">🎧 Level ${level}</span>
         <span style="margin-left:auto;color:var(--muted);font-weight:800;font-size:.8rem">${qi+1}/${TOTAL}</span></div>
       <div class="panel">
@@ -9274,7 +9303,7 @@ function renderRound(level){
         <div class="feedback" id="fb"></div>
         <div class="actions"><button class="btn" id="next" disabled>Next</button></div></div>`;
     $("#eBack").onclick=goHome;
-    const playIt=()=>playInterval(root,semis);
+    const playIt=()=>playInterval(root,semis,ivMode()==="mixed"?qMode:ivMode());drillRow("#opts","iv");
     $("#play").onclick=playIt;$("#replay").onclick=playIt;
     const box=$("#opts");
     set.forEach(s=>{const b=document.createElement("button");b.className="opt";b.textContent=INAMES[s];
