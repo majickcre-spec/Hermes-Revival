@@ -3609,6 +3609,10 @@ function renderPianoRoll(clipId){if(toneRAF)cancelAnimationFrame(toneRAF);home.h
     });}
   draw();
 }
+/* the Ableton-style Studio lives in /live/*.js and loads the first time it's opened */
+const LIVE_PARTS=["lv-1-core","lv-2-engine","lv-3-session","lv-4-arr","lv-5-detail","lv-6-app"],LIVE_VER="1";
+function liveOpen(){if(window.lvOpen){window.lvOpen();return;}home.hidden=true;view.hidden=false;view.innerHTML='<div class="panel" style="text-align:center;padding:40px">Loading Studio…</div>';
+  let i=0;const next=()=>{if(i>=LIVE_PARTS.length){if(window.lvOpen)window.lvOpen();return;}const sc=document.createElement("script");sc.src="/live/"+LIVE_PARTS[i++]+".js?v="+LIVE_VER;sc.onload=next;sc.onerror=()=>{view.innerHTML='<div class="panel" style="text-align:center;padding:40px">Couldn’t load the Studio — check your connection. <button class="btn" onclick="renderStudio()">Open Classic Studio</button></div>';};document.head.appendChild(sc);};next();}
 function renderStudio(){
   if(toneRAF)cancelAnimationFrame(toneRAF);studioStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   const song=studioLoad();if(STU.master)STU.master.gain.value=song.master==null?1:song.master;
@@ -5825,7 +5829,7 @@ const MAKE_CARDS=[
  {ic:"⭐",title:"My Songs",blurb:"Your saved melodies and imported songs — sing them back, or import a MIDI.",go:()=>renderMySongs()},
  {ic:"🎤",title:"Lyric Lab",blurb:"Sing a song idea — melody, rhythm, words — and get feedback (kid or songwriter level). Listen back, save keepers, or turn one into a section.",go:()=>renderIdeaLab()},
  {ic:"🧪",title:"Write + Beat Lab",blurb:"Write lyrics over a beat and record vocals in time. Load a beat you made, drop in your own track, or use the click — with a syllable counter, mix faders, and a nudge slider to line up your take.",go:()=>renderBeatLab()},
- {ic:"🎛️",title:"Studio",blurb:"Multi-track recorder — lay down each real instrument and voice, stack them in sections, then mix with volume, pan, mute/solo and effects.",go:()=>renderStudio()},
+ {ic:"🎛️",title:"Studio",blurb:"Built like Ableton Live — Session view for launching loops and scenes, Arrangement timeline, mixer with sends, devices, piano roll, MIDI keyboard and recording.",go:()=>liveOpen()},
  {ic:"🧩",title:"Beat Maker",blurb:"Build layered beats & motifs on a grid — djembe and handpan together. Play the instrument live into the sequencer, loop, save, and get feedback.",go:()=>renderBeat()},
  {ic:"🎛️",title:"Sampler",blurb:"Your own sound library. Tap pads to play, then record, upload, or slice your own sounds onto them — tune each pad, program a 16-step beat, and save your kits. Starter sounds built in.",go:()=>renderSampler()},
  {ic:"🔊",title:"Sound Library",blurb:"Your whole sound library in one place — browse by category, audition, and drag in your own one-shots, packs, and loops. Built-in starter sounds included; your uploads are saved on this device.",go:()=>renderSoundLib()},
