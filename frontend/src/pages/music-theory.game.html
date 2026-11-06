@@ -4313,7 +4313,7 @@ function pkStart(){unlockAudio();try{sfLoadInst("piano");}catch(e){}pkStop();pkB
     const b=document.getElementById("pkGo");if(b)b.textContent="⏸ Stop";pkHud();pkMsg("");pkAutoHide();};
   if(PK.play!=="watch"&&PK.input==="mic"){ensureMic().then(ok=>{if(!ok){pkMsg("🎤 Allow the microphone so I can hear your piano.");return;}micNodes();MIC.onsets=[];go();});}else go();}
 function pkSched(){if(!PK.running)return;const a=ac(),now=a.currentTime,ah=0.12;
-  while(pkT(PK.clickB)<now+ah&&PK.clickB<PK.len){const tb=pkT(PK.clickB);if(tb>now-0.05)click(tb,(((PK.clickB%PK.beats)+PK.beats)%PK.beats)===0?"accent":"beat",PK.clickB<0?Math.max(0.25,PK.clickVol):PK.clickVol);PK.clickB++;}
+  while(pkT(PK.clickB)<now+ah&&PK.clickB<PK.len){const tb=pkT(PK.clickB);if(tb>now-0.05)click(tb,(((PK.clickB%PK.beats)+PK.beats)%PK.beats)===0?"accent":"beat",PK.clickB<0?Math.max(0.35,PK.clickVol):PK.clickVol);PK.clickB++;}
   PK.ev.forEach(e=>{if(e.sch)return;const t=pkT(e.b);if(t<now+ah){e.sch=true;if(t>now-0.05&&(PK.play==="watch"||PK.guide)){const g=PK.play==="watch"?0.9:0.35;e.notes.forEach(m=>{pkSound(m,Math.max(0,t-now),Math.max(0.3,e.dur*pkSpb()),g);});}}});}
 function pkFrame(){PK.raf=requestAnimationFrame(pkFrame);const cv=document.getElementById("pkCv");if(!cv){cancelAnimationFrame(PK.raf);PK.raf=null;return;}const a=ac(),now=a.currentTime,dt=Math.max(0,Math.min(0.1,now-PK.lastNow));PK.lastNow=now;
   if(PK.running){
@@ -6570,7 +6570,7 @@ function hwyScoreDraw(c,W,hitY,now){if(!PRG.sc)return;PRG.sc.fx=PRG.sc.fx.filter
 function prgStop(){if(PRG.running&&PRG.view==="hwy"&&PRG.chords.length)setTimeout(()=>{if(!PRG.running&&document.getElementById("hwyCv"))try{prgShow(0);}catch(e){}},0);PRG.running=false;if(PRG.schID){clearInterval(PRG.schID);PRG.schID=null;}if(PRG.raf){cancelAnimationFrame(PRG.raf);PRG.raf=null;}PRG.visQ=[];PRG.cnt=0;const b=$("#prgStart");if(b)b.textContent="▶ Watch & play along";const st=$("#prgStatus");if(st&&/^(Get ready|Count-in)/.test(st.textContent))st.textContent="";const nw=$("#prgNow");if(nw&&/^[1-4]$/.test(nw.textContent)&&PRG.chords.length)nw.textContent=PRG.chords[PRG.idx]||PRG.chords[0];}
 function prgSchedule(){const a=ac(),ahead=0.1,spb=60/PRG.bpm;
   while(PRG.nextTime<a.currentTime+ahead){
-    if(PRG.cnt>0){const n=5-PRG.cnt;click(PRG.nextTime,n===1?"accent":"beat",PRG.clickVol);PRG.visQ.push({t:PRG.nextTime,count:n});PRG.cnt--;PRG.nextTime+=spb;continue;}
+    if(PRG.cnt>0){const n=5-PRG.cnt;click(PRG.nextTime,n===1?"accent":"beat",Math.max(0.35,PRG.clickVol));PRG.visQ.push({t:PRG.nextTime,count:n});PRG.cnt--;PRG.nextTime+=spb;continue;}
     const name=PRG.chords[PRG.idx],frets=keyShape(PRG.inst,name),b=PRG.beat;
     if(b===0)PRG.visQ.push({t:PRG.nextTime,idx:PRG.idx});
     click(PRG.nextTime,b===0?"accent":"beat",PRG.clickVol);
@@ -6639,7 +6639,7 @@ function melStart(){unlockAudio();melStop(true);melReset();const go=()=>{const a
     FB.onTap=MEL.mode==="tap"?melTap:null;const cv=document.getElementById("melCv");if(cv)try{cv.scrollIntoView({block:"start"});}catch(e){}melHud();};
   if(MEL.mode==="mic"){const st=document.getElementById("melHud");if(st)st.textContent="Turning on the mic…";ensureMic().then(ok=>{if(!ok){if(st)st.textContent="🎤 I need the mic to hear you — or pick 👆 Tap the neck.";return;}go();});}else go();}
 function melSched(){if(!MEL.running)return;const a=ac(),now=a.currentTime,ahead=0.12,spb=melSpb();
-  while(melT(MEL.clickB)<now+ahead&&MEL.clickB<MEL.len){const tb=melT(MEL.clickB);if(tb>now-0.05)click(tb,(((MEL.clickB%MEL.song.beats)+MEL.song.beats)%MEL.song.beats)===0?"accent":"beat",MEL.clickB<0?Math.max(0.25,MEL.clickVol):MEL.clickVol);MEL.clickB++;}
+  while(melT(MEL.clickB)<now+ahead&&MEL.clickB<MEL.len){const tb=melT(MEL.clickB);if(tb>now-0.05)click(tb,(((MEL.clickB%MEL.song.beats)+MEL.song.beats)%MEL.song.beats)===0?"accent":"beat",MEL.clickB<0?Math.max(0.35,MEL.clickVol):MEL.clickVol);MEL.clickB++;}
   MEL.notes.forEach(n=>{if(n.sch)return;const t=melT(n.b);if(t<now+ahead){n.sch=true;if(t>now-0.05&&(MEL.mode==="watch"||MEL.guide))pluck(n.m,t,Math.min(2.4,n.dur*spb*0.95+0.25),MEL.mode==="watch"?0.5:0.22);}});}
 function melJudge(n,dt,now){const ad=Math.abs(dt);let k;if(ad<=0.09)k="perfect";else if(ad<=0.2)k="good";else return false;n.j=k;MEL.hits++;if(k==="perfect")MEL.perf++;MEL.streak++;MEL.top=Math.max(MEL.top,MEL.streak);
   MEL.score+=(k==="perfect"?100:50)*Math.min(4,1+Math.floor(MEL.streak/8));MEL.fx.push({t:now,s:n.s,k:k});melHud();return true;}
