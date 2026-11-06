@@ -8608,7 +8608,7 @@ async function museWrite(s){try{await M.ctrl.writeValue(museCmd(s));}catch(e){tr
 async function museConnect(statusEl){
   if(!navigator.bluetooth)throw new Error("no-bt");
   statusEl.textContent="Opening Bluetooth…";
-  M.dev=await navigator.bluetooth.requestDevice({filters:[{services:[MUSE_SVC]}]});
+  M.dev=await navigator.bluetooth.requestDevice({filters:[{services:[MUSE_SVC]},{namePrefix:"Muse"},{namePrefix:"MuseS"}],optionalServices:[MUSE_SVC]});
   statusEl.textContent="Connecting to "+(M.dev.name||"Muse")+"…";
   M.gatt=await M.dev.gatt.connect();
   M.dev.addEventListener("gattserverdisconnected",()=>{M.connected=false;const s=$("#bioStatus");if(s)s.textContent="Disconnected.";});
@@ -8673,7 +8673,7 @@ function sensPanelOpen(o){SENS.open=o;const p=document.getElementById("sensPanel
   const msg=t=>{const m=document.getElementById("sensMsg");if(m)m.innerHTML=t;};
   document.getElementById("sensX").onclick=()=>sensPanelOpen(false);
   document.getElementById("sensHRb").onclick=async()=>{if(HR.connected)return;if(!bioBT()){msg("<b>This browser can’t use Bluetooth.</b> On iPhone use the <b>Bluefy</b> app; on a computer use Chrome.");return;}const ok=await hrConnect(()=>sensUI());msg(ok?"❤️ Connected. HRV needs about a minute of beats.":"Couldn’t connect — wear the sensor, wake it, and try again.");sensEnsureTimer();bioStart();sensUI();};
-  document.getElementById("sensMb").onclick=async()=>{if(M.connected)return;if(!bioBT()){msg("<b>This browser can’t use Bluetooth.</b> On iPhone use the <b>Bluefy</b> app; on a computer use Chrome.");return;}const st=document.getElementById("sensMsg");try{await museConnect(st);msg("🧠 Muse connected — sit still a moment while it settles.");}catch(e){msg("Couldn’t connect the Muse — turn it on, close the Muse app, and try again.");}sensEnsureTimer();bioStart();sensUI();};
+  document.getElementById("sensMb").onclick=async()=>{if(M.connected)return;if(!bioBT()){msg("<b>This browser can’t use Bluetooth.</b> On iPhone use the <b>Bluefy</b> app; on a computer use Chrome.");return;}const st=document.getElementById("sensMsg");try{await museConnect(st);msg("🧠 Muse connected — sit still a moment while it settles.");}catch(e){const r=String((e&&(e.message||e.name))||e||"");try{if(M.gatt&&M.gatt.connected)M.gatt.disconnect();}catch(_){}msg(/cancel|chooser/i.test(r)?"No Muse picked. If it wasn’t in the list: turn it on (hold the button until the lights move), close the Muse app, then tap again.":/not found|no services|characteristic|GATT|unsupported/i.test(r)?"Found the Muse but it didn’t accept the connection (<i>"+esc(r)+"</i>). Newer Muse models (Muse S Athena) use a different protocol I don’t support yet — which Muse do you have?":"Couldn’t connect the Muse: <i>"+esc(r)+"</i>. Turn it off and on, close the Muse app, then tap again.");}sensEnsureTimer();bioStart();sensUI();};
   document.getElementById("sensRec").onclick=()=>{if(SENS.rec)sensSave(true);else{if(!HR.connected&&!M.connected){msg("Connect a sensor first.");return;}sensBegin();}};
   document.getElementById("sensGo").onclick=()=>{sensPanelOpen(false);try{if(typeof teardown==="function")teardown();}catch(e){}teardown=null;renderSensSessions();};
   document.getElementById("sensAuto").onchange=e=>save("mjk-sens-auto",e.target.checked);
