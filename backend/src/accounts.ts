@@ -12,6 +12,7 @@ const SECRET = process.env.AUTH_SECRET || 'dev-insecure-secret-change-me';
 const sql = DATABASE_URL ? postgres(DATABASE_URL, { max: 5, onnotice: () => {} }) : null;
 const mem = { accounts: new Map<string, any>(), progress: new Map<string, any>() };
 
+export function accountsMode() { return { store: sql ? 'database' : 'memory (accounts reset on every deploy!)', secret: process.env.AUTH_SECRET ? 'set' : 'default' }; }
 export async function initAccounts(): Promise<void> {
   if (!sql) {
     console.warn('⚠  No DATABASE_URL set — accounts use an in-memory store (NOT persistent across restarts).');

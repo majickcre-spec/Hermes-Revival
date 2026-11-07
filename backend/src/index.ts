@@ -11,12 +11,10 @@ const PORT = process.env.PORT || 3001;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // Middleware
-app.use(cors({
-  origin: NODE_ENV === 'production' 
-    ? process.env.FRONTEND_URL 
-    : 'http://localhost:5173',
-  credentials: true
-}));
+// Sign-in uses a bearer token (no cookies), so any origin may call the API — the app is reachable
+// from more than one address (main page, /app.html, custom domains), and a strict single origin
+// made sign-in fail with "Failed to fetch" on some devices.
+app.use(cors({ origin: true, credentials: false }));
 app.use(express.json({ limit: '6mb' }));
 app.use(express.urlencoded({ extended: true, limit: '6mb' }));
 
@@ -49,5 +47,5 @@ initAccounts().catch((e) => console.error('initAccounts failed:', e));
 app.listen(PORT, () => {
   console.log(`🚀 Backend server running on port ${PORT}`);
   console.log(`📍 Environment: ${NODE_ENV}`);
-  console.log(`🔗 CORS enabled for: ${NODE_ENV === 'production' ? process.env.FRONTEND_URL : 'http://localhost:5173'}`);
+  console.log('🔗 CORS: any origin (bearer-token API)');
 });

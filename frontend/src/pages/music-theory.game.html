@@ -9839,9 +9839,10 @@ function acctTok(){try{return localStorage.getItem("majick-token")||null;}catch(
 function acctName(){try{return localStorage.getItem("majick-acct")||null;}catch(e){return null;}}
 function setAcct(tok,name){try{localStorage.setItem("majick-token",tok);localStorage.setItem("majick-acct",name||"");}catch(e){}}
 function clearAcct(){try{localStorage.removeItem("majick-token");localStorage.removeItem("majick-acct");}catch(e){}}
-function _syncKeys(){var a=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&(k.indexOf("music-")===0||k.indexOf("majick-")===0)&&k!=="majick-token"&&k!=="majick-acct")a.push(k);}return a;}
+function _syncable(k){return !!k&&(k.indexOf("music-")===0||k.indexOf("majick-")===0||k.indexOf("mjk-")===0)&&k!=="majick-token"&&k!=="majick-acct"&&k!=="majick-lastacct";}
+function _syncKeys(){var a=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(_syncable(k))a.push(k);}return a;}
 function _snapshot(){var o={};_syncKeys().forEach(function(k){try{o[k]=localStorage.getItem(k);}catch(e){}});return o;}
-function _restore(d){if(!d)return;Object.keys(d).forEach(function(k){if((k.indexOf("music-")===0||k.indexOf("majick-")===0)&&typeof d[k]==="string"){try{localStorage.setItem(k,d[k]);}catch(e){}}});}
+function _restore(d){if(!d)return;Object.keys(d).forEach(function(k){if(_syncable(k)&&typeof d[k]==="string"){try{localStorage.setItem(k,d[k]);}catch(e){}}});}
 function _api(path,opts){opts=opts||{};opts.headers=opts.headers||{};var t=acctTok();if(t)opts.headers["Authorization"]="Bearer "+t;return fetch(MMU_API+path,opts).then(function(r){return r.json().catch(function(){return {};}).then(function(j){if(!r.ok){if(r.status===401)clearAcct();throw new Error(j&&j.error?j.error:"Something went wrong.");}return j;});});}
 function acctRegister(u,c){return _api("/api/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,code:c})});}
 function acctLogin(u,c){return _api("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,code:c})});}
@@ -9861,17 +9862,17 @@ function showCloudForm(){var f=$("#cloudForm");if(!f)return;var mode="login";
     if(u.length<2){fb.textContent="Enter an account name (2+ characters).";return;}
     if(c.length<4){fb.textContent="Code must be at least 4 characters.";return;}
     fb.textContent="One moment…";var g=$("#caGo");if(g)g.disabled=true;
-    acctSignIn(mode,u,c).then(function(){renderGate();}).catch(function(e){fb.textContent=(e&&e.message)?e.message:"Could not sign in.";var g2=$("#caGo");if(g2)g2.disabled=false;});}
-  function paint(){f.innerHTML='<div class="create"><div class="cloudtabs"><button type="button" class="ctab'+(mode==="login"?" sel":"")+'" data-m="login">Sign In</button><button type="button" class="ctab'+(mode==="register"?" sel":"")+'" data-m="register">Sign Up</button></div>'+
-    '<div class="ulabel">Account name</div><input class="pin-input name" id="caName" maxlength="24" placeholder="a name for your account" aria-label="account name">'+
-    '<div class="ulabel">Code &mdash; 4+ characters</div><input class="pin-input" id="caCode" type="password" maxlength="32" placeholder="your secret code" aria-label="code">'+
+    acctSignIn(mode,u,c).then(function(){try{localStorage.setItem("majick-lastacct",u);}catch(e){}renderGate();}).catch(function(e){fb.textContent=(e&&e.message)?e.message:"Could not sign in.";var g2=$("#caGo");if(g2)g2.disabled=false;});}
+  function paint(){var last="";try{last=localStorage.getItem("majick-lastacct")||"";}catch(e){}
+    f.innerHTML='<form class="create" id="caForm" method="post" action="#" autocomplete="on"><div class="cloudtabs"><button type="button" class="ctab'+(mode==="login"?" sel":"")+'" data-m="login">Sign In</button><button type="button" class="ctab'+(mode==="register"?" sel":"")+'" data-m="register">Sign Up</button></div>'+
+    '<label class="ulabel" for="caName">Account name</label><input class="pin-input name" id="caName" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="24" placeholder="a name for your account" value="'+esc(last)+'">'+
+    '<label class="ulabel" for="caCode">Code &mdash; 4+ characters</label><input class="pin-input" id="caCode" name="password" type="password" autocomplete="'+(mode==="register"?"new-password":"current-password")+'" maxlength="32" placeholder="your secret code">'+
     '<div class="feedback try" id="caFb"></div>'+
-    '<div class="actions"><button class="btn ghost" id="caCancel">Cancel</button><button class="btn" id="caGo">'+(mode==="register"?"Sign Up &amp; sync":"Sign In &amp; sync")+'</button></div></div>';
+    '<div class="actions"><button type="button" class="btn ghost" id="caCancel">Cancel</button><button type="submit" class="btn" id="caGo">'+(mode==="register"?"Sign Up &amp; sync":"Sign In &amp; sync")+'</button></div></form>';
     f.querySelectorAll(".ctab").forEach(function(t){t.onclick=function(){mode=t.getAttribute("data-m");paint();};});
     $("#caCancel").onclick=function(){f.innerHTML="";};
-    $("#caGo").onclick=go;
-    $("#caCode").addEventListener("keydown",function(e){if(e.key==="Enter")go();});
-    setTimeout(function(){var n=$("#caName");if(n)n.focus();},60);}
+    $("#caForm").addEventListener("submit",function(e){e.preventDefault();go();});
+    setTimeout(function(){var n=$("#caName"),k=$("#caCode");if(n&&n.value&&k)k.focus();else if(n)n.focus();},60);}
   paint();}
 /* ===== player profiles (soft login) ===== */
 const gate=$("#gate");

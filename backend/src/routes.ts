@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from 'express';
 import { storage } from './storage.js';
-import { register, login, verifyToken, loadState, saveState } from './accounts.js';
+import { register, login, verifyToken, loadState, saveState, accountsMode } from './accounts.js';
 
 function requireAuth(req: Request, res: Response): string | null {
   const h = req.headers.authorization || '';
@@ -16,7 +16,8 @@ export function registerRoutes(app: Express) {
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
-      service: 'hermes-revival-backend'
+      service: 'hermes-revival-backend',
+      accounts: accountsMode()
     });
   });
 
