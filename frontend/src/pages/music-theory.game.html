@@ -8491,9 +8491,15 @@ function lhDraw(id,run,ref){var cv=document.getElementById(id);if(!cv)return;var
   if(L.length<2){g.fillStyle="rgba(255,255,255,.5)";g.font="11px system-ui";g.fillText("Builds after about a minute of heartbeats…",8,H/2-6);return;}
   var t0=L[0].t,T=Math.max(60000,L[L.length-1].t-t0),X=function(t){return (t-t0)/T*W;},Y=function(v){return H-8-v*(H-16);};
   [["lf","#e9c46a"],["hf","#5fc8e0"]].forEach(function(z){g.strokeStyle=z[1];g.lineWidth=2.2;g.beginPath();L.forEach(function(p,i){if(!i)g.moveTo(X(p.t),Y(p[z[0]]));else g.lineTo(X(p.t),Y(p[z[0]]));});g.stroke();});
-  for(var i=1;i<L.length;i++){var a=L[i-1],b=L[i];if(a.hf<a.lf&&b.hf>=b.lf){var x=X(b.t);g.fillStyle="#5fd38d";g.beginPath();g.arc(x,Y(0.5),5,0,7);g.fill();if(b.f){g.fillStyle="#fff";g.font="700 10px system-ui";g.fillText(b.f.toFixed(2),Math.min(W-44,x+6),Y(0.5)-6);}}}
+  for(var i=1;i<L.length;i++){var a=L[i-1],b=L[i];if(a.hf>=a.lf&&b.hf>=b.lf){g.fillStyle="rgba(95,200,224,.10)";g.fillRect(X(a.t),0,X(b.t)-X(a.t),H);}}
+  for(var i=1;i<L.length;i++){var a=L[i-1],b=L[i];
+    if(a.hf<a.lf&&b.hf>=b.lf){var j=i;while(j+1<L.length&&L[j+1].hf>=L[j+1].lf)j++;var held=(L[j].t-b.t)/1000,open=j===L.length-1,good=held>=30,x=X(b.t);
+      if(good){g.strokeStyle="rgba(95,211,141,.55)";g.lineWidth=3;g.beginPath();g.arc(x,Y(0.5),10,0,7);g.stroke();}
+      g.fillStyle=good?"#5fd38d":"rgba(95,211,141,.6)";g.beginPath();g.arc(x,Y(0.5),good?6:4,0,7);g.fill();
+      if(b.f&&(good||open)){g.fillStyle="#fff";g.font=(good?"700 ":"")+"10px system-ui";g.fillText(b.f.toFixed(2)+(good?" \u2713 "+Math.round(held)+"s":""),Math.min(W-70,x+8),Y(0.5)-9);}}
+    else if(a.hf>=a.lf&&b.hf<b.lf){var x2=X(b.t);g.fillStyle="#ef6262";g.beginPath();g.arc(x2,Y(0.5),4,0,7);g.fill();}}
   g.fillStyle="rgba(255,255,255,.55)";g.font="10px system-ui";g.fillText("100%",4,12);g.fillText("0%",4,H-4);g.fillText("50/50",W-34,H/2-4);}
-function lhLegend(){return '<div class="site-note" style="font-size:.74rem;margin:3px 0 8px"><span style="color:#e9c46a">━ LF</span> blood-pressure wave · <span style="color:#5fc8e0">━ HF</span> breathing wave, the rest-and-restore branch · <span style="color:#5fd38d">●</span> where HF crosses above LF, with the tone that did it</div>';}
+function lhLegend(){return '<div class="site-note" style="font-size:.74rem;margin:3px 0 8px"><span style="color:#e9c46a">━ LF</span> blood-pressure wave · <span style="color:#5fc8e0">━ HF</span> breathing wave, the rest-and-restore branch · <span style="color:#5fd38d">●</span> crossed into rest, with the tone that did it · <span style="color:#5fd38d">◎ ✓</span> a good one, held 30 s or more · <span style="color:#ef6262">●</span> slipped back · blue shading: rest branch leading</div>';}
 function mfToneIntro(){var o=$("#mfOut");if(!o)return;var hrOn=HR.connected||M.connected;
   o.innerHTML='<div style="border:1px solid var(--gold);border-radius:14px;padding:12px 14px;margin:8px 0;line-height:1.5"><b>Resonance sweep.</b> A soft tone glides slowly from 50 to 600 Hz and back, then zooms in around your strongest spot with slower, finer passes, then stays there and follows your resonance live for as long as you like. Sit still, eyes closed, breathe naturally. '+
    (hrOn?'Every heartbeat is read as it happens. Your own response delay (sensor plus body) is measured from the rising and falling passes, not guessed.':'<br><span class="site-note">No heart sensor connected, so only your taps count. Connect one in the 🫀 panel for a measured result.</span>')+
