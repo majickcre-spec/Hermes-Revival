@@ -10612,12 +10612,17 @@ async function museConnect(statusEl,all){
   if(!navigator.bluetooth)throw new Error("no-bt");
   statusEl.textContent="Opening Bluetooth…";
   M.dev=await navigator.bluetooth.requestDevice(all?{acceptAllDevices:true,optionalServices:[MUSE_SVC]}:{filters:[{services:[MUSE_SVC]}],optionalServices:[MUSE_SVC]});
-  const TO=(pr,ms,step)=>Promise.race([pr,new Promise((_,rj)=>setTimeout(()=>rj(new Error("timed out at: "+step)),ms))]);
+  /* every step reports where it failed; some browsers (Bluefy) throw bare numeric codes */
+  const TO=(pr,ms,step)=>Promise.race([Promise.resolve(pr).catch(e=>{const m=(e&&(e.message||e.name))||String(e);throw new Error(step+": "+(/^\d+$/.test(String(m))?"Bluetooth error "+m:m));}),new Promise((_,rj)=>setTimeout(()=>rj(new Error(step+": timed out")),ms))]);
   statusEl.textContent="Connecting to "+(M.dev.name||"Muse")+"… (step 1 of 4)";
-  M.gatt=await TO(M.dev.gatt.connect(),15000,"connecting");
+  /* iPhone often needs a moment after connecting before the Muse's services show up, so connect and look for the service up to 3 times */
+  let svc=null,lastErr=null;
+  for(let tr=0;tr<3&&!svc;tr++){try{if(!M.dev.gatt.connected)M.gatt=await TO(M.dev.gatt.connect(),15000,"connecting");else M.gatt=M.dev.gatt;
+      await museSleep(tr?1200:600);statusEl.textContent="Connected — opening the Muse’s data service… (step 2 of 4"+(tr?", try "+(tr+1):"")+")";
+      svc=await TO(M.gatt.getPrimaryService(MUSE_SVC),10000,"data service");}
+    catch(e){lastErr=e;try{if(M.dev.gatt.connected)M.dev.gatt.disconnect();}catch(_){}await museSleep(1500);}}
+  if(!svc)throw lastErr||new Error("data service: not found");
   M.dev.addEventListener("gattserverdisconnected",()=>{M.connected=false;const s=$("#bioStatus");if(s)s.textContent="Disconnected.";});
-  statusEl.textContent="Connected — opening the Muse’s data service… (step 2 of 4)";
-  const svc=await TO(M.gatt.getPrimaryService(MUSE_SVC),10000,"data service");
   statusEl.textContent="Reading the headband… (step 3 of 4)";
   M.ctrl=await TO(svc.getCharacteristic(MUSE_CTRL),10000,"control channel");
   // telemetry (battery)
@@ -10694,7 +10699,7 @@ function sensPanelOpen(o){SENS.open=o;const p=document.getElementById("sensPanel
   const msg=t=>{const m=document.getElementById("sensMsg");if(m)m.innerHTML=t;};
   document.getElementById("sensX").onclick=()=>sensPanelOpen(false);
   document.getElementById("sensHRb").onclick=async()=>{if(HR.connected&&performance.now()-(HR.updated||0)<15000)return;HR.connected=false;try{if(HR.dev&&HR.dev.gatt&&HR.dev.gatt.connected)HR.dev.gatt.disconnect();}catch(e){}if(!bioBT()){msg("<b>This browser can’t use Bluetooth.</b> On iPhone use the <b>Bluefy</b> app; on a computer use Chrome.");return;}const ok=await hrConnect(()=>sensUI());msg(ok?"❤️ Connected. HRV needs about a minute of beats.":(HR_ERR||"Couldn’t connect — wear the sensor, wake it, and try again."));sensEnsureTimer();bioStart();sensUI();};
-  document.getElementById("sensMb").onclick=async()=>{if(M.connected)return;if(!bioBT()){msg("<b>This browser can’t use Bluetooth.</b> On iPhone use the <b>Bluefy</b> app; on a computer use Chrome.");return;}const st=document.getElementById("sensMsg");try{await museConnect(st);msg("🧠 Muse connected — sit still a moment while it settles.");}catch(e){const r=String((e&&(e.message||e.name))||e||"");try{if(M.gatt&&M.gatt.connected)M.gatt.disconnect();}catch(_){}msg(/cancel|chooser/i.test(r)?"No Muse picked. If it wasn’t in the list: turn it on (hold the button until the lights move), close the Muse app, then tap again.":/not found|no services|characteristic|GATT|unsupported/i.test(r)?"Found the Muse but it didn’t accept the connection (<i>"+esc(r)+"</i>). Newer Muse models (Muse S Athena) use a different protocol I don’t support yet — which Muse do you have?":"Couldn’t connect the Muse: <i>"+esc(r)+"</i>. Turn it off and on, close the Muse app, then tap again.");}sensEnsureTimer();bioStart();sensUI();};
+  document.getElementById("sensMb").onclick=async()=>{if(M.connected)return;if(!bioBT()){msg("<b>This browser can’t use Bluetooth.</b> On iPhone use the <b>Bluefy</b> app; on a computer use Chrome.");return;}const st=document.getElementById("sensMsg");try{await museConnect(st);msg("🧠 Muse connected — sit still a moment while it settles.");}catch(e){const r=String((e&&(e.message||e.name))||e||"");try{if(M.gatt&&M.gatt.connected)M.gatt.disconnect();}catch(_){}msg(/cancel|chooser/i.test(r)?"No Muse picked. If it wasn’t in the list: turn it on (hold the button until the lights move), close the Muse app, then tap again.":/not found|no services|characteristic|GATT|unsupported/i.test(r)?"Found the Muse but it didn’t accept the connection (<i>"+esc(r)+"</i>). Newer Muse models (Muse S Athena) use a different protocol I don’t support yet — which Muse do you have?":"Couldn’t connect the Muse (<i>"+esc(r)+"</i>). Make sure the Muse app is closed on every phone and computer (it holds the headband), turn the Muse off and on, then tap again."+(HR.connected?" If it still fails, disconnect the heart sensor and try the Muse first; some phones only manage one Bluetooth sensor in the browser at a time.":""));}sensEnsureTimer();bioStart();sensUI();};
   document.getElementById("sensHall").onclick=()=>{HR_ALL=true;document.getElementById("sensHRb").click();};
   document.getElementById("sensMall").onclick=async()=>{if(M.connected)return;if(!bioBT()){msg("<b>This browser can’t use Bluetooth.</b> Use the <b>Bluefy</b> app on iPhone.");return;}const st=document.getElementById("sensMsg");try{await museConnect(st,true);msg("🧠 Muse connected — sit still a moment while it settles.");}catch(e){const r=String((e&&(e.message||e.name))||e||"");try{if(M.gatt&&M.gatt.connected)M.gatt.disconnect();}catch(_){}msg(/fe8d|service|not found|No Services/i.test(r)?"That device isn’t a Muse (or the Muse didn’t answer): <i>"+esc(r)+"</i>":"Couldn’t connect: <i>"+esc(r)+"</i>");}sensEnsureTimer();bioStart();sensUI();};
   document.getElementById("sensRec").onclick=()=>{if(SENS.rec)sensSave(true);else{if(!HR.connected&&!M.connected){msg("Connect a sensor first.");return;}sensBegin();}};
