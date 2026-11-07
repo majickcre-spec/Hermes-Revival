@@ -8150,7 +8150,7 @@ function medRemTick(){var r=medRemGet();if(r.on&&!medDidToday()&&!medDismissed()
   try{var bn=document.getElementById("medBanner");if(bn&&typeof home!=="undefined"&&home&&!home.hidden)medRemBanner();}catch(e){}}
 function renderMeditation(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{medStop();};
   const MODS=[
-   {ic:"🌙",title:"Guided Sessions",blurb:"Present-focused sessions for steadying the body, coming back to the room, winding down and falling asleep. Narrated, with a Ground me button always on screen.",go:renderStandDown},
+   {ic:"🌙",title:"Guided Sessions",blurb:"Present-focused sessions for steadying the body, coming back to the room, winding down and falling asleep. Narrated, with a Ground me button always on screen.",go:renderStandDown,off:1},
    {ic:"🌀",title:"Brainwave Journey",blurb:"A 30-minute ride: start in everyday thinking, drift down to deep theta or delta, rest there, and come back up to calm, clear waking. Headphones on.",go:renderJourney},
    {ic:"🌬️",title:"Breathwork",blurb:"Guided breathing — coherent, box, 4·7·8 — with a breathing circle to follow. Connect a heart monitor to watch your HRV settle.",go:renderBreathwork},
    {ic:"🕯️",title:"Meditation Session",blurb:"Set an intention and a length, and sit with a soft ground tone and gentle bells. A clean, quiet timer.",go:renderMedSession},
@@ -8158,8 +8158,8 @@ function renderMeditation(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();h
    {ic:"🎧",title:"Soundscapes",blurb:"Background sound to sleep, relax or focus to — real nature, sacred spaces, deep space and late-night city scenes, with slow ambient music woven in.",go:renderNature},
    {ic:"🥁",title:"Rhythm Mind",blurb:"Hold the pulse inside you through growing silence. It adapts as you steady — longer silences, slower tempos, one hand or both — to train focus and your brain's timing networks.",go:renderMindPulse},
    {ic:"🎙",title:"Record a Voice Journey",blurb:"Build your own guided journey: read the script one line at a time, record it in your voice, and it plays back over nature sounds and binaural layers.",go:renderVoiceJourney,mk:1},
-   {ic:"🎧",title:"Record the Guided Sessions",blurb:"Read each guided session line by line in your own voice. Then choose My recordings as the voice and the sessions play in yours.",go:gsRecMenu,mk:1}
-  ];
+   {ic:"🎧",title:"Record the Guided Sessions",blurb:"Read each guided session line by line in your own voice. Then choose My recordings as the voice and the sessions play in yours.",go:gsRecMenu,mk:1,off:1}
+  ].filter(function(m){return !m.off;});
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🧘 Meditation</span></div><div class="panel">'+
     '<div class="intro">Train the mind and the nervous system. Headphones recommended throughout.</div>'+
     '<div style="margin:16px 0 2px;font-size:1.25rem;font-weight:700;color:var(--gold)">Meditate</div><div class="site-note" style="margin-bottom:8px">Press play and follow along.</div><div class="grid" id="medCards"></div>'+'<div style="margin:26px 0 2px;font-size:1.25rem;font-weight:700;color:var(--gold);border-top:1px solid var(--line);padding-top:16px">Create</div><div class="site-note" style="margin-bottom:8px">Make your own meditations: record them in your voice.</div><div class="grid" id="medMake"></div>'+'<div class="rlab" style="display:block;margin:16px 0 6px">\ud83d\udd14 Daily reminder</div><div class="rrow2"><span class="rlab">Remind me</span><span class="rchips tight"><button class="rchip sm" id="medRemOn">On</button><button class="rchip sm" id="medRemOff">Off</button></span><input type="time" id="medRemTime" style="background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:6px 9px;font:inherit;margin-left:8px"></div><div class="site-note" id="medRemNote" style="margin-top:4px"></div></div>';
