@@ -4780,7 +4780,7 @@ function pkNikoProg(id){if(NIKO.cache[id])return NIKO.cache[id];const x=NIKO.dat
 function pkBuildUserProg(){const P=(PK.uprog&&PK.uprog.indexOf("nk")===0)?pkNikoProg(PK.uprog):pkUserProgs().find(x=>x.id===PK.uprog);if(!P)return {ev:[],len:0,beats:4};PK.title=P.name+(P.key?" ("+P.key+")":"")+(P.pack?" · Niko":"");
   return {ev:P.ev.map(e=>Object.assign({},e,{notes:e.notes.slice()})),len:P.len,beats:4};}
 function pkBuild(){let r;PK.sharps=false;if(PK.mode==="chords")r=pkBuildChord();else if(PK.mode==="scales")r=pkBuildScale();else if(PK.mode==="melody")r=(PK.melNk&&PK.uprog)?pkBuildUserProg():pkBuildMelody();else if(PK.mode==="prog")r=PK.uprog?pkBuildUserProg():pkBuildProg();else r={ev:[],len:0,beats:4};
-  PK.ev=r.ev.sort((a,b)=>a.b-b.b);PK.len=r.len;PK.beats=r.beats;PK.ev.forEach(e=>{e.hit=null;e.sch=false;e.got={};});pkFitRange();pkFold();}
+  PK.ev=r.ev.sort((a,b)=>a.b-b.b);PK.len=r.len;PK.beats=r.beats;PK.ev.forEach(e=>{e.hit=null;e.sch=false;e.got={};e._partial=0;});pkFitRange();pkFold();}
 /* notes that still don't fit on a narrow screen move by octaves onto the visible keys */
 function pkFold(){const lo=PK.lo,hi=PK.hi;if(hi-lo<12)return;PK.ev.forEach(e=>{let ch=false;const ns=e.notes.map(m=>{let x=m;while(x<lo){x+=12;ch=true;}while(x>hi){x-=12;ch=true;}return x;});if(ch){e.notes=[...new Set(ns)];if(e.fing)e.fing=null;}});}
 /* ---------- keyboard geometry ---------- */
@@ -4804,9 +4804,11 @@ function pkNoteOn(m,src,vel){const now=ac().currentTime;PK.down[m]=(PK.down[m]||
 function pkNoteOff(m){if(PK.down[m]){PK.down[m]--;if(!PK.down[m])delete PK.down[m];}var v=PK.vox&&PK.vox[m];if(v&&!PK.down[m]){if(PK.sustain){PK.held=PK.held||{};PK.held[m]=v;}else if(GR.ready&&m>=89){delete PK.vox[m];}else{v.stop(0.3);delete PK.vox[m];}}}
 function pkPedal(on){PK.sustain=on;try{grPedal(on);}catch(e){}if(!on&&PK.held){Object.keys(PK.held).forEach(function(m){if(!PK.down[m]){try{PK.held[m].stop(0.35);}catch(e){}if(PK.vox&&PK.vox[m]===PK.held[m])delete PK.vox[m];}});PK.held={};}}
 function pkJudge(m,now){if(!PK.running||PK.play==="watch")return;const tt=pkT;let best=null,bd=1e9;
-  PK.ev.forEach(e=>{if(e.hit==="miss"||e.auto||e.notes.indexOf(m)<0||e.got[m])return;const d=now-tt(e.b);if(Math.abs(d)<0.35&&Math.abs(d)<bd){bd=Math.abs(d);best=e;}});
-  if(!best){if(!PK.wait){PK.score.streak=0;PK.fx.push({t:now,m:m,k:"oops"});}return;}best.got[m]=bd;if(Object.keys(best.got).length>=best.notes.length&&!best.hit)pkScoreEv(best,now);}
-function pkScoreEv(e,now){const worst=Math.max.apply(null,Object.values(e.got)),k=PK.wait?"perfect":worst<=0.1?"perfect":worst<=0.25?"good":"good",S=PK.score;e.hit=k;S.hit++;if(k==="perfect")S.perf++;S.streak++;S.top=Math.max(S.top,S.streak);
+  /* left-hand parts count in any octave (bass notes and chords get played wherever they fit on the keyboard) */
+  const tgt=e=>{if(e.notes.indexOf(m)>=0)return e.got[m]==null?m:null;if(e.hand==="L"){const n=e.notes.find(x=>((x-m)%12+12)%12===0&&e.got[x]==null);return n==null?null:n;}return null;};let bestN=null;
+  PK.ev.forEach(e=>{if(e.hit||e.auto)return;const n=tgt(e);if(n==null)return;const d=now-tt(e.b);if(Math.abs(d)<0.35&&Math.abs(d)<bd){bd=Math.abs(d);best=e;bestN=n;}});
+  if(!best){if(!PK.wait){PK.score.streak=0;PK.fx.push({t:now,m:m,k:"oops"});}return;}best.got[bestN]=bd;if(Object.keys(best.got).length>=best.notes.length&&!best.hit)pkScoreEv(best,now);}
+function pkScoreEv(e,now){const worst=Math.max.apply(null,Object.values(e.got)),k=e._partial?"good":PK.wait?"perfect":worst<=0.1?"perfect":worst<=0.25?"good":"good",S=PK.score;e.hit=k;S.hit++;if(k==="perfect")S.perf++;S.streak++;S.top=Math.max(S.top,S.streak);
   S.score+=(k==="perfect"?100:60)*e.notes.length*Math.min(4,1+Math.floor(S.streak/8));e.notes.forEach(m=>PK.fx.push({t:now,m:m,k:k,hand:e.hand}));pkHud();}
 function pkKey(e){if(e.repeat||!document.getElementById("pkCv"))return;const KM="awsedftgyhujkolp;'",i=KM.indexOf((e.key||"").toLowerCase());if(i<0)return;e.preventDefault();const base=PK.lo+(12-((PK.lo%12)+12)%12)%12;const m=base+i;if(e.type==="keydown")pkNoteOn(m,"key");else pkNoteOff(m);}
 function pkMidi(){if(!navigator.requestMIDIAccess){pkMsg("This browser can’t read MIDI. Use <b>Chrome or Edge</b> on your computer (USB or Bluetooth MIDI keyboard), or switch input to 🎤 Mic.");return;}
@@ -4838,8 +4840,8 @@ function pkFrame(){PK.raf=requestAnimationFrame(pkFrame);const cv=document.getEl
     if(PK.play==="watch"){PK.ev.forEach(e=>{if(!e.hit&&now>=pkT(e.b)){e.hit="auto";e.notes.forEach(m=>PK.fx.push({t:now,m:m,k:"auto",hand:e.hand}));}});}
     else{PK.ev.forEach(e=>{if(e.auto&&!e.hit&&now>=pkT(e.b)){e.hit="auto";e.notes.forEach(m=>PK.fx.push({t:now,m:m,k:"auto",hand:e.hand}));}});if(PK.input==="mic"&&MIC.an){micTick(now);MIC.onsets.forEach(o=>{if(o.used||!o.ch)return;let best=null,bd=1e9;PK.ev.forEach(e=>{if(e.hit||e.auto)return;const d=o.t-pkT(e.b);if(Math.abs(d)<0.3&&Math.abs(d)<bd){bd=Math.abs(d);best=e;}});
         if(best){const want={};best.notes.forEach(m=>want[((m%12)+12)%12]=1);let s=0;for(const pc in want)s+=o.ch[pc]||0;if(s>=0.5){o.used=true;best.notes.forEach(m=>best.got[m]=bd);pkScoreEv(best,now);}}});}
-      if(!PK.wait)PK.ev.forEach(e=>{if(!e.hit&&!e.auto&&now>pkT(e.b)+0.35){e.hit="miss";PK.score.streak=0;e.notes.forEach(m=>PK.fx.push({t:now,m:m,k:"miss",hand:e.hand}));pkHud();}});}
-    if(now>pkT(PK.len)+0.4){if(PK.loop){if(PK.play!=="watch"){pkRecordRun();PK.passN=(PK.passN||1)+1;PK.score={score:0,streak:0,top:0,hit:0,perf:0};}const lci=PK.play==="watch"?0:Math.round((PK.loopCin||0)*PK.beats);PK.t0=pkT(PK.len)+lci*pkSpb();PK.clickB=-lci;PK.ev.forEach(e=>{e.hit=null;e.sch=false;e.got={};});}else pkFinish();}}
+      if(!PK.wait)PK.ev.forEach(e=>{if(!e.hit&&!e.auto&&e.notes.length>=3&&now>pkT(e.b)+0.35&&Object.keys(e.got).length>=e.notes.length-1){e._partial=1;pkScoreEv(e,now);}if(!e.hit&&!e.auto&&now>pkT(e.b)+0.35){e.hit="miss";PK.score.streak=0;e.notes.forEach(m=>PK.fx.push({t:now,m:m,k:"miss",hand:e.hand}));pkHud();}});}
+    if(now>pkT(PK.len)+0.4){if(PK.loop){if(PK.play!=="watch"){pkRecordRun();PK.passN=(PK.passN||1)+1;PK.score={score:0,streak:0,top:0,hit:0,perf:0};}const lci=PK.play==="watch"?0:Math.round((PK.loopCin||0)*PK.beats);PK.t0=pkT(PK.len)+lci*pkSpb();PK.clickB=-lci;PK.ev.forEach(e=>{e.hit=null;e.sch=false;e.got={};e._partial=0;});}else pkFinish();}}
   try{pkDraw(cv,now,dt);pkOverlay(cv,now);}catch(e){}}
 /* ---------- scores: every run is saved per chord/scale/song (and Wait mode separately) ---------- */
 function pkStats(){return load("mjk-pkstats",{});}
