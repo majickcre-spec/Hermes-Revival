@@ -579,7 +579,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
     </div>
 
     <div class="doorsec" data-door="relax">
-    <div class="label">Relax &amp; measure — mind, breath &amp; heart</div>
+    <div class="label">Meditation — mind, breath &amp; heart</div>
     <div class="site-note">Meditation, breathwork, Heart Sync and brainwave journeys. Live readings work with a heart sensor or Muse headset (Bluefy on iPhone, Chrome on a computer).</div>
     <div class="grid" id="bioGrid"></div>
     </div>
@@ -1131,7 +1131,7 @@ function renderHome(){
       var letters=[];IDX.forEach(function(e){var L=(e.title||"#").charAt(0).toUpperCase();if(/[A-Z]/.test(L)&&letters.indexOf(L)<0)letters.push(L);});letters.sort();
       letters.forEach(function(L){var b=document.createElement("button");b.textContent=L;b.onclick=function(){if(b.classList.contains("sel")){_clear();return;}if(si)si.value="";_clrSel();b.classList.add("sel");var hits=IDX.filter(function(e){return (e.title||"").charAt(0).toUpperCase()===L;});_show(hits,L+" — "+hits.length+" item"+(hits.length>1?"s":"")+" (tap "+L+" again to close)");};az.appendChild(b);});}
 }
-const DOORS=[["learn","📚","Learn","Theory, ear training and keyboard practice"],["play","🎸","Play","Instruments, rhythm and the djembe"],["create","🎙️","Create","Write, record, make beats and songs"],["relax","🧘","Relax","Breathwork, Heart Sync, journeys, sleep"],["progress","⭐","My Progress","Your path, quests, sessions and frequencies"]];
+const DOORS=[["learn","📚","Learn","Theory, ear training and keyboard practice"],["play","🎸","Play","Instruments, rhythm and the djembe"],["create","🎙️","Create","Write, record, make beats and songs"],["relax","🧘","Meditation","Breathwork, Heart Sync, journeys, sleep"],["progress","⭐","My Progress","Your path, quests, sessions and frequencies"]];
 function homeDoors(){var H=document.getElementById("home"),box=document.getElementById("doors");if(!H||!box)return;var cur=null;try{cur=sessionStorage.getItem("mjk-door");}catch(e){}
   if(cur)H.setAttribute("data-door",cur);else H.removeAttribute("data-door");
   box.innerHTML=DOORS.map(function(d,i){return '<button class="door'+(cur===d[0]?" sel":"")+(i===4&&!cur?" wide":"")+'" data-d="'+d[0]+'"><span class="di">'+d[1]+'</span><b>'+d[2]+'</b><span class="dd">'+d[3]+'</span></button>';}).join("");
