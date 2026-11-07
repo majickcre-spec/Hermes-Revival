@@ -6311,9 +6311,9 @@ const STRING_INSTR={
 const CHORDS={
  guitar:{C:[-1,3,2,0,1,0],G:[3,2,0,0,0,3],D:[-1,-1,0,2,3,2],A:[-1,0,2,2,2,0],E:[0,2,2,1,0,0],
    Am:[-1,0,2,2,1,0],Em:[0,2,2,0,0,0],Dm:[-1,-1,0,2,3,1],F:[1,3,3,2,1,1],Bm:[-1,2,4,4,3,2],
-   G7:[3,2,0,0,0,1],C7:[-1,3,2,3,1,0],D7:[-1,-1,0,2,1,2],Fmaj7:[-1,-1,3,2,1,0],Bm7:[-1,2,0,2,0,2]},
+   G7:[3,2,0,0,0,1],C7:[-1,3,2,3,1,0],D7:[-1,-1,0,2,1,2],E7:[0,2,0,1,0,0],Fmaj7:[-1,-1,3,2,1,0],Bm7:[-1,2,0,2,0,2]},
  ukulele:{C:[0,0,0,3],F:[2,0,1,0],G:[0,2,3,2],Am:[2,0,0,0],Dm:[2,2,1,0],Em:[0,4,3,2],
-   A:[2,1,0,0],D:[2,2,2,0],E:[4,4,4,2],Bm:[4,2,2,2],G7:[0,2,1,2],C7:[0,0,0,1],D7:[2,2,2,3]}
+   A:[2,1,0,0],D:[2,2,2,0],E:[4,4,4,2],Bm:[4,2,2,2],G7:[0,2,1,2],C7:[0,0,0,1],D7:[2,2,2,3],E7:[1,2,0,2]}
 };
 const HARD={guitar:{F:1,Bm:1,E:0},ukulele:{E:1,Bm:1}};
 /* which finger frets each string: 1=index 2=middle 3=ring 4=pinky (0=open/muted) */
@@ -6350,7 +6350,8 @@ const PROGS=[
  {name:"I–IV–V · G (rock & blues)",chords:["G","C","D","G"]},
  {name:"vi–IV–I–V · G (pop ballad)",chords:["Em","C","G","D"]},
  {name:"I–vi–IV–V · C (50s doo-wop)",chords:["C","Am","F","G"]},
- {name:"ii–V–I · C (jazz turnaround)",chords:["Dm","G","C","C"]}
+ {name:"ii–V–I · C (jazz turnaround)",chords:["Dm","G","C","C"]},
+ {name:"Hallelujah · C (Leonard Cohen) — verse + chorus",chords:["C","Am","C","Am","F","G","C","G","C","F","G","Am","F","G","E7","Am","F","Am","F","C","G","C"]}
 ];
 function chordNotes(inst,frets){const o=STRING_INSTR[inst].strings,n=[];frets.forEach((fr,i)=>{if(fr>=0)n.push(o[i]+fr);});return n;}
 function pluck(midi,time,dur,peak){sfLoadInst("guitar");if(sfInstReady("guitar")){var _h=sfPlayKey("guitar",midi,Math.max(0,time-ac().currentTime),dur,Math.min(2.4,(peak||0.3)*3.4));if(_h)return _h;}const a=ac(),out=pianoMaster(a),f=midiToFreq(midi);
