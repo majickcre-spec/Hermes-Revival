@@ -8243,6 +8243,25 @@ function ansPaint(id){const el=document.getElementById(id);if(!el)return;const A
   g.beginPath();S.forEach((p,i)=>{if(!i)g.moveTo(X(p.t),Y(p.v));else g.lineTo(X(p.t),Y(p.v));});g.strokeStyle=A.v>=0?"#5fd38d":"#ef6262";g.lineWidth=2;g.stroke();
   g.fillStyle="rgba(255,255,255,.45)";g.font="10px system-ui";g.fillText("rest ↑",4,11);g.fillText("activation ↓",4,H-4);}
 function ansSummary(){const A=ansCalc();if(!A)return "";return '<div class="site-note" style="margin-top:6px">🫀 Nervous system: <b>'+(A.v>0?"+":"")+A.v+'</b> '+(A.v>=0?"toward rest and restore":"toward activation")+' (heart '+Math.round(A.hb)+'→'+Math.round(A.hn)+' bpm, HRV '+Math.round(A.vb)+'→'+Math.round(A.vn)+' ms).</div>';}
+/* ---- Heart rhythm waves: the slow rhythms inside heart rate (HRV spectrum). LF holds the ~0.1 Hz blood-pressure (Mayer / baroreflex) wave, HF the breathing wave ---- */
+function hrvSpec(){let rr=rrClean(HR.connected&&HR.rr&&HR.rr.length?HR.rr.slice():(M.connected&&M.ibis?M.ibis.map(x=>x.ibi):[]));let s=0,st=rr.length;while(st>0&&s<300000){st--;s+=rr[st];}rr=rr.slice(st);
+  let t=0;const pts=rr.map(v=>{t+=v/1000;return [t,v];});if(pts.length<40)return null;const T=pts[pts.length-1][0]-pts[0][0];if(T<60)return null;
+  const fs=4,n=Math.floor(T*fs),y=new Array(n);let k=0;for(let j=0;j<n;j++){const tt=pts[0][0]+j/fs;while(k<pts.length-2&&pts[k+1][0]<tt)k++;const a=pts[k],b=pts[k+1]||a,u=b[0]>a[0]?Math.min(1,Math.max(0,(tt-a[0])/(b[0]-a[0]))):0;y[j]=a[1]+(b[1]-a[1])*u;}
+  let sx=0,sy=0,sxx=0,sxy=0;for(let j=0;j<n;j++){sx+=j;sy+=y[j];sxx+=j*j;sxy+=j*y[j];}const sl=(n*sxy-sx*sy)/(n*sxx-sx*sx||1),ic=(sy-sl*sx)/n;
+  const P=[];for(let fi=1;fi/T<=0.4;fi++){const f=fi/T;let re=0,im=0;for(let j=0;j<n;j+=1){const w=0.5-0.5*Math.cos(2*Math.PI*j/(n-1)),v=(y[j]-(ic+sl*j))*w;re+=v*Math.cos(2*Math.PI*f*j/fs);im-=v*Math.sin(2*Math.PI*f*j/fs);}P.push([f,re*re+im*im]);}
+  const band=(a,b)=>P.filter(p=>p[0]>=a&&p[0]<b).reduce((x,p)=>x+p[1],0),vlf=T>=280?band(0.0033,0.04):null,lf=band(0.04,0.15),hf=band(0.15,0.4),tot=(vlf||0)+lf+hf||1;
+  let pk=null;P.forEach(p=>{if(p[0]>=0.04&&p[0]<0.15&&(!pk||p[1]>pk[1]))pk=p;});let hp=null;P.forEach(p=>{if(p[0]>=0.15&&p[0]<0.4&&(!hp||p[1]>hp[1]))hp=p;});
+  return {T:T,vlf:vlf==null?null:vlf/tot,lf:lf/tot,hf:hf/tot,lfPk:pk?pk[0]:null,hfPk:hp?hp[0]:null,ratio:hf?lf/hf:null};}
+function hrvWavesHTML(id){return '<div id="'+id+'" style="margin:10px 0"></div>';}
+function hrvWavesPaint(id){const el=document.getElementById(id);if(!el)return;if(!(HR.connected||M.connected)){el.innerHTML="";return;}const S=hrvSpec();
+  if(!S){el.innerHTML='<div class="site-note" style="font-size:.78rem">〰 Heart rhythm waves: gathering at least a minute of beats\u2026</div>';return;}
+  const row=(lab,sub,v,col)=>'<div style="margin:6px 0"><div style="display:flex;justify-content:space-between;font-size:.8rem"><span><b>'+lab+'</b> <span style="opacity:.6;font-size:.72rem">'+sub+'</span></span><b>'+(v==null?'<span style="opacity:.5;font-weight:400">needs 5 min</span>':Math.round(v*100)+'%')+'</b></div><div style="height:8px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:3px"><div style="height:100%;width:'+Math.round((v||0)*100)+'%;background:'+col+'"></div></div></div>';
+  const mayer=S.lfPk!=null&&S.lf>0.45&&Math.abs(S.lfPk-0.1)<0.03;
+  el.innerHTML='<div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:2px"><b>Heart rhythm waves</b><span style="opacity:.7;font-size:.72rem">last '+Math.round(S.T/60*10)/10+' min</span></div>'+
+   row("Blood-pressure wave","LF \u00b7 Mayer / baroreflex"+(S.lfPk?" \u00b7 peak "+S.lfPk.toFixed(2)+" Hz ("+(S.lfPk*60).toFixed(1)+"/min)":""),S.lf,"#e9c46a")+
+   row("Breathing wave","HF"+(S.hfPk?" \u00b7 peak "+(S.hfPk*60).toFixed(1)+"/min":""),S.hf,"#5fc8e0")+
+   row("Slow wave","VLF \u00b7 temperature, hormones",S.vlf,"#9d8cff")+
+   '<div class="site-note" style="font-size:.74rem;margin-top:4px">'+(mayer?'\u2713 Your heart and blood-pressure rhythms are locked together near 0.1 Hz (about 6 breaths a minute). That\u2019s the resonance state coherence training aims for.':S.lf>S.hf?'The blood-pressure wave is leading. Slow, even breathing near 6 a minute pulls it into a strong 0.1 Hz peak.':'The breathing wave is leading. Slowing your breath toward 6 a minute shifts power into the blood-pressure wave.')+'</div>';}
 function bioSummary(){const L=BIO.log.filter(p=>p.t>=BIO.t0);if(L.length<20)return "";const avg=k=>{const v=L.map(p=>p[k]).filter(x=>x!=null&&x>0);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;};const hr=avg("hr"),hv=avg("hrv"),al=avg("al"),th=avg("th");
   const parts=[hr!=null?"avg HR <b>"+Math.round(hr)+"</b>":"",hv!=null?"HRV <b>"+Math.round(hv)+" ms</b>":"",al!=null?"alpha <b>"+Math.round(al)+"%</b>":"",th!=null?"theta <b>"+Math.round(th)+"%</b>":""].filter(Boolean);return (parts.length?'<div class="site-note" style="margin-top:6px">📊 This session: '+parts.join(" · ")+'</div>':"")+ansSummary();}
 function bioPanelHTML(){return '<details id="bioSet" style="margin:6px 0"'+(HR.connected||M.connected?" open":"")+'><summary style="cursor:pointer;list-style:none;padding:8px 2px;font:800 .9rem system-ui;color:var(--muted)">🫀 Sensors · <span id="bioSum" style="font-weight:600">'+bioStatus()+'</span> ▾</summary>'+fullPageNote()+
@@ -8279,7 +8298,7 @@ const BREATH=[
 ];
 let HR={dev:null,ch:null,bpm:0,rr:[],updated:0,connected:false};
 function hrSupported(){return !!(navigator.bluetooth&&navigator.bluetooth.requestDevice);}
-function hrParse(e){const dv=e.target.value,flags=dv.getUint8(0);let idx=1,bpm;if(flags&1){bpm=dv.getUint16(1,true);idx=3;}else{bpm=dv.getUint8(1);idx=2;}if(flags&8)idx+=2;if(flags&16){for(;idx+1<dv.byteLength;idx+=2){const v=dv.getUint16(idx,true)/1024*1000;if(v>250&&v<2000)HR.rr.push(v);}}HR.bpm=bpm;while(HR.rr.length>150)HR.rr.shift();HR.updated=performance.now();}
+function hrParse(e){const dv=e.target.value,flags=dv.getUint8(0);let idx=1,bpm;if(flags&1){bpm=dv.getUint16(1,true);idx=3;}else{bpm=dv.getUint8(1);idx=2;}if(flags&8)idx+=2;if(flags&16){for(;idx+1<dv.byteLength;idx+=2){const v=dv.getUint16(idx,true)/1024*1000;if(v>250&&v<2000)HR.rr.push(v);}}HR.bpm=bpm;while(HR.rr.length>500)HR.rr.shift();HR.updated=performance.now();}
 /* drop missed / extra beats (>20% from the running median) before any HRV math */
 function rrClean(rr){if(rr.length<5)return rr.slice();const out=[];for(let i=0;i<rr.length;i++){const w=rr.slice(Math.max(0,i-7),i+8).slice().sort((a,b)=>a-b),med=w[w.length>>1];if(Math.abs(rr[i]-med)<=med*0.2)out.push(rr[i]);}return out;}
 function hrv(){const rr=rrClean(HR.rr.slice(-60));if(rr.length<6)return null;let s=0,n=0;for(let i=1;i<rr.length;i++){const d=rr[i]-rr[i-1];s+=d*d;n++;}return Math.round(Math.sqrt(s/n));}
@@ -9143,7 +9162,7 @@ function renderBreathwork(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if
       '<div style="position:relative;height:14px;border-radius:7px;overflow:hidden;display:flex"><div style="flex:50;background:rgba(239,98,98,.45)"></div><div style="flex:25;background:rgba(233,196,106,.5)"></div><div style="flex:25;background:rgba(95,211,141,.55)"></div><div id="brCohN" style="position:absolute;top:-2px;width:4px;height:18px;background:#fff;border-radius:2px;left:0;display:none;transition:left .6s"></div></div>'+
       '<div style="display:flex;justify-content:space-between;font-size:.7rem;opacity:.7;margin-top:3px"><span>Low</span><span style="margin-left:25%">Medium</span><span>High \u2192 100%</span></div>'+
       '<div class="site-note" id="brCoh" style="text-align:center;margin-top:8px">Breathe slow and even. Coherence needs about 45 seconds of beats.</div>'+
-      '<div id="brSess" style="margin-top:8px"></div>'+tgtHTML("tgtBr")+ansHTML("ansBr")+
+      '<div id="brSess" style="margin-top:8px"></div>'+tgtHTML("tgtBr")+ansHTML("ansBr")+hrvWavesHTML("wvBr")+
       '<div class="actions" style="margin:8px 0 0"><button class="btn ghost" id="brHRx">Disconnect</button></div>';
     const x=$("#brHRx");if(x)x.onclick=()=>{hrDisconnect();if(hrRAF)cancelAnimationFrame(hrRAF);renderHR();};startHRLoop();}
   function hrBeats(){const rr=HR.rr.slice(-150),out=[];let t=HR.updated||performance.now();for(let i=rr.length-1;i>=0;i--){out.unshift({t:t,b:60000/rr[i]});t-=rr[i];}
@@ -9173,7 +9192,7 @@ function renderBreathwork(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if
         if(cz){const sc=cz.score,pc=Math.round(sc/(1+sc)*100),zi=sc>=3?2:sc>=1?1:0;if(cv)cv.innerHTML='<b>'+pc+'%</b> \u00b7 '+["Low","Medium","High"][zi];if(nd){nd.style.display="block";nd.style.left="calc("+Math.min(99,pc)+"% - 2px)";}
           if(co)co.textContent=zi===2?"High coherence. Your heart rhythm is riding the breath. Stay right here.":zi===1?"Medium. Keep the breath slow and smooth, no pauses or gulps.":"Low. Follow the circle and let the out-breath be long and easy.";
           if(running&&hrSess){hrSess.z[zi]++;hrSess.sp.push(pc);if(hrSync!=null)hrSess.sy.push(hrSync);hrSessPaint();}}
-        if(running&&now-(hrSess&&hrSess.ap||0)>3000){if(hrSess)hrSess.ap=now;ansPaint("ansBr");tgtPaint("tgtBr");}
+        if(running&&now-(hrSess&&hrSess.ap||0)>3000){if(hrSess)hrSess.ap=now;ansPaint("ansBr");tgtPaint("tgtBr");hrvWavesPaint("wvBr");}
         else if(co&&v!=null)co.textContent="Breathe slow and even. Coherence needs about 45 seconds of beats.";}}
     hrRAF=requestAnimationFrame(loop);})();}
   function onPhase(ph){const cue=$("#brCue"),pt=$("#brPhT");if(cue)cue.textContent=ph[0];const a=ac();
@@ -9961,8 +9980,8 @@ function sensUI(){const f=document.getElementById("sensFab");if(f){const on=HR.c
     const tile=(l,v)=>'<div class="stile"><div class="sl">'+l+'</div><div class="sv">'+v+'</div></div>';
     L.innerHTML='<div class="sgrid">'+tile("Heart rate",hr?hr+" bpm":"—")+tile("HRV",hv!=null?hv+" ms":"—")+tile("Coherence",co?Math.round(co.score/(1+co.score)*100)+"%":"—")+(M.connected?tile("Alpha",Math.round(M.alpha)+"%")+tile("Theta",Math.round(M.theta)+"%")+tile("Beta",Math.round(M.beta)+"%"):"")+'</div>'+
       (SENS.rec?'<div class="snote" style="display:flex;align-items:center;gap:6px"><span class="sdot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff5d6c"></span>Recording '+sensFmt((Date.now()-SENS.t0)/1000)+' · '+esc(sensActivity().split(" · ")[0])+'</div>':'');}
-  if(HR.connected||M.connected){let vz=document.getElementById("sensViz");if(!vz&&L){vz=document.createElement("div");vz.id="sensViz";vz.innerHTML=tgtHTML("sensTgt")+'<div class="snote" style="margin:8px 0 2px"><b>Heart rhythm</b> · last minute</div><canvas id="sensWv" style="width:100%;height:80px;display:block;border:1px solid var(--line,#3a3160);border-radius:10px;background:rgba(0,0,0,.25)"></canvas>'+ansHTML("sensAns")+'<button class="mbtn" id="sensRst" style="flex:none;padding:5px 9px;font-size:.76rem">↺ Measure from now</button>';L.after(vz);document.getElementById("sensRst").onclick=()=>{BIO.t0=Date.now();tgtReset();ansPaint("sensAns");tgtPaint("sensTgt");};}
-    if(vz){sensWave();ansPaint("sensAns");tgtPaint("sensTgt");}}
+  if(HR.connected||M.connected){let vz=document.getElementById("sensViz");if(!vz&&L){vz=document.createElement("div");vz.id="sensViz";vz.innerHTML=tgtHTML("sensTgt")+'<div class="snote" style="margin:8px 0 2px"><b>Heart rhythm</b> · last minute</div><canvas id="sensWv" style="width:100%;height:80px;display:block;border:1px solid var(--line,#3a3160);border-radius:10px;background:rgba(0,0,0,.25)"></canvas>'+ansHTML("sensAns")+hrvWavesHTML("sensWaves")+'<button class="mbtn" id="sensRst" style="flex:none;padding:5px 9px;font-size:.76rem">↺ Measure from now</button>';L.after(vz);document.getElementById("sensRst").onclick=()=>{BIO.t0=Date.now();tgtReset();ansPaint("sensAns");tgtPaint("sensTgt");};}
+    if(vz){sensWave();ansPaint("sensAns");tgtPaint("sensTgt");if(!SENS.wvT||Date.now()-SENS.wvT>3000){SENS.wvT=Date.now();hrvWavesPaint("sensWaves");}}}
   const hb=document.getElementById("sensHRb");if(hb)hb.textContent=HR.connected?"❤️ Heart ✓":"❤️ Connect heart";const mb=document.getElementById("sensMb");if(mb)mb.textContent=M.connected?"🧠 Muse ✓":"🧠 Connect Muse";
   const rb=document.getElementById("sensRec");if(rb)rb.textContent=SENS.rec?"■ Stop and save this session":"● Start recording";}
 function sensWave(){const cv=document.getElementById("sensWv");if(!cv)return;const W=cv.clientWidth||300,H=80,dpr=window.devicePixelRatio||1;cv.width=W*dpr;cv.height=H*dpr;const g=cv.getContext("2d");g.scale(dpr,dpr);
