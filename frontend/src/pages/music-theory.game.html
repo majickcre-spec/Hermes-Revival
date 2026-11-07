@@ -7386,7 +7386,7 @@ function strChordFind(inst){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden
     '<div class="cfBig"><div id="cfChord" class="cfChord">—</div><div id="cfSub" class="cfSub">Turning on the mic…</div><div id="cfNotes" class="cfNotes"></div><div id="cfDia" style="display:flex;justify-content:center"></div></div>'+
     '<div class="cfKey" id="cfKey">Key: play a few chords</div>'+
     '<div class="rlab" style="display:block;margin:12px 0 6px">What you\'ve played</div><div class="prg-chordrow" id="cfHist" style="justify-content:flex-start"></div>'+
-    '<div class="actions"><button class="btn ghost" id="cfReset">↺ Start over</button><button class="btn ghost" id="cfProg">＋ Save as a progression</button></div><div class="site-note" id="cfMsg"></div></div>';
+    '<div class="actions"><button class="btn ghost" id="cfReset">↺ Start over</button><button class="btn ghost" id="cfProg">＋ Save it</button></div><div class="site-note" id="cfMsg"></div></div>';
     $("#eBack").onclick=()=>{teardown();renderStrings(inst);};
     view.querySelectorAll("[data-capo]").forEach(b=>b.onclick=()=>{CF.capo=+b.dataset.capo;save("mjk-cfcapo",CF.capo);view.querySelectorAll("[data-capo]").forEach(x=>x.classList.toggle("sel",x===b));cfShowCur(inst);cfShowHist();cfShowKey();});
     $("#cfReset").onclick=()=>{CF.hist=[];CF.keyAcc=new Array(12).fill(0);CF.cur=null;cfShowCur(inst);cfShowHist();cfShowKey();};
