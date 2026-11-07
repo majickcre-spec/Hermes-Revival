@@ -8411,19 +8411,19 @@ const VJ_SCRIPT=[
 /* ===== GUIDED SESSIONS: present-focused, choice-giving, grounding first ===== */
 /* step types: {s:text,p:pauseAfter} · {breath:[in,hold,out,hold],n} · {hum:{from,to,dur}} · {count:{from,to,dur}} · {bed:{beat,carrier,scene}} · {quiet:sec} · {fade:sec} */
 var GS_SESS=[
- {id:"tactical",nm:"Box Breathing",len:"5 min",when:"Anytime",voice:"michael",tag:"Steady the body fast — before a hard moment, or after one.",bed:{beat:10,carrier:200,scene:"none"},steps:[
+ {id:"box",nm:"Box Breathing",len:"5 min",when:"Anytime",voice:"michael",tag:"Steady the body fast — before a hard moment, or after one.",bed:{beat:10,carrier:200,scene:"none"},steps:[
   {s:"Alright. Let's steady the body. Five minutes, that's all this takes.",p:2},
   {s:"Sit however you like. Eyes open is fine — just let your gaze rest somewhere low, on the floor in front of you.",p:3},
   {s:"We're going to breathe in a square. In for four. Hold for four. Out for four. Hold for four.",p:1},
   {s:"The tone rises when you breathe in, and settles when you breathe out. Just follow it.",p:2},
   {breath:[4,4,4,4],n:6},
-  {s:"Good. Now let's stretch the out-breath. A longer exhale is how the body knows it can stand down.",p:2},
+  {s:"Good. Now let's stretch the out-breath. A longer exhale tells your body it's safe to let go.",p:2},
   {s:"In for four. Out for six.",p:1},
   {breath:[4,0,6,0],n:7},
   {s:"Let the breath go back to doing its own thing.",p:5},
   {s:"Notice your feet. The weight of you, held by the chair, held by the floor.",p:5},
   {s:"That's steady. That's yours. You can come back to this square any time, anywhere.",p:4},{fade:4}]},
- {id:"ground",nm:"Ground & Present",len:"5 min",when:"Daytime",voice:"fenrir",tag:"Back into the room, right now, through your five senses.",bed:{beat:10,carrier:220,scene:"river"},steps:[
+ {id:"ground",nm:"Ground & Present",len:"5 min",when:"Daytime",voice:"bella",tag:"Back into the room, right now, through your five senses.",bed:{beat:10,carrier:220,scene:"river"},steps:[
   {s:"This one's simple. We're going to come all the way into right now, through your senses. Keep your eyes open.",p:2},
   {s:"Both feet flat on the floor. Press down, just a little. Feel the floor press back.",p:6},
   {s:"Look around. Find five things you can see. Take your time with each one — the color, the edges, the light on it.",p:14},
@@ -8434,12 +8434,12 @@ var GS_SESS=[
   {s:"One long breath in. And a longer breath out.",p:6},
   {s:"Say it quietly to yourself: I'm here. It's today. I know where I am.",p:6},
   {s:"That's it. You're here. Take this with you into the rest of your day.",p:3},{fade:4}]},
- {id:"standdown",nm:"Evening Wind-Down",len:"10 min",when:"Evening",voice:"george",tag:"Set the day down. Let the body unclench.",bed:{beat:7,carrier:180,scene:"ocean"},steps:[
+ {id:"winddown",nm:"Evening Wind-Down",len:"10 min",when:"Evening",voice:"heart",tag:"Set the day down. Let the body unclench.",bed:{beat:7,carrier:180,scene:"ocean"},steps:[
   {s:"The day is done. Whatever it asked of you, you showed up for it. Now it's time to set it down.",p:3},
-  {s:"Find a spot that feels secure. Back against a wall, if you like. Eyes open or closed — whatever lets you settle.",p:5},
+  {s:"Find a spot where you feel comfortable. Sit, or lie back, whatever lets you settle. Eyes open or closed, your call.",p:5},
   {s:"Breathe in through your nose. And let it out slowly through your mouth, like fogging up a cold window.",p:2},
   {breath:[4,0,7,0],n:6},
-  {s:"Now let's walk through the body, the way you'd check your gear at the end of the day. No rush.",p:3},
+  {s:"Now let's move through the body, one place at a time. No rush.",p:3},
   {s:"Your jaw. Let your teeth come apart. Let your tongue rest soft in your mouth.",p:7},
   {s:"Your shoulders. Let them drop a little. And then, a little more.",p:7},
   {s:"Your hands. Open them up. Let your fingers go loose, like they're floating.",p:7},
@@ -8451,7 +8451,7 @@ var GS_SESS=[
   {s:"Let the waves carry the rest of it out to sea for a while.",p:2},
   {quiet:60},
   {s:"When you're ready, take a deeper breath. Move your fingers. Come back to the room — lighter than you left it.",p:4},{fade:6}]},
- {id:"hum",nm:"Hum It Down",len:"10 min",when:"Anytime",voice:"george",tag:"Your own voice, matched to a tone that slowly descends.",bed:{beat:6,carrier:160,scene:"none"},steps:[
+ {id:"hum",nm:"Hum It Down",len:"10 min",when:"Anytime",voice:"bella",tag:"Your own voice, matched to a tone that slowly descends.",bed:{beat:6,carrier:160,scene:"none"},steps:[
   {s:"Long before there were words, there was the hum. Monks, mothers, healers — all of them knew it.",p:3},
   {s:"When you hum, the breath grows long, and the whole body becomes a bell.",p:3},
   {s:"You'll hear a tone. Breathe in, and as you breathe out, hum with it. A ring of light will show you how close you are. Close is plenty.",p:3},
@@ -8463,13 +8463,13 @@ var GS_SESS=[
   {s:"Let the sound go. Stay inside the silence it leaves behind.",p:3},
   {quiet:45},
   {s:"Notice the stillness in your body now. You made that, with nothing but your own breath and your own voice.",p:5},{fade:6}]},
- {id:"nightwatch",nm:"Sleep Journey",len:"25 min",when:"In bed",voice:"michael",tag:"Hand off the watch and drift. Ends in silence — nothing to touch.",night:true,bed:{beat:6,carrier:150,scene:"rain"},steps:[
+ {id:"sleep",nm:"Sleep Journey",len:"25 min",when:"In bed",voice:"heart",tag:"Let go of the day and drift off. Ends in silence — nothing to touch.",night:true,bed:{beat:6,carrier:150,scene:"rain"},steps:[
   {s:"You're in bed now. Settle in however feels best. If the door or a little light matters to you, set it just the way you like it.",p:6},
   {s:"Breathe in through your nose. And a long, slow breath out.",p:2},
   {breath:[4,0,6,0],n:5},
-  {s:"The doors are locked. The day is over. Anything left undone will still be there in the morning, and it can wait.",p:8},
-  {s:"Tonight, you hand off the watch. Picture someone you trust taking your place. A friend. A brother. Or just the night itself, wide and quiet.",p:10},
-  {s:"Hear them say it: I've got the watch. Get some rest.",p:10},
+  {s:"The day is done. Anything left undone will still be there in the morning, and it can wait.",p:8},
+  {s:"Tonight, you don't have to keep track of anything. Let the night take over. Wide, quiet, and steady.",p:10},
+  {s:"It's got you. You can rest now.",p:10},
   {s:"Let the breath slow down on its own. Out longer than in.",p:2},
   {breath:[4,0,7,0],n:6},
   {s:"Now let the body grow heavy, one part at a time, like warm sand pouring into the bed.",p:3},
@@ -8480,18 +8480,18 @@ var GS_SESS=[
   {bed:{beat:4}},
   {count:{from:54,to:38,dur:300}},
   {s:"You can let the numbers go now. There's nothing left to do.",p:4},
-  {s:"The watch is covered. Drift.",p:3},
+  {s:"Everything is taken care of. Drift.",p:3},
   {bed:{beat:2.5}},
   {quiet:360},{fade:90}]}
 ];
 GS_SESS.forEach(function(S){var k=0;S.steps.forEach(function(st){if(st.s!=null)st.k=k++;});});
 var GS={run:false,timers:[],idx:0,sess:null,t0:0,vsel:load("mjk-gsv","auto"),cap:load("mjk-gscap",true),bedVol:load("mjk-gsbed",0.5),raf:null,buf:{},src:null};
-var GS_VOICES=[["auto","Session voice"],["michael","Michael"],["george","George"],["fenrir","Fenrir"],["mine","My recordings"]];
+var GS_VOICES=[["auto","Session voice"],["heart","Heart"],["bella","Bella"],["michael","Michael"],["fenrir","Fenrir"],["mine","My recordings"]];
 function gsLater(fn,sec){var t=setTimeout(fn,Math.max(0,sec)*1000);GS.timers.push(t);return t;}
 function gsClear(){GS.timers.forEach(clearTimeout);GS.timers=[];try{speechSynthesis.cancel();}catch(e){}try{if(GS.src){GS.src.onended=null;GS.src.stop();}}catch(e){}GS.src=null;if(GS.stepStop){try{GS.stepStop();}catch(e){}GS.stepStop=null;}}
 function gsBedLevel(v,tau){if(!MED.master)return;try{MED.master.gain.setTargetAtTime(v,ac().currentTime,tau||0.6);}catch(e){}}
 function gsCaption(t){var c=document.getElementById("gsCap");if(c){c.style.opacity=0;setTimeout(function(){c.textContent=GS.cap?t:"";c.style.opacity=1;},250);}}
-function gsVoiceOf(S){return GS.vsel==="auto"?S.voice:GS.vsel;}
+function gsVoiceOf(S){return GS.vsel==="auto"||!GS_VOICES.some(v=>v[0]===GS.vsel)?S.voice:GS.vsel;}
 function gsKey(S,k){return S.id+"-"+k;}
 function gsFetch(v,key){var id=v+"/"+key;if(GS.buf[id])return GS.buf[id];GS.buf[id]=fetch("/sounds/guided/"+id+".mp3").then(function(r){if(!r.ok)throw 0;return r.arrayBuffer();}).then(function(ab){return new Promise(function(res,rej){ac().decodeAudioData(ab,res,rej);});}).catch(function(){delete GS.buf[id];return null;});return GS.buf[id];}
 function gsMine(key){return idbGet("gs-"+key).then(function(b){if(!b)return null;return (b.arrayBuffer?b.arrayBuffer():b);}).then(function(ab){return ab?new Promise(function(res,rej){ac().decodeAudioData(ab.slice(0),res,rej);}):null;}).catch(function(){return null;});}
@@ -8559,7 +8559,7 @@ function renderStandDown(){if(toneRAF)cancelAnimationFrame(toneRAF);GS.run=false
   $("#eBack").onclick=goHome;view.querySelectorAll("[data-gs]").forEach(function(b){b.onclick=function(){gsStart(GS_SESS.find(function(s){return s.id===b.dataset.gs;}));};});
   
   $("#gsV").onchange=function(e){GS.vsel=e.target.value;save("mjk-gsv",GS.vsel);};
-  $("#gsVT").onclick=function(){unlockAudio();var S=GS_SESS[0],v=GS.vsel==="auto"||GS.vsel==="mine"?S.voice:GS.vsel;gsClear();gsFetch(v,gsKey(S,0)).then(function(b){if(!b)return;var a=ac(),src=a.createBufferSource();src.buffer=b;src.connect(a.destination);src.start();GS.src=src;});};
+  $("#gsVT").onclick=function(){unlockAudio();var S=GS_SESS[0],v=GS.vsel==="mine"?S.voice:gsVoiceOf(S);gsClear();gsFetch(v,gsKey(S,0)).then(function(b){if(!b)return;var a=ac(),src=a.createBufferSource();src.buffer=b;src.connect(a.destination);src.start();GS.src=src;});};
   $("#gsB").oninput=function(e){GS.bedVol=+e.target.value;save("mjk-gsbed",GS.bedVol);};$("#gsC").onchange=function(e){GS.cap=e.target.checked;save("mjk-gscap",GS.cap);};}
 function gsRecMenu(){if(toneRAF)cancelAnimationFrame(toneRAF);GS.run=false;gsClear();medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=null;var has=load("mjk-gsrec",{});
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎧 Record the Guided Sessions</span></div><div class="panel"><div class="intro">Pick a session and read it line by line. Lines you haven\'t recorded play in the built-in voice. To hear yours, open Guided Sessions → Voice &amp; sound → <b>My recordings</b>.</div>'+
