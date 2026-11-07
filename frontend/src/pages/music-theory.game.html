@@ -8341,10 +8341,20 @@ function mfHold(fc,lag,keepV,prev){unlockAudio();medWake(true);var a=ac(),vol=lo
     var P=mfGet(),H=P.toneRuns||[];H.push({hz:hz,unc:Math.max(0.05,sd),lag:lag,date:Date.now(),hold:Math.round(hist.length?hist[hist.length-1].t:0),hfPct:run.lhSec?Math.round((run.hfSec||0)/run.lhSec*100):null,firstX:run.firstCross!=null?Math.round(run.firstCross):null,sync:run.syncSec||0});H=H.slice(-60);var Hw=H.slice(-6),w=Hw.map(function(r){return 1/Math.max(0.05,r.unc*r.unc);}),sw=w.reduce(function(x,y){return x+y;},0),avg=Hw.reduce(function(x,r,i){return x+r.hz*w[i];},0)/sw;
     mfSet("toneRuns",H);mfSet("tone",{hz:avg,unc:Math.sqrt(1/sw),runs:H.length,lag:lag,date:Date.now()});var summ=ansSummary();mfStop();renderMyFreq();var o=$("#mfOut");if(o)o.innerHTML='<div class="site-note">Held for '+Math.round((hist.length?hist[hist.length-1].t:0)/60)+' min. Your resonance settled at <b>'+hz.toFixed(2)+' Hz</b> (moved '+((hz/f0-1)*100).toFixed(2)+'% from where it started), steady within ± '+sd.toFixed(2)+'.</div>'+summ;};
   $("#mhStop").onclick=stop;
-  MF.timer=setInterval(function(){if(MF.run!==run)return;var now=performance.now(),t=(now-hs)/1000;if(t<0)return;var th=2*Math.PI*t/TD,f=fc*(1+A*Math.sin(th));MF.curF=f;MF.curC=fc;emit.push({t:t,th:th});if(emit.length>400)emit.shift();
-    try{V.f.setTargetAtTime(f,a.currentTime,0.15);}catch(e){}
-    var B=mfBeats(hs).filter(function(b){return b.t>hs+seen;});B.forEach(function(b){var tb=(b.t-hs)/1000-lag;if(tb<4)return;G=G*0.97+0.03*b.z*Math.sin(2*Math.PI*tb/TD);seen=Math.max(seen,b.t-hs);});
-    if(t-lastStep>=TD&&t>TD*1.5){lastStep=t;var step=Math.max(-0.006,Math.min(0.006,G*0.02));fc=Math.max(f0/1.12,Math.min(f0*1.12,fc*(1+step)));var d=$("#mhDir");if(d)d.textContent=Math.abs(step)<0.0008?"Locked in · holding steady":step>0?"Your body is pulling it up a touch":"Your body is pulling it down a touch";}
+  MF.timer=setInterval(function(){if(MF.run!==run)return;var now=performance.now(),t=(now-hs)/1000;if(t<0)return;var f=fc*(1+0.003*Math.sin(2*Math.PI*t/30));MF.curF=f;MF.curC=fc;
+    try{V.f.setTargetAtTime(f,a.currentTime,0.6);}catch(e){}
+    /* search in 90-second blocks scored by the whole body state (nervous-system shift + rest-branch share), not beat-to-beat wiggles:
+       hold the base, then probe one step up or down; keep whichever is calmer; shrink the step as it closes in; never drift while you're activated */
+    var S=run.srch=run.srch||{base:fc,step:0.02,dir:1,phase:"base",t0:0,fails:0,best:{f:fc,sc:-1e9},scores:[]};
+    if(t-S.t0>=90){var blk=hist.filter(function(h){return h.t>=S.t0+30&&h.t<t&&h.ns!=null;}),ls=(run.lh||[]).filter(function(p){return (p.t-hs)/1000>=S.t0+30;});
+      var sc=blk.length?blk.reduce(function(x,h){return x+h.ns;},0)/blk.length+(ls.length?40*(ls.reduce(function(x,p){return x+p.hf;},0)/ls.length-0.5):0):null,d=$("#mhDir"),msg="";
+      if(sc!=null){if(sc>S.best.sc)S.best={f:fc,sc:sc};
+        var act=blk.length&&blk[blk.length-1].ns<-20;
+        if(act&&S.best.f!==fc){fc=S.best.f;S.base=fc;S.phase="base";msg="You\u2019re activating, so it\u2019s back on your calmest spot ("+fc.toFixed(2)+" Hz). Breathe low and slow.";}
+        else if(S.phase==="base"){S.sb=sc;S.phase="probe";fc=S.base*(1+S.dir*S.step);msg="Trying "+(S.step*100).toFixed(1)+"% "+(S.dir>0?"higher":"lower")+" ("+fc.toFixed(2)+" Hz)\u2026";}
+        else{if(sc>S.sb+3){S.base=fc;S.fails=0;msg="That felt calmer to your body. Moving to "+fc.toFixed(2)+" Hz.";}else{S.dir=-S.dir;S.fails++;if(S.fails>=2){S.step=Math.max(0.003,S.step*0.6);S.fails=0;}fc=S.base;msg=S.step<=0.0035?"Locked in at "+fc.toFixed(2)+" Hz \u00b7 holding steady":"No better there. Back to "+fc.toFixed(2)+" Hz.";}S.phase="base";}
+        fc=Math.max(20,fc);}else msg="Measuring your state\u2026";
+      S.t0=t;if(d&&msg)d.textContent=msg;}
     if(!hist.length||t-hist[hist.length-1].t>=2){var A2=ansCalc();hist.push({t:t,fc:fc,ns:A2?A2.v:null});}
     var h=$("#mhHz"),n=$("#mhNt");if(h)h.textContent=f.toFixed(2)+" Hz";if(n)n.textContent=mfNote(f)+" · centre "+fc.toFixed(2);
     run.sp=run.sp||hs;lhTrack(run,lag,function(){return fc;});
