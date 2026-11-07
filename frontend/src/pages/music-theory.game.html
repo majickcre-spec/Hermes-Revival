@@ -6132,6 +6132,7 @@ const MAKE_CARDS=[
  {ic:"🎙️",title:"Sing a Song",blurb:"Sing or hum your own tune — it maps the notes and rhythm onto a staff. Fix them, then save it as a section or a whole song.",go:()=>renderCompose()},
  {ic:"⭐",title:"My Songs",blurb:"Your saved melodies and imported songs — sing them back, or import a MIDI.",go:()=>renderMySongs()},
  {ic:"🎤",title:"Lyric Lab",blurb:"Sing a song idea — melody, rhythm, words — and get feedback (kid or songwriter level). Listen back, save keepers, or turn one into a section.",go:()=>renderIdeaLab()},
+ {ic:"🎙",title:"Hum to Chords",blurb:"Sing or hum a melody over a click and get chord progressions that fit it, in your key. Tap any chord to swap it, play it back under your voice, and save it.",go:()=>renderHumChords()},
  {ic:"🧪",title:"Write + Beat Lab",blurb:"Write lyrics over a beat and record vocals in time. Load a beat you made, drop in your own track, or use the click — with a syllable counter, mix faders, and a nudge slider to line up your take.",go:()=>renderBeatLab()},
  {ic:"🎛️",title:"Studio",blurb:"Built like Ableton Live — Session view for launching loops and scenes, Arrangement timeline, mixer with sends, devices, piano roll, MIDI keyboard and recording.",go:()=>liveOpen()},
  {ic:"🧩",title:"Beat Maker",blurb:"Build layered beats & motifs on a grid — djembe and handpan together. Play the instrument live into the sequencer, loop, save, and get feedback.",go:()=>renderBeat()},
@@ -7496,6 +7497,104 @@ function cfLoop(inst){const a=ac(),an=CF.an;if(!an)return;CF.raf=requestAnimatio
     if(!last||last.r!==h.r||last.q!==h.q||(last.bass%12)!==(h.bass%12)||Date.now()-last.t>2500){CF.hist.push(h);if(CF.hist.length>64)CF.hist.shift();}
     M.iv.forEach((x,i)=>{CF.keyAcc[(M.r+x)%12]+=i===0?1.4:1;});CF.keyAcc[(R.bass)%12]+=0.4;
     cfShowCur(inst);cfShowHist();cfShowKey();}}
+/* ---- Hum to Chords: sing a phrase, get chord progressions that fit it ---- */
+var HC={bpm:load("mjk-hcbpm",90),bars:load("mjk-hcbars",4),per:load("mjk-hcper",1),inst:load("mjk-hcinst","piano"),style:0,frames:[],take:null,res:null,raf:null,rec:null,playing:null,clicks:[]};
+var HC_SETS={
+ major:{simple:[[0,""],[5,""],[7,""],[9,"m"]],full:[[0,""],[2,"m"],[4,"m"],[5,""],[7,""],[9,"m"]],moody:[[0,""],[2,"m"],[4,"m"],[5,""],[5,"m"],[7,""],[8,""],[9,"m"],[10,""]]},
+ minor:{simple:[[0,"m"],[5,"m"],[7,""],[8,""]],full:[[0,"m"],[3,""],[5,"m"],[7,"m"],[7,""],[8,""],[10,""]],moody:[[0,"m"],[3,""],[5,"m"],[7,"m"],[8,""],[10,""],[1,""]]}};
+var HC_RICH={major:{0:"maj7",2:"m7",4:"m7",5:"maj7",7:"7",9:"m7",8:"maj7",10:"add9"},minor:{0:"m7",3:"maj7",5:"m7",7:"7",8:"maj7",10:"add9"}};
+var HC_STYLES=[{id:"simple",name:"Simple",set:"simple"},{id:"full",name:"Natural",set:"full"},{id:"moody",name:"Moody",set:"moody"},{id:"rich",name:"Rich",set:"full",rich:1}];
+var HC_MOVES={"7>0":.28,"5>7":.16,"5>0":.14,"2>7":.22,"9>5":.16,"0>5":.1,"0>7":.08,"0>9":.12,"10>0":.18,"8>10":.18,"4>9":.12,"9>2":.12,"3>8":.1,"8>7":.14,"5>8":.08};
+function hcIv(q){var e=CF_Q.find(function(x){return x[0]===q;});return e?e[1]:[0,4,7];}
+function hcSharp(k){return k.mode==="major"?[2,4,6,7,9,11].indexOf(k.r)>=0:[1,4,6,8,11].indexOf(k.r)>=0;}
+function hcName(r,q,k){return cfName(r,q,null,hcSharp(k));}
+function hcAnalyze(){var F=HC.frames,bl=60/HC.bpm,slots=HC.bars*HC.per,sl=bl*4/HC.per,tot=HC.bars*4*bl;
+  var pts=[];for(var i=1;i<F.length-1;i++){var m=F[i].m;if(m<0||F[i-1].m<0||F[i+1].m<0)continue;var arr=[F[i-1].m,m,F[i+1].m].sort(function(a,b){return a-b;});var md=arr[1];if(Math.abs(md-m)>0.8)continue;
+    if(HC.clicks.some(function(c){return F[i].t>=c&&F[i].t<c+0.05;}))continue;pts.push({t:F[i].t,m:md,dt:Math.min(0.06,F[i+1].t-F[i].t)});}
+  var voiced=pts.reduce(function(a,p){return a+p.dt;},0);if(voiced<1.2)return {err:"I didn't catch much singing. Try again a little louder, closer to the phone."};
+  var acc=new Array(12).fill(0),seg=[];for(var s=0;s<slots;s++)seg.push({h:new Array(12).fill(0),v:0});
+  pts.forEach(function(p){if(p.t<0||p.t>=tot)return;var pc=((Math.round(p.m)%12)+12)%12,bpos=p.t/bl,near=Math.abs(bpos-Math.round(bpos))*bl<0.12,si=Math.min(slots-1,Math.floor(p.t/sl)),w=p.dt*(near?1.6:1)*((p.t-si*sl)<0.15?1.4:1);acc[pc]+=w;seg[si].h[pc]+=w;seg[si].v+=p.dt;});
+  var inP=pts.filter(function(p){return p.t>=0&&p.t<tot;}),pcOf=function(p){return ((Math.round(p.m)%12)+12)%12;};
+  var key=hcKey(acc,inP.length?pcOf(inP[0]):null,inP.length?pcOf(inP[inP.length-1]):null);if(!key)return {err:"I couldn't find a key in that. Try a longer phrase."};
+  return {key:key,seg:seg,pts:pts,styles:HC_STYLES.map(function(st){return hcSolve(key,seg,st);})};}
+function hcKey(acc,first,last){var tot=acc.reduce(function(a,b){return a+b;},0);if(tot<0.3)return null;var best=null,MAJ=[0,2,4,5,7,9,11],MIN=[0,2,3,5,7,8,10],corr=function(p,r){var mx=0,my=0,i;for(i=0;i<12;i++){mx+=acc[i];my+=p[i];}mx/=12;my/=12;var n=0,dx=0,dy=0;for(i=0;i<12;i++){var x=acc[(i+r)%12]-mx,y=p[i]-my;n+=x*y;dx+=x*x;dy+=y*y;}return n/Math.sqrt(dx*dy||1);};
+  for(var r=0;r<12;r++)[["major",KS_MAJ,MAJ],["minor",KS_MIN,MIN]].forEach(function(o){var inS=0;for(var pc=0;pc<12;pc++){var d=(pc-r+12)%12;if(o[2].indexOf(d)>=0||(o[0]==="minor"&&d===11))inS+=acc[pc]*(o[0]==="minor"&&d===11?0.85:1);}
+    var v=corr(o[1],r)+2.2*(inS/tot)+(last===r?0.35:0)+(first===r?0.12:0)+(last!=null&&(last-r+12)%12===7?0.05:0);if(!best||v>best.v)best={r:r,mode:o[0],v:v};});return best;}
+function hcSolve(key,seg,st){var set=HC_SETS[key.mode][st.set],moody=st.id==="moody";
+  var C=set.map(function(d){return {d:d[0],r:(key.r+d[0])%12,q:d[1]};});
+  var em=seg.map(function(sg,si){var tot=sg.h.reduce(function(a,b){return a+b;},0);return C.map(function(c){var sc=0;if(tot>0){var iv=hcIv(c.q).map(function(x){return (c.r+x)%12;});for(var pc=0;pc<12;pc++){if(!sg.h[pc])continue;var w=sg.h[pc]/tot;sc+=iv.indexOf(pc)>=0?w*(pc===c.r?1.15:1):-0.55*w;}sc*=Math.min(1,sg.v/0.6);}
+    if(moody&&c.q.indexOf("m")===0&&[2,4,9,0,5].indexOf(c.d)>=0&&(key.mode==="minor"||c.d!==5))sc+=0.06;if(si===0&&c.d===0)sc+=0.2;if(si===seg.length-1&&(c.d===0||c.d===7))sc+=0.1;return sc;});});
+  var n=seg.length,V=[em[0].slice()],B=[];for(var s=1;s<n;s++){V.push([]);B.push([]);for(var j=0;j<C.length;j++){var best=-1e9,bi=0;for(var i=0;i<C.length;i++){var tr=i===j?-0.04:(HC_MOVES[C[i].d+">"+C[j].d]||0);var v=V[s-1][i]+tr;if(v>best){best=v;bi=i;}}V[s][j]=best+em[s][j];B[s-1][j]=bi;}}
+  var pi=0;V[n-1].forEach(function(v,i){if(v>V[n-1][pi])pi=i;});var path=[pi];for(var s2=n-2;s2>=0;s2--){pi=B[s2][pi];path.unshift(pi);}
+  return path.map(function(ci,si){var order=C.map(function(c,i){return i;}).sort(function(a,b){return em[si][b]-em[si][a];});if(order.indexOf(ci)>0){order.splice(order.indexOf(ci),1);order.unshift(ci);}
+    return {cands:order.slice(0,5).map(function(i){var c=C[i],q=st.rich&&HC_RICH[key.mode][c.d]!=null?HC_RICH[key.mode][c.d]:c.q;return {r:c.r,q:q};}),pick:0};});}
+function hcChordAt(st,si){var c=HC.res.styles[st][si];return c.cands[c.pick];}
+function hcVoice(c){var iv=hcIv(c.q),bass=36+c.r;if(bass<40)bass+=12;var up=iv.map(function(x){var m=55+((c.r+x-55)%12+12)%12;return m;}).sort(function(a,b){return a-b;});return {bass:bass,up:up};}
+function hcPlayChord(c,t,dur){var a=ac(),v=hcVoice(c),nm=hcName(c.r,c.q,HC.res.key).replace("♭","b").replace("♯","#");
+  if(HC.inst==="guitar"&&CHORDS.guitar[nm]){strum("guitar",CHORDS.guitar[nm],t,true);return;}
+  var off=t-a.currentTime,ok=grPlay(v.bass,off,dur,0.55);v.up.forEach(function(m,i){grPlay(m,off+i*0.012,dur,0.42);});
+  if(ok===false){[v.bass].concat(v.up).forEach(function(m){var o=a.createOscillator(),g=a.createGain();o.type="triangle";o.frequency.value=midiToFreq(m);g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(0.05,t+0.02);g.gain.setTargetAtTime(0.0001,t+dur*0.8,0.2);o.connect(g);g.connect(pianoMaster(a));o.start(t);o.stop(t+dur+1);});}}
+function hcStopPlay(){if(HC.playing){try{HC.playing.src&&HC.playing.src.stop();}catch(e){}clearTimeout(HC.playing.tm);if(HC.playing.raf)cancelAnimationFrame(HC.playing.raf);HC.playing=null;}var b=$("#hcPlay");if(b)b.textContent="▶ Play it back";hcDraw(-1);}
+function hcPlay(withVoice){hcStopPlay();unlockAudio();var a=ac(),bl=60/HC.bpm,sl=bl*4/HC.per,n=HC.bars*HC.per,t0=a.currentTime+0.25,P={};HC.playing=P;
+  for(var s=0;s<n;s++){var c=hcChordAt(HC.style,s);hcPlayChord(c,t0+s*sl,sl-0.05);if(HC.inst==="guitar"&&HC.per===1){var nm=hcName(c.r,c.q,HC.res.key).replace("♭","b").replace("♯","#");if(CHORDS.guitar[nm])strum("guitar",CHORDS.guitar[nm],t0+s*sl+2*bl,true);}}
+  if(withVoice&&HC.take&&HC.take.buf){var src=a.createBufferSource(),g=a.createGain();g.gain.value=1.2;src.buffer=HC.take.buf;src.connect(g);g.connect(a.destination);src.start(t0,Math.max(0,HC.take.off));P.src=src;}
+  var b=$("#hcPlay");if(b)b.textContent="■ Stop";
+  (function loop(){if(HC.playing!==P)return;var t=a.currentTime-t0;hcDraw(t);if(t>n*sl+0.3){hcStopPlay();return;}P.raf=requestAnimationFrame(loop);})();}
+function hcDraw(tNow){var cv=$("#hcCv");if(!cv||!HC.res||HC.res.err)return;var W=cv.clientWidth||340,H=150,dpr=window.devicePixelRatio||1;cv.width=W*dpr;cv.height=H*dpr;var g=cv.getContext("2d");g.scale(dpr,dpr);g.clearRect(0,0,W,H);
+  var bl=60/HC.bpm,tot=HC.bars*4*bl,pts=HC.res.pts.filter(function(p){return p.t>=0&&p.t<tot;}),lo=99,hi=0;pts.forEach(function(p){lo=Math.min(lo,p.m);hi=Math.max(hi,p.m);});lo-=2;hi+=2;if(hi-lo<12){var c=(hi+lo)/2;lo=c-6;hi=c+6;}
+  for(var b=0;b<=HC.bars*4;b++){var x=b/(HC.bars*4)*W;g.strokeStyle=b%4===0?"rgba(233,196,106,.45)":"rgba(255,255,255,.08)";g.lineWidth=b%4===0?1.2:1;g.beginPath();g.moveTo(x,0);g.lineTo(x,H);g.stroke();}
+  g.fillStyle="#e9c46a";pts.forEach(function(p){var x=p.t/tot*W,y=H-8-(p.m-lo)/(hi-lo)*(H-16);g.globalAlpha=tNow>=0&&p.t>tNow?0.35:1;g.fillRect(x,y-1.5,Math.max(2,p.dt/tot*W+1),3);});g.globalAlpha=1;
+  if(tNow>=0){var px=Math.min(W,tNow/tot*W);g.strokeStyle="#fff";g.lineWidth=1.5;g.beginPath();g.moveTo(px,0);g.lineTo(px,H);g.stroke();}
+  var sl=tot/(HC.bars*HC.per),cur=tNow>=0?Math.floor(tNow/sl):-1;document.querySelectorAll("#hcSlots .hcSlot").forEach(function(el,i){el.classList.toggle("on",i===cur);});}
+function hcResult(){var box=$("#hcOut");if(!box)return;var R=HC.res;if(!R){box.innerHTML="";return;}if(R.err){box.innerHTML='<div class="site-note" style="margin:10px 0">'+esc(R.err)+'</div>';return;}
+  var k=R.key,kn=(hcSharp(k)?CF_NS:CF_NM)[k.r]+(k.mode==="minor"?" minor":" major");
+  box.innerHTML='<div class="cfKey">Key: <b>'+kn+'</b></div>'+
+   '<div class="rrow2"><span class="rlab">Feel</span><span class="rchips tight" id="hcStyles">'+HC_STYLES.map(function(s,i){return '<button class="rchip sm'+(i===HC.style?' sel':'')+'" data-st="'+i+'">'+s.name+'</button>';}).join("")+'</span></div>'+
+   '<div id="hcSlots" style="display:grid;grid-template-columns:repeat('+(HC.bars*HC.per)+',minmax(0,1fr));gap:4px;margin:10px 0 4px"></div>'+
+   '<canvas id="hcCv" style="width:100%;height:150px;display:block;border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.25)"></canvas>'+
+   '<div class="site-note" style="margin:4px 0 8px">Tap a chord to try the next one that fits.</div>'+
+   '<div class="rrow2"><span class="rlab">Sound</span><span class="rchips tight"><button class="rchip sm'+(HC.inst==="piano"?" sel":"")+'" data-in="piano">Piano</button><button class="rchip sm'+(HC.inst==="guitar"?" sel":"")+'" data-in="guitar">Guitar</button></span></div>'+
+   '<div class="actions"><button class="btn" id="hcPlay">▶ Play it back</button><button class="btn ghost" id="hcChOnly">Chords only</button></div>'+
+   '<div class="actions"><button class="btn ghost" id="hcSave">＋ Save to Progressions</button></div><div class="site-note" id="hcMsg"></div>';
+  hcSlots();
+  box.querySelectorAll("[data-st]").forEach(function(b){b.onclick=function(){HC.style=+b.dataset.st;hcStopPlay();hcResult();};});
+  box.querySelectorAll("[data-in]").forEach(function(b){b.onclick=function(){HC.inst=b.dataset.in;save("mjk-hcinst",HC.inst);box.querySelectorAll("[data-in]").forEach(function(x){x.classList.toggle("sel",x===b);});};});
+  $("#hcPlay").onclick=function(){if(HC.playing)hcStopPlay();else hcPlay(true);};$("#hcChOnly").onclick=function(){hcPlay(false);};
+  $("#hcSave").onclick=function(){var seq=HC.res.styles[HC.style].map(function(c){var x=c.cands[c.pick];return hcName(x.r,x.q,k).replace("♭","b").replace("♯","#");});var mine=load("mjk-myprogs",[]);mine.push({name:"Hummed · "+kn+" · "+seq.join(" "),chords:seq});save("mjk-myprogs",mine);cfMergeProgs();$("#hcMsg").textContent="Saved. Find it in Progressions.";};
+  setTimeout(function(){hcDraw(-1);},30);}
+function hcSlots(){var el=$("#hcSlots");if(!el)return;var S=HC.res.styles[HC.style];el.innerHTML=S.map(function(c,i){var x=c.cands[c.pick];return '<button class="hcSlot" data-i="'+i+'">'+esc(hcName(x.r,x.q,HC.res.key))+'</button>';}).join("");
+  el.querySelectorAll(".hcSlot").forEach(function(b){b.onclick=function(){var c=S[+b.dataset.i];c.pick=(c.pick+1)%c.cands.length;var x=c.cands[c.pick];b.textContent=hcName(x.r,x.q,HC.res.key);unlockAudio();hcPlayChord(x,ac().currentTime+0.03,1.4);};});}
+function renderHumChords(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);try{grLoad();}catch(e){}
+  teardown=function(){hcStopPlay();hcStopRec(true);};
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎙 Hum to Chords</span></div><div class="panel">'+
+   '<div class="intro">Sing or hum a melody over the click. When it stops, you get chords that fit, in the key you sang in. Headphones keep the click out of the mic.</div>'+
+   '<div class="rrow2"><span class="rlab">Tempo</span><span style="display:flex;align-items:center;gap:8px;flex:1"><input type="range" id="hcBpm" min="60" max="160" step="1" value="'+HC.bpm+'" style="flex:1"><span class="rbpm" id="hcBpmV" style="min-width:64px">'+HC.bpm+' BPM</span></span></div>'+
+   '<div class="rrow2"><span class="rlab">Length</span><span class="rchips tight">'+[2,4,8].map(function(b){return '<button class="rchip sm'+(b===HC.bars?' sel':'')+'" data-bars="'+b+'">'+b+' bars</button>';}).join("")+'</span></div>'+
+   '<div class="rrow2"><span class="rlab">Chords</span><span class="rchips tight"><button class="rchip sm'+(HC.per===1?' sel':'')+'" data-per="1">1 per bar</button><button class="rchip sm'+(HC.per===2?' sel':'')+'" data-per="2">2 per bar</button></span></div>'+
+   '<div class="cfBig" style="padding:14px 10px"><div id="hcBig" class="cfChord" style="font-size:3rem">●</div><div id="hcSub" class="cfSub">Tap record, then sing after the count-in.</div></div>'+
+   '<div class="actions"><button class="btn" id="hcRec">● Record</button></div><div id="hcOut"></div></div>';
+  $("#eBack").onclick=function(){teardown();goHome();};
+  var bp=$("#hcBpm");bp.oninput=function(){HC.bpm=+bp.value;$("#hcBpmV").textContent=HC.bpm+" BPM";save("mjk-hcbpm",HC.bpm);};
+  view.querySelectorAll("[data-bars]").forEach(function(b){b.onclick=function(){if(HC.rec)return;HC.bars=+b.dataset.bars;save("mjk-hcbars",HC.bars);view.querySelectorAll("[data-bars]").forEach(function(x){x.classList.toggle("sel",x===b);});};});
+  view.querySelectorAll("[data-per]").forEach(function(b){b.onclick=function(){if(HC.rec)return;HC.per=+b.dataset.per;save("mjk-hcper",HC.per);view.querySelectorAll("[data-per]").forEach(function(x){x.classList.toggle("sel",x===b);});if(HC.frames.length&&HC.res&&!HC.res.err){HC.res=hcAnalyze();hcResult();}};});
+  $("#hcRec").onclick=function(){if(HC.rec)hcStopRec(true);else hcRecord();};
+  if(HC.res)hcResult();}
+function hcClick(t,acc){var a=ac();try{proClick(a,clickBus(a),t,acc?"accent":"beat",1,(typeof soundDef==="function"?soundDef().id:undefined));return;}catch(e){}var o=a.createOscillator(),g=a.createGain();o.type="square";o.frequency.value=acc?1800:1200;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.25,t+0.002);g.gain.exponentialRampToValueAtTime(0.0001,t+0.05);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+0.06);}
+function hcStopRec(cancel){var R=HC.rec;if(!R)return;HC.rec=null;if(HC.raf)cancelAnimationFrame(HC.raf);HC.raf=null;clearTimeout(R.tm);try{if(R.mr&&R.mr.state!=="inactive")R.mr.stop();}catch(e){}if(cancel){R.cancel=true;stopMic();}var b=$("#hcRec");if(b)b.textContent="● Record";}
+async function hcRecord(){hcStopPlay();unlockAudio();var sub=$("#hcSub"),big=$("#hcBig");if(sub)sub.textContent="Turning on the mic…";var ok=await ensureMic();if(!ok){if(sub)sub.textContent="I need the mic to hear you sing.";return;}
+  var a=ac(),bl=60/HC.bpm,tot=HC.bars*4*bl,R={chunks:[]};HC.rec=R;HC.frames=[];HC.clicks=[];HC.res=null;hcResult();$("#hcRec").textContent="■ Stop";
+  try{var mt=["audio/mp4","audio/webm;codecs=opus","audio/webm"].find(function(t){return window.MediaRecorder&&MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(t);});R.mr=new MediaRecorder(micStream,mt?{mimeType:mt}:undefined);R.mr.ondataavailable=function(e){if(e.data&&e.data.size)R.chunks.push(e.data);};R.mr.onstart=function(){R.recPerf=performance.now();};R.mr.start();}catch(e){R.mr=null;}
+  var t0=a.currentTime+0.35+bl*4;R.t0=t0;R.downPerf=performance.now()+(t0-a.currentTime)*1000;
+  for(var i=0;i<4+HC.bars*4;i++){var ct=t0+(i-4)*bl;hcClick(ct,i%4===0);if(i>=4)HC.clicks.push(ct-t0);}
+  var buf=new Float32Array(toneAnalyser.fftSize);
+  (function loop(){if(HC.rec!==R)return;var t=a.currentTime-t0;toneAnalyser.getFloatTimeDomainData(buf);var f=yinPitch(buf,a.sampleRate),m=f>70&&f<1100?69+12*Math.log2(f/440):-1;
+    if(t<0){if(big)big.textContent=String(Math.min(4,Math.ceil(-t/bl)));if(sub)sub.textContent="Get ready…";}
+    else{HC.frames.push({t:t,m:m});if(big)big.textContent=m>0?CF_NS[((Math.round(m)%12)+12)%12]:"·";if(sub)sub.textContent="Bar "+Math.min(HC.bars,Math.floor(t/(4*bl))+1)+" of "+HC.bars;}
+    if(t>=tot){hcFinishRec(R);return;}HC.raf=requestAnimationFrame(loop);})();}
+function hcFinishRec(R){hcStopRec(false);stopMic();var big=$("#hcBig"),sub=$("#hcSub");if(big)big.textContent="✓";if(sub)sub.textContent="Listening back…";
+  HC.res=hcAnalyze();HC.style=HC.res.err?0:1;hcResult();if(sub)sub.textContent=HC.res.err?"Try again.":"Here's what fits.";
+  if(R.mr){R.mr.onstop=function(){if(R.cancel||!R.chunks.length)return;new Blob(R.chunks,{type:R.chunks[0].type}).arrayBuffer().then(function(ab){return new Promise(function(res,rej){ac().decodeAudioData(ab,res,rej);});}).then(function(b){HC.take={buf:b,off:R.recPerf?(R.downPerf-R.recPerf)/1000:0};}).catch(function(){});};}}
+(function(){try{var s=document.createElement("style");s.textContent=".hcSlot{font:800 .95rem 'Hanken Grotesk',system-ui,sans-serif;padding:10px 2px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--gold);cursor:pointer;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hcSlot.on{background:var(--gold);color:#111}";document.head.appendChild(s);}catch(e){}})();
 function cfMergeProgs(){const mine=load("mjk-myprogs",[]);mine.forEach(p=>{if(!PROGS.some(x=>x.name===p.name))PROGS.push(p);});}
 (function(){try{var s=document.createElement("style");s.textContent=".cfBig{text-align:center;margin:14px 0;padding:18px 10px;border-radius:18px;background:radial-gradient(circle at 50% 30%,rgba(233,196,106,.12),rgba(0,0,0,0))}.cfChord{font:900 4.2rem/1 'Hanken Grotesk',system-ui,sans-serif;color:var(--gold)}.cfSub{margin-top:6px;opacity:.8}.cfNotes{margin-top:6px;font-size:.85rem;opacity:.6;letter-spacing:.06em}.cfKey{text-align:center;font-size:1.15rem;margin:6px 0}";document.head.appendChild(s);}catch(e){}})();
 function strProg(inst){
