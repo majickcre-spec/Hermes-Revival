@@ -9662,24 +9662,29 @@ function renderBreathwork(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if
   const cueKill=()=>{if(cueOut){try{const a=ac(),n=a.currentTime;cueOut.gain.cancelScheduledValues(n);cueOut.gain.setValueAtTime(cueOut.gain.value,n);cueOut.gain.linearRampToValueAtTime(0,n+0.15);const o=cueOut;setTimeout(()=>{try{o.disconnect();}catch(e){}},300);}catch(e){}cueOut=null;}};
   teardown=()=>{running=false;if(raf)cancelAnimationFrame(raf);if(hrRAF)cancelAnimationFrame(hrRAF);cueKill();endKill();medStop();try{bgKeep(false);}catch(e){}};
   function cycleLen(P){return P.phases.reduce((a,b)=>a+b[1],0);}
-  function draw(){const P=BREATH[pi];
+  function draw(){const P=BREATH[pi],adv=isAdv(),showHR=adv||sensEver()||draw.hr;
+    const BR_D={coherent:"Balance · about 5½ breaths a minute",box:"Steady and focused",478:"Relax and get sleepy","calm":"Unwind with long out-breaths"};
+    const set='<div class="czSec">Session</div>'+
+      '<div class="rrow2"><span class="rlab">Length</span><span class="rchips tight" id="brMins"></span></div>'+
+      '<div class="czSec">Sound</div>'+
+      '<div class="rrow2"><span class="rlab">Breath tone</span><span class="rchips tight"><button class="rchip sm'+(toneOn?" sel":"")+'" id="brTone">'+(toneOn?"On":"Off")+'</button></span></div>'+
+      '<div class="rrow2"><span class="rlab">Cues</span><span class="rchips tight"><button class="rchip sm'+(BRCUE.click?" sel":"")+'" id="brClick">Count click: '+(BRCUE.click?"On":"Off")+'</button><button class="rchip sm'+(BRCUE.chime?" sel":"")+'" id="brChime">Change chime: '+(BRCUE.chime?"On":"Off")+'</button></span></div>'+
+      '<div class="rrow"><span class="rlab">Cue volume</span><input type="range" id="brCueV" min="0" max="100" value="'+Math.round(BRCUE.vol*100)+'" style="flex:1"><span class="rbpm" id="brCueVv">'+Math.round(BRCUE.vol*100)+'%</span></div>';
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+(opts.title||"🌬️ Breathwork")+'</span></div><div class="panel">'+
-      (opts.note?'<div style="border:1px solid var(--gold);border-radius:14px;padding:12px 14px;margin:4px 0 10px;line-height:1.5;font-size:.95rem">'+opts.note+'</div>'+'<div class="actions"><button class="btn" id="brStart">'+(running?"■ Stop":"▶ Begin")+'</button></div><div id="brPats" style="display:none"></div>':'<div class="intro">Follow the circle — grow with the <b>in</b>-breath, settle with the <b>out</b>. Slow breathing (especially a long exhale) tells your nervous system it&rsquo;s safe to rest.</div>'+
-      '<div class="rlab" style="display:block;margin:4px 0 6px">Pattern</div><div class="rchips" id="brPats"></div>')+
+      (opts.note?'<div style="border:1px solid var(--gold);border-radius:14px;padding:12px 14px;margin:4px 0 10px;line-height:1.5;font-size:.95rem">'+opts.note+'</div>'+'<div class="actions"><button class="btn" id="brStart">'+(running?"■ Stop":"▶ Begin")+'</button></div><div id="brPats" style="display:none"></div>':'<div class="intro">Follow the circle: grow with the <b>in</b>-breath, settle with the <b>out</b>. Slow breathing tells your body it&rsquo;s safe to rest.</div>'+
+      '<div class="preset-row" id="brPats"></div>')+
       '<div class="site-note" id="brDesc" style="margin:6px 0 2px"></div>'+
       '<div style="display:flex;justify-content:center;margin:22px 0 14px"><div id="brCircle" style="width:min(300px,80vw);height:min(300px,80vw);border-radius:50%;background:radial-gradient(circle at 50% 40%,rgba(52,224,198,.5),rgba(236,72,153,.25));border:2px solid rgba(236,201,119,.6);display:flex;align-items:center;justify-content:center;transform:scale(.6);transition:transform .1s linear">'+
         '<div style="text-align:center"><div id="brCue" style="font-weight:800;font-size:1.7rem">Ready</div><div id="brPhT" style="font-size:1.2rem;opacity:.8"></div></div></div></div>'+
       '<div style="text-align:center;margin-bottom:8px"><span class="rbpm" id="brTime">'+mins+':00</span></div>'+
-      '<div class="rrow2"><span class="rlab">Length</span><span class="rchips tight" id="brMins"></span></div>'+
-      '<div class="rrow2"><span class="rlab">Breath tone</span><span class="rchips tight"><button class="rchip sm'+(toneOn?" sel":"")+'" id="brTone">'+(toneOn?"On":"Off")+'</button></span></div>'+
-      '<div class="rrow2"><span class="rlab">Cues</span><span class="rchips tight"><button class="rchip sm'+(BRCUE.click?" sel":"")+'" id="brClick">Count click: '+(BRCUE.click?"On":"Off")+'</button><button class="rchip sm'+(BRCUE.chime?" sel":"")+'" id="brChime">Change chime: '+(BRCUE.chime?"On":"Off")+'</button></span></div>'+
-      '<div class="rrow"><span class="rlab">Cue volume</span><input type="range" id="brCueV" min="0" max="100" value="'+Math.round(BRCUE.vol*100)+'" style="flex:1"><span class="rbpm" id="brCueVv">'+Math.round(BRCUE.vol*100)+'%</span></div>'+
       (opts.note?'':'<div class="actions"><button class="btn" id="brStart">'+(running?"■ Stop":"▶ Begin")+'</button></div>')+
-      '<div class="rlab" style="display:block;margin:14px 0 6px">💗 Heart-rate variability (optional)</div>'+
-      '<div class="idea-fb" id="brHR"></div>'+
-      '</div>';
+      '<button class="czOpen" id="brCzBtn">⚙️ Customize · '+mins+' min'+(toneOn?" · tone":"")+(BRCUE.click||BRCUE.chime?" · cues":"")+'</button>'+
+      (showHR?'<div class="rlab" style="display:block;margin:14px 0 6px">💗 Heart-rate variability (optional)</div><div class="idea-fb" id="brHR"></div>':'<div style="text-align:center;margin-top:10px"><a href="#" id="brHRshow" class="site-note" style="font-size:.8rem">Have a heart sensor? Show heart readings</a></div><div id="brHR" hidden></div>')+
+      '</div>'+czHTML("brCz","Customize Breathwork",set);
+    czWire("brCz",function(){return !!draw.cz;},function(v){draw.cz=v;},function(){draw();});
+    const hs=$("#brHRshow");if(hs)hs.onclick=(e)=>{e.preventDefault();draw.hr=true;draw();};
     $("#eBack").onclick=()=>{running=false;if(raf)cancelAnimationFrame(raf);medStop();renderMeditation();};
-    const pc=$("#brPats");BREATH.forEach((p,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===pi?" sel":"");b.textContent=p.name;b.onclick=()=>{if(running)return;pi=i;draw();};pc.appendChild(b);});
+    const pc=$("#brPats");if(!opts.note)BREATH.forEach((p,i)=>{const b=document.createElement("button");b.className="preset"+(i===pi?" sel":"");b.innerHTML="<b>"+p.name+"</b><span>"+(BR_D[p.id]||"")+"</span>";b.onclick=()=>{if(running)return;pi=i;draw();};pc.appendChild(b);});
     $("#brDesc").textContent=P.desc;
     const mc=$("#brMins");[2,5,10,15].forEach(m=>{const b=document.createElement("button");b.className="rchip sm"+(m===mins?" sel":"");b.textContent=m+" min";b.onclick=()=>{if(running)return;mins=m;$("#brTime").textContent=m+":00";draw();};mc.appendChild(b);});
     $("#brTone").onclick=()=>{toneOn=!toneOn;draw();};
