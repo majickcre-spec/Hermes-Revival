@@ -8298,7 +8298,7 @@ const BREATH=[
 ];
 let HR={dev:null,ch:null,bpm:0,rr:[],updated:0,connected:false};
 function hrSupported(){return !!(navigator.bluetooth&&navigator.bluetooth.requestDevice);}
-function hrParse(e){const dv=e.target.value,flags=dv.getUint8(0);let idx=1,bpm;if(flags&1){bpm=dv.getUint16(1,true);idx=3;}else{bpm=dv.getUint8(1);idx=2;}if(flags&8)idx+=2;if(flags&16){for(;idx+1<dv.byteLength;idx+=2){const v=dv.getUint16(idx,true)/1024*1000;if(v>250&&v<2000)HR.rr.push(v);}}HR.bpm=bpm;while(HR.rr.length>500)HR.rr.shift();HR.updated=performance.now();}
+function hrParse(e){const dv=e.target.value,flags=dv.getUint8(0);let idx=1,bpm;if(flags&1){bpm=dv.getUint16(1,true);idx=3;}else{bpm=dv.getUint8(1);idx=2;}if(flags&8)idx+=2;if(flags&16){for(;idx+1<dv.byteLength;idx+=2){const v=dv.getUint16(idx,true)/1024*1000;if(v>250&&v<2000)HR.rr.push(v);}}HR.bpm=bpm;while(HR.rr.length>800)HR.rr.shift();HR.updated=performance.now();}
 /* drop missed / extra beats (>20% from the running median) before any HRV math */
 function rrClean(rr){if(rr.length<5)return rr.slice();const out=[];for(let i=0;i<rr.length;i++){const w=rr.slice(Math.max(0,i-7),i+8).slice().sort((a,b)=>a-b),med=w[w.length>>1];if(Math.abs(rr[i]-med)<=med*0.2)out.push(rr[i]);}return out;}
 function hrv(){const rr=rrClean(HR.rr.slice(-60));if(rr.length<6)return null;let s=0,n=0;for(let i=1;i<rr.length;i++){const d=rr[i]-rr[i-1];s+=d*d;n++;}return Math.round(Math.sqrt(s/n));}
@@ -8392,7 +8392,7 @@ function renderMyFreq(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.
   var rt=P.tone,vn=P.voice;
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎯 My Frequencies</span></div><div class="panel">'+
    '<div class="intro">Find the frequencies your own body and voice respond to most, then use them in your sessions.</div>'+
-   row("🎯","Resonant tone",rt?(Math.round(rt.hz*10)/10+" Hz · "+mfNote(rt.hz)):"Not measured yet",rt?("From "+rt.runs+" test"+(rt.runs>1?"s":"")+(rt.runs<2?" · test again another day to confirm":"")):"About 10 minutes. Headphones on, heart sensor if you have one.",rt?"Test again":"Find it","mfTone")+
+   row("🎯","Resonant tone",rt?(Math.round(rt.hz*10)/10+" Hz · "+mfNote(rt.hz)):"Not measured yet",rt?("From "+rt.runs+" test"+(rt.runs>1?"s":"")+(rt.runs<2?" · test again another day to confirm":"")):"A 6-minute tone sweep. Headphones on, heart sensor if you have one.",rt?"Test again":"Find it","mfTone")+
    (rt?'<div class="actions" style="margin-top:0"><button class="btn" id="mfPlay">▶ Play my tone</button></div>':'')+
    row("🎙","Voice note",vn?(Math.round(vn.hz*10)/10+" Hz · "+mfNote(vn.hz)):"Not measured yet",vn?"Your natural speaking/humming pitch.":"Hum comfortably for 10 seconds.",vn?"Again":"Measure","mfVoice")+
    row("🧠","Alpha peak",P.alpha?(P.alpha.toFixed(1)+" Hz"):"Coming next","Needs the Muse headband.","Soon","mfAlpha")+
@@ -8401,7 +8401,7 @@ function renderMyFreq(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.
   $("#eBack").onclick=function(){mfStop();renderMeditation();};
   $("#mfTone").onclick=function(){mfToneIntro();};$("#mfVoice").onclick=function(){mfVoiceTest();};
   $("#mfAlpha").onclick=$("#mfBreath").onclick=function(){var o=$("#mfOut");if(o)o.innerHTML='<div class="site-note">This test is next on the build list.</div>';};
-  var pl=$("#mfPlay");if(pl)pl.onclick=function(){unlockAudio();if(MF.play){MF.play.stop(1.5);MF.play=null;pl.textContent="▶ Play my tone";}else{MF.play=mfTone(rt.hz,0.14);pl.textContent="■ Stop";}};}
+  var pl=$("#mfPlay");if(pl)pl.onclick=function(){unlockAudio();if(MF.play){MF.play.stop(1.5);MF.play=null;pl.textContent="▶ Play my tone";}else{MF.play=mfTone(rt.hz,load("mjk-mfvol",0.07));pl.textContent="■ Stop";}};}
 function mfVoiceTest(){var o=$("#mfOut");if(!o)return;unlockAudio();o.innerHTML='<div class="cfBig"><div id="mfBig" class="cfChord" style="font-size:3rem">🎙</div><div id="mfSub" class="cfSub">Turning on the mic…</div></div>';o.scrollIntoView({behavior:"smooth",block:"center"});
   ensureMic().then(function(ok){var sub=$("#mfSub"),big=$("#mfBig");if(!ok){if(sub)sub.textContent="I need the mic to hear your voice.";return;}var a=ac(),buf=new Float32Array(toneAnalyser.fftSize),got=[],t0=performance.now(),run={};MF.run=run;
     (function loop(){if(MF.run!==run)return;var el=(performance.now()-t0)/1000;toneAnalyser.getFloatTimeDomainData(buf);var f=yinPitch(buf,a.sampleRate);if(f>60&&f<700){got.push(f);if(big)big.textContent=Math.round(f)+" Hz";}
@@ -8412,36 +8412,47 @@ function mfVoiceTest(){var o=$("#mfOut");if(!o)return;unlockAudio();o.innerHTML=
       requestAnimationFrame(loop);})();});}
 function mfCands(){var P=mfGet(),c=[136.1,174,256,285,396,432,528,639];if(P.voice){var v=P.voice.hz;while(v<120)v*=2;while(v>480)v/=2;c=c.filter(function(x){return Math.abs(1200*Math.log2(x/v))>60;});c.splice(0,1,v);c.push(v*1.5>700?v*0.75:v*1.5);}
   return c.slice(0,9);}
-function mfToneIntro(){var o=$("#mfOut");if(!o)return;var hrOn=HR.connected||M.connected;
-  o.innerHTML='<div style="border:1px solid var(--gold);border-radius:14px;padding:12px 14px;margin:8px 0;line-height:1.5"><b>How it works.</b> You’ll hear '+mfCands().length+' tones, one minute each, in random order, with a short pause between. Sit still, eyes closed, breathe normally. After each tone, tap how strongly it resonated in your body.'+
-   (hrOn?' Your heart'+(M.connected?' and brain':'')+' data is measured during each tone too, and counts toward the result.':' <br><span class="site-note">No sensor connected, so the result comes from your ratings. Connect a heart sensor in Breathwork or the Sensors panel for a measured result.</span>')+'</div><div class="actions"><button class="btn" id="mfGo">▶ Begin</button></div><div id="mfRun"></div>';
-  o.scrollIntoView({behavior:"smooth",block:"start"});$("#mfGo").onclick=function(){mfToneTest();};}
 function mfStats(t0,t1){var rr=[],B=[];if(HR.connected&&HR.rr.length){var t=HR.updated;for(var i=HR.rr.length-1;i>=0;i--){if(t<t0)break;if(t<=t1)rr.unshift(HR.rr[i]);t-=HR.rr[i];}}else if(M.connected&&M.ibis){M.ibis.forEach(function(x){if(x.t*1000>=t0&&x.t*1000<=t1)rr.push(x.ibi);});}
   rr=rr.filter(function(v){return v>300&&v<2000;});var s={};if(rr.length>=8){s.hr=60000/(rr.reduce(function(a,b){return a+b;},0)/rr.length);var d=0;for(var j=1;j<rr.length;j++){d+=Math.pow(rr[j]-rr[j-1],2);}s.rm=Math.sqrt(d/(rr.length-1));}return s;}
-function mfToneTest(){var C=mfCands().slice();for(var i=C.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),x=C[i];C[i]=C[j];C[j]=x;}
-  unlockAudio();medWake(true);var R=C.map(function(hz){return {hz:hz,rate:null};}),k=-1,phase="rest",T=0,TONE=60,REST=12,run={};MF.run=run;var box=$("#mfRun"),go=$("#mfGo");if(go)go.parentNode.style.display="none";
-  var alphaAcc=null;
-  function paint(){if(!box)return;var r=R[k];box.innerHTML='<div class="cfBig"><div class="cfChord" style="font-size:2.6rem">'+(phase==="tone"?"Tone "+(k+1)+" of "+R.length:k<0?"Settling…":"Pause")+'</div><div class="cfSub" id="mfClock"></div></div>'+
-    (k>=0?'<div style="text-align:center;margin:6px 0 4px"><b>How much did tone '+(k+1)+' resonate in your body?</b></div><div class="rchips" style="justify-content:center" id="mfRate">'+["Not at all","A little","Some","Strongly","Deeply"].map(function(l,i){return '<button class="rchip'+(r.rate===i+1?" sel":"")+'" data-r="'+(i+1)+'">'+l+'</button>';}).join("")+'</div>':'')+
-    '<div class="actions"><button class="btn ghost" id="mfQuit">Stop the test</button></div>';
-    box.querySelectorAll("[data-r]").forEach(function(b){b.onclick=function(){R[k].rate=+b.dataset.r;box.querySelectorAll("[data-r]").forEach(function(x){x.classList.toggle("sel",x===b);});};});
-    $("#mfQuit").onclick=function(){mfStop();renderMyFreq();};}
-  function next(){if(MF.run!==run)return;if(phase==="rest"){k++;if(k>=R.length){finish();return;}phase="tone";T=TONE;R[k].t0=performance.now()+20000;MF.tone=mfTone(R[k].hz,0.16);R[k].al=[];}
-    else{phase="rest";T=REST;if(MF.tone){MF.tone.stop(2.5);MF.tone=null;}R[k].t1=performance.now();Object.assign(R[k],mfStats(R[k].t0,R[k].t1));}
-    paint();}
-  paint();T=8;MF.timer=setInterval(function(){if(MF.run!==run)return;T--;var c=$("#mfClock");if(c)c.textContent=phase==="tone"?T+" s":k<0?"Begins in "+T:"Next tone in "+T;
-    if(phase==="tone"&&M.connected&&T<40&&M.alpha!=null)R[k].al.push(M.alpha);if(T<=0)next();},1000);
-  function finish(){if(MF.timer){clearInterval(MF.timer);MF.timer=null;}MF.run=null;medWake(false);
-    var z=function(key,sign){var v=R.filter(function(r){return r[key]!=null;}).map(function(r){return r[key];});if(v.length<3)return;var m=v.reduce(function(a,b){return a+b;},0)/v.length,sd=Math.sqrt(v.reduce(function(a,b){return a+(b-m)*(b-m);},0)/v.length)||1;R.forEach(function(r){if(r[key]!=null)r.sc=(r.sc||0)+sign*(r[key]-m)/sd;});};
-    R.forEach(function(r){r.sc=0;if(r.al&&r.al.length)r.alpha=r.al.reduce(function(a,b){return a+b;},0)/r.al.length;if(r.rate!=null)r.rt=r.rate;});
-    z("rt",2);z("hr",-1);z("rm",1);z("alpha",1);
-    var P=mfGet(),hist=P.toneHist||{};R.forEach(function(r){var key=String(Math.round(r.hz*10)/10);hist[key]=hist[key]||{s:0,n:0};hist[key].s+=r.sc;hist[key].n++;});
-    var best=null;Object.keys(hist).forEach(function(k2){var h=hist[k2],v=h.s/h.n;if(!best||v>best.v)best={hz:+k2,v:v};});
-    var runs=(P.tone&&P.tone.runs||0)+1;mfSet("toneHist",hist);mfSet("tone",{hz:best.hz,runs:runs,date:Date.now()});
-    var sorted=R.slice().sort(function(a,b){return b.sc-a.sc;}),mx=Math.max.apply(null,sorted.map(function(r){return Math.abs(r.sc);}))||1;
-    renderMyFreq();var o=$("#mfOut");if(o)o.innerHTML='<div class="rlab" style="display:block;margin:10px 0 6px">This test, strongest first</div>'+sorted.map(function(r,i){var w=Math.max(4,Math.round((r.sc+mx)/(2*mx)*100));return '<div style="display:flex;align-items:center;gap:8px;margin:5px 0"><span style="width:92px;font-size:.85rem'+(i===0?';color:var(--gold);font-weight:800':'')+'">'+Math.round(r.hz*10)/10+' Hz</span><span style="flex:1;height:10px;border-radius:5px;background:var(--line);overflow:hidden"><span style="display:block;height:100%;width:'+w+'%;background:'+(i===0?'var(--gold)':'rgba(233,196,106,.45)')+'"></span></span><span style="width:84px;font-size:.72rem;opacity:.7;text-align:right">'+(r.hr?Math.round(r.hr)+" bpm":"")+(r.rm?" · "+Math.round(r.rm):"")+'</span></div>';}).join("")+
-      '<div class="site-note" style="margin-top:8px">'+(runs<2?'Your result gets more reliable each time you test. Each run is averaged in.':'Averaged across '+runs+' tests.')+'</div>';
-    if(o)o.scrollIntoView({behavior:"smooth",block:"start"});}}
+function mfToneIntro(){var o=$("#mfOut");if(!o)return;var hrOn=HR.connected||M.connected;
+  o.innerHTML='<div style="border:1px solid var(--gold);border-radius:14px;padding:12px 14px;margin:8px 0;line-height:1.5"><b>Resonance sweep.</b> A soft tone glides slowly from low to high and back again (about 6 minutes). Sit still, eyes closed, breathe naturally. '+
+   (hrOn?'Your heart is read the whole time. The app looks for where your heart slows and your rhythm opens up (the shift toward rest and restore) and lines that up with the tone that was playing.':'<br><span class="site-note">No heart sensor connected, so only your taps count. Connect one in the 🫀 panel for a measured result.</span>')+
+   ' Tap <b>“This one”</b> any time a tone feels strong in your body.</div>'+
+   '<div class="rrow"><span class="rlab">Volume</span><input type="range" id="mfVol" min="0.02" max="0.2" step="0.01" value="'+load("mjk-mfvol",0.07)+'" style="flex:1"></div>'+
+   '<div class="actions"><button class="btn" id="mfGo">▶ Begin sweep</button></div><div id="mfRun"></div>';
+  o.scrollIntoView({behavior:"smooth",block:"start"});$("#mfVol").oninput=function(){save("mjk-mfvol",+this.value);if(MF.tone&&MF.tone.vol)MF.tone.vol(+this.value);};$("#mfGo").onclick=function(){mfToneTest();};}
+var MF_LO=100,MF_HI=600,MF_HALF=180,MF_BINS=26;
+function mfSweepHz(t){var c=t%(2*MF_HALF),u=c<MF_HALF?c/MF_HALF:2-c/MF_HALF;return MF_LO*Math.pow(MF_HI/MF_LO,u);}
+function mfToneTest(){unlockAudio();medWake(true);var a=ac(),vol=load("mjk-mfvol",0.07),g=a.createGain(),o1=a.createOscillator(),o2=a.createOscillator(),g2=a.createGain(),t0=a.currentTime+1,TOT=2*MF_HALF,run={taps:[]};MF.run=run;
+  o1.type=o2.type="sine";g2.gain.value=0.1;o1.connect(g);o2.connect(g2);g2.connect(g);g.connect(pianoMaster(a));g.gain.setValueAtTime(0.0001,a.currentTime);g.gain.linearRampToValueAtTime(vol,t0+2);
+  for(var s=0;s<=TOT;s+=1){var f=mfSweepHz(s);o1.frequency[s?"exponentialRampToValueAtTime":"setValueAtTime"](f,t0+s);o2.frequency[s?"exponentialRampToValueAtTime":"setValueAtTime"](f*2,t0+s);}
+  g.gain.setValueAtTime(vol,t0+TOT-2);g.gain.linearRampToValueAtTime(0.0001,t0+TOT);o1.start();o2.start();o1.stop(t0+TOT+0.2);o2.stop(t0+TOT+0.2);
+  MF.tone={stop:function(){try{var n=a.currentTime;g.gain.cancelScheduledValues(n);g.gain.setValueAtTime(g.gain.value,n);g.gain.linearRampToValueAtTime(0.0001,n+1);o1.stop(n+1.1);o2.stop(n+1.1);}catch(e){}},vol:function(v){vol=v;try{g.gain.setTargetAtTime(v,a.currentTime,0.2);}catch(e){}}};
+  var startPerf=performance.now()+(t0-a.currentTime)*1000,box=$("#mfRun"),go=$("#mfGo");if(go)go.parentNode.style.display="none";
+  box.innerHTML='<div class="cfBig"><div class="cfChord" id="mfHz" style="font-size:2.6rem">—</div><div class="cfSub" id="mfNt"></div><div style="height:6px;border-radius:3px;background:var(--line);margin:10px 18px 0;overflow:hidden"><div id="mfPr" style="height:100%;width:0;background:var(--gold)"></div></div></div>'+
+   '<div class="actions"><button class="btn" id="mfTap" style="font-size:1.1rem;padding:16px">✦ This one</button></div><canvas id="mfCv" style="width:100%;height:120px;display:block;border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.25)"></canvas><div class="site-note" style="font-size:.74rem">Your body’s response by tone, building as it plays (higher = more toward rest).</div><div class="actions"><button class="btn ghost" id="mfQuit">Stop</button></div>';
+  $("#mfTap").onclick=function(){var t=(performance.now()-startPerf)/1000-1;if(t>0&&t<TOT){run.taps.push(mfSweepHz(t));var b=$("#mfTap");b.textContent="✦ Marked "+Math.round(mfSweepHz(t))+" Hz";setTimeout(function(){if(b)b.textContent="✦ This one";},1200);}};
+  $("#mfQuit").onclick=function(){mfStop();renderMyFreq();};
+  MF.timer=setInterval(function(){if(MF.run!==run)return;var t=(performance.now()-startPerf)/1000;if(t<0)return;var f=mfSweepHz(Math.min(t,TOT)),h=$("#mfHz"),n=$("#mfNt"),p=$("#mfPr");if(h)h.textContent=Math.round(f)+" Hz";if(n)n.textContent=mfNote(f)+(t%(2*MF_HALF)<MF_HALF?" · rising":" · falling");if(p)p.style.width=Math.min(100,t/TOT*100)+"%";
+    var R=mfSweepAnalyze(startPerf,TOT,run.taps);mfSweepDraw(R,f);if(t>=TOT+2)mfSweepFinish(run,startPerf,TOT);},1000);}
+function mfSweepAnalyze(startPerf,TOT,taps){var B=[];if(HR.connected&&HR.rr.length){var t=HR.updated;for(var i=HR.rr.length-1;i>=0;i--){B.unshift({t:t,rr:HR.rr[i]});t-=HR.rr[i];}}
+  B=B.filter(function(o){return o.t>=startPerf-60000&&o.rr>300&&o.rr<2000;});var bins=[];for(var k=0;k<MF_BINS;k++)bins.push({s:0,n:0,tap:0});
+  var LAG=12000,binOf=function(f){return Math.max(0,Math.min(MF_BINS-1,Math.floor(Math.log(f/MF_LO)/Math.log(MF_HI/MF_LO)*MF_BINS)));};
+  if(B.length>30){for(var j=0;j<B.length;j++){var o=B[j];if(o.t<startPerf+LAG)continue;var w=B.filter(function(x){return Math.abs(x.t-o.t)<30000;}),m=w.reduce(function(a,x){return a+x.rr;},0)/w.length,sd=Math.sqrt(w.reduce(function(a,x){return a+(x.rr-m)*(x.rr-m);},0)/w.length)||1;
+    var st=(o.t-LAG-startPerf)/1000;if(st<0||st>TOT)continue;var bn=binOf(mfSweepHz(st));bins[bn].s+=(o.rr-m)/sd;bins[bn].n++;}}
+  taps.forEach(function(f){var bn=binOf(f);for(var d=-1;d<=1;d++){var q=bn+d;if(q>=0&&q<MF_BINS)bins[q].tap+=d?0.5:1;}});
+  var mxT=Math.max.apply(null,bins.map(function(b){return b.tap;}).concat([1]));return bins.map(function(b,k){var body=b.n?b.s/b.n:null;return {hz:MF_LO*Math.pow(MF_HI/MF_LO,(k+0.5)/MF_BINS),body:body,tap:b.tap/mxT,sc:(body==null?0:body)+b.tap/mxT*1.2};});}
+function mfSweepDraw(R,cur){var cv=$("#mfCv");if(!cv)return;var W=cv.clientWidth||300,H=120,dpr=window.devicePixelRatio||1;cv.width=W*dpr;cv.height=H*dpr;var g=cv.getContext("2d");g.scale(dpr,dpr);var X=function(f){return Math.log(f/MF_LO)/Math.log(MF_HI/MF_LO)*W;},mx=Math.max.apply(null,R.map(function(r){return Math.abs(r.sc);}).concat([0.5]));
+  g.strokeStyle="rgba(255,255,255,.15)";g.beginPath();g.moveTo(0,H/2);g.lineTo(W,H/2);g.stroke();
+  R.forEach(function(r){var x=X(r.hz),bw=W/MF_BINS-2,h=r.sc/mx*(H/2-8);g.fillStyle=r.sc>=0?"rgba(95,211,141,.75)":"rgba(239,98,98,.5)";g.fillRect(x-bw/2,h>=0?H/2-h:H/2,bw,Math.abs(h));if(r.tap>0){g.fillStyle="#e9c46a";g.beginPath();g.arc(x,10,3+3*r.tap,0,7);g.fill();}});
+  if(cur){g.strokeStyle="#fff";g.beginPath();g.moveTo(X(cur),0);g.lineTo(X(cur),H);g.stroke();}
+  g.fillStyle="rgba(255,255,255,.5)";g.font="10px system-ui";[100,200,300,400,600].forEach(function(f){g.fillText(f+"",Math.min(W-20,X(f)+2),H-3);});}
+function mfSweepFinish(run,startPerf,TOT){if(MF.timer){clearInterval(MF.timer);MF.timer=null;}MF.run=null;medWake(false);var R=mfSweepAnalyze(startPerf,TOT,run.taps),P=mfGet(),hist=P.sweep||{runs:0,sc:new Array(MF_BINS).fill(0)};
+  R.forEach(function(r,k){hist.sc[k]=(hist.sc[k]*hist.runs+r.sc)/(hist.runs+1);});hist.runs++;var bi=0;hist.sc.forEach(function(v,k){if(v>hist.sc[bi])bi=k;});
+  var any=R.some(function(r){return r.body!=null||r.tap>0;});if(!any){renderMyFreq();var o0=$("#mfOut");if(o0)o0.innerHTML='<div class="site-note">No heart data and no taps, so there was nothing to measure. Connect a heart sensor or tap “This one” next time.</div>';return;}
+  var hz=Math.round(MF_LO*Math.pow(MF_HI/MF_LO,(bi+0.5)/MF_BINS)*10)/10;mfSet("sweep",hist);mfSet("tone",{hz:hz,runs:hist.runs,date:Date.now()});
+  renderMyFreq();var o=$("#mfOut");if(o){o.innerHTML='<div class="rlab" style="display:block;margin:10px 0 6px">This sweep</div><canvas id="mfCv" style="width:100%;height:120px;display:block;border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.25)"></canvas><div class="site-note" style="margin-top:6px">Strongest pull toward rest around <b>'+hz+' Hz ('+mfNote(hz)+')</b>'+(hist.runs>1?', averaged over '+hist.runs+' sweeps':'. One sweep is a first read: do it a few more times on different days and it averages in')+'. Gold dots are where you tapped.</div>';mfSweepDraw(R,null);o.scrollIntoView({behavior:"smooth",block:"start"});}}
+
 /* ---- Daily practice: a curated day — morning, afternoon, bedtime ---- */
 var DAY_PLAN=[
  {k:"m",ic:"\u2600\ufe0f",when:"Morning",what:"Coherent breathing",len:"10 min",go:function(done){renderBreathwork({pat:"coherent",mins:10,title:"\u2600\ufe0f Morning \u00b7 Breathwork",note:"<b>Coherent breathing, 10 minutes.</b> Breathe in as the circle grows, out as it settles, about five and a half breaths a minute. Press Begin.",done:done});}},
