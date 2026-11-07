@@ -685,8 +685,12 @@ const KB=[
 
 /* ===== state (beans shared via active traveler) ===== */
 const $=s=>document.querySelector(s);
-function load(k,d){try{const r=localStorage.getItem(k);return r?JSON.parse(r):d;}catch(e){return d;}}
-function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}try{if(typeof cloudPush==="function")cloudPush();}catch(e){}}
+/* settings ("mjk-" keys) are kept per player: each player's own copy lives under music-<player>-set:<key>; device-bound keys (recordings on this phone) stay shared */
+var _AID,MJK_DEVICE={"mjk-gsrec":1,"mjk-natuser":1,"mjk-vj":1,"mjk-vol":1};
+function _aid(){if(_AID===undefined){try{_AID=JSON.parse(localStorage.getItem("majick-active"));}catch(e){_AID=null;}}return _AID;}
+function _pk(k){if(k.charCodeAt(0)!==109||k.indexOf("mjk-")!==0||MJK_DEVICE[k])return null;var id=_aid();return id?"music-"+id+"-set:"+k:null;}
+function load(k,d){try{var p=_pk(k),r=p?localStorage.getItem(p):null;if(r==null)r=localStorage.getItem(k);return r?JSON.parse(r):d;}catch(e){return d;}}
+function save(k,v){try{if(k==="majick-active")_AID=v;var p=_pk(k);localStorage.setItem(p||k,JSON.stringify(v));}catch(e){}try{if(typeof cloudPush==="function")cloudPush();}catch(e){}}
 function activeId(){return load("majick-active",null);}
 function activeName(){try{const p=load("majick-profiles",[]).find(x=>x.id===activeId());return p?p.name:null;}catch(e){return null;}}
 function getBeans(){const id=activeId();return id?(load("majick-p-"+id+"-beans",0)||0):0;}
@@ -4108,7 +4112,14 @@ function renderSongBuilder(){
 let NOISE_BUF=null;
 function noiseBuf(a){if(NOISE_BUF)return NOISE_BUF;const n=Math.floor(a.sampleRate*0.3),b=a.createBuffer(1,n,a.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;return NOISE_BUF=b;}
 function djNoise(a,time,dur,freq,lvl,out,hp){const s=a.createBufferSource();s.buffer=noiseBuf(a);const f=a.createBiquadFilter();f.type=hp?"highpass":"bandpass";f.frequency.value=freq;f.Q.value=0.8;const g=a.createGain();g.gain.setValueAtTime(lvl,time);g.gain.exponentialRampToValueAtTime(0.0001,time+dur);s.connect(f);f.connect(g);g.connect(out);s.start(time);s.stop(time+dur+0.02);}
+/* real hand-drum recordings (VCSL, CC0): large frame drum bass, quinto open tone, muted slaps — soft/medium/hard takes, alternating */
+var DJK={buf:{},loading:false,ready:false,rr:{},L:{bass:["s","h"],tone:["s","m","h"],slap:["s","m","h"]}};
+function djkLoad(){if(DJK.loading||!drsOn())return;DJK.loading=true;var a=ac(),jobs=[];Object.keys(DJK.L).forEach(function(k){DJK.L[k].forEach(function(l){[1,2].forEach(function(r){var id=k+"_"+l+r;jobs.push(fetch("/sounds/djembe/"+id+".mp3").then(function(x){return x.ok?x.arrayBuffer():Promise.reject();}).then(function(ab){return new Promise(function(res,rej){a.decodeAudioData(ab,res,rej);});}).then(function(b){DJK.buf[id]=b;}).catch(function(){}));});});});
+  Promise.all(jobs).then(function(){DJK.ready=!!(DJK.buf.bass_h1&&DJK.buf.tone_h1&&DJK.buf.slap_h1);});}
+function djkPlay(a,out,time,kind,v){var ls=DJK.L[kind];if(!ls)return false;var li=ls.length===2?(v<0.55?0:1):(v<0.42?0:v<0.75?1:2),l=ls[li];DJK.rr[kind]=(DJK.rr[kind]||0)%2+1;var b=DJK.buf[kind+"_"+l+DJK.rr[kind]]||DJK.buf[kind+"_"+l+"1"];if(!b)return false;
+  var s=a.createBufferSource(),g=a.createGain();s.buffer=b;s.playbackRate.value=0.985+Math.random()*0.03;var ctr=ls.length===2?[0.35,0.85][li]:[0.25,0.58,0.9][li];g.gain.value=Math.max(0.35,Math.min(1.35,Math.pow(v/ctr,0.8)))*1.15;s.connect(g);g.connect(out);s.start(time);return true;}
 function djembe(time,kind,vel){const a=ac(),out=pianoMaster(a),v=(vel==null?1:Math.max(0.15,Math.min(1,vel)))*(0.92+Math.random()*0.12);
+  djkLoad();if(drsOn()&&DJK.ready&&djkPlay(a,out,time,kind,vel==null?0.8:Math.max(0.1,Math.min(1,vel))))return;
   drsLoad();if(drsOn()&&DRS.ready){var _dj=kind==="slap"?"djembe_slap":"djembe_tone",_rt=(kind==="bass"?0.7:1)*(0.985+Math.random()*0.03);if(drsPlay(a,out,time,_dj,_rt,Math.max(0.2,v)*0.95))return;}
   if(kind==="bass"){const o=a.createOscillator(),g=a.createGain();o.type="sine";o.frequency.setValueAtTime(120,time);o.frequency.exponentialRampToValueAtTime(52,time+0.14);
     g.gain.setValueAtTime(0.0001,time);g.gain.exponentialRampToValueAtTime(0.95*v,time+0.004);g.gain.exponentialRampToValueAtTime(0.0001,time+0.4);o.connect(g);g.connect(out);o.start(time);o.stop(time+0.42);}
@@ -4159,6 +4170,12 @@ function djSchedule(){const a=ac(),ahead=0.12,P=DJP(),div=P.div,cells=4*div,cell
     DJ.visQ.push({t:DJ.nextTime,cell,hit:(!inCount&&ch&&ch!==".")?ch:null});DJ.nextTime+=cellDur;DJ.cur=(DJ.cur+1)%cells;if(DJ.cur===0)DJ.barCount++;
   }}
 function djLight(cell){const cells=document.querySelectorAll("#djCells .rcell");if(DJ.litCell>=0&&cells[DJ.litCell])cells[DJ.litCell].classList.remove("on");if(cells[cell])cells[cell].classList.add("on");DJ.litCell=cell;}
+/* the drum head itself is the instrument: center = bass, middle = tone, rim = slap; scaled up to fill the screen */
+function djHeadBind(dr){if(!dr||dr._bound)return;dr._bound=true;djkLoad();var sc=Math.max(1,Math.min(1.85,((dr.parentElement||document.body).clientWidth-12)/200));dr.style.setProperty("--djs",sc.toFixed(3));dr.classList.add("playable");
+  var head=dr.querySelector(".drum-head");dr.addEventListener("pointerdown",function(e){var r=head.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,dx=e.clientX-cx,dy=e.clientY-cy,d=Math.sqrt(dx*dx+dy*dy)/(r.width/2);if(d>1.08)return;e.preventDefault();unlockAudio();
+    var kind=d<0.43?"bass":d<0.8?"tone":"slap",vel=0.62+Math.random()*0.12+(e.pressure&&e.pressure!==0.5?(e.pressure-0.5)*0.4:0);djembe(ac().currentTime+0.005,kind,vel);djHit(kind==="bass"?"B":kind==="tone"?"T":"S",dx<0?"L":"R");
+    var rp=document.createElement("div");rp.className="djripple "+kind;rp.style.left=((e.clientX-r.left)/r.width*200)+"px";rp.style.top=((e.clientY-r.top)/r.height*200)+"px";head.appendChild(rp);setTimeout(function(){rp.remove();},500);},{passive:false});}
+(function(){try{var st=document.createElement("style");st.textContent=".drum.playable{--djs:1;transform:scale(var(--djs));transform-origin:50% 0;margin-bottom:calc(230px * (var(--djs) - 1) + 10px);touch-action:none;-webkit-user-select:none;user-select:none;cursor:pointer}.drum.playable .drum-head{overflow:hidden}.djripple{position:absolute;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;pointer-events:none;animation:djrip .45s ease-out forwards}.djripple.bass{background:rgba(52,224,198,.55)}.djripple.tone{background:rgba(255,206,110,.6)}.djripple.slap{background:rgba(191,227,255,.75)}@keyframes djrip{0%{transform:scale(.4);opacity:1}100%{transform:scale(4.5);opacity:0}}";document.head.appendChild(st);}catch(e){}})();
 function djHit(stroke,hand){const fl=$("#drumFlash");if(!fl)return;
   if(hand==="R"||hand==="L")DJ.hand=hand;else DJ.hand=DJ.hand==="L"?"R":"L";const left=DJ.hand==="L";
   let x,y,size,col,lbl;
@@ -4455,7 +4472,7 @@ async function renderDjembe(){
   function draw(){
     view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🪘 Djembe Groove</span></div>
       <div class="panel">
-        <div class="intro">Pick a pattern — it loops with <b>bass/tone/slap</b> so you can play along and lock the tempo. Mute the pattern to keep just the click, or turn on <b>Score</b> to check your timing with the mic. Tap the pads to practice the three strokes.</div>
+        <div class="intro">Pick a pattern — it loops with <b>bass/tone/slap</b> so you can play along and lock the tempo. Mute the pattern to keep just the click, or turn on <b>Score</b> to check your timing with the mic. Tap the drum itself to play: <b>center</b> for bass, <b>middle</b> for tone, <b>rim</b> for slap.</div>
         <div class="rchips" id="djChips"></div>
         <div class="djlegend"><b style="color:#c9b3ff">B</b> Bass (center) · <b style="color:#ffd9a8">T</b> Tone (edge) · <b style="color:#bfe3ff">S</b> Slap (sharp edge). The <b style="color:#ffce6e">R</b>/<b style="color:#8fd0ff">L</b> under each hit is the <b>sticking</b> (which hand). A <b style="color:#ffce6e">gold top</b> = accent (hit harder); a <b>dimmed</b> cell = ghost note (soft). That&rsquo;s the dynamics — loud and soft are what make it groove.</div>
         <div class="rrow2"><span class="rlab">Lead hand</span>${toggleChip("djLeadR","✋ Right",DJ.lead==="R")}${toggleChip("djLeadL","🤚 Left",DJ.lead==="L")}</div>
@@ -4498,6 +4515,7 @@ async function renderDjembe(){
     const crb=$("#djCR");if(crb)crb.onclick=()=>{djStop();renderCR();};
     const ddx=$("#djDex");if(ddx)ddx.onclick=()=>{djStop();renderDexterity("djembe");};
     const dbt=$("#djBeat");if(dbt)dbt.onclick=()=>{djStop();renderBeat("djembe");};
+    djHeadBind(document.querySelector(".panel .drum"));
     const pb=$("#padB"),pt=$("#padT"),ps=$("#padS");
     function pad(el,kind){el.addEventListener("pointerdown",e=>{e.preventDefault();unlockAudio();djembe(ac().currentTime+0.01,kind);el.classList.add("hit");setTimeout(()=>el.classList.remove("hit"),90);});}
     pad(pb,"bass");pad(pt,"tone");pad(ps,"slap");
@@ -9842,7 +9860,7 @@ function clearAcct(){try{localStorage.removeItem("majick-token");localStorage.re
 function _syncable(k){return !!k&&(k.indexOf("music-")===0||k.indexOf("majick-")===0||k.indexOf("mjk-")===0)&&k!=="majick-token"&&k!=="majick-acct"&&k!=="majick-lastacct";}
 function _syncKeys(){var a=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(_syncable(k))a.push(k);}return a;}
 function _snapshot(){var o={};_syncKeys().forEach(function(k){try{o[k]=localStorage.getItem(k);}catch(e){}});return o;}
-function _restore(d){if(!d)return;Object.keys(d).forEach(function(k){if(_syncable(k)&&typeof d[k]==="string"){try{localStorage.setItem(k,d[k]);}catch(e){}}});}
+function _restore(d){if(!d)return;_AID=undefined;Object.keys(d).forEach(function(k){if(_syncable(k)&&typeof d[k]==="string"){try{localStorage.setItem(k,d[k]);}catch(e){}}});}
 function _api(path,opts){opts=opts||{};opts.headers=opts.headers||{};var t=acctTok();if(t)opts.headers["Authorization"]="Bearer "+t;return fetch(MMU_API+path,opts).then(function(r){return r.json().catch(function(){return {};}).then(function(j){if(!r.ok){if(r.status===401)clearAcct();throw new Error(j&&j.error?j.error:"Something went wrong.");}return j;});});}
 function acctRegister(u,c){return _api("/api/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,code:c})});}
 function acctLogin(u,c){return _api("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,code:c})});}
@@ -9907,7 +9925,7 @@ function renderGate(){
   renderCloudBar();
 }
 function deletePlayer(id){const keep=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&(k.indexOf("majick-p-"+id+"-")===0||k.indexOf("music-"+id+"-")===0))keep.push(k);}keep.forEach(k=>{try{localStorage.removeItem(k);}catch(e){}});
-  setProfiles(getProfiles().filter(x=>x.id!==id));if(activeId()===id){try{localStorage.removeItem("majick-active");}catch(e){}}try{cloudPush();}catch(e){}}
+  setProfiles(getProfiles().filter(x=>x.id!==id));if(activeId()===id){try{localStorage.removeItem("majick-active");}catch(e){}_AID=undefined;}try{cloudPush();}catch(e){}}
 function confirmDeletePlayer(p){const f=$("#gateForm");if(!f)return;
   f.innerHTML=`<div class="unlock"><div class="ulabel">Remove <b>${esc(p.name)}</b>?</div><div class="site-note" style="text-align:center;margin:4px 0 10px">This deletes ${esc(p.name)}'s progress and beans on this device${acctTok&&acctTok()?" and in your synced account":""}. It can't be undone.</div><div class="actions"><button class="btn ghost" id="pdNo">Cancel</button><button class="btn" id="pdYes" style="background:#e2554f;border-color:#e2554f">Remove ${esc(p.name)}</button></div></div>`;
   $("#pdNo").onclick=()=>{f.innerHTML="";};$("#pdYes").onclick=()=>{deletePlayer(p.id);renderGate();};}
