@@ -486,6 +486,23 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .lanote.sel{border-color:var(--gold);box-shadow:0 0 0 2px rgba(212,165,72,.55)}
 .lanote.playing{background:var(--gold)}
 .lanote.playing .la-syl,.lanote.playing .la-note,.lanote.playing .la-dur{color:#201a10}
+.czBack{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:70;opacity:0;pointer-events:none;transition:opacity .25s}
+.czBack.on{opacity:1;pointer-events:auto}
+.czSheet{position:fixed;left:0;right:0;bottom:0;z-index:71;max-height:82vh;overflow:auto;-webkit-overflow-scrolling:touch;background:var(--panel,#1c1830);border-top:1px solid var(--line);border-radius:18px 18px 0 0;padding:6px 16px calc(18px + env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .28s ease;box-shadow:0 -10px 40px rgba(0,0,0,.45);max-width:720px;margin:0 auto}
+.czSheet.on{transform:none}
+.czGrab{width:44px;height:5px;border-radius:3px;background:var(--line);margin:4px auto 8px}
+.czHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-weight:800;font-size:1.05rem}
+.czDone{background:var(--gold,#e9c46a);color:#1a1530;border:0;border-radius:10px;padding:7px 16px;font-weight:800}
+.czOpen{display:block;margin:8px auto 0;background:transparent;border:1px solid var(--line);color:var(--ink,#eee);border-radius:12px;padding:8px 16px;font-weight:700;font-size:.92rem}
+.czSec{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:12px 0 4px;font-weight:800}
+.preset-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:6px 0 4px}
+.preset{border:1px solid var(--line);background:rgba(255,255,255,.03);border-radius:14px;padding:10px 10px;text-align:left;color:inherit}
+.preset b{display:block;font-size:.98rem}
+.preset span{display:block;font-size:.74rem;color:var(--muted);margin-top:2px;line-height:1.25}
+.preset.sel{border-color:var(--gold,#e9c46a);background:rgba(233,196,106,.1)}
+.uimode{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin-top:10px;font-size:.8rem}
+.uimode button{background:transparent;border:0;color:var(--muted);padding:6px 12px;font-weight:700}
+.uimode button.sel{background:var(--gold,#e9c46a);color:#1a1530}
 </style>
 
 <canvas id="sky"></canvas>
@@ -690,6 +707,18 @@ var _AID,MJK_DEVICE={"mjk-gsrec":1,"mjk-natuser":1,"mjk-vj":1,"mjk-vol":1};
 function _aid(){if(_AID===undefined){try{_AID=JSON.parse(localStorage.getItem("majick-active"));}catch(e){_AID=null;}}return _AID;}
 function _pk(k){if(k.charCodeAt(0)!==109||k.indexOf("mjk-")!==0||MJK_DEVICE[k])return null;var id=_aid();return id?"music-"+id+"-set:"+k:null;}
 function load(k,d){try{var p=_pk(k),r=p?localStorage.getItem(p):null;if(r==null)r=localStorage.getItem(k);return r?JSON.parse(r):d;}catch(e){return d;}}
+/* ===== Simple / Advanced: Simple shows presets and Begin; Advanced shows every tool. New users start Simple. ===== */
+var UIM={mode:null};
+function uiMode(){if(UIM.mode)return UIM.mode;var m=load("mjk-uimode",null);if(!m){var n=0;try{for(var i=0;i<localStorage.length;i++)if((localStorage.key(i)||"").indexOf("mjk-")===0)n++;}catch(e){}m=n>12?"adv":"simple";save("mjk-uimode",m);}UIM.mode=m;return m;}
+function isAdv(){return uiMode()==="adv";}
+function setUiMode(m){UIM.mode=m;save("mjk-uimode",m);}
+function sensEver(){try{return load("mjk-hrever",false)||(typeof HR!=="undefined"&&HR.connected);}catch(e){return false;}}
+/* the Customize panel: one bottom sheet per screen holding every setting */
+function czHTML(id,title,body){return '<div class="czBack" id="'+id+'Bk"></div><div class="czSheet" id="'+id+'" role="dialog" aria-label="'+title+'"><div class="czGrab"></div><div class="czHead"><span>⚙️ '+title+'</span><button class="czDone" id="'+id+'X">Done</button></div>'+body+
+  '<div class="czSec">View</div><div class="uimode" id="'+id+'Mode"><button data-m="simple" class="'+(isAdv()?"":"sel")+'">Simple</button><button data-m="adv" class="'+(isAdv()?"sel":"")+'">Advanced</button></div><div class="site-note" style="margin:4px 0 0;font-size:.74rem">Advanced shows charts, timing tools and detailed readings.</div></div>';}
+function czWire(id,isOpen,setOpen,onMode){var sh=document.getElementById(id),bk=document.getElementById(id+"Bk");if(!sh)return;var show=function(v){sh.classList.toggle("on",v);bk.classList.toggle("on",v);setOpen(v);};if(isOpen())show(true);
+  var ob=document.getElementById(id+"Btn");if(ob)ob.onclick=function(){show(true);};document.getElementById(id+"X").onclick=function(){show(false);};bk.onclick=function(){show(false);};
+  document.querySelectorAll("#"+id+"Mode button").forEach(function(b){b.onclick=function(){setUiMode(b.getAttribute("data-m"));if(onMode)onMode();};});}
 function save(k,v){try{if(k==="majick-active")_AID=v;var p=_pk(k);localStorage.setItem(p||k,JSON.stringify(v));}catch(e){}try{if(typeof cloudPush==="function")cloudPush();}catch(e){}}
 function activeId(){return load("majick-active",null);}
 function activeName(){try{const p=load("majick-profiles",[]).find(x=>x.id===activeId());return p?p.name:null;}catch(e){return null;}}
@@ -8370,7 +8399,7 @@ function hrAutoReconnect(dev,onState,n){if(n>=6||HR.connected||HR.userOff)return
 function hrPickOpts(){const os=["heart_rate","battery_service","device_information"];if(HR_ALL)return {acceptAllDevices:true,optionalServices:os};
   /* heart-rate sensors plus any device that broadcasts a name (HeartMath does not advertise the heart-rate service, so match by name); hides the unnamed gadgets */
   return {filters:[{services:["heart_rate"]}].concat("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".split("").map(c=>({namePrefix:c}))),optionalServices:os};}
-async function hrConnect(onState){HR_ERR="";const all=HR_ALL;HR_ALL=false;try{const dev=await navigator.bluetooth.requestDevice(all?{acceptAllDevices:true,optionalServices:["heart_rate","battery_service","device_information"]}:hrPickOpts());HR.dev=dev;dev.addEventListener("gattserverdisconnected",()=>{HR.connected=false;if(onState)onState();if(!HR.userOff)hrAutoReconnect(dev,onState,0);});HR.userOff=false;const srv=await dev.gatt.connect();let svc;try{svc=await srv.getPrimaryService("heart_rate");}catch(e2){HR_ERR="Connected to <b>"+esc(dev.name||"that device")+"</b>, but it doesn\u2019t send the standard heart-rate signal, so its data can\u2019t be read here.";try{srv.disconnect();}catch(e3){}throw e2;}const ch=await svc.getCharacteristic("heart_rate_measurement");HR.ch=ch;await ch.startNotifications();ch.addEventListener("characteristicvaluechanged",hrParse);HR.connected=true;HR.rr=[];if(onState)onState();return true;}catch(e){HR.connected=false;if(!HR_ERR&&e&&e.name!=="NotFoundError")HR_ERR="Couldn\u2019t connect: "+esc(e.message||String(e));if(onState)onState(e);return false;}}
+async function hrConnect(onState){HR_ERR="";const all=HR_ALL;HR_ALL=false;try{const dev=await navigator.bluetooth.requestDevice(all?{acceptAllDevices:true,optionalServices:["heart_rate","battery_service","device_information"]}:hrPickOpts());HR.dev=dev;dev.addEventListener("gattserverdisconnected",()=>{HR.connected=false;if(onState)onState();if(!HR.userOff)hrAutoReconnect(dev,onState,0);});HR.userOff=false;const srv=await dev.gatt.connect();let svc;try{svc=await srv.getPrimaryService("heart_rate");}catch(e2){HR_ERR="Connected to <b>"+esc(dev.name||"that device")+"</b>, but it doesn\u2019t send the standard heart-rate signal, so its data can\u2019t be read here.";try{srv.disconnect();}catch(e3){}throw e2;}const ch=await svc.getCharacteristic("heart_rate_measurement");HR.ch=ch;await ch.startNotifications();ch.addEventListener("characteristicvaluechanged",hrParse);HR.connected=true;HR.rr=[];try{save("mjk-hrever",true);}catch(e){}if(onState)onState();return true;}catch(e){HR.connected=false;if(!HR_ERR&&e&&e.name!=="NotFoundError")HR_ERR="Couldn\u2019t connect: "+esc(e.message||String(e));if(onState)onState(e);return false;}}
 function hrDisconnect(){HR.userOff=true;try{if(HR.ch)HR.ch.stopNotifications();if(HR.dev&&HR.dev.gatt.connected)HR.dev.gatt.disconnect();}catch(e){}HR.connected=false;}
 
 /* ===== DAILY MEDITATION REMINDER ===== */
@@ -8738,6 +8767,15 @@ function hsDrum(a,out,t,amp,dub){const pk=dub?0.72:1,f0=dub?74:64,f1=dub?48:43,d
   const u=a.createOscillator(),ug=a.createGain();u.type="sine";u.frequency.value=dub?44:38;ug.gain.setValueAtTime(0.0001,t);ug.gain.exponentialRampToValueAtTime(pk*0.55,t+0.012);ug.gain.exponentialRampToValueAtTime(0.0001,t+dec*0.9);u.connect(ug);ug.connect(g);u.start(t);u.stop(t+dec);}
 function hsChime(a,out,t,f,v,pan){const g=a.createGain();g.gain.value=v;let dst=g;if(a.createStereoPanner){const p=a.createStereoPanner();p.pan.value=pan;g.connect(p);p.connect(out);}else g.connect(out);
   [[1,1,3.2],[2.76,0.32,1.2],[5.4,0.11,0.6],[0.5,0.18,4]].forEach(function(q){const o=a.createOscillator(),e=a.createGain();o.type="sine";o.frequency.value=f*q[0];e.gain.setValueAtTime(0.0001,t);e.gain.exponentialRampToValueAtTime(q[1],t+0.006);e.gain.exponentialRampToValueAtTime(0.0001,t+q[2]);o.connect(e);e.connect(dst);o.start(t);o.stop(t+q[2]+0.05);});}
+const HS_PRE=[{id:"calm",t:"😌 Calm",d:"Settle and slow your heart · 20 min",set:{mode:"guide",goal:"calm",bpat:"heart",carrier:528,mel:"hchime",gong:true,breath:true,mins:20,ocean:true,chimes:true}},
+ {id:"sleep",t:"🌙 Sleep",d:"Slow right down and fade out · 30 min",set:{mode:"sleep",bpat:"exh",carrier:174,mel:"kalimba",gong:true,breath:true,mins:30,ocean:true,chimes:true}},
+ {id:"deep",t:"🌀 Deep",d:"Box breathing into theta · 20 min",set:{mode:"guide",goal:"deep",bpat:"box",carrier:432,mel:"tbell",gong:true,breath:true,mins:20,ocean:true,chimes:true}},
+ {id:"listen",t:"🎧 Just listen",d:"Your heart as music, no guiding · 10 min",set:{mode:"mirror",goal:"calm",bpat:"heart",carrier:528,mel:"hchime",gong:false,breath:false,mins:10,ocean:true,chimes:true}}];
+const HS_KEYS={mode:"mjk-hsmode",goal:"mjk-hsgoal",bpat:"mjk-hsbpat",carrier:"mjk-hscar",mel:"mjk-hsmel",gong:"mjk-hsgong",breath:"mjk-hsbreath",mins:"mjk-hsmins",ocean:"mjk-hsocean",chimes:"mjk-hschimes"};
+function hsPresetNow(){const p=HS_PRE.find(function(p){return Object.keys(p.set).every(function(k){return (k==="goal"&&p.set.mode==="sleep")||HSX[k]==p.set[k];});});return p?p.id:null;}
+function hsApplyPreset(p){Object.keys(p.set).forEach(function(k){HSX[k]=p.set[k];save(HS_KEYS[k],p.set[k]);});}
+function repSimple(R){if(!R)return "";if(!R.h0)return '<div class="idea-fb"><b>Nice work.</b> You finished your session.</div>';const d=R.h1-R.h0;
+  return '<div class="idea-fb"><b>'+(d<=-2?"Your heart slowed down "+Math.round(-d)+" beats a minute.":d<2?"Your heart stayed calm and steady.":"Your heart sped up a little this time.")+'</b>'+(R.co!=null?'<div style="margin-top:4px">'+(R.co>=0.6?"Your rhythm was smooth and settled.":R.co>=0.4?"Your rhythm was getting smoother.":"Slow, easy breaths will smooth it out next time.")+'</div>':'')+'</div>';}
 function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   const S={run:false,t0:0,timer:null,raf:null,nb:0,Pm:1,beat:0,bIdx:0,stage:"match",stageT:0,vq:[],mb:[],beats:[],cum:0,myN:HR.n||0,rawCum:{},pk:[],pkN:(HR.pk||[]).length?HR.pk[HR.pk.length-1].i:0,O:null,P:null,hist:[],co:null,coPk:0,coSum:0,coN:0,sync:0,syncN:0,syncHit:0,floor:48,base:null,taps:[],tapP:null,lastChart:0,lastCo:0,lastAns:0,nodes:null,note:0,beatHz:0,breathIn:0,breathN:8,rep:null,hold:false};
   teardown=()=>{hsStop(true);};window.__hsS=S;S.off=off;
@@ -8869,37 +8907,44 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     if(fresh()){const P=S.P,tb=lastHeart();S.nb=tb+Math.ceil((a.currentTime+0.4-tb)/P)*P;}else if(S.tapAt&&S.tapP){const k=Math.ceil((a.currentTime+0.3-S.tapAt)/S.tapP);S.nb=S.tapAt+k*S.tapP;}else S.nb=a.currentTime+0.4;
     BIO.t0=Date.now();try{tgtReset();bioStart();sensEnsureTimer();}catch(e){}build(a);try{medWake(true);bgKeep(true,"Heart Sync");}catch(e){}
     draw();S.timer=setInterval(sched,40);sched();frame();}
-  function draw(){const chip=function(id,lab,on){return '<button class="rchip sm'+(on?" sel":"")+'" id="'+id+'">'+lab+'</button>';};
-    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">💓 Heart Sync</span></div><div class="panel">'+
-      (S.run?'':'<div class="intro">Your heartbeat, outside you. A deep drum plays <b>on your own heartbeat</b> and the music is tuned to it. First it matches you; then, in Guide mode, it eases a little slower and waits for your heart to follow. Headphones give you the full depth.</div>')+
-      '<div class="idea-fb" id="hsSens" style="margin-top:0"></div>'+
-      '<div style="display:flex;justify-content:center;margin:14px 0 6px;position:relative"><div id="hsC" style="width:min(290px,78vw);height:min(290px,78vw);border-radius:50%;background:radial-gradient(circle at 50% 42%,rgba(239,98,98,.28),rgba(127,240,214,.10) 60%,transparent 72%);border:2px solid rgba(236,201,119,.45);display:flex;align-items:center;justify-content:center;transform:scale(.62);transition:transform 1.2s ease-in-out">'+
-        '<div id="hsCore" style="width:46%;height:46%;border-radius:50%;background:radial-gradient(circle at 50% 40%,#ff8c8c,#a52a3a);box-shadow:0 0 18px rgba(239,98,98,.2);display:flex;flex-direction:column;align-items:center;justify-content:center"><div id="hsBig" style="font:900 2.3rem system-ui;color:#fff">'+(S.run?Math.round(60/S.Pm):"—")+'</div><div style="font-size:.7rem;opacity:.85;color:#fff">BPM</div></div></div></div>'+
-      '<div style="text-align:center;font-weight:800;font-size:1.15rem;min-height:1.4em" id="hsCue">'+(S.run&&HSX.breath?"":"")+'</div>'+
-      '<div class="site-note" id="hsStage" style="text-align:center;margin:4px 0 10px">'+(S.run?stageText():"")+'</div>'+
-      '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;text-align:center;margin-bottom:6px">'+
-        [["hsHr","Heart","#ef6262"],["hsMb","Drum","#7ff0d6"],["hsSy","In sync","#e9c46a"],["hsCo","Coherence","#5fd38d"]].map(function(q){return '<div><div style="font-size:1.25rem;font-weight:800;color:'+q[2]+'" id="'+q[0]+'">—</div><div class="site-note" style="margin:0;font-size:.72rem">'+q[1]+'</div></div>';}).join("")+'</div>'+
-      '<div class="site-note" id="hsNoteV" style="text-align:center;margin:0 0 6px;font-size:.75rem"></div>'+
-      (S.run?'<div style="text-align:center;margin-bottom:6px"><span class="rbpm" id="hsLeft"></span></div>':'')+
-      '<div class="actions"><button class="btn" id="hsGo">'+(S.run?"■ Stop":"▶ Begin")+'</button>'+(S.run?'':'<button class="btn ghost" id="hsTapGo">👆 Tap your heartbeat to start</button>')+'</div>'+
-      (S.run?'':'<div class="site-note" style="text-align:center;margin:-4px 0 8px;font-size:.78rem" id="hsTapN">Feel your pulse in your chest, neck or wrist and tap the button on each beat, 8 times. The drum starts on your beat'+(HR.connected?' and its timing is matched to what you feel.':'.')+'</div>')+
-      '<div id="hsRep">'+repHTML(S.rep)+'</div>'+
-      '<canvas id="hsCv" style="width:100%;height:150px;display:block;border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.25);margin-top:8px"></canvas>'+
-      '<div class="site-note" style="margin:4px 0 8px;font-size:.75rem"><span style="color:#ef6262">━</span> your heart · <span style="color:#7ff0d6">┅</span> the drum · green shading = coherence</div>'+
-      ansHTML("ansHs")+
+  function draw(){const chip=function(id,lab,on){return '<button class="rchip sm'+(on?" sel":"")+'" id="'+id+'">'+lab+'</button>';},adv=isAdv(),pre=hsPresetNow();
+    const tiles=adv?[["hsHr","Heart","#ef6262"],["hsMb","Drum","#7ff0d6"],["hsSy","In sync","#e9c46a"],["hsCo","Coherence","#5fd38d"]]:[["hsHr","Heart","#ef6262"],["hsSy","In sync","#e9c46a"]];
+    const set=
+      '<div class="czSec">Session</div>'+
       '<div class="rrow2"><span class="rlab">Mode</span><span class="rchips tight">'+chip("hsMg","Guide me down",HSX.mode==="guide")+chip("hsMs","🌙 Sleep",HSX.mode==="sleep")+chip("hsMm","Mirror my heart",HSX.mode==="mirror")+'</span></div>'+
       (HSX.mode==="sleep"?'<div class="site-note" style="margin:-2px 0 6px">Sleep: matches your heart, then slows a little more each minute, pairs it with your breath, and drifts the beat from theta into delta. The music darkens, the drum softens, and everything fades to silence at the end.</div>':'<div class="rrow2"><span class="rlab">Goal</span><span class="rchips tight">'+chip("hsGc","Calm · alpha",HSX.goal==="calm")+chip("hsGd","Deep · theta",HSX.goal==="deep")+'</span></div>')+
-      '<div class="rrow2"><span class="rlab">Breath</span><span class="rchips tight">'+HS_BPAT.map(function(b){return chip("hsB_"+b[0],b[1],HSX.bpat===b[0]);}).join("")+'</span></div>'+
-      '<div class="rrow2"><span class="rlab">Tone</span><span class="rchips tight">'+chip("hsT_heart","💓 Heart note",HSX.carrier==="heart")+[174,285,396,417,432,528,639].map(function(h){return chip("hsT_"+h,h,HSX.carrier==h);}).join("")+'</span></div>'+
-      '<div class="rrow2"><span class="rlab">Melody</span><span class="rchips tight">'+HS_MEL.map(function(m){return chip("hsM_"+m[0],m[1],HSX.mel===m[0]);}).join("")+chip("hsGong","🪘 Gong",HSX.gong)+'</span></div>'+
-      '<div class="rrow2"><span class="rlab">Harmonics</span><span class="rchips tight">'+chip("hsLay","✨ Layers: "+({off:"Off",phi:"Golden φ",oct:"Octaves"})[MEDLAYER.mode],MEDLAYER.mode!=="off")+'</span></div>'+
-      '<div class="rrow"><span class="rlab">Drum timing</span><input type="range" id="hsLat" min="-300" max="300" step="10" value="'+HSX.lat+'" style="flex:1"><span class="rbpm" id="hsLatV" style="min-width:64px">'+(HSX.lat>0?"+":"")+HSX.lat+' ms</span></div>'+
-      '<div class="site-note" style="margin:-4px 0 8px;font-size:.76rem">Drum early or late against the beat you feel? '+(S.run&&HR.connected?'<button class="rchip sm" id="hsCal">Tap where you feel your heartbeat</button> (8 taps) or slide it.':'Start a session with your sensor and tap along to set it, or slide it.')+' Bluetooth headphones and ear sensors usually need a few hundred ms.</div>'+
       '<div class="rrow2"><span class="rlab">Length</span><span class="rchips tight">'+[10,20,30,45].map(function(m){return chip("hsL"+m,m+" min",HSX.mins===m);}).join("")+'</span></div>'+
-      '<div class="rrow2"><span class="rlab">Layers</span><span class="rchips tight">'+chip("hsOc","🌊 Ocean",HSX.ocean)+chip("hsCh","🔔 Chimes",HSX.chimes)+chip("hsBr","🌬️ Breath guide",HSX.breath)+'</span></div>'+
+      '<div class="rrow2"><span class="rlab">Breath</span><span class="rchips tight">'+HS_BPAT.map(function(b){return chip("hsB_"+b[0],b[1],HSX.bpat===b[0]);}).join("")+chip("hsBr","🌬️ Guide "+(HSX.breath?"on":"off"),HSX.breath)+'</span></div>'+
+      '<div class="czSec">Sound</div>'+
+      '<div class="rrow2"><span class="rlab">Tone</span><span class="rchips tight">'+chip("hsT_heart","💓 Heart note",HSX.carrier==="heart")+[174,285,396,417,432,528,639].map(function(h){return chip("hsT_"+h,h,HSX.carrier==h);}).join("")+'</span></div>'+
+      '<div class="rrow2"><span class="rlab">Melody</span><span class="rchips tight">'+HS_MEL.map(function(m){return chip("hsM_"+m[0],m[1],HSX.mel===m[0]);}).join("")+'</span></div>'+
+      '<div class="rrow2"><span class="rlab">Extras</span><span class="rchips tight">'+chip("hsGong","🪘 Gong",HSX.gong)+chip("hsOc","🌊 Ocean",HSX.ocean)+chip("hsCh","🔔 Chimes",HSX.chimes)+chip("hsLay","✨ Layers: "+({off:"Off",phi:"Golden φ",oct:"Octaves"})[MEDLAYER.mode],MEDLAYER.mode!=="off")+'</span></div>'+
       '<div class="rrow"><span class="rlab">Heartbeat</span><input type="range" id="hsDv" min="0" max="100" value="'+Math.round(HSX.drum*100)+'" style="flex:1"></div>'+
       '<div class="rrow"><span class="rlab">Music</span><input type="range" id="hsMv" min="0" max="100" value="'+Math.round(HSX.music*100)+'" style="flex:1"></div>'+
-      '</div>';
+      (adv?'<div class="czSec">Timing</div><div class="rrow"><span class="rlab">Drum timing</span><input type="range" id="hsLat" min="-300" max="300" step="10" value="'+HSX.lat+'" style="flex:1"><span class="rbpm" id="hsLatV" style="min-width:64px">'+(HSX.lat>0?"+":"")+HSX.lat+' ms</span></div>'+
+      '<div class="site-note" style="margin:-4px 0 8px;font-size:.76rem">Drum early or late against the beat you feel? '+(S.run&&HR.connected?'<button class="rchip sm" id="hsCal">Tap where you feel your heartbeat</button> (8 taps) or slide it.':'Use “Tap your heartbeat to start”, or slide it.')+' Bluetooth headphones and ear sensors usually need a few hundred ms.</div>':'');
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">💓 Heart Sync</span></div><div class="panel">'+
+      (S.run?'':'<div class="intro">Hear your own heartbeat as a deep drum, with music tuned to it. It matches your heart, then helps it slow down. Headphones are best.</div>'+
+        '<div class="preset-row">'+HS_PRE.map(function(p){return '<button class="preset'+(pre===p.id?" sel":"")+'" id="hsP_'+p.id+'"><b>'+p.t+'</b><span>'+p.d+'</span></button>';}).join("")+'</div>'+
+        (pre?'':'<div class="site-note" style="margin:0 0 6px;font-size:.76rem">Using your own settings.</div>'))+
+      '<div class="idea-fb" id="hsSens" style="margin-top:6px"></div>'+
+      '<div style="display:flex;justify-content:center;margin:14px 0 6px;position:relative"><div id="hsC" style="width:min(290px,78vw);height:min(290px,78vw);border-radius:50%;background:radial-gradient(circle at 50% 42%,rgba(239,98,98,.28),rgba(127,240,214,.10) 60%,transparent 72%);border:2px solid rgba(236,201,119,.45);display:flex;align-items:center;justify-content:center;transform:scale(.62);transition:transform 1.2s ease-in-out">'+
+        '<div id="hsCore" style="width:46%;height:46%;border-radius:50%;background:radial-gradient(circle at 50% 40%,#ff8c8c,#a52a3a);box-shadow:0 0 18px rgba(239,98,98,.2);display:flex;flex-direction:column;align-items:center;justify-content:center"><div id="hsBig" style="font:900 2.3rem system-ui;color:#fff">'+(S.run?Math.round(60/S.Pm):"—")+'</div><div style="font-size:.7rem;opacity:.85;color:#fff">BPM</div></div></div></div>'+
+      '<div style="text-align:center;font-weight:800;font-size:1.15rem;min-height:1.4em" id="hsCue"></div>'+
+      '<div class="site-note" id="hsStage" style="text-align:center;margin:4px 0 10px">'+(S.run?stageText():"")+'</div>'+
+      (S.run||S.rep?'<div style="display:grid;grid-template-columns:repeat('+tiles.length+',minmax(0,1fr));gap:6px;text-align:center;margin-bottom:6px">'+
+        tiles.map(function(q){return '<div><div style="font-size:1.25rem;font-weight:800;color:'+q[2]+'" id="'+q[0]+'">—</div><div class="site-note" style="margin:0;font-size:.72rem">'+q[1]+'</div></div>';}).join("")+'</div>':'')+
+      (adv?'<div class="site-note" id="hsNoteV" style="text-align:center;margin:0 0 6px;font-size:.75rem"></div>':'')+
+      (S.run?'<div style="text-align:center;margin-bottom:6px"><span class="rbpm" id="hsLeft"></span></div>':'')+
+      '<div class="actions"><button class="btn" id="hsGo">'+(S.run?"■ Stop":"▶ Begin")+'</button>'+(S.run?'':'<button class="btn ghost" id="hsTapGo">👆 Tap your heartbeat to start</button>')+'</div>'+
+      (S.run?'':'<div class="site-note" style="text-align:center;margin:-4px 0 4px;font-size:.78rem" id="hsTapN">Feel your pulse and tap on each beat, 8 times. The drum starts on your beat.</div>')+
+      '<button class="czOpen" id="hsCzBtn">⚙️ Customize</button>'+
+      '<div id="hsRep">'+(adv?repHTML(S.rep):repSimple(S.rep))+'</div>'+
+      (adv&&sensEver()?'<canvas id="hsCv" style="width:100%;height:150px;display:block;border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.25);margin-top:8px"></canvas>'+
+      '<div class="site-note" style="margin:4px 0 8px;font-size:.75rem"><span style="color:#ef6262">━</span> your heart · <span style="color:#7ff0d6">┅</span> the drum · green shading = coherence</div>'+ansHTML("ansHs"):'')+
+      '</div>'+czHTML("hsCz","Customize Heart Sync",set);
+    czWire("hsCz",function(){return !!S.cz;},function(v){S.cz=v;},function(){draw();});
+    HS_PRE.forEach(function(p){const b=$("#hsP_"+p.id);if(b)b.onclick=function(){hsApplyPreset(p);S.bp=null;S.bk=0;draw();};});
     $("#eBack").onclick=function(){hsStop(true);renderMeditation();};
     $("#hsGo").onclick=function(){if(S.run){finish();}else begin();};
     /* tap-to-start: your felt heartbeat sets the drum's starting beat, its tempo (no sensor) and its timing offset (with a sensor) */
@@ -8928,7 +8973,7 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     tog("#hsLay",function(){MEDLAYER.mode=MEDLAYER.mode==="off"?"phi":MEDLAYER.mode==="phi"?"oct":"off";save("mjk-medlayers",MEDLAYER.mode);if(S.run&&MED.master){if(MEDLAYER.mode==="off")medLayersStop();else{medLayersStart(layerSpecs(MEDLAYER.mode,S.car));(MED.layers||[]).forEach(function(L,i){medLayerLevel(i,true,3);});medLayersFollow(S.beatHz);}}draw();});
     HS_MEL.forEach(function(m){tog("#hsM_"+m[0],function(){HSX.mel=m[0];save("mjk-hsmel",m[0]);const I=INSTS[m[0]];if(I)I.notes.forEach(function(n){instBuf(m[0],n);});draw();});});
     tog("#hsGong",function(){HSX.gong=!HSX.gong;save("mjk-hsgong",HSX.gong);if(HSX.gong){instBuf("gong",0);instBuf("gong",1);}draw();});
-    const lt=$("#hsLat");lt.oninput=function(){HSX.lat=+lt.value;save("mjk-hslat",HSX.lat);$("#hsLatV").textContent=(HSX.lat>0?"+":"")+HSX.lat+" ms";};
+    const lt=$("#hsLat");if(lt)lt.oninput=function(){HSX.lat=+lt.value;save("mjk-hslat",HSX.lat);$("#hsLatV").textContent=(HSX.lat>0?"+":"")+HSX.lat+" ms";};
     tog("#hsCal",function(){const b=$("#hsCal"),a=ac();S.cal=S.cal||[];S.cal.push(performance.now()/1000+off(a));b.textContent="Tap · "+S.cal.length+"/8";
       if(S.cal.length>=8){const taps=S.cal.slice();S.cal=[];b.textContent="Measuring…";setTimeout(function(){const hb=S.beats.map(function(x){return S.O+x.c;}),d=[];taps.forEach(function(t){let best=null;hb.forEach(function(h){if(best==null||Math.abs(t-h)<Math.abs(best))best=t-h;});if(best!=null&&Math.abs(best)<0.45)d.push(best);});
         if(d.length<5){b.textContent="Couldn’t read that — try again";return;}d.sort(function(x,y){return x-y;});HSX.lat=Math.max(-300,Math.min(300,Math.round(d[d.length>>1]*100)*10));save("mjk-hslat",HSX.lat);draw();const s2=$("#hsStage");if(s2)s2.textContent="Drum timing set to "+(HSX.lat>0?"+":"")+HSX.lat+" ms.";},2600);}});
@@ -8938,7 +8983,7 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
   function sens(){const e=$("#hsSens");if(!e)return;
     if(HR.connected){e.innerHTML='💓 Heart sensor connected'+(HR.bpm?' · '+HR.bpm+' BPM':'')+'. <a href="#" id="hsX">Disconnect</a>';const x=$("#hsX");if(x)x.onclick=function(ev){ev.preventDefault();hrDisconnect();sens();};return;}
     e.innerHTML=(hrSupported()?'<div class="actions" style="margin:0 0 6px"><button class="btn ghost" id="hsCon">💗 Connect heart sensor</button></div><div class="site-note" style="margin:0 0 6px">Sensor not in the list? <a href="#" id="hsAll">Show every device</a></div>':'<div class="site-note" style="margin:0 0 6px">Live heart sync needs a Bluetooth heart sensor (Bluefy on iPhone, or Chrome on a computer).</div>')+
-      '<div class="site-note" style="margin:0">No sensor? Find your pulse on your wrist or neck and tap along: <button class="rchip sm" id="hsTap">Tap my pulse'+(S.tapP?" · "+Math.round(60/S.tapP)+" BPM":"")+'</button></div>';
+      '<div class="site-note" style="margin:0">No sensor? Use “Tap your heartbeat to start” below.</div>';
     const c=$("#hsCon");if(c)c.onclick=async function(){c.textContent="Connecting…";const ok=await hrConnect(function(){sens();});if(!ok){c.textContent="💗 Connect heart sensor";if(HR_ERR){const n=document.createElement("div");n.className="site-note";n.innerHTML=HR_ERR;c.parentNode.appendChild(n);}}else{S.myN=HR.n||0;S.beats=[];S.cum=0;S.pk=[];S.O=null;sens();}};
     const al=$("#hsAll");if(al)al.onclick=function(ev){ev.preventDefault();HR_ALL=true;const c2=$("#hsCon");if(c2)c2.click();};
     const tp=$("#hsTap");if(tp)tp.onclick=function(){unlockAudio();const now=performance.now();if(S.taps.length&&now-S.taps[S.taps.length-1]>2500)S.taps=[];S.taps.push(now);if(S.taps.length>8)S.taps.shift();
