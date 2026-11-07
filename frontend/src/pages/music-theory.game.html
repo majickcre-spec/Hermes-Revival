@@ -8307,6 +8307,24 @@ const BREATH=[
  {id:"478",name:"4·7·8 Relax",desc:"A long exhale drops you into rest — great before sleep.",phases:[["In",4],["Hold",7],["Out",8]]},
  {id:"calm",name:"Deep Calm 4·4·6",desc:"Longer exhale than inhale — downshifts the nervous system.",phases:[["In",4],["Hold",4],["Out",6]]}
 ];
+/* breath cues: quiet count click + soft transition chime, scheduled on the audio clock (keeps time with the screen locked) */
+const BRCUE=Object.assign({click:false,chime:false},load("mjk-brcues",{}));
+function brCueBufs(a){if(a._brCue)return a._brCue;const sr=a.sampleRate,mk=(len,f)=>{const b=a.createBuffer(1,Math.round(sr*len),sr),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=f(i/sr);return b;};
+  const click=mk(0.05,t=>(Math.sin(2*Math.PI*1650*t)*0.6+Math.sin(2*Math.PI*2900*t)*0.25+(Math.random()*2-1)*0.15*Math.exp(-t*900))*Math.exp(-t*140)*Math.min(1,t*4000));
+  const bell=(f)=>mk(1.8,t=>(Math.sin(2*Math.PI*f*t)+0.35*Math.sin(2*Math.PI*f*2.01*t)*Math.exp(-t*3)+0.12*Math.sin(2*Math.PI*f*3*t)*Math.exp(-t*6))*Math.exp(-t*2.4)*Math.min(1,t*300)*0.5);
+  a._brCue={click:click,In:bell(528),Out:bell(396),Hold:bell(444)};return a._brCue;}
+function brCueSchedule(a,P,T0,secs){const B=brCueBufs(a),out=a.createGain();out.gain.value=1;out.connect(a.destination);const end=T0+secs;let t=T0;
+  const put=(buf,at,v)=>{const s=a.createBufferSource(),g=a.createGain();s.buffer=buf;g.gain.value=v;s.connect(g);g.connect(out);s.start(at);};
+  while(t<end){for(const ph of P.phases){if(t>=end)break;if(BRCUE.chime)put(B[ph[0]]||B.Hold,t,0.12);if(BRCUE.click){for(let k=BRCUE.chime?1:0;k<ph[1]-0.05;k++){if(t+k<end)put(B.click,t+k,0.07);}}t+=ph[1];}}
+  return out;}
+/* keep a session playing when the user switches apps: send the app's audio through a media element (iOS keeps media playing in the background), show it on the lock screen, and resume the clock on return */
+var BGK={on:false,el:null,dest:null};
+function bgKeep(on,title){var c=ac();try{if(!c.__mv){var z=c.createGain();z.gain.value=0;z.connect(c.destination);}}catch(e){}var mv=c.__mv;if(!mv)return;
+  if(on&&!BGK.on){try{if(!BGK.dest){BGK.dest=c.createMediaStreamDestination();BGK.el=new Audio();BGK.el.setAttribute("playsinline","");BGK.el.srcObject=BGK.dest.stream;}
+      mv.disconnect();mv.connect(BGK.dest);BGK.on=true;var pr=BGK.el.play();if(pr&&pr.catch)pr.catch(function(){bgKeep(false);});}catch(e){try{mv.disconnect();}catch(_){}mv.connect(c.destination);BGK.on=false;}
+    try{if(navigator.mediaSession){navigator.mediaSession.metadata=new MediaMetadata({title:title||"Breathwork",artist:"Majick Music University"});navigator.mediaSession.playbackState="playing";}}catch(e){}}
+  else if(!on&&BGK.on){try{mv.disconnect();}catch(e){}mv.connect(c.destination);BGK.on=false;try{BGK.el.pause();}catch(e){}try{if(navigator.mediaSession)navigator.mediaSession.playbackState="none";}catch(e){}}}
+document.addEventListener("visibilitychange",function(){if(!BGK.on)return;try{var c=ac();if(c.state!=="running")c.resume();if(BGK.el&&BGK.el.paused)BGK.el.play().catch(function(){});}catch(e){}});
 let HR={dev:null,ch:null,bpm:0,rr:[],updated:0,connected:false};
 function hrSupported(){return !!(navigator.bluetooth&&navigator.bluetooth.requestDevice);}
 function hrParse(e){const dv=e.target.value,flags=dv.getUint8(0);let idx=1,bpm;if(flags&1){bpm=dv.getUint16(1,true);idx=3;}else{bpm=dv.getUint8(1);idx=2;}if(flags&8)idx+=2;if(flags&16){for(;idx+1<dv.byteLength;idx+=2){const v=dv.getUint16(idx,true)/1024*1000;if(v>250&&v<2000)HR.rr.push(v);}}HR.bpm=bpm;while(HR.rr.length>800)HR.rr.shift();HR.updated=performance.now();if(!HR.connected&&HR.ch)HR.connected=true;}
@@ -9330,8 +9348,10 @@ function renderJourney(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(to
     draw();var J=JOURNEYS.find(function(j){return j.id===jType;})||JOURNEYS.find(function(j){return j.id==="dive";})||JOURNEYS[0],fh=plan[plan.length-1].h1;var ph=$("#jPhase");if(ph)ph.innerHTML='<b style="color:#5fe0a8">'+J.end+'</b>'+bioSummary();var hz=$("#jHz");if(opts.done){try{opts.done();}catch(e){}}if(hz)hz.textContent=fh.toFixed(1)+" Hz";var bl=$("#jBandL");if(bl)bl.textContent=jBand(fh);}
   draw();if(opts.auto)begin();}
 function renderBreathwork(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  let pi=0,mins=5,running=false,raf=null,startT=0,phaseIdx=-1,toneOn=true,breathGain=null,hrRAF=null,hrSP=0,hrSess=null,hrLastDraw=0,hrLastTick=0,hrSync=null;if(opts.pat){BREATH.forEach((p,i)=>{if(p.id===opts.pat)pi=i;});}if(opts.mins)mins=opts.mins;
-  teardown=()=>{running=false;if(raf)cancelAnimationFrame(raf);if(hrRAF)cancelAnimationFrame(hrRAF);medStop();};
+  let pi=0,mins=5,running=false,raf=null,startT=0,phaseIdx=-1,toneOn=true,breathGain=null,hrRAF=null,hrSP=0,hrSess=null,hrLastDraw=0,hrLastTick=0,hrSync=null,cueOut=null,endOut=null;if(opts.pat){BREATH.forEach((p,i)=>{if(p.id===opts.pat)pi=i;});}if(opts.mins)mins=opts.mins;
+  const endKill=()=>{if(endOut){try{endOut.disconnect();}catch(e){}endOut=null;}};
+  const cueKill=()=>{if(cueOut){try{const a=ac(),n=a.currentTime;cueOut.gain.cancelScheduledValues(n);cueOut.gain.setValueAtTime(cueOut.gain.value,n);cueOut.gain.linearRampToValueAtTime(0,n+0.15);const o=cueOut;setTimeout(()=>{try{o.disconnect();}catch(e){}},300);}catch(e){}cueOut=null;}};
+  teardown=()=>{running=false;if(raf)cancelAnimationFrame(raf);if(hrRAF)cancelAnimationFrame(hrRAF);cueKill();endKill();medStop();try{bgKeep(false);}catch(e){}};
   function cycleLen(P){return P.phases.reduce((a,b)=>a+b[1],0);}
   function draw(){const P=BREATH[pi];
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+(opts.title||"🌬️ Breathwork")+'</span></div><div class="panel">'+
@@ -9343,6 +9363,7 @@ function renderBreathwork(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if
       '<div style="text-align:center;margin-bottom:8px"><span class="rbpm" id="brTime">'+mins+':00</span></div>'+
       '<div class="rrow2"><span class="rlab">Length</span><span class="rchips tight" id="brMins"></span></div>'+
       '<div class="rrow2"><span class="rlab">Breath tone</span><span class="rchips tight"><button class="rchip sm'+(toneOn?" sel":"")+'" id="brTone">'+(toneOn?"On":"Off")+'</button></span></div>'+
+      '<div class="rrow2"><span class="rlab">Cues</span><span class="rchips tight"><button class="rchip sm'+(BRCUE.click?" sel":"")+'" id="brClick">Count click: '+(BRCUE.click?"On":"Off")+'</button><button class="rchip sm'+(BRCUE.chime?" sel":"")+'" id="brChime">Change chime: '+(BRCUE.chime?"On":"Off")+'</button></span></div>'+
       (opts.note?'':'<div class="actions"><button class="btn" id="brStart">'+(running?"■ Stop":"▶ Begin")+'</button></div>')+
       '<div class="rlab" style="display:block;margin:14px 0 6px">💗 Heart-rate variability (optional)</div>'+
       '<div class="idea-fb" id="brHR"></div>'+
@@ -9352,6 +9373,8 @@ function renderBreathwork(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if
     $("#brDesc").textContent=P.desc;
     const mc=$("#brMins");[2,5,10,15].forEach(m=>{const b=document.createElement("button");b.className="rchip sm"+(m===mins?" sel":"");b.textContent=m+" min";b.onclick=()=>{if(running)return;mins=m;$("#brTime").textContent=m+":00";draw();};mc.appendChild(b);});
     $("#brTone").onclick=()=>{toneOn=!toneOn;draw();};
+    const cueSet=(k)=>{BRCUE[k]=!BRCUE[k];save("mjk-brcues",{click:BRCUE.click,chime:BRCUE.chime});if(running){cueKill();if(BRCUE.click||BRCUE.chime){const a=ac(),P=BREATH[pi],cyc=cycleLen(P),el=a.currentTime-startT,next=startT+Math.ceil((el+0.05)/cyc)*cyc,left=startT+mins*60-next;if(left>0)cueOut=brCueSchedule(a,P,next,left);}}draw();};
+    $("#brClick").onclick=()=>cueSet("click");$("#brChime").onclick=()=>cueSet("chime");
     $("#brStart").onclick=()=>{if(running)stop();else start();};
     renderHR();
   }
@@ -9410,9 +9433,12 @@ function renderBreathwork(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if
       const P=BREATH[pi],g=breathGain.gain,T0=a.currentTime,end=T0+mins*60;let t=T0,v=0.012;g.setValueAtTime(0.0001,T0);g.linearRampToValueAtTime(v,T0+0.5);
       while(t<end){for(const ph of P.phases){const t1=Math.min(end,t+ph[1]);if(t1<=Math.max(t,T0+0.5)){t=t1;continue;}if(ph[0]==="In")v=0.09;else if(ph[0]==="Out")v=0.012;g.linearRampToValueAtTime(v,t1);t=t1;if(t>=end)break;}}
       g.linearRampToValueAtTime(0.0001,end+1.5);master.gain.setValueAtTime(0.6,end+1.5);}
+    try{bgKeep(true,"Breathwork · "+BREATH[pi].name);}catch(e){}
+    cueKill();if(BRCUE.click||BRCUE.chime)cueOut=brCueSchedule(a,BREATH[pi],startT,mins*60);
+    endKill();endOut=a.createGain();endOut.connect(a.destination);efBell(a,endOut,startT+mins*60,396,2.2);
     efBell(a,MED.master||pianoMaster(a),a.currentTime,528,1.6);
     $("#brStart").textContent="■ Stop";loop();if(opts.note){const c=$("#brCircle");if(c)setTimeout(()=>c.scrollIntoView({behavior:"smooth",block:"center"}),60);}}
-  function stop(){running=false;if(raf)cancelAnimationFrame(raf);medStop();breathGain=null;const b=$("#brStart");if(b)b.textContent="▶ Begin";const c=$("#brCircle");if(c)c.style.transform="scale(.6)";const cue=$("#brCue");if(cue)cue.textContent="Done";}
+  function stop(){running=false;if(raf)cancelAnimationFrame(raf);cueKill();endKill();medStop();try{bgKeep(false);}catch(e){}breathGain=null;const b=$("#brStart");if(b)b.textContent="▶ Begin";const c=$("#brCircle");if(c)c.style.transform="scale(.6)";const cue=$("#brCue");if(cue)cue.textContent="Done";}
   function loop(){if(!running)return;const P=BREATH[pi],a=ac(),el=a.currentTime-startT,cyc=cycleLen(P),tInCyc=el%cyc;
     let acc=0,idx=0,prog=0,ph=P.phases[0];for(let i=0;i<P.phases.length;i++){const d=P.phases[i][1];if(tInCyc<acc+d){idx=i;ph=P.phases[i];prog=(tInCyc-acc)/d;break;}acc+=d;}
     if(idx!==phaseIdx){phaseIdx=idx;onPhase(ph);}
@@ -9420,7 +9446,7 @@ function renderBreathwork(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if
     const c=$("#brCircle");if(c)c.style.transform="scale("+scale.toFixed(3)+")";FX.breath=(scale-0.6)/0.4;FX.breathT=performance.now();
     const pt=$("#brPhT");if(pt)pt.textContent=Math.ceil(ph[1]-(prog*ph[1]))+"";
     const rem=Math.max(0,mins*60-el),tm=$("#brTime");if(tm)tm.textContent=Math.floor(rem/60)+":"+String(Math.floor(rem%60)).padStart(2,"0");
-    if(el>=mins*60){efBell(a,pianoMaster(a),a.currentTime,396,2.2);stop();const cue=$("#brCue");if(cue)cue.textContent="Complete";if(activeId())addBeans(5);if(opts.done)opts.done();return;}
+    if(el>=mins*60){const eo=endOut;endOut=null;stop();if(eo)setTimeout(()=>{try{eo.disconnect();}catch(e){}},2600);const cue=$("#brCue");if(cue)cue.textContent="Complete";if(activeId())addBeans(5);if(opts.done)opts.done();return;}
     raf=requestAnimationFrame(loop);}
   draw();if(opts.auto)start();
 }
