@@ -8148,6 +8148,22 @@ function medRemBanner(){var bn=document.getElementById("medBanner");if(!bn)retur
 var _medNotified="";
 function medRemTick(){var r=medRemGet();if(r.on&&!medDidToday()&&!medDismissed()){var now=new Date(),hm=(r.time||"08:00").split(":");if(now.getHours()===(+hm[0]||0)&&now.getMinutes()===(+hm[1]||0)){var key=medToday()+" "+r.time;if(_medNotified!==key){_medNotified=key;try{if(window.Notification&&Notification.permission==="granted")new Notification("\ud83e\uddd8 Time to meditate",{body:"Take a few minutes to drop in."});}catch(e){}}}}
   try{var bn=document.getElementById("medBanner");if(bn&&typeof home!=="undefined"&&home&&!home.hidden)medRemBanner();}catch(e){}}
+/* ---- Daily practice: a curated day — morning, afternoon, bedtime ---- */
+var DAY_PLAN=[
+ {k:"m",ic:"\u2600\ufe0f",when:"Morning",what:"Coherent breathing",len:"10 min",go:function(done){renderBreathwork({pat:"coherent",mins:10,title:"\u2600\ufe0f Morning \u00b7 Breathwork",auto:true,done:done});}},
+ {k:"a",ic:"\ud83c\udf43",when:"Afternoon",what:"Afternoon Reset \u00b7 binaural journey",len:"10 min",go:function(done){renderJourney({type:"reset",len:10,title:"\ud83c\udf43 Afternoon \u00b7 Reset",auto:true,done:done});}},
+ {k:"n",ic:"\ud83c\udf19",when:"Bedtime",what:"4\u00b77\u00b78 breathing, then the Sleep Drift journey",len:"10 + 30 min",go:function(done){renderBreathwork({pat:"478",mins:10,title:"\ud83c\udf19 Bedtime \u00b7 1 of 2 \u00b7 Breathwork",auto:true,done:function(){var c=document.getElementById("brCue");if(c)c.textContent="Sleep Drift begins\u2026";setTimeout(function(){renderJourney({type:"sleep",len:30,title:"\ud83c\udf19 Bedtime \u00b7 2 of 2 \u00b7 Sleep Drift",auto:true,done:done});},6000);}});}}
+];
+function dayKey(){var d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();}
+function dayGet(){var v=load("mjk-daydone",null);return v&&v.d===dayKey()?v:{d:dayKey()};}
+function dayMark(k){var v=dayGet();v[k]=1;save("mjk-daydone",v);}
+function dayNow(){var h=new Date().getHours();return h<12?"m":h<18?"a":"n";}
+function dayPlanDraw(){var box=document.getElementById("dayPlan");if(!box)return;var v=dayGet(),now=dayNow();
+  box.innerHTML='<div style="margin:12px 0 2px;font-size:1.25rem;font-weight:700;color:var(--gold)">Today\u2019s practice</div><div class="site-note" style="margin-bottom:8px">Three short sessions to carry you through the day. Tap one to begin.</div><div id="dayRows" style="display:grid;gap:8px"></div>';
+  var rows=document.getElementById("dayRows");DAY_PLAN.forEach(function(p){var done=!!v[p.k],cur=p.k===now&&!done,b=document.createElement("button");b.className="card";
+    b.style.cssText="display:flex;align-items:center;gap:12px;text-align:left;padding:12px 14px;width:100%;"+(cur?"border-color:var(--gold);":"")+(done?"opacity:.6;":"");
+    b.innerHTML='<span style="font-size:1.6rem">'+p.ic+'</span><span style="flex:1"><b>'+p.when+'</b>'+(cur?' <span style="font-size:.72rem;color:var(--gold);font-weight:700">\u00b7 NOW</span>':'')+'<br><span style="font-size:.85rem;opacity:.85">'+p.what+'</span><br><span style="font-size:.75rem;opacity:.6">'+p.len+'</span></span><span style="font-size:1.3rem">'+(done?'\u2713':'\u25b6')+'</span>';
+    b.onclick=function(){p.go(function(){dayMark(p.k);});};rows.appendChild(b);});}
 function renderMeditation(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{medStop();};
   const MODS=[
    {ic:"🌙",title:"Guided Sessions",blurb:"Present-focused sessions for steadying the body, coming back to the room, winding down and falling asleep. Narrated, with a Ground me button always on screen.",go:renderStandDown,off:1},
@@ -8162,9 +8178,10 @@ function renderMeditation(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();h
   ].filter(function(m){return !m.off;});
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🧘 Meditation</span></div><div class="panel">'+
     '<div class="intro">Train the mind and the nervous system. Headphones recommended throughout.</div>'+
-    '<div style="margin:16px 0 2px;font-size:1.25rem;font-weight:700;color:var(--gold)">Meditate</div><div class="site-note" style="margin-bottom:8px">Press play and follow along.</div><div class="grid" id="medCards"></div>'+'<div style="margin:26px 0 2px;font-size:1.25rem;font-weight:700;color:var(--gold);border-top:1px solid var(--line);padding-top:16px">Create</div><div class="site-note" style="margin-bottom:8px">Make your own meditations: record them in your voice.</div><div class="grid" id="medMake"></div>'+'<div class="rlab" style="display:block;margin:16px 0 6px">\ud83d\udd14 Daily reminder</div><div class="rrow2"><span class="rlab">Remind me</span><span class="rchips tight"><button class="rchip sm" id="medRemOn">On</button><button class="rchip sm" id="medRemOff">Off</button></span><input type="time" id="medRemTime" style="background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:6px 9px;font:inherit;margin-left:8px"></div><div class="site-note" id="medRemNote" style="margin-top:4px"></div></div>';
+    '<div id="dayPlan"></div><div style="margin:16px 0 2px;font-size:1.25rem;font-weight:700;color:var(--gold)">Meditate</div><div class="site-note" style="margin-bottom:8px">Press play and follow along.</div><div class="grid" id="medCards"></div>'+'<div style="margin:26px 0 2px;font-size:1.25rem;font-weight:700;color:var(--gold);border-top:1px solid var(--line);padding-top:16px">Create</div><div class="site-note" style="margin-bottom:8px">Make your own meditations: record them in your voice.</div><div class="grid" id="medMake"></div>'+'<div class="rlab" style="display:block;margin:16px 0 6px">\ud83d\udd14 Daily reminder</div><div class="rrow2"><span class="rlab">Remind me</span><span class="rchips tight"><button class="rchip sm" id="medRemOn">On</button><button class="rchip sm" id="medRemOff">Off</button></span><input type="time" id="medRemTime" style="background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:6px 9px;font:inherit;margin-left:8px"></div><div class="site-note" id="medRemNote" style="margin-top:4px"></div></div>';
   $("#eBack").onclick=goHome;
   const cc=$("#medCards"),cm=$("#medMake");MODS.forEach(c=>{const b=document.createElement("button");b.className="card";b.innerHTML=`<span class="ic">${c.ic}</span><h3>${esc(c.title)}</h3><span class="blurb">${esc(c.blurb)}</span>`;b.onclick=c.go;(c.mk?cm:cc).appendChild(b);});
+  dayPlanDraw();
   (function(){var r=medRemGet();var on=$("#medRemOn"),off=$("#medRemOff"),tm=$("#medRemTime"),note=$("#medRemNote");if(tm)tm.value=r.time||"08:00";function upd(){if(on)on.classList.toggle("sel",r.on);if(off)off.classList.toggle("sel",!r.on);if(note)note.textContent=r.on?("Reminder on at "+(r.time||"08:00")+((window.Notification&&Notification.permission==="granted")?" \u00b7 alerts on":"")):"Reminder off.";}if(on)on.onclick=function(){r.on=true;medRemSet(r);if(window.Notification&&Notification.permission==="default"){try{Notification.requestPermission().then(upd);}catch(e){}}upd();};if(off)off.onclick=function(){r.on=false;medRemSet(r);upd();};if(tm)tm.onchange=function(){r.time=tm.value||"08:00";medRemSet(r);upd();};upd();})();
 }
 function renderBrainwave(startId){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{medStop();};
@@ -8725,11 +8742,11 @@ function renderVoiceJourney(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop()
     $("#vjReset").onclick=function(){if(!this.dataset.sure){this.dataset.sure=1;this.textContent="Tap again — this deletes all your recorded lines";return;}S.parts.forEach((p,pi)=>p.lines.forEach(l=>idbDel(key(pi,l))));const k=S.hum;S=vjDefault();S.hum=k;vjSave(S);paint();};}
   function paint(){if(mode==="studio")paintStudio();else paintList();}
   paint();}
-function renderJourney(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){medStop();};
-  var paused=false,pausedAt=0,humPh="",lastMap=0,jType=load("mjk-jtype","morning"),jLen=load("mjk-jlen",20),jDepth=load("mjk-jdepth",4),carrier=200,vol=0.5,shimmer=true,body=load("mjk-bwbody",false),playing=false,t0=0,plan=null;
+function renderJourney(opts){opts=opts||{};if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){medStop();};
+  var paused=false,pausedAt=0,humPh="",lastMap=0,jType=load("mjk-jtype","morning"),jLen=load("mjk-jlen",20),jDepth=load("mjk-jdepth",4),carrier=200,vol=0.5,shimmer=true,body=load("mjk-bwbody",false),playing=false,t0=0,plan=null;if(opts.type){jType=opts.type;jLen=opts.len||jLen;}
   function fmt(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
   function draw(){var P=jPlanFor(jType,jLen,jDepth),J=JOURNEYS.find(function(j){return j.id===jType;})||JOURNEYS.find(function(j){return j.id==="dive";})||JOURNEYS[0];
-    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌀 Brainwave Journey</span></div><div class="panel">'+
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+(opts.title||"🌀 Brainwave Journey")+'</span></div><div class="panel">'+
       '<div class="intro">A guided ride on a binaural beat that slowly moves your brainwaves where you want them. Pick a journey for the time of day. <b>Headphones on</b>, lie back, nothing to do but listen.</div>'+
       '<div id="jTypes" style="display:grid;gap:6px;margin:8px 0"></div>'+
       '<div style="margin:6px 0 4px;font:900 1.15rem system-ui">'+J.ic+' '+J.name+' <span style="font-size:.8rem;font-weight:700;color:var(--muted)">\u00b7 '+J.when+'</span></div><div class="site-note" style="margin:0 0 4px">'+J.desc+'</div>'+
@@ -8795,14 +8812,14 @@ function renderJourney(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home
     if(t>=total){finish();}}
   function finish(){playing=false;if(MED.timer){clearInterval(MED.timer);MED.timer=null;}try{medMarkDone();}catch(e){}if(activeId()){try{addBeans(10);beanChip();}catch(e){}}
     try{var a=ac();if(MED.master)MED.master.gain.setTargetAtTime(0.0001,a.currentTime,2.5);}catch(e){}setTimeout(medStop,9000);
-    draw();var J=JOURNEYS.find(function(j){return j.id===jType;})||JOURNEYS.find(function(j){return j.id==="dive";})||JOURNEYS[0],fh=plan[plan.length-1].h1;var ph=$("#jPhase");if(ph)ph.innerHTML='<b style="color:#5fe0a8">'+J.end+'</b>'+bioSummary();var hz=$("#jHz");if(hz)hz.textContent=fh.toFixed(1)+" Hz";var bl=$("#jBandL");if(bl)bl.textContent=jBand(fh);}
-  draw();}
-function renderBreathwork(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  let pi=0,mins=5,running=false,raf=null,startT=0,phaseIdx=-1,toneOn=true,breathGain=null,hrRAF=null;
+    draw();var J=JOURNEYS.find(function(j){return j.id===jType;})||JOURNEYS.find(function(j){return j.id==="dive";})||JOURNEYS[0],fh=plan[plan.length-1].h1;var ph=$("#jPhase");if(ph)ph.innerHTML='<b style="color:#5fe0a8">'+J.end+'</b>'+bioSummary();var hz=$("#jHz");if(opts.done){try{opts.done();}catch(e){}}if(hz)hz.textContent=fh.toFixed(1)+" Hz";var bl=$("#jBandL");if(bl)bl.textContent=jBand(fh);}
+  draw();if(opts.auto)begin();}
+function renderBreathwork(opts){opts=opts||{};if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  let pi=0,mins=5,running=false,raf=null,startT=0,phaseIdx=-1,toneOn=true,breathGain=null,hrRAF=null;if(opts.pat){BREATH.forEach((p,i)=>{if(p.id===opts.pat)pi=i;});}if(opts.mins)mins=opts.mins;
   teardown=()=>{running=false;if(raf)cancelAnimationFrame(raf);if(hrRAF)cancelAnimationFrame(hrRAF);medStop();};
   function cycleLen(P){return P.phases.reduce((a,b)=>a+b[1],0);}
   function draw(){const P=BREATH[pi];
-    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌬️ Breathwork</span></div><div class="panel">'+
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+(opts.title||"🌬️ Breathwork")+'</span></div><div class="panel">'+
       '<div class="intro">Follow the circle — grow with the <b>in</b>-breath, settle with the <b>out</b>. Slow breathing (especially a long exhale) tells your nervous system it&rsquo;s safe to rest.</div>'+
       '<div class="rlab" style="display:block;margin:4px 0 6px">Pattern</div><div class="rchips" id="brPats"></div>'+
       '<div class="site-note" id="brDesc" style="margin:6px 0 2px"></div>'+
@@ -8847,9 +8864,9 @@ function renderBreathwork(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();h
     const c=$("#brCircle");if(c)c.style.transform="scale("+scale.toFixed(3)+")";
     const pt=$("#brPhT");if(pt)pt.textContent=Math.ceil(ph[1]-(prog*ph[1]))+"";
     const rem=Math.max(0,mins*60-el),tm=$("#brTime");if(tm)tm.textContent=Math.floor(rem/60)+":"+String(Math.floor(rem%60)).padStart(2,"0");
-    if(el>=mins*60){efBell(a,pianoMaster(a),a.currentTime,396,2.2);stop();const cue=$("#brCue");if(cue)cue.textContent="Complete";if(activeId())addBeans(5);return;}
+    if(el>=mins*60){efBell(a,pianoMaster(a),a.currentTime,396,2.2);stop();const cue=$("#brCue");if(cue)cue.textContent="Complete";if(activeId())addBeans(5);if(opts.done)opts.done();return;}
     raf=requestAnimationFrame(loop);}
-  draw();
+  draw();if(opts.auto)start();
 }
 /* ===== RHYTHM MIND (meditation) — adaptive inner-pulse training: hold the beat through longer silences at slower tempos; one hand or alternating hands ===== */
 function renderMindPulse(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
