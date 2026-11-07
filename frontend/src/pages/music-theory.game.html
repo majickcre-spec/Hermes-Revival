@@ -4819,8 +4819,12 @@ function pkSpb(){return 60/PK.bpm;}
 function pkT(b){return PK.t0+b*pkSpb();}
 function pkHud(){const h=document.getElementById("pkHud");if(!h)return;if(!PK.running||PK.play==="watch"||!PK.score){h.innerHTML="";return;}const S=PK.score,n=PK.ev.filter(e=>e.hit&&!e.auto).length,acc=n?Math.round(100*S.hit/n):100;
   h.innerHTML='<b>'+S.score+'</b> pts · 🔥 '+S.streak+(S.streak>=8?' ×'+Math.min(4,1+Math.floor(S.streak/8)):'')+' · 🎯 '+acc+'%';}
-function pkAutoHide(){const w=document.getElementById("pkCtlWrap"),hb=document.getElementById("pkHide");if(w&&!PK.hideCtl){PK.hideCtl=true;w.style.display="none";if(hb)hb.textContent="\u25be Show controls";window.dispatchEvent(new Event("resize"));}setTimeout(()=>{const cv=document.getElementById("pkCv"),tp=document.getElementById("pkTop");if(cv&&tp){const y=cv.getBoundingClientRect().top+window.scrollY-tp.querySelector(".play-top").getBoundingClientRect().height-14;window.scrollTo(0,Math.max(0,y));}},80);}
-function pkStop(){PK.running=false;if(PK.sch){clearInterval(PK.sch);PK.sch=null;}const b=document.getElementById("pkGo");if(b)b.textContent=PK.play==="watch"?"▶ Watch it":"▶ Start";pkHud();}
+function pkAutoHide(){pkFab(true);if(PK._stay){PK._stay=false;return;}setTimeout(()=>{const cv=document.getElementById("pkCv"),tp=document.getElementById("pkTop");if(cv&&tp){const y=cv.getBoundingClientRect().top+window.scrollY-tp.querySelector(".play-top").getBoundingClientRect().height-14;window.scrollTo(0,Math.max(0,y));}},80);}
+/* floating ⚙ while playing: jump to the controls without stopping */
+function pkFab(on){let f=document.getElementById("pkFab");if(!on){if(f)f.remove();return;}if(f||!document.getElementById("pkCv"))return;f=document.createElement("button");f.id="pkFab";f.className="btn";f.textContent="⚙ Controls";
+  f.style.cssText="position:fixed;right:14px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:60;padding:10px 16px;border-radius:999px;box-shadow:0 6px 18px rgba(0,0,0,.45);font-size:.9rem";
+  f.onclick=function(){const w=document.getElementById("pkCtlWrap"),hb=document.getElementById("pkHide");if(w&&PK.hideCtl){PK.hideCtl=false;w.style.display="";if(hb)hb.textContent="\u25b4 Hide controls";window.dispatchEvent(new Event("resize"));}const t=document.getElementById("pkCtl")||w;if(t)t.scrollIntoView({behavior:"smooth",block:"start"});};document.body.appendChild(f);}
+function pkStop(){PK.running=false;pkFab(false);if(PK.sch){clearInterval(PK.sch);PK.sch=null;}const b=document.getElementById("pkGo");if(b)b.textContent=PK.play==="watch"?"▶ Watch it":"▶ Start";pkHud();}
 function pkStart(){unlockAudio();try{sfLoadInst("piano");}catch(e){}pkStop();pkBuild();if(!PK.ev.length){pkMsg("Pick something to play first.");return;}
   const go=()=>{PK.score={score:0,streak:0,top:0,hit:0,perf:0};PK.result=null;PK.passN=1;PK.fx=[];const cin=PK.play==="watch"?0:PK.beats;PK.t0=ac().currentTime+(PK.play==="watch"?0.5:0.3)+cin*pkSpb();PK.clickB=-cin;PK.running=true;PK.lastNow=ac().currentTime;PK.sch=setInterval(pkSched,25);
     const b=document.getElementById("pkGo");if(b)b.textContent="⏸ Stop";pkHud();pkMsg("");pkAutoHide();};
@@ -4947,7 +4951,7 @@ function pkDrawCtl(){const box=document.getElementById("pkCtl");if(!box)return;c
       :'<div class="site-note">No scores yet. Pick a chord, scale, melody or progression, tap <b>🎹 I\'ll play</b>, then Start — every run gets a score and is saved here.</div>';}
   else h+='<div class="site-note">Free play. Keys: <b>a w s e d f t g y h u j k</b> on a computer · any MIDI keyboard · or tap.</div><div class="rchips tight" style="margin-top:4px"><button class="rchip sm" id="pkMethod">\ud83d\udcd8 Piano Method</button></div>';
   box.innerHTML=h;
-  const re=()=>{pkStop();pkSaveState();pkBuild();pkDrawCtl();pkMsg("");};
+  const re=()=>{const was=PK.running;pkStop();pkSaveState();pkBuild();pkDrawCtl();pkMsg("");if(was){PK._stay=true;pkStart();}};
   box.querySelectorAll("[data-root]").forEach(b=>b.onclick=()=>{PK.chord.root=+b.dataset.root;re();});box.querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>{PK.chord.q=b.dataset.q;re();});
   box.querySelectorAll("[data-inv]").forEach(b=>b.onclick=()=>{PK.chord.inv=+b.dataset.inv;re();});const bb=document.getElementById("pkBass");if(bb)bb.onclick=()=>{PK.chord.bass=!PK.chord.bass;re();};
   box.querySelectorAll("[data-part]").forEach(b=>b.onclick=()=>{const P=Object.assign({f:1,a:1,b:1},PK.chord.parts||{}),k=b.dataset.part;P[k]=P[k]?0:1;if(!P.f&&!P.a&&!P.b)return;PK.chord.parts=P;re();});
@@ -5012,7 +5016,7 @@ function renderPianoStudio(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
   const size=()=>{const cv=PK.cv;if(!cv)return;const topH=document.getElementById("pkTop").getBoundingClientRect().height,land=window.innerWidth>window.innerHeight,phone=Math.min(window.innerWidth,window.innerHeight)<600;
     const avail=window.innerHeight-(PK.hideCtl?40:Math.min(topH,land&&phone?120:topH))-18;const tb=(document.querySelector('#pkTop .play-top')||{getBoundingClientRect:()=>({height:44})}).getBoundingClientRect().height;const full=window.innerHeight-tb-14;cv.style.height=Math.max(land&&phone?220:300,land?full:Math.min(full,window.innerHeight*0.62))+"px";
     const r=document.getElementById("pkRot");if(r)r.style.display=(!land&&phone)?"block":"none";pkFitRange();if(phone&&land&&!PK._wasLand){PK._wasLand=true;setTimeout(()=>{try{pkAutoHide();}catch(_){}},60);}else if(!land)PK._wasLand=false;};
-  const resize=()=>{setTimeout(size,30);};window.addEventListener("resize",resize);const td0=teardown;teardown=()=>{window.removeEventListener("resize",resize);td0();};
+  const resize=()=>{setTimeout(size,30);};window.addEventListener("resize",resize);const td0=teardown;teardown=()=>{window.removeEventListener("resize",resize);pkFab(false);td0();};
   $("#eBack").onclick=goHome;
   document.querySelectorAll("#pkTabs [data-tab]").forEach(b=>b.onclick=()=>{PK.mode=b.dataset.tab;pkStop();pkSaveState();{PK.bpm=pkDefaultBpm();$("#pkBpmV").textContent=PK.bpm;$("#pkBpm").value=PK.bpm;}
     document.querySelectorAll("#pkTabs [data-tab]").forEach(x=>x.classList.toggle("sel",x===b));pkBuild();pkDrawCtl();pkMsg("");setTimeout(size,20);});
