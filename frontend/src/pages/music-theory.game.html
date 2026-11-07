@@ -8341,12 +8341,12 @@ const BREATH=[
  {id:"calm",name:"Deep Calm 4·4·6",desc:"Longer exhale than inhale — downshifts the nervous system.",phases:[["In",4],["Hold",4],["Out",6]]}
 ];
 /* breath cues: quiet count click + soft transition chime, scheduled on the audio clock (keeps time with the screen locked) */
-const BRCUE=Object.assign({click:false,chime:false},load("mjk-brcues",{}));
+const BRCUE=Object.assign({click:false,chime:false,vol:0.5},load("mjk-brcues",{}));
 function brCueBufs(a){if(a._brCue)return a._brCue;const sr=a.sampleRate,mk=(len,f)=>{const b=a.createBuffer(1,Math.round(sr*len),sr),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=f(i/sr);return b;};
   const click=mk(0.05,t=>(Math.sin(2*Math.PI*1650*t)*0.6+Math.sin(2*Math.PI*2900*t)*0.25+(Math.random()*2-1)*0.15*Math.exp(-t*900))*Math.exp(-t*140)*Math.min(1,t*4000));
   const bell=(f)=>mk(1.8,t=>(Math.sin(2*Math.PI*f*t)+0.35*Math.sin(2*Math.PI*f*2.01*t)*Math.exp(-t*3)+0.12*Math.sin(2*Math.PI*f*3*t)*Math.exp(-t*6))*Math.exp(-t*2.4)*Math.min(1,t*300)*0.5);
   a._brCue={click:click,In:bell(528),Out:bell(396),Hold:bell(444)};return a._brCue;}
-function brCueSchedule(a,P,T0,secs){const B=brCueBufs(a),out=a.createGain();out.gain.value=1;out.connect(a.destination);const end=T0+secs;let t=T0;
+function brCueSchedule(a,P,T0,secs){const B=brCueBufs(a),out=a.createGain();out.gain.value=BRCUE.vol*2;out.connect(a.destination);const end=T0+secs;let t=T0;
   const put=(buf,at,v)=>{const s=a.createBufferSource(),g=a.createGain();s.buffer=buf;g.gain.value=v;s.connect(g);g.connect(out);s.start(at);};
   while(t<end){for(const ph of P.phases){if(t>=end)break;if(BRCUE.chime)put(B[ph[0]]||B.Hold,t,0.12);if(BRCUE.click){for(let k=BRCUE.chime?1:0;k<ph[1]-0.05;k++){if(t+k<end)put(B.click,t+k,0.07);}}t+=ph[1];}}
   return out;}
@@ -9627,6 +9627,7 @@ function renderBreathwork(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if
       '<div class="rrow2"><span class="rlab">Length</span><span class="rchips tight" id="brMins"></span></div>'+
       '<div class="rrow2"><span class="rlab">Breath tone</span><span class="rchips tight"><button class="rchip sm'+(toneOn?" sel":"")+'" id="brTone">'+(toneOn?"On":"Off")+'</button></span></div>'+
       '<div class="rrow2"><span class="rlab">Cues</span><span class="rchips tight"><button class="rchip sm'+(BRCUE.click?" sel":"")+'" id="brClick">Count click: '+(BRCUE.click?"On":"Off")+'</button><button class="rchip sm'+(BRCUE.chime?" sel":"")+'" id="brChime">Change chime: '+(BRCUE.chime?"On":"Off")+'</button></span></div>'+
+      '<div class="rrow"><span class="rlab">Cue volume</span><input type="range" id="brCueV" min="0" max="100" value="'+Math.round(BRCUE.vol*100)+'" style="flex:1"><span class="rbpm" id="brCueVv">'+Math.round(BRCUE.vol*100)+'%</span></div>'+
       (opts.note?'':'<div class="actions"><button class="btn" id="brStart">'+(running?"■ Stop":"▶ Begin")+'</button></div>')+
       '<div class="rlab" style="display:block;margin:14px 0 6px">💗 Heart-rate variability (optional)</div>'+
       '<div class="idea-fb" id="brHR"></div>'+
@@ -9636,8 +9637,10 @@ function renderBreathwork(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if
     $("#brDesc").textContent=P.desc;
     const mc=$("#brMins");[2,5,10,15].forEach(m=>{const b=document.createElement("button");b.className="rchip sm"+(m===mins?" sel":"");b.textContent=m+" min";b.onclick=()=>{if(running)return;mins=m;$("#brTime").textContent=m+":00";draw();};mc.appendChild(b);});
     $("#brTone").onclick=()=>{toneOn=!toneOn;draw();};
-    const cueSet=(k)=>{BRCUE[k]=!BRCUE[k];save("mjk-brcues",{click:BRCUE.click,chime:BRCUE.chime});if(running){cueKill();if(BRCUE.click||BRCUE.chime){const a=ac(),P=BREATH[pi],cyc=cycleLen(P),el=a.currentTime-startT,next=startT+Math.ceil((el+0.05)/cyc)*cyc,left=startT+mins*60-next;if(left>0)cueOut=brCueSchedule(a,P,next,left);}}draw();};
-    $("#brClick").onclick=()=>cueSet("click");$("#brChime").onclick=()=>cueSet("chime");
+    const cueSet=(k)=>{BRCUE[k]=!BRCUE[k];save("mjk-brcues",{click:BRCUE.click,chime:BRCUE.chime,vol:BRCUE.vol});if(running){cueKill();if(BRCUE.click||BRCUE.chime){const a=ac(),P=BREATH[pi],cyc=cycleLen(P),el=a.currentTime-startT,next=startT+Math.ceil((el+0.05)/cyc)*cyc,left=startT+mins*60-next;if(left>0)cueOut=brCueSchedule(a,P,next,left);}}draw();};
+    $("#brClick").onclick=()=>cueSet("click");
+    const cv=$("#brCueV");cv.oninput=()=>{BRCUE.vol=cv.value/100;$("#brCueVv").textContent=cv.value+"%";save("mjk-brcues",{click:BRCUE.click,chime:BRCUE.chime,vol:BRCUE.vol});if(cueOut){try{cueOut.gain.setTargetAtTime(BRCUE.vol*2,ac().currentTime,0.05);}catch(e){}}};
+    cv.onchange=()=>{if(!running){try{const a=ac(),B=brCueBufs(a),s2=a.createBufferSource(),g=a.createGain();s2.buffer=BRCUE.chime||!BRCUE.click?B.In:B.click;g.gain.value=(BRCUE.chime||!BRCUE.click?0.12:0.07)*BRCUE.vol*2;s2.connect(g);g.connect(a.destination);s2.start();}catch(e){}}};$("#brChime").onclick=()=>cueSet("chime");
     $("#brStart").onclick=()=>{if(running)stop();else start();};
     renderHR();
   }
