@@ -8718,7 +8718,11 @@ function dayPlanDraw(){var box=document.getElementById("dayPlan");if(!box)return
     b.innerHTML='<span style="font-size:1.6rem">'+p.ic+'</span><span style="flex:1"><b>'+p.when+'</b>'+(cur?' <span style="font-size:.72rem;color:var(--gold);font-weight:700">\u00b7 NOW</span>':'')+'<br><span style="font-size:.85rem;opacity:.85">'+p.what+'</span><br><span style="font-size:.75rem;opacity:.6">'+p.len+(p.k==="n"?" \u00b7 2 steps, flows on its own":"")+'</span></span><span style="font-size:1.3rem">'+(done?'\u2713':'\u25b6')+'</span>';
     b.onclick=function(){p.go(function(){dayMark(p.k);});};rows.appendChild(b);});}
 /* ===== HEART SYNC — your heartbeat, outside you: a bass-drum pulse locked to your heart, music tuned to it, then gently guiding it down ===== */
-const HSX={mode:load("mjk-hsmode","guide"),goal:load("mjk-hsgoal","calm"),mins:load("mjk-hsmins",20),ocean:load("mjk-hsocean",true),chimes:load("mjk-hschimes",true),breath:load("mjk-hsbreath",true),drum:load("mjk-hsdrum",0.8),music:load("mjk-hsmusic",0.6),bpat:load("mjk-hsbpat","heart"),carrier:load("mjk-hscar",528),lat:load("mjk-hslat",0)};
+const HSX={mode:load("mjk-hsmode","guide"),goal:load("mjk-hsgoal","calm"),mins:load("mjk-hsmins",20),ocean:load("mjk-hsocean",true),chimes:load("mjk-hschimes",true),breath:load("mjk-hsbreath",true),drum:load("mjk-hsdrum",0.8),music:load("mjk-hsmusic",0.6),bpat:load("mjk-hsbpat","heart"),carrier:load("mjk-hscar",528),lat:load("mjk-hslat",0),mel:load("mjk-hsmel","hchime"),gong:load("mjk-hsgong",true)};
+const HS_MEL=[["off","Off"],["hchime","Hand chimes"],["kalimba","Kalimba"],["tbell","Temple bells"],["glass","Crystal glass"]];
+/* a sampled note tuned to an exact frequency (pure ratios to the session tone, not equal temperament) */
+function hsSamp(a,dest,set,f,t,v,len,pan){const I=INSTS[set];if(!I)return;let file,rate;if(I.notes){const m=69+12*Math.log2(f/440);file=I.notes.reduce(function(b,x){return Math.abs(x-m)<Math.abs(b-m)?x:b;},I.notes[0]);rate=f/(440*Math.pow(2,(file-69)/12));}else{file=f;rate=v.rate||1;v=v.v;}
+  instBuf(set,file).then(function(b){if(!b)return;const st=Math.max(t,a.currentTime+0.02),L=Math.min(b.duration/rate,len||99),s2=a.createBufferSource(),g=a.createGain();s2.buffer=b;s2.playbackRate.value=rate;g.gain.setValueAtTime(v,st);g.gain.setValueAtTime(v,Math.max(st+0.01,st+L-2));g.gain.linearRampToValueAtTime(0.0001,st+L);s2.connect(g);if(a.createStereoPanner){const pn=a.createStereoPanner();pn.pan.value=pan||0;g.connect(pn);pn.connect(dest);}else g.connect(dest);s2.start(st);s2.stop(st+L+0.05);});}
 const HS_BPAT=[["heart","Heart-paced",null],["exh","Long exhale 4·6",[["In",4],["Out",6]]],["478","4·7·8",[["In",4],["Hold",7],["Out",8]]],["box","Box 4·4·4·4",[["In",4],["Hold",4],["Out",4],["Hold",4]]]];
 function hsNote(hz){let f=hz;while(f<96)f*=2;while(f>=192)f/=2;return f;}
 function hsBeatHz(hz,goal,prog){const tg=goal==="deep"?6:goal==="sleep"?6*Math.pow(2.5/6,Math.min(1,prog||0)):9;let b=hz,best=b;for(let n=-2;n<6;n++){const c=hz*Math.pow(2,n);if(Math.abs(Math.log2(c/tg))<Math.abs(Math.log2(best/tg)))best=c;}return best;}
@@ -8768,8 +8772,10 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     const bf=car>=300?car/2:car;N.brG=a.createGain();N.brG.gain.value=0.0001;const bl=a.createBiquadFilter();bl.type="lowpass";bl.frequency.value=1400;N.brG.connect(bl);bl.connect(M);bl.connect(N.rv);
     [[bf,1],[bf*1.5,0.5],[bf/2,0.35]].forEach(function(q){const o=a.createOscillator(),g=a.createGain();o.type="sine";o.frequency.value=q[0];g.gain.value=q[1];o.connect(g);g.connect(N.brG);o.start();MED.oscs.push(o);});
     /* the drum has its own path so its level and timing stay independent */
-    N.drum=a.createGain();N.drum.gain.value=HSX.drum*0.45;N.lim=a.createDynamicsCompressor();N.lim.threshold.value=-15;N.lim.knee.value=6;N.lim.ratio.value=12;N.lim.attack.value=0.003;N.lim.release.value=0.25;N.drum.connect(N.lim);N.lim.connect(a.destination);const ds=a.createGain();ds.gain.value=0.15;N.drum.connect(ds);ds.connect(N.rv);
-    S.nodes=N;S.note0=car;}
+    N.drum=a.createGain();N.drum.gain.value=HSX.drum*0.32;N.lim=a.createDynamicsCompressor();N.lim.threshold.value=-15;N.lim.knee.value=6;N.lim.ratio.value=12;N.lim.attack.value=0.003;N.lim.release.value=0.25;N.out=a.createDynamicsCompressor();N.out.threshold.value=-8;N.out.knee.value=4;N.out.ratio.value=20;N.out.attack.value=0.001;N.out.release.value=0.2;N.sc=a.createWaveShaper();N.sc.curve=(function(){const c=new Float32Array(2048);for(let i=0;i<2048;i++){const x=i/1023.5-1,ax=Math.abs(x);c[i]=ax<0.7?x:Math.sign(x)*(0.7+0.28*Math.tanh((ax-0.7)/0.28));}return c;})();N.out.connect(N.sc);N.sc.connect(a.destination);
+    if(MED.gate){try{MED.gate.disconnect();}catch(e){}MED.gate.connect(N.out);}N.drum.connect(N.lim);N.lim.connect(N.out);const ds=a.createGain();ds.gain.value=0.15;N.drum.connect(ds);ds.connect(N.rv);
+    try{if(HSX.gong){instBuf("gong",0);instBuf("gong",1);}const I=INSTS[HSX.mel];if(I)I.notes.forEach(function(n){instBuf(HSX.mel,n);});}catch(e){}
+    S.mel=null;S.cyc=0;S.gongAt=0;S.nodes=N;S.note0=car;}
   function retune(a,hz){const N=S.nodes;if(!N)return;const bh=hsBeatHz(hz,hsG(),prog()),t=a.currentTime;S.beatHz=bh;if(MED.right)MED.right.frequency.setTargetAtTime(S.car+bh,t,3);if(MED.lfo)MED.lfo.frequency.setTargetAtTime(bh,t,3);try{medLayersFollow(bh);}catch(e){}}
   function opening(a){}
   function hsG(){return HSX.mode==="sleep"?"sleep":HSX.goal;}
@@ -8789,6 +8795,19 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
       if(HSX.breath&&bp2.start&&bp2.name==="In")hsChime(a,N.mus,tt,f*8,0.05*dark,(Math.random()-0.5)*0.6);
       else if(HSX.breath&&bp2.start&&bp2.name==="Out")hsChime(a,N.mus,tt,f*6,0.04*dark,(Math.random()-0.5)*0.6);
       else if(Math.random()<(0.06+0.16*c)*dark)hsChime(a,N.mus,tt+(Math.random()<0.3?S.Pm/2:0),f*H[Math.floor(Math.random()*H.length)],0.025+0.02*c,(Math.random()-0.5)*1.4);}
+    if(N){const isSleep=HSX.mode==="sleep";
+      /* gong: opens the session, then marks every 6th breath (rarer and softer as you go down for sleep) */
+      if(bp2.start&&bp2.name==="In"){S.cyc++;}
+      if(HSX.gong&&bp2.start&&bp2.name==="In"&&(S.cyc===1||S.cyc%(isSleep?8:6)===0)&&tt-S.gongAt>20){S.gongAt=tt;hsSamp(a,N.mus,"gong",S.cyc===1?0:(S.cyc/6)%2?1:0,tt,{v:(isSleep?0.32:0.45)*dark,rate:isSleep?0.84:0.94},26,(Math.random()-0.5)*0.4);}
+      /* melody: pentatonic in pure ratios to the tone, landing on heartbeats; it rises with the in-breath and settles with the out */
+      if(HSX.mel!=="off"&&INSTS[HSX.mel]&&S.cyc>=1){const I=INSTS[HSX.mel],lo=440*Math.pow(2,(I.notes[0]-69)/12),hi=440*Math.pow(2,(I.notes[I.notes.length-1]-69)/12);
+        let base=S.car;while(base<lo*1.05)base*=2;while(base>hi/2.3)base/=2;const R=[1,9/8,5/4,3/2,5/3,2,9/4,5/2],cue=bp2.name;
+        const pPlay=(HSX.mel==="glass"?0.12:HSX.mel==="tbell"?0.22:0.42)*(isSleep?(1-0.7*pr):1);
+        if(S.mel==null)S.mel=2;
+        if(bp2.start&&cue==="In")S.mel=Math.max(0,S.mel-1);
+        if(Math.random()<pPlay||(bp2.start&&cue!=="Hold")){const step=cue==="In"?(Math.random()<0.75?1:0):cue==="Out"?(Math.random()<0.75?-1:0):(Math.random()<0.5?0:(Math.random()<0.5?1:-1));
+          S.mel=Math.max(0,Math.min(R.length-1,S.mel+step+(Math.random()<0.12?(Math.random()<0.5?2:-2):0)));const f2=base*R[S.mel],sub=Math.random()<0.25?S.Pm/2:0;
+          hsSamp(a,N.mus,HSX.mel,f2,tt+sub,(HSX.mel==="glass"?0.22:HSX.mel==="tbell"?0.2:0.3)*dark,HSX.mel==="glass"?10:7,(Math.random()-0.5)*1.1);}}}
     S.vq.push({t:tt+lat,b:bp2});S.bIdx++;}
   /* follow (and later lead) the heart: tempo eases toward your heart period, phase is pulled onto your real beats */
   function nextBeat(t){let P=S.P||S.tapP||S.Pm,target=P,w=0.3;
@@ -8803,7 +8822,7 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     if(now-S.lastCo>2000){S.lastCo=now;const c=bioCoherence();if(c){S.co=c.score/(1+c.score);S.coSum+=S.co;S.coN++;S.coPk=Math.max(S.coPk,S.co);opening(a);}
       if(S.O!=null&&S.P){const tNow=a.currentTime,hs=S.beats.map(function(b){return S.O+b.c;}).filter(function(x){return x>tNow-20&&x<tNow;});let hit=0;hs.forEach(function(h){let d=1e9;S.mb.forEach(function(m){d=Math.min(d,Math.abs(m-h));});if(d<=0.1*S.P)hit++;});S.syncN=hs.length;S.sync=hs.length?hit/hs.length:0;if(S.stage!=="match"||T>30){S.syncHit+=hit;S.syncAll=(S.syncAll||0)+hs.length;}}
       const hz=1/S.Pm;if(Math.abs(hsNote(hz)-S.note)/S.note>0.004||Math.abs(hsBeatHz(hz,hsG(),prog())-S.beatHz)/S.beatHz>0.01)retune(a,hz);
-      if(HSX.mode==="sleep"&&S.nodes){const pr=prog(),t=a.currentTime;const fd=pr<0.75?1:Math.max(0.0001,1-(pr-0.75)/0.25);S.nodes.drum.gain.setTargetAtTime(HSX.drum*0.45*(1-0.5*pr)*fd,t,2);S.nodes.master.gain.setTargetAtTime(Math.max(0.0001,HSX.music*fd),t,2);}}
+      if(HSX.mode==="sleep"&&S.nodes){const pr=prog(),t=a.currentTime;const fd=pr<0.75?1:Math.max(0.0001,1-(pr-0.75)/0.25);S.nodes.drum.gain.setTargetAtTime(HSX.drum*0.32*(1-0.5*pr)*fd,t,2);S.nodes.master.gain.setTargetAtTime(Math.max(0.0001,HSX.music*fd),t,2);}}
     if(now-S.lastChart>1000){S.lastChart=now;S.hist.push({t:T,hr:fresh()?60/S.P:null,mb:60/S.Pm,co:S.co});if(S.hist.length>2400)S.hist.shift();
       if(S.stage==="guide"&&S.hist.length>90){const md=function(a2){const b=a2.filter(function(x){return x!=null;}).sort(function(x,y){return x-y;});return b.length?b[b.length>>1]:null;};const r1=md(S.hist.slice(-30).map(function(h){return h.hr;})),r0=md(S.hist.slice(-90,-60).map(function(h){return h.hr;}));S.hold=r1!=null&&r0!=null&&r1>=r0-0.3;}
       paint();}
@@ -8872,6 +8891,7 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
       (HSX.mode==="sleep"?'<div class="site-note" style="margin:-2px 0 6px">Sleep: matches your heart, then slows a little more each minute, pairs it with your breath, and drifts the beat from theta into delta. The music darkens, the drum softens, and everything fades to silence at the end.</div>':'<div class="rrow2"><span class="rlab">Goal</span><span class="rchips tight">'+chip("hsGc","Calm · alpha",HSX.goal==="calm")+chip("hsGd","Deep · theta",HSX.goal==="deep")+'</span></div>')+
       '<div class="rrow2"><span class="rlab">Breath</span><span class="rchips tight">'+HS_BPAT.map(function(b){return chip("hsB_"+b[0],b[1],HSX.bpat===b[0]);}).join("")+'</span></div>'+
       '<div class="rrow2"><span class="rlab">Tone</span><span class="rchips tight">'+chip("hsT_heart","💓 Heart note",HSX.carrier==="heart")+[174,285,396,417,432,528,639].map(function(h){return chip("hsT_"+h,h,HSX.carrier==h);}).join("")+'</span></div>'+
+      '<div class="rrow2"><span class="rlab">Melody</span><span class="rchips tight">'+HS_MEL.map(function(m){return chip("hsM_"+m[0],m[1],HSX.mel===m[0]);}).join("")+chip("hsGong","🪘 Gong",HSX.gong)+'</span></div>'+
       '<div class="rrow2"><span class="rlab">Harmonics</span><span class="rchips tight">'+chip("hsLay","✨ Layers: "+({off:"Off",phi:"Golden φ",oct:"Octaves"})[MEDLAYER.mode],MEDLAYER.mode!=="off")+'</span></div>'+
       '<div class="rrow"><span class="rlab">Drum timing</span><input type="range" id="hsLat" min="-300" max="300" step="10" value="'+HSX.lat+'" style="flex:1"><span class="rbpm" id="hsLatV" style="min-width:64px">'+(HSX.lat>0?"+":"")+HSX.lat+' ms</span></div>'+
       '<div class="site-note" style="margin:-4px 0 8px;font-size:.76rem">Drum early or late against the beat you feel? '+(S.run&&HR.connected?'<button class="rchip sm" id="hsCal">Tap where you feel your heartbeat</button> (8 taps) or slide it.':'Start a session with your sensor and tap along to set it, or slide it.')+' Bluetooth headphones and ear sensors usually need a few hundred ms.</div>'+
@@ -8906,11 +8926,13 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     tog("#hsBr",function(){HSX.breath=!HSX.breath;save("mjk-hsbreath",HSX.breath);if(!HSX.breath){const c=$("#hsC");if(c)c.style.transform="scale(.62)";}draw();});
     ["heart",174,285,396,417,432,528,639].forEach(function(h){tog("#hsT_"+h,function(){HSX.carrier=h;save("mjk-hscar",h);if(S.run){const b=$("#hsStage");if(b)b.textContent="New tone starts next session.";}draw();});});
     tog("#hsLay",function(){MEDLAYER.mode=MEDLAYER.mode==="off"?"phi":MEDLAYER.mode==="phi"?"oct":"off";save("mjk-medlayers",MEDLAYER.mode);if(S.run&&MED.master){if(MEDLAYER.mode==="off")medLayersStop();else{medLayersStart(layerSpecs(MEDLAYER.mode,S.car));(MED.layers||[]).forEach(function(L,i){medLayerLevel(i,true,3);});medLayersFollow(S.beatHz);}}draw();});
+    HS_MEL.forEach(function(m){tog("#hsM_"+m[0],function(){HSX.mel=m[0];save("mjk-hsmel",m[0]);const I=INSTS[m[0]];if(I)I.notes.forEach(function(n){instBuf(m[0],n);});draw();});});
+    tog("#hsGong",function(){HSX.gong=!HSX.gong;save("mjk-hsgong",HSX.gong);if(HSX.gong){instBuf("gong",0);instBuf("gong",1);}draw();});
     const lt=$("#hsLat");lt.oninput=function(){HSX.lat=+lt.value;save("mjk-hslat",HSX.lat);$("#hsLatV").textContent=(HSX.lat>0?"+":"")+HSX.lat+" ms";};
     tog("#hsCal",function(){const b=$("#hsCal"),a=ac();S.cal=S.cal||[];S.cal.push(performance.now()/1000+off(a));b.textContent="Tap · "+S.cal.length+"/8";
       if(S.cal.length>=8){const taps=S.cal.slice();S.cal=[];b.textContent="Measuring…";setTimeout(function(){const hb=S.beats.map(function(x){return S.O+x.c;}),d=[];taps.forEach(function(t){let best=null;hb.forEach(function(h){if(best==null||Math.abs(t-h)<Math.abs(best))best=t-h;});if(best!=null&&Math.abs(best)<0.45)d.push(best);});
         if(d.length<5){b.textContent="Couldn’t read that — try again";return;}d.sort(function(x,y){return x-y;});HSX.lat=Math.max(-300,Math.min(300,Math.round(d[d.length>>1]*100)*10));save("mjk-hslat",HSX.lat);draw();const s2=$("#hsStage");if(s2)s2.textContent="Drum timing set to "+(HSX.lat>0?"+":"")+HSX.lat+" ms.";},2600);}});
-    const dv=$("#hsDv");dv.oninput=function(){HSX.drum=dv.value/100;save("mjk-hsdrum",HSX.drum);if(S.nodes)S.nodes.drum.gain.setTargetAtTime(HSX.drum*0.45,ac().currentTime,0.1);};
+    const dv=$("#hsDv");dv.oninput=function(){HSX.drum=dv.value/100;save("mjk-hsdrum",HSX.drum);if(S.nodes)S.nodes.drum.gain.setTargetAtTime(HSX.drum*0.32,ac().currentTime,0.1);};
     const mv=$("#hsMv");mv.oninput=function(){HSX.music=mv.value/100;save("mjk-hsmusic",HSX.music);if(S.nodes)S.nodes.master.gain.setTargetAtTime(Math.max(0.0001,HSX.music),ac().currentTime,0.2);};
     sens();if(S.run)paint();else{drawChart();try{ansPaint("ansHs");}catch(e){}}}
   function sens(){const e=$("#hsSens");if(!e)return;
