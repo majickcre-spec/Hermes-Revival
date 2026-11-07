@@ -15,6 +15,11 @@ export default function MusicTheory() {
     return () => window.removeEventListener("message", onMsg);
   }, []);
 
+  // iPhone Bluetooth browsers (Bluefy) can't use Bluetooth inside a frame: go straight to the full-page app.
+  if (typeof window !== "undefined" && (navigator as any).bluetooth && /iPhone|iPad|iPod/.test(navigator.userAgent)) {
+    window.location.replace("/app.html" + window.location.search);
+    return null;
+  }
   let html = gameHtml;
   // Tell the sandboxed game where the backend is, so its login/sync can reach it.
   try {
