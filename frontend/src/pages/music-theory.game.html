@@ -8030,7 +8030,7 @@ function renderBass(){try{sfLoadInst("bass");}catch(e){}
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎸 Bass Guitar</span></div>'+
      '<div class="panel">'+
       '<div class="intro">'+intro+'</div>'+
-      '<div class="actions" style="margin:0 0 10px;flex-wrap:wrap"><button class="btn ghost" id="bgNeck">🎸 Play the full neck (Fretboard)</button><button class="btn ghost" id="bgMethod">📘 Bass Method</button></div>'+ fb()+
+      '<div class="grid" id="bgMenu" style="margin:0 0 12px">'+[["bgMethod","📘","Bass Method","Step-by-step lessons"],["bgNeck","🎸","Play the Neck","The full bass fretboard"],["bgTrain","🎓","Neck Trainer","Learn the strings, quizzes, Fret Rush"],["bgScales","🎼","Scales on the Neck","See and hear each scale"],["bgMel","🎶","Melodies","Play real melodies on the highway"],["bgTune","🎯","Tuner","Tune your bass with the mic"]].map(function(c){return '<button class="card" id="'+c[0]+'"><span class="ic">'+c[1]+'</span><h3>'+c[2]+'</h3><span class="blurb">'+c[3]+'</span></button>';}).join("")+'</div>'+ fb()+
       '<div class="rchips" id="bgModes" style="margin:4px 0 12px">'+
         '<button class="rchip sm'+(BG.mode==="lines"?" sel":"")+'" data-mode="lines">Basslines</button>'+
         '<button class="rchip sm'+(BG.mode==="chords"?" sel":"")+'" data-mode="chords">Chords</button>'+
@@ -8040,6 +8040,10 @@ function renderBass(){try{sfLoadInst("bass");}catch(e){}
      '</div>';
     $("#eBack").onclick=goHome;
     {const nk=$("#bgNeck");if(nk)nk.onclick=()=>renderFretboard("bass");}
+    {const b=$("#bgTrain");if(b)b.onclick=()=>renderFretboard("bass","train");}
+    {const b=$("#bgScales");if(b)b.onclick=()=>renderFretboard("bass","scale");}
+    {const b=$("#bgMel");if(b)b.onclick=()=>renderMelody("bass");}
+    {const b=$("#bgTune");if(b)b.onclick=()=>{try{TN.inst="bass";}catch(e){}renderTuner();};}
     {const mb=$("#bgMethod");if(mb)mb.onclick=()=>renderMethod("bass");}
     view.querySelectorAll(".bgcell").forEach(c=>{c.onclick=()=>{unlockAudio();const m=+c.getAttribute("data-m");bassVoice(m,ac().currentTime,0.6,0.6);c.classList.remove("glow");void c.offsetWidth;c.classList.add("glow");setTimeout(()=>c.classList.remove("glow"),360);};});
     view.querySelectorAll("#bgModes .rchip").forEach(b=>{b.onclick=()=>{bgStop();if(recOn)stopRec();BG.mode=b.getAttribute("data-mode");draw();};});
