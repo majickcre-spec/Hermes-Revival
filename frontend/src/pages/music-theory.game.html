@@ -7515,7 +7515,7 @@ function melStart(){unlockAudio();melStop(true);melReset();const go=()=>{const a
   if(MEL.mode==="mic"){const st=document.getElementById("melHud");if(st)st.textContent="Turning on the mic…";ensureMic().then(ok=>{if(!ok){if(st)st.textContent="🎤 I need the mic to hear you — or pick 👆 Tap the neck.";return;}go();});}else go();}
 function melSched(){if(!MEL.running)return;const a=ac(),now=a.currentTime,ahead=0.12,spb=melSpb();
   while(melT(MEL.clickB)<now+ahead&&MEL.clickB<MEL.len){const tb=melT(MEL.clickB);if(tb>now-0.05)click(tb,(((MEL.clickB%MEL.song.beats)+MEL.song.beats)%MEL.song.beats)===0?"accent":"beat",MEL.clickB<0?Math.max(0.35,MEL.clickVol):MEL.clickVol);MEL.clickB++;}
-  MEL.notes.forEach(n=>{if(n.sch)return;const t=melT(n.b);if(t<now+ahead){n.sch=true;if(t>now-0.05&&(MEL.mode==="watch"||MEL.guide))pluck(n.m,t,Math.min(2.4,n.dur*spb*0.95+0.25),MEL.mode==="watch"?0.5:0.22);}});}
+  MEL.notes.forEach(n=>{if(n.sch)return;const t=melT(n.b);if(t<now+ahead){n.sch=true;if(t>now-0.05&&(MEL.mode==="watch"||(MEL.guide&&!MEL.test)))pluck(n.m,t,Math.min(2.4,n.dur*spb*0.95+0.25),MEL.mode==="watch"?0.5:0.22);}});}
 function melJudge(n,dt,now){const ad=Math.abs(dt);let k;if(ad<=0.09)k="perfect";else if(ad<=0.2)k="good";else return false;n.j=k;MEL.hits++;if(k==="perfect")MEL.perf++;MEL.streak++;MEL.top=Math.max(MEL.top,MEL.streak);
   MEL.score+=(k==="perfect"?100:50)*Math.min(4,1+Math.floor(MEL.streak/8));MEL.fx.push({t:now,s:n.s,k:k});melHud();return true;}
 function melTap(s,f){if(!MEL.running||MEL.mode!=="tap")return;const now=ac().currentTime,m=fbStrings()[s]+f;let best=null,bd=1e9;
@@ -7527,11 +7527,20 @@ function melMicFrame(now){if(MEL.mode!=="mic"||!toneAnalyser)return;if(!MEL.micB
 function melHud(){const h=document.getElementById("melHud");if(!h)return;if(MEL.mode==="watch"){h.innerHTML=MEL.running?'<span style="color:var(--muted)">Watching — '+esc(MEL.song.name)+'</span>':"";return;}
   const judged=MEL.notes.filter(n=>n.j).length,acc=judged?Math.round(100*MEL.hits/judged):100;
   h.innerHTML='<b style="font-size:1.15rem">'+MEL.score+'</b> pts · 🔥 '+MEL.streak+(MEL.streak>=8?' <b style="color:var(--gold)">×'+Math.min(4,1+Math.floor(MEL.streak/8))+'</b>':'')+' · 🎯 '+acc+'%';}
+/* score history for guitar, ukulele and bass melodies: same shape as Piano's My scores */
+function melStats(){return load("mjk-melstats",{});}
+function melStatKey(){return MEL.inst+"|"+(MEL.song?MEL.song.id:"?")+"|"+(MEL.test?"test":MEL.mode);}
+function melRecordRun(acc){const all=melStats(),k=melStatKey(),st=all[k]||{t:MEL.song.name,inst:MEL.inst,m:MEL.test?"test":MEL.mode,tries:0,best:0,bestAcc:0,bestBpm:0,hist:[]};
+  st.tries++;st.at=Date.now();if(MEL.score>st.best){st.best=MEL.score;st.bestBpm=MEL.bpm;}if(acc>st.bestAcc)st.bestAcc=acc;st.hist.push({a:acc,s:MEL.score,b:MEL.bpm,t:Date.now()});st.hist=st.hist.slice(-30);all[k]=st;save("mjk-melstats",all);return st;}
+function melSpark(h){const H=h.slice(-10);if(!H.length)return "";return '<div style="display:flex;align-items:flex-end;gap:3px;height:38px;justify-content:center;margin-top:6px">'+H.map(function(x,i){return '<div title="'+x.a+'%" style="width:12px;height:'+Math.max(3,Math.round(x.a*0.36))+'px;border-radius:3px;background:'+(i===H.length-1?"var(--gold,#e9c46a)":"rgba(127,240,214,.55)")+'"></div>';}).join("")+'</div>';}
+function melScoresHTML(){const all=melStats(),rows=Object.keys(all).map(function(k){return all[k];}).filter(function(x){return x.inst===MEL.inst;}).sort(function(a,b){return (b.at||0)-(a.at||0);});
+  if(!rows.length)return '<div class="site-note">No scored runs yet. Pick <b>Tap the neck</b> or <b>My instrument</b>, then Start or 🎯 Test.</div>';
+  return rows.map(function(x){return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)"><div style="flex:1;min-width:0"><b>'+esc(x.t)+'</b>'+(x.m==="test"?' <span style="color:var(--gold);font-size:.75rem">TEST</span>':'')+'<div class="site-note" style="margin:0;font-size:.76rem">Best '+x.best+' pts · '+x.bestAcc+'% · '+x.tries+' tr'+(x.tries===1?"y":"ies")+(x.bestBpm?' · '+x.bestBpm+' BPM':'')+'</div></div>'+melSpark(x.hist)+'</div>';}).join("");}
 function melFinish(){melStop();const r=document.getElementById("melRes");if(!r)return;if(MEL.mode==="watch"){r.innerHTML='<div class="feedback">That’s <b>'+esc(MEL.song.name)+'</b>. Now try <b>👆 Tap the neck</b> or <b>🎸 My instrument</b> to play it yourself.</div>';return;}
-  const N=MEL.notes.length,acc=N?Math.round(100*MEL.hits/N):0,stars=acc>=90?3:acc>=75?2:acc>=50?1:0,key=mk("mel",MEL.song.id+"-"+MEL.inst+"-"+MEL.mode),bestOld=load(key,0),rec=MEL.score>bestOld;if(rec)save(key,MEL.score);
+  const N=MEL.notes.length,acc=N?Math.round(100*MEL.hits/N):0,stars=acc>=90?3:acc>=75?2:acc>=50?1:0,key=mk("mel",MEL.song.id+"-"+MEL.inst+"-"+(MEL.test?"test":MEL.mode)),bestOld=load(key,0),rec=MEL.score>bestOld;if(rec)save(key,MEL.score);const stH=melRecordRun(acc);const wasTest=MEL.test;MEL.test=false;{const tb=document.getElementById("melTest");if(tb)tb.textContent="🎯 Test";}
   if(stars>=2&&activeId()&&!isAdult()){addBeans(stars*2);beanChip();}
-  r.innerHTML='<div class="panel" style="text-align:center;margin-top:8px"><div style="font-size:1.6rem">'+("★".repeat(stars)+"☆".repeat(3-stars))+'</div><div style="font:900 1.3rem system-ui">'+MEL.score+' pts'+(rec?' <span style="color:var(--gold);font-size:.85rem">NEW BEST</span>':'')+'</div><div style="color:var(--muted)">'+MEL.hits+'/'+N+' notes · '+MEL.perf+' perfect · best streak '+MEL.top+' · '+acc+'%</div><div style="margin-top:4px;color:var(--muted)">'+(acc>=90?"Locked in. Bump the BPM up 5.":acc>=60?"Nice — loop it a few times, then speed up.":"Slow it down 10–20 BPM and turn on 🔈 Guide notes.")+'</div></div>';}
-function melNeckHint(now){let nx=null,nx2=null;for(let i=0;i<MEL.notes.length;i++){const n=MEL.notes[i];if(n.j&&n.j!=="miss")continue;if(melT(n.b)>=now-0.12){if(!nx)nx=n;else{nx2=n;break;}}}
+  r.innerHTML='<div class="panel" style="text-align:center;margin-top:8px"><div style="font-size:1.6rem">'+("★".repeat(stars)+"☆".repeat(3-stars))+'</div><div style="font:900 1.3rem system-ui">'+MEL.score+' pts'+(rec?' <span style="color:var(--gold);font-size:.85rem">NEW BEST</span>':'')+'</div>'+(wasTest?'<div style="color:var(--gold);font-weight:800;font-size:.8rem">TEST · '+(acc>=90?"Passed with honors":acc>=75?"Passed":"Not yet — practice and test again")+'</div>':'')+'<div style="color:var(--muted)">'+MEL.hits+'/'+N+' notes · '+MEL.perf+' perfect · best streak '+MEL.top+' · '+acc+'%</div><div class="site-note" style="margin:4px 0 0">🏆 Best '+stH.best+' · Try #'+stH.tries+'</div>'+melSpark(stH.hist)+'<div style="margin-top:4px;color:var(--muted)">'+(acc>=90?"Locked in. Bump the BPM up 5.":acc>=60?"Nice — loop it a few times, then speed up.":"Slow it down 10–20 BPM and turn on 🔈 Guide notes.")+'</div></div>';}
+function melNeckHint(now){if(MEL.test&&MEL.running){if(FB.hl||FB.ghost||!MEL._tNotesOff){FB.ghost=null;FB.hl=null;if(!MEL._tNotesOff){MEL._tNotesOff=1;MEL._sn=FB.showNotes;FB.showNotes=false;}fbPaint();}return;}if(MEL._tNotesOff){MEL._tNotesOff=0;FB.showNotes=MEL._sn;MEL.nextKey=null;}let nx=null,nx2=null;for(let i=0;i<MEL.notes.length;i++){const n=MEL.notes[i];if(n.j&&n.j!=="miss")continue;if(melT(n.b)>=now-0.12){if(!nx)nx=n;else{nx2=n;break;}}}
   const key=nx?(nx.s+":"+nx.f+":"+(nx2?nx2.s+":"+nx2.f:"")):"";if(key===MEL.nextKey)return;MEL.nextKey=key;
   if(nx){const f=nx.f;if(f===0){if(FB.win!==1)FB.win=1;}else if(f<FB.win||f>FB.win+FBR()-1)FB.win=Math.max(1,Math.min(13,f<FB.win?f:f-3));FB.hl={s:nx.s,f:nx.f};}else FB.hl=null;
   if(nx2&&leadOn()){const gh=new Array(fbStrings().length).fill(-1);gh[nx2.s]=nx2.f;FB.ghost=nx2.f>0?gh:null;FB.ghostF=null;}else FB.ghost=null;fbPaint();}
@@ -7558,13 +7567,13 @@ function melDraw(cv,now){if(fbHoriz())return melDrawH(cv,now);const dpr=Math.min
     const dd=Math.max(0,d),y=yOf(dd),w=wave(dd),k=1-0.5*dd,x=proj(lane[n.s],dd,w),col=HWY_COL[(N-1-n.s)%6];
     if(n.dur*spb>0.45){const d2=Math.min(1,de),y2=yOf(Math.max(0,d2)),x2=proj(lane[n.s],Math.max(0,d2),wave(Math.max(0,d2)));c.strokeStyle=col+"aa";c.shadowColor=col;c.shadowBlur=10;c.lineWidth=8*k;c.lineCap="round";c.beginPath();c.moveTo(x,y);c.lineTo(x2,y2);c.stroke();c.shadowBlur=0;}
     if(d<-0.02&&n.j==="miss"){c.globalAlpha=Math.max(0,1+d*6);}
-    hfxGem(c,x,y,19*k,col,String(n.f),hwyBadge(n.s,n.m),n.j==="miss");c.globalAlpha=1;}
+    hfxGem(c,x,y,19*k,col,MEL.test&&MEL.running?"?":String(n.f),MEL.test&&MEL.running?"":hwyBadge(n.s,n.m),n.j==="miss");c.globalAlpha=1;}
   // hit sparks + words
   MEL.fx=MEL.fx.filter(f=>now-f.t<0.7);MEL.fx.forEach(f=>{const a=(now-f.t)/0.7,x=lane[Math.min(N-1,f.s)];c.globalAlpha=1-a;
     if(f.k!=="miss"&&f.k!=="oops"){c.strokeStyle=f.k==="good"?"#7ff0d6":"#ffe27a";c.lineWidth=3;c.beginPath();c.arc(x,hitY,10+30*a,0,Math.PI*2);c.stroke();}
     if(f.k!=="auto"){c.fillStyle=f.k==="perfect"?"#ffe27a":f.k==="good"?"#7ff0d6":"#ff5d6c";c.font="900 15px system-ui";c.textAlign="center";c.fillText(f.k==="perfect"?"PERFECT":f.k==="good"?"GOOD":f.k==="miss"?"MISS":"✗",x,hitY-26-26*a);}c.globalAlpha=1;});
   hfxParts(c,dt);hfxLaneNames(c,lane,N,proj,yOf,wave,hitY);
-  {let nx=null;for(const n of MEL.notes){if(!n.j&&T(n.b)>now-0.05){nx=n;break;}}if(!nx&&!MEL.running&&MEL.notes.length)nx=MEL.notes[0];if(nx)hfxNext(c,W,NOTE_NAMES[((nx.m%12)+12)%12],fbLabel(nx.s)+" string \u00b7 "+(nx.f===0?"open":"fret "+nx.f));}
+  {let nx=null;for(const n of MEL.notes){if(!n.j&&T(n.b)>now-0.05){nx=n;break;}}if(!nx&&!MEL.running&&MEL.notes.length)nx=MEL.notes[0];if(nx&&!(MEL.test&&MEL.running))hfxNext(c,W,NOTE_NAMES[((nx.m%12)+12)%12],fbLabel(nx.s)+" string \u00b7 "+(nx.f===0?"open":"fret "+nx.f));}
   // bouncing ball between notes
   if(MEL.running){let t1=null,t2=null;for(let i=0;i<MEL.notes.length;i++){const t=T(MEL.notes[i].b);if(t<=now)t1=t;else{t2=t;break;}}
     if(t2!=null){if(t1==null||t1<now-4)t1=Math.min(now,t2-spb);const ph=Math.min(1,Math.max(0,(now-t1)/Math.max(0.05,t2-t1))),arc=Math.min(60,18+(t2-t1)*40);let nx=null;for(const n of MEL.notes){if(T(n.b)>now){nx=n;break;}}
@@ -7587,12 +7596,12 @@ function melDrawH(cv,now){const dpr=Math.min(2.5,window.devicePixelRatio||1),W=c
   for(let i=MEL.notes.length-1;i>=0;i--){const n=MEL.notes[i],t=T(n.b),d=(t-now)/L;if(d>1.05)continue;const de=(t+n.dur*spb-now)/L;if(de<-0.05)continue;if(n.j&&n.j!=="miss"&&d<0)continue;
     const dd=Math.max(0,d),x=xOf(dd),y=rowY(n.s),col=HWY_COL[(N-1-n.s)%6];
     if(n.dur*spb>0.45){const x2=xOf(Math.min(1,Math.max(0,de)));c.strokeStyle=col+"aa";c.shadowColor=col;c.shadowBlur=10;c.lineWidth=r*0.7;c.lineCap="round";c.beginPath();c.moveTo(x,y);c.lineTo(x2,y);c.stroke();c.shadowBlur=0;}
-    if(d<-0.02&&n.j==="miss")c.globalAlpha=Math.max(0,1+d*6);hfxGem(c,x,y,r,col,String(n.f),hwyBadge(n.s,n.m),n.j==="miss");c.globalAlpha=1;}
+    if(d<-0.02&&n.j==="miss")c.globalAlpha=Math.max(0,1+d*6);hfxGem(c,x,y,r,col,MEL.test&&MEL.running?"?":String(n.f),MEL.test&&MEL.running?"":hwyBadge(n.s,n.m),n.j==="miss");c.globalAlpha=1;}
   MEL.fx=MEL.fx.filter(f=>now-f.t<0.7);MEL.fx.forEach(f=>{const a=(now-f.t)/0.7,y=rowY(Math.min(N-1,f.s));c.globalAlpha=1-a;
     if(f.k!=="miss"&&f.k!=="oops"){c.strokeStyle=f.k==="good"?"#7ff0d6":"#ffe27a";c.lineWidth=3;c.beginPath();c.arc(hitX,y,10+26*a,0,Math.PI*2);c.stroke();}
     if(f.k!=="auto"){c.fillStyle=f.k==="perfect"?"#ffe27a":f.k==="good"?"#7ff0d6":"#ff5d6c";c.font="900 14px system-ui";c.textAlign="left";c.fillText(f.k==="perfect"?"PERFECT":f.k==="good"?"GOOD":f.k==="miss"?"MISS":"✗",hitX+14+20*a,y-14);}c.globalAlpha=1;});
   hfxParts(c,dt);
-  {let nx=null;for(const n of MEL.notes){if(!n.j&&T(n.b)>now-0.05){nx=n;break;}}if(!nx&&!MEL.running&&MEL.notes.length)nx=MEL.notes[0];if(nx)hfxNext(c,W,NOTE_NAMES[((nx.m%12)+12)%12],fbLabel(nx.s)+" string · "+(nx.f===0?"open":"fret "+nx.f));}}
+  {let nx=null;for(const n of MEL.notes){if(!n.j&&T(n.b)>now-0.05){nx=n;break;}}if(!nx&&!MEL.running&&MEL.notes.length)nx=MEL.notes[0];if(nx&&!(MEL.test&&MEL.running))hfxNext(c,W,NOTE_NAMES[((nx.m%12)+12)%12],fbLabel(nx.s)+" string · "+(nx.f===0?"open":"fret "+nx.f));}}
 
 function melImport(file,done){const fr=new FileReader();fr.onload=()=>{try{const mid=parseMidi(fr.result),div=mid.div||480;let tr=null;mid.tracks.forEach(t=>{if(t.notes.length&&(!tr||t.notes.length>tr.notes.length))tr=t;});if(!tr)throw new Error("no notes found");
     const byT={};tr.notes.forEach(x=>{if(byT[x.t]==null||x.n>byT[x.t])byT[x.t]=x.n;});const ts=Object.keys(byT).map(Number).sort((a,b)=>a-b).slice(0,400);const q=v=>Math.max(0.25,Math.round(v*4)/4);const t0=ts[0];let toks=[],last=0;
@@ -7620,8 +7629,8 @@ function renderMelody(inst){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden
         <div id="fbZone" style="touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;position:relative;overflow:hidden;filter:drop-shadow(0 10px 20px rgba(0,0,0,.45))">${fbZoneSVG()}</div></div></div>
       <div style="display:flex;align-items:center;gap:8px;margin:10px 0 4px"><button class="rchip sm" id="melBpmDn" style="min-width:40px;justify-content:center;font-weight:900">−</button><span style="flex:0 0 auto;text-align:center;font:900 1.05rem system-ui;min-width:82px">♩ <span id="melBpmV">${MEL.bpm}</span> <span style="font-size:.75rem;color:var(--muted)">BPM</span></span><button class="rchip sm" id="melBpmUp" style="min-width:40px;justify-content:center;font-weight:900">+</button><input type="range" id="melBpm" min="30" max="220" value="${MEL.bpm}" style="flex:1 1 auto;min-width:60px;accent-color:var(--gold)"></div>
       ${clickVolRow("melClick",MEL.clickVol)}
-      <div class="actions"><button class="btn" id="melGo" style="flex:1 1 100%">${MEL.mode==="watch"?"▶ Watch it":"▶ Start"}</button></div>
-      <div id="melRes"></div>
+      <div class="actions"><button class="btn" id="melGo" style="flex:1 1 60%">${MEL.mode==="watch"?"▶ Watch it":"▶ Start"}</button><button class="btn ghost" id="melTest" style="flex:0 1 auto">🎯 Test</button><button class="btn ghost" id="melScores" style="flex:0 1 auto">🏆 My scores</button></div>
+      <div id="melRes"></div><div id="melScoreBox" style="display:none;margin-top:8px" class="panel"></div>
       <details id="melOpt" ${optOpen?"open":""} style="margin-top:6px"><summary style="cursor:pointer;list-style:none;padding:8px 2px;font:800 .85rem system-ui;color:var(--muted)">⚙️ Settings ▾</summary>
         <div class="rrow2"><span class="rchips tight"><button class="rchip sm${MEL.guide?" sel":""}" id="melGuide">🔈 Guide notes</button><button class="rchip sm${MEL.loop?" sel":""}" id="melLoop">🔁 Loop</button>${leadChip()}<button class="rchip sm${FB.showNotes?" sel":""}" id="melNames">🏷️ Note names</button></span></div>
         ${volSlider("melVol")}
@@ -7636,7 +7645,10 @@ function renderMelody(inst){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden
     const bp=$("#melBpm"),setB=v=>{const nb=Math.max(30,Math.min(220,Math.round(v)));if(MEL.running){const now=ac().currentTime,cur=(now-MEL.t0)/melSpb();MEL.bpm=nb;MEL.t0=now-cur*melSpb();}else MEL.bpm=nb;bp.value=MEL.bpm;$("#melBpmV").textContent=MEL.bpm;};
     bp.oninput=()=>setB(+bp.value);$("#melBpmDn").onclick=()=>setB(MEL.bpm-5);$("#melBpmUp").onclick=()=>setB(MEL.bpm+5);
     bindClickVol("melClick",v=>{MEL.clickVol=v;save("mjk-melclick",v);});bindVol("melVol");
-    $("#melGo").onclick=()=>{if(MEL.running)melStop();else{$("#melRes").innerHTML="";melStart();}};
+    $("#melGo").onclick=()=>{if(MEL.running)melStop();else{MEL.test=false;$("#melRes").innerHTML="";melStart();}};
+    /* Test: a graded run from memory — no fret numbers, no neck hints, no guide notes */
+    $("#melTest").onclick=()=>{if(MEL.running){melStop();MEL.test=false;$("#melTest").textContent="🎯 Test";return;}if(MEL.mode==="watch"){MEL.mode="tap";save("mjk-melmode","tap");}MEL.test=true;$("#melTest").textContent="⏸ Stop test";$("#melRes").innerHTML="";melStart();};
+    $("#melScores").onclick=()=>{const b=$("#melScoreBox");if(b.style.display==="none"){b.innerHTML='<div style="font-weight:800;margin-bottom:4px">🏆 My scores · '+({guitar:"Guitar",bass:"Bass",ukulele:"Ukulele"})[MEL.inst]+'</div>'+melScoresHTML();b.style.display="";}else b.style.display="none";};
     $("#melGuide").onclick=function(){MEL.guide=!MEL.guide;save("mjk-melguide",MEL.guide);this.classList.toggle("sel",MEL.guide);};
     $("#melLoop").onclick=function(){MEL.loop=!MEL.loop;save("mjk-melloop",MEL.loop);this.classList.toggle("sel",MEL.loop);};
     $("#melNames").onclick=function(){FB.showNotes=!FB.showNotes;this.classList.toggle("sel",FB.showNotes);MEL.nextKey="";};
