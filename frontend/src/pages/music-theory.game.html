@@ -8819,7 +8819,7 @@ function camBeat(tb,gap){const ms=gap*1000;HR.src="camera";HR.ch=null;HR.connect
   /* phase-accurate save: fit beat number → time with a straight line over the last steady beats (up to 10), so the drum can project your beat forward accurately even if Begin comes 10+ s later */
   var B=CAMP.bts,run=[B[B.length-1]];for(var q=B.length-2;q>=0&&run.length<10;q--){var gp=(run[0]-B[q])/1000;if(gp<Pm*0.7||gp>Pm*1.4)break;run.unshift(B[q]);}
   var fitP=Pm,fitT=tb;if(run.length>=4){var n=run.length,sx=0,sy=0,sxx=0,sxy=0;for(var q2=0;q2<n;q2++){sx+=q2;sy+=run[q2];sxx+=q2*q2;sxy+=q2*run[q2];}var sl=(n*sxy-sx*sy)/(n*sxx-sx*sx),ic=(sy-sl*sx)/n;if(sl>400&&sl<1600){fitP=sl/1000;fitT=ic+sl*(n-1);}}
-  var old=CAMP.saved,nowp=performance.now();if(!old||run.length>=4||run.length>=(old.fit||0)||nowp-old.at>20000){CAMP.saved={P:fitP,bpm:Math.round(60/fitP),t:fitT,at:nowp,n:(old&&old.n||0)+1,fit:run.length};}else{old.n++;}CAMP.bpm=CAMP.saved.bpm;HR.bpm=CAMP.bpm;HR.updated=performance.now();try{save("mjk-hrever",true);}catch(e){}
+  var old=CAMP.saved,nowp=performance.now();if(!old||run.length>=4||run.length>=(old.fit||0)||nowp-old.at>20000||Math.abs(Math.round(60/Pm)-old.bpm)>=3){CAMP.saved={P:fitP,bpm:Math.round(60/fitP),t:fitT,at:nowp,n:(old&&old.n||0)+1,fit:run.length};}else{old.n++;}CAMP.bpm=CAMP.saved.bpm;HR.bpm=CAMP.bpm;HR.updated=performance.now();try{save("mjk-hrever",true);}catch(e){}
   if(!CAMP.wasOn){CAMP.wasOn=true;try{if(CAMP.onState)CAMP.onState();}catch(e){}}CAMP.flash=performance.now();}
 function camUI(on){let el=document.getElementById("camBox");if(!on){if(el)el.remove();CAMP.wasOn=false;return;}
   const host=document.getElementById("camHost");if(!el){el=document.createElement("div");el.id="camBox";}
@@ -9452,6 +9452,7 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
       else if(HR.connected||CAMP.on){t="Finding a steady pulse…";col="#e9c46a";}
       else if(S.camUsed){t="☝️ Tempo from camera reading";col="#7ff0d6";}
       else if(S.tapP){t="👆 Tempo from your taps";}}
+    else if(CAMP.on){t="";}
     else{if(svOK){t="✓ "+sv.bpm+" BPM saved — press Begin";col="#7ff0d6";}
       else if(HR.connected&&HR.bpm){t="✓ "+(HR.src==="camera"?"Camera":"Sensor")+" reading "+HR.bpm+" BPM — press Begin";col="#7ff0d6";}}
     el.style.color=col;el.textContent=t;}
