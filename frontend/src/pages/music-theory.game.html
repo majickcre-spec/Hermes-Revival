@@ -9403,7 +9403,8 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
       if(S.stage==="guide"){target=Math.min(P*(HSX.mode==="sleep"?1.03:1.02),60/S.floor);w=0.06;}
       S.Pm+=(target-S.Pm)*0.25;
       const tb=lastHeart(),R3=S.beats.slice(-3).map(function(b){return b.r;}),Pn=R3.length===3?Math.max(0.6*P,Math.min(1.4*P,R3[2]+(R3[2]-R3[0])/4)):P,hb=tb+Math.round((t-tb)/Pn)*Pn;let e=hb-t;if(e>P/2)e-=P;if(e<-P/2)e+=P;const cor=Math.max(-0.15*S.Pm,Math.min(0.15*S.Pm,w*e));return t+S.Pm+cor;}
-    if(S.tapP)S.Pm+=(S.tapP-S.Pm)*0.25;return t+S.Pm;}
+    /* no live sensor: ease tempo toward the latest reading and nudge each beat toward its grid, so a new reading lands smoothly over ~8 beats */
+    if(S.tapP){S.Pm+=(S.tapP-S.Pm)*(S.glide?0.15:0.25);if(S.tapAt){const g=S.tapAt+Math.round((t+S.Pm-S.tapAt)/S.tapP)*S.tapP;let e=g-(t+S.Pm);if(e>S.tapP/2)e-=S.tapP;if(e<-S.tapP/2)e+=S.tapP;const cor=Math.max(-0.08*S.Pm,Math.min(0.08*S.Pm,0.3*e));if(Math.abs(e)<0.01&&Math.abs(S.tapP-S.Pm)<0.005)S.glide=false;return t+S.Pm+cor;}}return t+S.Pm;}
   function nextMusic(t){const tgt=S.Pm||S.musP,step=Math.max(-0.002*S.musP,Math.min(0.002*S.musP,(tgt-S.musP)*0.03));S.musP+=step;return t+S.musP;}
   function sched(){if(!S.run)return;const a=ac();ingest(a);try{rereadCheck(a);}catch(e){}while(S.nb<a.currentTime+0.3){if(S.nb<a.currentTime-0.2)S.nb=a.currentTime+0.05;schedBeat(a,S.nb);S.nb=nextBeat(S.nb);}
     if(S.mn==null){S.mn=S.nb;S.musP=S.musP||S.Pm;}while(S.mn<a.currentTime+0.3){if(S.mn<a.currentTime-0.2)S.mn=a.currentTime+0.05;schedMusic(a,S.mn);S.mn=nextMusic(S.mn);}
@@ -9544,7 +9545,7 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     sens();if(S.run)paint();else{drawChart();try{ansPaint("ansHs");}catch(e){}}}
   /* which heartbeat the drum is following, in one place */
   function srcLine(){const el=$("#hsSrc");if(!el)return;let t="",col="#cfc6e8";const sv=CAMP.saved,svOK=sv&&performance.now()-sv.at<180000;
-    if(S.run){if(S.rr){const got=sv&&sv.at>S.rr.t;t="☝️ Keep your fingertip on the camera"+(got?" · "+sv.bpm+" BPM ("+Math.min(sv.fit,5)+"/5)":"…");col="#e9c46a";}
+    if(S.run){if(S.rr){const got=sv&&sv.at>S.rr.t;t="☝️ Keep your fingertip on the camera"+(got?" · "+sv.bpm+" BPM ("+Math.min(sv.fit,4)+"/4)":"…");col="#e9c46a";}
       else if(S.rrMsg&&performance.now()<S.rrMsg.until){t=S.rrMsg.t;col="#7ff0d6";}
       else if(fresh()){t=(HR.src==="camera"?"☝️ Camera":"💓 Sensor")+" · drum following your heart"+(S.syncN>=5?" · "+Math.round(S.sync*100)+"% on beat":"");col="#7ff0d6";}
       else if(HR.connected||CAMP.on){t="Finding a steady pulse…";col="#e9c46a";}
@@ -9557,14 +9558,15 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
   /* mid-session update: a fresh camera reading or 6 taps re-sets the drum's tempo and lands it on your beat; the music clock eases over on its own */
   function rrOK(){return !(HR.connected&&HR.src!=="camera");}
   function newPulse(P,tCtx,camBpm,how){const a=ac();P=Math.max(0.4,Math.min(1.5,P));S.tapP=P;S.tapAt=tCtx;S.camUsed=camBpm||null;
-    const from=Math.max(a.currentTime+0.25,S.nb-S.Pm+0.6*P);S.nb=tCtx+Math.ceil((from-tCtx)/P)*P;S.Pm=P;
+    S.glide=true;
     S.rrMsg={t:"✓ Updated to "+Math.round(60/P)+" BPM",until:performance.now()+6000};try{srcLine();}catch(e){}}
   function rrBtn(){const b=$("#hsReread");if(b)b.textContent=S.rr?"✕ Cancel re-read":"☝️ Re-read my pulse";}
   function rereadEnd(){S.rr=null;if(CAMP.on){try{camStop();}catch(e){}}S.O=null;S.beats=[];S.cum=0;S.pk=[];unlockAudio();try{ac().resume();}catch(e){}rrBtn();try{srcLine();}catch(e){}}
   function rereadStart(){if(S.rr){rereadEnd();return;}if(!S.run||!rrOK())return;S.rt=[];S.rr={t:performance.now()};rrBtn();try{srcLine();}catch(e){}
     camStart(function(){S.myN=HR.n||0;S.beats=[];S.cum=0;S.pk=[];S.O=null;try{sens();}catch(e){}}).then(function(ok){if(!ok&&S.rr){S.rr=null;S.rrMsg={t:"Couldn’t open the camera — tempo unchanged",until:performance.now()+6000};rrBtn();try{srcLine();}catch(e){}}});}
   function rereadCheck(a){if(!S.rr)return;const sv=CAMP.saved;
-    if(sv&&sv.at>S.rr.t&&sv.fit>=5&&isFinite(sv.P)&&isFinite(sv.t)){newPulse(sv.P,sv.t/1000+off(a),sv.bpm,"camera");rereadEnd();return;}
+    const got=sv&&sv.at>S.rr.t&&isFinite(sv.P)&&isFinite(sv.t);if(got&&!S.rr.first)S.rr.first=performance.now();
+    if(got&&(sv.fit>=4||(sv.fit>=2&&performance.now()-S.rr.first>15000))){newPulse(sv.P,sv.t/1000+off(a),sv.bpm,"camera");rereadEnd();return;}
     if(performance.now()-S.rr.t>60000){rereadEnd();S.rrMsg={t:"No steady reading — tempo unchanged",until:performance.now()+6000};try{srcLine();}catch(e){}}}
   function runTap(){if(!S.run||S.rr)return;const a=ac(),now=performance.now()/1000,t=now+off(a),bg=$("#hsBig"),bl=$("#hsBigL"),core=$("#hsCore");
     if(fresh()){S.rrMsg={t:"Your sensor is already setting the drum",until:performance.now()+4000};try{srcLine();}catch(e){}return;}
