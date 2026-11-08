@@ -9323,7 +9323,7 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     if(hb&&core){core.style.transition="none";core.style.transform="scale(1.12)";core.style.boxShadow="0 0 60px rgba(239,98,98,.55)";requestAnimationFrame(function(){core.style.transition="transform .45s ease-out, box-shadow .6s ease-out";core.style.transform="scale(1)";core.style.boxShadow="0 0 18px rgba(239,98,98,.2)";});}
     if(hit&&c&&HSX.breath){const b=hit.b;c.style.transition="transform "+((S.musP||S.Pm)*0.95).toFixed(2)+"s ease-in-out";c.style.transform="scale("+(0.62+0.38*b.x).toFixed(3)+")";const q=$("#hsCue");if(q)q.textContent=(b.name==="In"?"Breathe in":b.name==="Out"?"Breathe out":"Hold")+" · "+(b.len-b.k);}
     S.raf=requestAnimationFrame(frame);}
-  function stageText(){if(!HR.connected)return S.tapP?"Holding the pulse you tapped.":"No heart sensor — tap your pulse below to set the drum.";if(!fresh())return "Finding your heartbeat…";
+  function stageText(){if(!HR.connected||!fresh())return "";
     if(S.stage==="match")return "Matching your heart — listen for the drum landing with your own beat.";
     if(S.stage==="mirror")return "Mirroring your heart. The music moves as you do.";
     if(HSX.mode==="sleep")return prog()>0.75?"Fading out. Let go and drift off.":S.hold?"Staying here with you. Long, easy out-breaths.":"Slowing with you. The drum is softening — follow it down toward sleep.";
@@ -9359,7 +9359,7 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
   function begin(){const a=ac();S.camUsed=null;const sv=CAMP.saved,fresh3=sv&&performance.now()-sv.at<180000;
     if(fresh3&&isFinite(sv.P)&&sv.P>0.3){S.tapP=Math.max(0.4,Math.min(1.5,sv.P));S.tapAt=isFinite(sv.t)?sv.t/1000+off(a):a.currentTime;S.camUsed=sv.bpm;}
     else if(HR.src==="camera"&&HR.bpm>30){const rr=(HR.rr||[]).slice(-8).filter(function(v){return v>300&&v<2000;}).sort(function(x,y){return x-y;}),P=rr.length>=3?rr[rr.length>>1]/1000:60/HR.bpm;S.tapP=Math.max(0.4,Math.min(1.5,P));const lp=HR.pk&&HR.pk.length?HR.pk[HR.pk.length-1]:null;S.tapAt=lp?lp.t/1000+off(a):a.currentTime;S.camUsed=Math.round(60/S.tapP);}
-    else if(CAMP.on&&!S.noPulseOK){S.noPulseOK=true;const el=$("#hsSrc");if(el){el.style.color="#ef6262";el.textContent="No pulse saved yet — keep your fingertip on the camera until you see the ✓ line. (Press Begin again to start anyway at a steady tempo.)";}setTimeout(function(){S.noPulseOK=false;},8000);return;}
+    else if(CAMP.on&&!S.noPulseOK){S.noPulseOK=true;const el=$("#hsSrc");if(el){el.style.color="#ef6262";el.textContent="No pulse yet — keep your fingertip on the camera. Press Begin again to start anyway.";}setTimeout(function(){S.noPulseOK=false;},8000);return;}
     S.dbgBegin=(S.camUsed?"cam "+S.camUsed+"bpm tapP"+(Math.round(S.tapP*1000)/1000):"no-cam")+" @"+new Date().toLocaleTimeString();
     S.noPulseOK=false;if(CAMP.on){try{camStop();}catch(e){S.dbgErr="camStop "+e.message;}}unlockAudio();try{a.resume();}catch(e){}medStop();S.run=true;S.t0=a.currentTime;S.stage="match";S.hist=[];S.mb=[];S.vq=[];S.hq=[];S.bIdx=0;S.co=null;S.coSum=0;S.coN=0;S.note0=0;S.coPk=0;S.syncHit=0;S.syncAll=0;S.base=null;S.rep=null;S.hold=false;
     ingest(a);S.Pm=(S.camUsed?S.tapP:null)||S.P||S.tapP||1;S.musP=S.Pm;S.mn=null;S.bp=null;S.bk=0;
@@ -9388,7 +9388,6 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
         (pre?'':'<div class="site-note" style="margin:0 0 6px;font-size:.76rem">Using your own settings.</div>'))+
       '<div class="idea-fb" id="hsSens" style="margin-top:6px"></div><div id="camHost"></div>'+
       '<div id="hsSrc" style="text-align:center;margin:8px 0 0;font-weight:800;font-size:.9rem"></div>'+
-      '<div id="hsDbg" style="text-align:center;margin:4px 0 0;font:600 .68rem ui-monospace,monospace;color:#9a90b8;word-break:break-all"></div>'+
       '<div style="display:flex;justify-content:center;margin:14px 0 6px;position:relative"><div id="hsC" style="width:min(290px,78vw);height:min(290px,78vw);border-radius:50%;background:radial-gradient(circle at 50% 42%,rgba(239,98,98,.28),rgba(127,240,214,.10) 60%,transparent 72%);border:2px solid rgba(236,201,119,.45);display:flex;align-items:center;justify-content:center;transform:scale(.62);transition:transform 1.2s ease-in-out">'+
         '<div id="hsCore" style="width:46%;height:46%;border-radius:50%;background:radial-gradient(circle at 50% 40%,#ff8c8c,#a52a3a);box-shadow:0 0 18px rgba(239,98,98,.2);display:flex;flex-direction:column;align-items:center;justify-content:center"><div id="hsBig" style="font:900 2.3rem system-ui;color:#fff">'+(S.run?Math.round(60/S.Pm):"—")+'</div><div id="hsBigL" style="font-size:.7rem;opacity:.85;color:#fff">'+(S.run?"BPM":"TAP HERE")+'</div></div></div></div>'+
       '<div style="text-align:center;font-weight:800;font-size:1.15rem;min-height:1.4em" id="hsCue"></div>'+
@@ -9398,8 +9397,8 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
       (adv?'<div class="site-note" id="hsNoteV" style="text-align:center;margin:0 0 6px;font-size:.75rem"></div>':'')+
       (S.run?'<div style="text-align:center;margin-bottom:6px"><span class="rbpm" id="hsLeft"></span></div>':'')+
       '<div class="actions"><button class="btn" id="hsGo">'+(S.run?"■ Stop":"▶ Begin")+'</button>'+(S.run?(rrOK()?'<button class="btn ghost" id="hsReread">'+(S.rr?"✕ Cancel re-read":"☝️ Re-read my pulse")+'</button>':''):'<button class="btn ghost" id="hsTapGo">👆 Tap your heartbeat to start</button>')+'</div>'+
-      (S.run&&rrOK()?'<div class="site-note" style="text-align:center;margin:-4px 0 4px;font-size:.78rem">Pulse changed? Re-read it with the camera, or tap the heart circle 6 times on your beat.</div>':'')+
-      (S.run?'':'<div class="site-note" style="text-align:center;margin:-4px 0 4px;font-size:.78rem" id="hsTapN">No sensor? Feel your pulse and tap the heart circle (or this button) on each beat, 8 times. The drum starts on your beat.</div>')+
+      (S.run&&rrOK()?'<div class="site-note" style="text-align:center;margin:-4px 0 4px;font-size:.78rem">Pulse changed? Re-read it, or tap the circle 6 times.</div>':'')+
+      (S.run?'':'<div class="site-note" style="text-align:center;margin:-4px 0 4px;font-size:.78rem" id="hsTapN">No sensor? Tap the circle on each heartbeat, 8 times.</div>')+
       '<button class="czOpen" id="hsCzBtn">⚙️ Customize</button>'+
       '<div id="hsRep">'+(adv?repHTML(S.rep):repSimple(S.rep))+'</div>'+
       (adv&&sensEver()?'<canvas id="hsCv" style="width:100%;height:150px;display:block;border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.25);margin-top:8px"></canvas>'+
@@ -9408,7 +9407,7 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     czWire("hsCz",function(){return !!S.cz;},function(v){S.cz=v;},function(){draw();});
     HS_PRE.forEach(function(p){const b=$("#hsP_"+p.id);if(b)b.onclick=function(){hsApplyPreset(p);S.bp=null;S.bk=0;draw();};});
     $("#eBack").onclick=function(){hsStop(true);renderMeditation();};
-    $("#hsGo").onclick=function(){try{if(S.run){finish();}else begin();}catch(e){S.dbgErr=(e&&e.message||String(e)).slice(0,120);try{dbgLine();}catch(e2){}}};
+    $("#hsGo").onclick=function(){try{if(S.run){finish();}else begin();}catch(e){S.dbgErr=(e&&e.message||String(e)).slice(0,120);}};
     /* tap-to-start: your felt heartbeat sets the drum's starting beat, its tempo (no sensor) and its timing offset (with a sensor) */
     const tg0=$("#hsTapGo");const hsTapFn=(function(){unlockAudio();const a=ac(),b=$("#hsTapGo")||{},n=$("#hsTapN"),t=performance.now()/1000+off(a),core=$("#hsCore");S.st=S.st||[];if(S.st.length&&t-S.st[S.st.length-1]>2.5)S.st=[];S.st.push(t);ingest(a);
       if(core){core.style.transition="none";core.style.transform="scale(1.12)";requestAnimationFrame(function(){core.style.transition="transform .4s ease-out";core.style.transform="scale(1)";});}
@@ -9446,44 +9445,39 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     const mv=$("#hsMv");mv.oninput=function(){HSX.music=mv.value/100;save("mjk-hsmusic",HSX.music);if(S.nodes)S.nodes.master.gain.setTargetAtTime(Math.max(0.0001,HSX.music),ac().currentTime,0.2);};
     sens();if(S.run)paint();else{drawChart();try{ansPaint("ansHs");}catch(e){}}}
   /* which heartbeat the drum is following, in one place */
-  function srcLine(){const el=$("#hsSrc");if(!el)return;const nm=HR.src==="camera"?"☝️ Camera pulse":"💓 Heart sensor";let t="",col="#cfc6e8";
-    if(S.run&&S.rr){const sv=CAMP.saved,got=sv&&sv.at>S.rr.t;t="☝️ Re-reading — keep your fingertip on the camera"+(got?" · "+sv.bpm+" BPM, steadying ("+Math.min(sv.fit,5)+"/5)":"")+". The drum keeps time meanwhile; the camera turns off once it has your pulse.";col="#e9c46a";}
-    else if(S.run&&S.rrMsg&&performance.now()<S.rrMsg.until){t=S.rrMsg.t;col="#7ff0d6";}
-    else if(S.run&&S.camUsed&&!fresh()){t="☝️ Camera measured "+S.camUsed+" BPM — camera is off so the sound can play through your speaker; the drum holds your tempo";col="#7ff0d6";}
-    else if(S.run){if(fresh()){t=nm+" · "+Math.round(60/S.P)+" BPM — the drum is following it"+(S.syncN>=5?" ("+Math.round(S.sync*100)+"% on beat)":"");col="#7ff0d6";}
-      else if(HR.connected||CAMP.on){t="Waiting for a steady pulse from the "+(CAMP.on?"camera":"sensor")+"… the drum holds a steady "+Math.round(60/S.Pm)+" BPM until it locks";col="#e9c46a";}
-      else if(S.tapP){t="👆 Drum on your taps · steady "+Math.round(60/S.tapP)+" BPM";}else t="No heartbeat source · steady "+Math.round(60/S.Pm)+" BPM";}
-    else{if(CAMP.saved&&performance.now()-CAMP.saved.at<180000){var ago=Math.round((performance.now()-CAMP.saved.at)/1000);t="✓ Camera pulse saved: "+CAMP.saved.bpm+" BPM"+(CAMP.on&&ago<3?" · live":" · last beat "+ago+" s ago")+" — press Begin and the drum lands on your beat. Tightest if your fingertip stays on while you press.";col="#7ff0d6";}
-      else if(HR.connected&&HR.bpm){t="✓ "+nm+" reading "+HR.bpm+" BPM — press Begin and the drum will follow it";col="#7ff0d6";}
-      else if(CAMP.on){t="Camera is finding your pulse"+(CAMP.good?" ("+Math.min(CAMP.good,3)+"/3)":"")+" — wait for ✓, then press Begin";col="#e9c46a";}
-      else t="Heartbeat source: connect a sensor or the camera — or tap the heart circle on each beat to start";}
+  function srcLine(){const el=$("#hsSrc");if(!el)return;let t="",col="#cfc6e8";const sv=CAMP.saved,svOK=sv&&performance.now()-sv.at<180000;
+    if(S.run){if(S.rr){const got=sv&&sv.at>S.rr.t;t="☝️ Keep your fingertip on the camera"+(got?" · "+sv.bpm+" BPM ("+Math.min(sv.fit,5)+"/5)":"…");col="#e9c46a";}
+      else if(S.rrMsg&&performance.now()<S.rrMsg.until){t=S.rrMsg.t;col="#7ff0d6";}
+      else if(fresh()){t=(HR.src==="camera"?"☝️ Camera":"💓 Sensor")+" · drum following your heart"+(S.syncN>=5?" · "+Math.round(S.sync*100)+"% on beat":"");col="#7ff0d6";}
+      else if(HR.connected||CAMP.on){t="Finding a steady pulse…";col="#e9c46a";}
+      else if(S.camUsed){t="☝️ Tempo from camera reading";col="#7ff0d6";}
+      else if(S.tapP){t="👆 Tempo from your taps";}}
+    else{if(svOK){t="✓ "+sv.bpm+" BPM saved — press Begin";col="#7ff0d6";}
+      else if(HR.connected&&HR.bpm){t="✓ "+(HR.src==="camera"?"Camera":"Sensor")+" reading "+HR.bpm+" BPM — press Begin";col="#7ff0d6";}}
     el.style.color=col;el.textContent=t;}
-  function dbgLine(){const el=$("#hsDbg");if(!el)return;const sv=CAMP.saved,r=function(v){return v==null||!isFinite(v)?String(v):Math.round(v*1000)/1000;};
-    el.textContent="diag · saved:"+(sv?sv.bpm+"bpm P"+r(sv.P)+" fit"+sv.fit+" n"+sv.n+" age"+Math.round((performance.now()-sv.at)/1000)+"s":"none")+" · cam:"+(CAMP.on?"on":"off")+(CAMP.locked?"/lock":"")+" · HR:"+(HR.src||"-")+"/"+(HR.connected?"conn":"off")+"/"+HR.bpm+" · run:"+(S.run?1:0)+" Pm:"+r(S.Pm)+" musP:"+r(S.musP)+" tapP:"+r(S.tapP)+" camUsed:"+S.camUsed+" fresh:"+(function(){try{return fresh()?1:0;}catch(e){return "x";}})()+" stage:"+S.stage+(S.dbgBegin?" · begin:"+S.dbgBegin:"")+(S.dbgErr?" · ERR:"+S.dbgErr:"");}
   /* mid-session update: a fresh camera reading or 6 taps re-sets the drum's tempo and lands it on your beat; the music clock eases over on its own */
   function rrOK(){return !(HR.connected&&HR.src!=="camera");}
   function newPulse(P,tCtx,camBpm,how){const a=ac();P=Math.max(0.4,Math.min(1.5,P));S.tapP=P;S.tapAt=tCtx;S.camUsed=camBpm||null;
     const from=Math.max(a.currentTime+0.25,S.nb-S.Pm+0.6*P);S.nb=tCtx+Math.ceil((from-tCtx)/P)*P;S.Pm=P;
-    S.rrMsg={t:"✓ Updated to "+Math.round(60/P)+" BPM from your "+how+" — the drum is on your new beat and the music eases over gently",until:performance.now()+9000};try{srcLine();}catch(e){}}
+    S.rrMsg={t:"✓ Updated to "+Math.round(60/P)+" BPM",until:performance.now()+6000};try{srcLine();}catch(e){}}
   function rrBtn(){const b=$("#hsReread");if(b)b.textContent=S.rr?"✕ Cancel re-read":"☝️ Re-read my pulse";}
   function rereadEnd(){S.rr=null;if(CAMP.on){try{camStop();}catch(e){}}S.O=null;S.beats=[];S.cum=0;S.pk=[];unlockAudio();try{ac().resume();}catch(e){}rrBtn();try{srcLine();}catch(e){}}
   function rereadStart(){if(S.rr){rereadEnd();return;}if(!S.run||!rrOK())return;S.rt=[];S.rr={t:performance.now()};rrBtn();try{srcLine();}catch(e){}
-    camStart(function(){S.myN=HR.n||0;S.beats=[];S.cum=0;S.pk=[];S.O=null;try{sens();}catch(e){}}).then(function(ok){if(!ok&&S.rr){S.rr=null;S.rrMsg={t:"Couldn’t open the camera — the drum kept your tempo. You can tap the heart circle 6 times instead.",until:performance.now()+9000};rrBtn();try{srcLine();}catch(e){}}});}
+    camStart(function(){S.myN=HR.n||0;S.beats=[];S.cum=0;S.pk=[];S.O=null;try{sens();}catch(e){}}).then(function(ok){if(!ok&&S.rr){S.rr=null;S.rrMsg={t:"Couldn’t open the camera — tempo unchanged",until:performance.now()+6000};rrBtn();try{srcLine();}catch(e){}}});}
   function rereadCheck(a){if(!S.rr)return;const sv=CAMP.saved;
     if(sv&&sv.at>S.rr.t&&sv.fit>=5&&isFinite(sv.P)&&isFinite(sv.t)){newPulse(sv.P,sv.t/1000+off(a),sv.bpm,"camera");rereadEnd();return;}
-    if(performance.now()-S.rr.t>60000){rereadEnd();S.rrMsg={t:"Couldn’t get a steady camera reading — the drum kept your last tempo. Try again, or tap the heart circle 6 times.",until:performance.now()+9000};try{srcLine();}catch(e){}}}
+    if(performance.now()-S.rr.t>60000){rereadEnd();S.rrMsg={t:"No steady reading — tempo unchanged",until:performance.now()+6000};try{srcLine();}catch(e){}}}
   function runTap(){if(!S.run||S.rr)return;const a=ac(),now=performance.now()/1000,t=now+off(a),bg=$("#hsBig"),bl=$("#hsBigL"),core=$("#hsCore");
-    if(fresh()){S.rrMsg={t:"Your sensor is setting the drum live — no need to tap",until:performance.now()+5000};try{srcLine();}catch(e){}return;}
+    if(fresh()){S.rrMsg={t:"Your sensor is already setting the drum",until:performance.now()+4000};try{srcLine();}catch(e){}return;}
     S.rt=S.rt||[];if(S.rt.length&&now-S.rtW>2.5)S.rt=[];S.rt.push(t);S.rtW=now;
     if(core){core.style.transition="none";core.style.transform="scale(1.12)";requestAnimationFrame(function(){core.style.transition="transform .4s ease-out";core.style.transform="scale(1)";});}
     if(bg)bg.textContent=S.rt.length+"/6";if(bl)bl.textContent="TAP EACH BEAT";if(S.rt.length<6)return;
     const tp=S.rt.slice();S.rt=[];const d=[];for(let i=1;i<tp.length;i++)d.push(tp[i]-tp[i-1]);d.sort(function(x,y){return x-y;});newPulse(d[d.length>>1],tp[tp.length-1],null,"taps");}
-  if(!S.srcIv)S.srcIv=setInterval(function(){try{srcLine();}catch(e){}try{dbgLine();}catch(e){}},1000);
-  function sens(){const e=$("#hsSens");if(!e)return;try{if(CAMP.on)camUI(true);}catch(er){}try{srcLine();}catch(er){}
-    if(HR.connected){e.innerHTML=(HR.src==="camera"?'☝️ Camera pulse on':'💓 Heart sensor connected')+(HR.bpm?' · '+HR.bpm+' BPM':'')+'. <a href="#" id="hsX">Disconnect</a>';const x=$("#hsX");if(x)x.onclick=function(ev){ev.preventDefault();hrDisconnect();sens();};return;}
-    if(CAMP.on){e.innerHTML='☝️ Reading your pulse with the camera. Keep your fingertip on it.';return;}
-    e.innerHTML='<div class="actions" style="margin:0 0 6px">'+(hrSupported()?'<button class="btn ghost" id="hsCon">💗 Connect heart sensor</button>':'')+camBtnHTML("hsCam")+'</div>'+(hrSupported()?'<div class="site-note" style="margin:0 0 6px">Sensor not in the list? <a href="#" id="hsAll">Show every device</a></div>':'<div class="site-note" style="margin:0 0 6px">Bluetooth sensors need Bluefy on iPhone, or Chrome on a computer.</div>')+
-      '<div class="site-note" style="margin:0">Connect first, then press Begin — or add it after you begin and the drum switches to it once it locks. No sensor? Tap the heart circle on each beat.</div>';
+  if(!S.srcIv)S.srcIv=setInterval(function(){try{srcLine();}catch(e){}},1000);
+  function sens(){const e=$("#hsSens");if(!e)return;try{if(CAMP.on)camUI(true);}catch(er){}try{srcLine();}catch(er){}e.style.display="";
+    if(HR.connected&&HR.src!=="camera"){e.innerHTML='💓 Heart sensor connected · <a href="#" id="hsX">Disconnect</a>';const x=$("#hsX");if(x)x.onclick=function(ev){ev.preventDefault();hrDisconnect();sens();};return;}
+    if(CAMP.on||S.run&&!hrSupported()){e.innerHTML="";e.style.display="none";return;}
+    e.innerHTML='<div class="actions" style="margin:0">'+(hrSupported()?'<button class="btn ghost" id="hsCon">💗 Connect heart sensor</button>':'')+(S.run?'':camBtnHTML("hsCam"))+'</div>'+(hrSupported()?'<div class="site-note" style="margin:6px 0 0">Sensor not listed? <a href="#" id="hsAll">Show every device</a></div>':'');
     const c=$("#hsCon");if(c)c.onclick=async function(){c.textContent="Connecting…";const ok=await hrConnect(function(){sens();});if(!ok){c.textContent="💗 Connect heart sensor";if(HR_ERR){const n=document.createElement("div");n.className="site-note";n.innerHTML=HR_ERR;c.parentNode.appendChild(n);}}else{S.myN=HR.n||0;S.beats=[];S.cum=0;S.pk=[];S.O=null;sens();}};
     const cm=$("#hsCam");if(cm)cm.onclick=async function(){const ok=await camStart(function(){S.myN=HR.n||0;S.beats=[];S.cum=0;S.pk=[];S.O=null;sens();});if(!ok&&HR_ERR){const n=document.createElement("div");n.className="site-note";n.innerHTML=HR_ERR;cm.parentNode.appendChild(n);}else sens();};
     const al=$("#hsAll");if(al)al.onclick=function(ev){ev.preventDefault();HR_ALL=true;const c2=$("#hsCon");if(c2)c2.click();};
