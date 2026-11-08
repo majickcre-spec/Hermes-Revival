@@ -8892,6 +8892,15 @@ function camStop(){CAMP.on=false;try{if(CAMP.video&&CAMP.vfc&&CAMP.video.cancelV
   if(HR.src==="camera"){HR.connected=false;HR.src=null;}camUI(false);try{if(CAMP.onState)CAMP.onState();}catch(e){}}
 function camLoop(){if(!CAMP.on)return;const v=CAMP.video;const step=function(now){if(!CAMP.on)return;camFrame(typeof now==="number"?now:performance.now());camLoop();};
   if(v&&v.requestVideoFrameCallback)CAMP.vfc=v.requestVideoFrameCallback(step);else CAMP.raf=requestAnimationFrame(function(n){step(n,null);});}
+/* period by autocorrelation over the last ~8 s: immune to the double bump of each pulse (which made beat-picking read 2x) and to a missed beat (which read 1/2x) */
+function camACF(){const T=CAMP.t,Y=CAMP.y,N=T.length;if(N<90)return;const t1=T[N-1],t0=Math.max(T[0],t1-8000);if(t1-t0<4500)return;const fs=60,M=Math.floor((t1-t0)/1000*fs),x=new Float32Array(M);let j=0;
+  for(let i=0;i<M;i++){const t=t0+i*1000/fs;while(j<N-2&&T[j+1]<t)j++;const a=T[j],b=T[j+1],u=b>a?(t-a)/(b-a):0;x[i]=Y[j]+(Y[j+1]-Y[j])*Math.max(0,Math.min(1,u));}
+  let m=0;for(let i=0;i<M;i++)m+=x[i];m/=M;let e=0;for(let i=0;i<M;i++){x[i]-=m;e+=x[i]*x[i];}if(e<=0)return;
+  const lo=Math.round(0.42*fs),hi=Math.min(Math.round(1.5*fs),M-60),r=[];for(let L=lo;L<=hi;L++){let c=0;for(let i=0;i+L<M;i++)c+=x[i]*x[i+L];r.push(c/e*M/(M-L));}
+  let bi=-1,bv=-1;for(let k=1;k<r.length-1;k++){if(r[k]>r[k-1]&&r[k]>=r[k+1]&&r[k]>bv){bv=r[k];bi=k;}}if(bi<0)return;
+  /* prefer the shorter period if a strong peak sits at half the chosen lag (true beat), never the half-beat notch below 0.42 s */
+  const L0=lo+bi,h=Math.round(L0/2)-lo;if(h>0&&h<r.length-1&&r[h]>0.8*bv&&r[h]>=r[h-1]&&r[h]>=r[h+1]){bi=h;bv=r[h];}
+  const k=bi,d=(k>0&&k<r.length-1)?(r[k-1]-r[k+1])/(2*(r[k-1]-2*r[k]+r[k+1])||1):0;CAMP.acP=(lo+k+Math.max(-0.5,Math.min(0.5,d)))/fs;CAMP.acQ=bv;}
 function camFrame(ts){const v=CAMP.video,cx=CAMP.cx;if(!v||!v.videoWidth)return;try{cx.drawImage(v,0,0,32,24);}catch(e){return;}const d=cx.getImageData(0,0,32,24).data;let R=0,G=0,B=0,red=0;const n=d.length/4;
   for(let i=0;i<d.length;i+=4){R+=d[i];G+=d[i+1];B+=d[i+2];if(d[i]>45&&d[i]>d[i+1]*1.35&&d[i]>d[i+2]*1.35)red++;}R/=n;G/=n;B/=n;
   const fing=red/n>0.8&&R>40;if(fing!==CAMP.finger){CAMP.finger=fing;CAMP.fing0=ts;if(!fing){CAMP.base=null;CAMP.lp=null;CAMP.env=0.001;CAMP.good=0;CAMP.locked=false;CAMP.rr=[];}}
@@ -8899,11 +8908,12 @@ function camFrame(ts){const v=CAMP.video,cx=CAMP.cx;if(!v||!v.videoWidth)return;
   /* signal: brightness falls as each pulse of blood arrives; flip it so beats are peaks, then band-pass about 0.7–3.5 Hz */
   const raw=-(CAMP.torch&&G>30?G:R);if(CAMP.base==null){CAMP.base=raw;CAMP.lp=0;}CAMP.base+= (raw-CAMP.base)*0.045;const hp=raw-CAMP.base;CAMP.lp+=(hp-CAMP.lp)*0.4;const y=CAMP.lp;
   CAMP.t.push(ts);CAMP.y.push(y);if(CAMP.t.length>300){CAMP.t.shift();CAMP.y.shift();}CAMP.env=Math.max(Math.abs(y),CAMP.env*0.992);
+  if(!CAMP.acT||ts-CAMP.acT>500){CAMP.acT=ts;try{camACF();}catch(e){}}
   const N=CAMP.y.length;if(ts-CAMP.fing0<1000){CAMP.status="Hold still… finding your pulse.";camPaint(y);return;}
   if(N>=3){const a=CAMP.y[N-3],b=CAMP.y[N-2],c=CAMP.y[N-1];
     if(b>a&&b>=c&&b>0.45*CAMP.env){const den=a-2*b+c,off=den!==0?Math.max(-0.5,Math.min(0.5,0.5*(a-c)/den)):0,tb=CAMP.t[N-2]+off*((CAMP.t[N-1]-CAMP.t[N-3])/2),gap=(tb-CAMP.last)/1000;
-      const med=CAMP.rr.length>=3?CAMP.rr.slice(-5).sort(function(x,y2){return x-y2;})[Math.min(2,CAMP.rr.slice(-5).length>>1)]:null;
-      if(CAMP.last===0||gap>Math.max(0.33,med?med*0.55:0.33)){if(CAMP.last&&gap<1.7){const ok=!med||(gap>med*0.7&&gap<med*1.4);
+      const acOK=CAMP.acP&&CAMP.acQ>0.3,med=acOK?CAMP.acP:(CAMP.rr.length>=3?CAMP.rr.slice(-5).sort(function(x,y2){return x-y2;})[Math.min(2,CAMP.rr.slice(-5).length>>1)]:null);
+      if(CAMP.last===0||gap>Math.max(0.4,med?med*0.62:0.4)){if(CAMP.last&&gap<1.6){const ok=acOK&&gap>med*0.78&&gap<med*1.25;
           if(ok){CAMP.rr.push(gap);CAMP.good++;}else CAMP.good=Math.max(0,CAMP.good-1);if(CAMP.rr.length>30)CAMP.rr.shift();
           if(CAMP.good>=3)CAMP.locked=true;
           if(CAMP.locked&&ok)camBeat(tb,gap);}
@@ -8911,11 +8921,11 @@ function camFrame(ts){const v=CAMP.video,cx=CAMP.cx;if(!v||!v.videoWidth)return;
   if(CAMP.last&&ts-CAMP.last>2500){CAMP.locked=false;CAMP.good=0;}
   CAMP.status=CAMP.locked?"Pulse found. Keep your finger still.":"Reading… keep still"+(CAMP.good?" ("+CAMP.good+"/3)":"");camPaint(y);}
 function camBeat(tb,gap){const ms=gap*1000;HR.src="camera";HR.ch=null;HR.connected=true;HR.userOff=false;HR.rr.push(ms);while(HR.rr.length>800)HR.rr.shift();HR.n=(HR.n||0)+1;HR.pkI=(HR.pkI||0)+1;(HR.pk||(HR.pk=[])).push({t:tb,n:HR.n,i:HR.pkI});if(HR.pk.length>40)HR.pk.shift();
-  const r=CAMP.rr.slice(-8).sort(function(x,y){return x-y;}),Pm=r[r.length>>1];CAMP.bpm=Math.round(60/Pm);HR.bpm=CAMP.bpm;CAMP.bts=(CAMP.bts||[]);CAMP.bts.push(tb);if(CAMP.bts.length>24)CAMP.bts.shift();
+  const r=CAMP.rr.slice(-8).sort(function(x,y){return x-y;});let Pm=r[r.length>>1];CAMP.bpm=Math.round(60/Pm);HR.bpm=CAMP.bpm;CAMP.bts=(CAMP.bts||[]);CAMP.bts.push(tb);if(CAMP.bts.length>24)CAMP.bts.shift();
   /* phase-accurate save: fit beat number → time with a straight line over the last steady beats (up to 10), so the drum can project your beat forward accurately even if Begin comes 10+ s later */
   var B=CAMP.bts,run=[B[B.length-1]];for(var q=B.length-2;q>=0&&run.length<10;q--){var gp=(run[0]-B[q])/1000;if(gp<Pm*0.7||gp>Pm*1.4)break;run.unshift(B[q]);}
   var fitP=Pm,fitT=tb;if(run.length>=4){var n=run.length,sx=0,sy=0,sxx=0,sxy=0;for(var q2=0;q2<n;q2++){sx+=q2;sy+=run[q2];sxx+=q2*q2;sxy+=q2*run[q2];}var sl=(n*sxy-sx*sy)/(n*sxx-sx*sx),ic=(sy-sl*sx)/n;if(sl>400&&sl<1600){fitP=sl/1000;fitT=ic+sl*(n-1);}}
-  var old=CAMP.saved,nowp=performance.now();if(!old||run.length>=4||run.length>=(old.fit||0)||nowp-old.at>20000||Math.abs(Math.round(60/Pm)-old.bpm)>=3){CAMP.saved={P:fitP,bpm:Math.round(60/fitP),t:fitT,at:nowp,n:(old&&old.n||0)+1,fit:run.length};}else{old.n++;}CAMP.bpm=CAMP.saved.bpm;HR.bpm=CAMP.bpm;HR.updated=performance.now();try{save("mjk-hrever",true);}catch(e){}
+  var old=CAMP.saved,nowp=performance.now();if(!old||run.length>=4||(run.length>=(old.fit||0)&&nowp-old.at>8000)||nowp-old.at>20000){CAMP.saved={P:fitP,bpm:Math.round(60/fitP),t:fitT,at:nowp,n:(old&&old.n||0)+1,fit:run.length};}else{old.n++;}CAMP.bpm=CAMP.saved.bpm;HR.bpm=CAMP.bpm;HR.updated=performance.now();try{save("mjk-hrever",true);}catch(e){}
   if(!CAMP.wasOn){CAMP.wasOn=true;try{if(CAMP.onState)CAMP.onState();}catch(e){}}CAMP.flash=performance.now();}
 function camUI(on){let el=document.getElementById("camBox");if(!on){if(el)el.remove();CAMP.wasOn=false;return;}
   const host=document.getElementById("camHost");if(!el){el=document.createElement("div");el.id="camBox";}
