@@ -9360,7 +9360,8 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     if(fresh3&&isFinite(sv.P)&&sv.P>0.3){S.tapP=Math.max(0.4,Math.min(1.5,sv.P));S.tapAt=isFinite(sv.t)?sv.t/1000+off(a):a.currentTime;S.camUsed=sv.bpm;}
     else if(HR.src==="camera"&&HR.bpm>30){const rr=(HR.rr||[]).slice(-8).filter(function(v){return v>300&&v<2000;}).sort(function(x,y){return x-y;}),P=rr.length>=3?rr[rr.length>>1]/1000:60/HR.bpm;S.tapP=Math.max(0.4,Math.min(1.5,P));const lp=HR.pk&&HR.pk.length?HR.pk[HR.pk.length-1]:null;S.tapAt=lp?lp.t/1000+off(a):a.currentTime;S.camUsed=Math.round(60/S.tapP);}
     else if(CAMP.on&&!S.noPulseOK){S.noPulseOK=true;const el=$("#hsSrc");if(el){el.style.color="#ef6262";el.textContent="No pulse saved yet — keep your fingertip on the camera until you see the ✓ line. (Press Begin again to start anyway at a steady tempo.)";}setTimeout(function(){S.noPulseOK=false;},8000);return;}
-    S.noPulseOK=false;if(CAMP.on){try{camStop();}catch(e){}}unlockAudio();try{a.resume();}catch(e){}medStop();S.run=true;S.t0=a.currentTime;S.stage="match";S.hist=[];S.mb=[];S.vq=[];S.hq=[];S.bIdx=0;S.co=null;S.coSum=0;S.coN=0;S.note0=0;S.coPk=0;S.syncHit=0;S.syncAll=0;S.base=null;S.rep=null;S.hold=false;
+    S.dbgBegin=(S.camUsed?"cam "+S.camUsed+"bpm tapP"+(Math.round(S.tapP*1000)/1000):"no-cam")+" @"+new Date().toLocaleTimeString();
+    S.noPulseOK=false;if(CAMP.on){try{camStop();}catch(e){S.dbgErr="camStop "+e.message;}}unlockAudio();try{a.resume();}catch(e){}medStop();S.run=true;S.t0=a.currentTime;S.stage="match";S.hist=[];S.mb=[];S.vq=[];S.hq=[];S.bIdx=0;S.co=null;S.coSum=0;S.coN=0;S.note0=0;S.coPk=0;S.syncHit=0;S.syncAll=0;S.base=null;S.rep=null;S.hold=false;
     ingest(a);S.Pm=(S.camUsed?S.tapP:null)||S.P||S.tapP||1;S.musP=S.Pm;S.mn=null;S.bp=null;S.bk=0;
     if(fresh()){const P=S.P,tb=lastHeart();S.nb=tb+Math.ceil((a.currentTime+0.4-tb)/P)*P;}else if(S.tapAt&&S.tapP){const k=Math.ceil((a.currentTime+0.3-S.tapAt)/S.tapP);S.nb=S.tapAt+k*S.tapP;}else S.nb=a.currentTime+0.4;
     BIO.t0=Date.now();try{tgtReset();bioStart();sensEnsureTimer();}catch(e){}build(a);try{medWake(true);bgKeep(true,"Heart Sync");}catch(e){}
@@ -9387,6 +9388,7 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
         (pre?'':'<div class="site-note" style="margin:0 0 6px;font-size:.76rem">Using your own settings.</div>'))+
       '<div class="idea-fb" id="hsSens" style="margin-top:6px"></div><div id="camHost"></div>'+
       '<div id="hsSrc" style="text-align:center;margin:8px 0 0;font-weight:800;font-size:.9rem"></div>'+
+      '<div id="hsDbg" style="text-align:center;margin:4px 0 0;font:600 .68rem ui-monospace,monospace;color:#9a90b8;word-break:break-all"></div>'+
       '<div style="display:flex;justify-content:center;margin:14px 0 6px;position:relative"><div id="hsC" style="width:min(290px,78vw);height:min(290px,78vw);border-radius:50%;background:radial-gradient(circle at 50% 42%,rgba(239,98,98,.28),rgba(127,240,214,.10) 60%,transparent 72%);border:2px solid rgba(236,201,119,.45);display:flex;align-items:center;justify-content:center;transform:scale(.62);transition:transform 1.2s ease-in-out">'+
         '<div id="hsCore" style="width:46%;height:46%;border-radius:50%;background:radial-gradient(circle at 50% 40%,#ff8c8c,#a52a3a);box-shadow:0 0 18px rgba(239,98,98,.2);display:flex;flex-direction:column;align-items:center;justify-content:center"><div id="hsBig" style="font:900 2.3rem system-ui;color:#fff">'+(S.run?Math.round(60/S.Pm):"—")+'</div><div id="hsBigL" style="font-size:.7rem;opacity:.85;color:#fff">'+(S.run?"BPM":"TAP HERE")+'</div></div></div></div>'+
       '<div style="text-align:center;font-weight:800;font-size:1.15rem;min-height:1.4em" id="hsCue"></div>'+
@@ -9405,7 +9407,7 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     czWire("hsCz",function(){return !!S.cz;},function(v){S.cz=v;},function(){draw();});
     HS_PRE.forEach(function(p){const b=$("#hsP_"+p.id);if(b)b.onclick=function(){hsApplyPreset(p);S.bp=null;S.bk=0;draw();};});
     $("#eBack").onclick=function(){hsStop(true);renderMeditation();};
-    $("#hsGo").onclick=function(){if(S.run){finish();}else begin();};
+    $("#hsGo").onclick=function(){try{if(S.run){finish();}else begin();}catch(e){S.dbgErr=(e&&e.message||String(e)).slice(0,120);try{dbgLine();}catch(e2){}}};
     /* tap-to-start: your felt heartbeat sets the drum's starting beat, its tempo (no sensor) and its timing offset (with a sensor) */
     const tg0=$("#hsTapGo");const hsTapFn=(function(){unlockAudio();const a=ac(),b=$("#hsTapGo")||{},n=$("#hsTapN"),t=performance.now()/1000+off(a),core=$("#hsCore");S.st=S.st||[];if(S.st.length&&t-S.st[S.st.length-1]>2.5)S.st=[];S.st.push(t);ingest(a);
       if(core){core.style.transition="none";core.style.transform="scale(1.12)";requestAnimationFrame(function(){core.style.transition="transform .4s ease-out";core.style.transform="scale(1)";});}
@@ -9451,7 +9453,9 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
       else if(CAMP.on){t="Camera is finding your pulse"+(CAMP.good?" ("+Math.min(CAMP.good,3)+"/3)":"")+" — wait for ✓, then press Begin";col="#e9c46a";}
       else t="Heartbeat source: connect a sensor or the camera — or tap the heart circle on each beat to start";}
     el.style.color=col;el.textContent=t;}
-  if(!S.srcIv)S.srcIv=setInterval(function(){try{srcLine();}catch(e){}},1000);
+  function dbgLine(){const el=$("#hsDbg");if(!el)return;const sv=CAMP.saved,r=function(v){return v==null||!isFinite(v)?String(v):Math.round(v*1000)/1000;};
+    el.textContent="diag · saved:"+(sv?sv.bpm+"bpm P"+r(sv.P)+" fit"+sv.fit+" n"+sv.n+" age"+Math.round((performance.now()-sv.at)/1000)+"s":"none")+" · cam:"+(CAMP.on?"on":"off")+(CAMP.locked?"/lock":"")+" · HR:"+(HR.src||"-")+"/"+(HR.connected?"conn":"off")+"/"+HR.bpm+" · run:"+(S.run?1:0)+" Pm:"+r(S.Pm)+" musP:"+r(S.musP)+" tapP:"+r(S.tapP)+" camUsed:"+S.camUsed+" fresh:"+(function(){try{return fresh()?1:0;}catch(e){return "x";}})()+" stage:"+S.stage+(S.dbgBegin?" · begin:"+S.dbgBegin:"")+(S.dbgErr?" · ERR:"+S.dbgErr:"");}
+  if(!S.srcIv)S.srcIv=setInterval(function(){try{srcLine();}catch(e){}try{dbgLine();}catch(e){}},1000);
   function sens(){const e=$("#hsSens");if(!e)return;try{if(CAMP.on)camUI(true);}catch(er){}try{srcLine();}catch(er){}
     if(HR.connected){e.innerHTML=(HR.src==="camera"?'☝️ Camera pulse on':'💓 Heart sensor connected')+(HR.bpm?' · '+HR.bpm+' BPM':'')+'. <a href="#" id="hsX">Disconnect</a>';const x=$("#hsX");if(x)x.onclick=function(ev){ev.preventDefault();hrDisconnect();sens();};return;}
     if(CAMP.on){e.innerHTML='☝️ Reading your pulse with the camera. Keep your fingertip on it.';return;}
