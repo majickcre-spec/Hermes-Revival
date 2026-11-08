@@ -508,6 +508,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .czSheet .rrow .rlab{flex:1 1 100%}
 .czSheet .rrow2>.rlab,.czSheet details .rlab{display:block;margin:0 0 8px}
 .czSheet .czSec{color:var(--ink,#eee);font-size:.8rem;border-top:0;margin:16px 0 2px;opacity:.7}
+.czSheet .czCat{font-size:.95rem!important;font-weight:800;letter-spacing:.02em;text-transform:none;color:var(--ink,#fff)!important;opacity:1!important;margin:18px 0 0!important;padding-bottom:4px;border-bottom:2px solid var(--gold,#e9c46a)}
 .czBack{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:70;opacity:0;pointer-events:none;transition:opacity .25s}
 .czBack.on{opacity:1;pointer-events:auto}
 .czSheet{position:fixed;left:0;right:0;bottom:0;z-index:71;max-height:82vh;overflow:auto;-webkit-overflow-scrolling:touch;background:var(--panel,#1c1830);border-top:1px solid var(--line);border-radius:18px 18px 0 0;padding:6px 16px calc(18px + env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .28s ease;box-shadow:0 -10px 40px rgba(0,0,0,.45);max-width:720px;margin:0 auto}
@@ -1157,9 +1158,17 @@ function homeDoors(){var H=document.getElementById("home"),box=document.getEleme
   if(hm){hm.innerHTML='<button data-m="simple" class="'+(isAdv()?"":"sel")+'">Simple</button><button data-m="adv" class="'+(isAdv()?"sel":"")+'">Advanced</button>';hm.querySelectorAll("button").forEach(function(b){b.onclick=function(){setUiMode(b.getAttribute("data-m"));renderHome();};});}}
 let teardown=null;
 /* ===== SETTINGS ORGANIZER: on every screen, settings rows move into one ⚙️ Settings panel; the main controls stay in view ===== */
-var CZ_KEEP=/^(tempo|bpm|speed|pattern|groove|rhythm|key|song|level|chord|progression|scale|instrument|lead hand|mode|type|journey|track)\b/i;
+var CZ_KEEP=/^(pattern|groove|rhythm|key|song|level|chord|progression|scale|instrument|mode|type|journey|track|root|bassline)\b/i;
+/* one set of categories, same order on every screen */
+var CZ_CATS=[["Play",/^(play|wait|guide|help|test|lead|feedback|hit|strike|count.?in|call)/i],["Speed",/^(speed|exact speed|tempo|bpm)/i],["Practice",/^(loop|hands?|bars|measures|see notes|section|send loop|repeat)/i],["Sound",/^(sound|kit|preset|volume|click|metronome|mix|beat|tone|voice|synth|reverb|filter|attack|release|cutoff|wave|osc|env|lfo|drive|delay|chorus)/i],["Display",/^(labels?|sharps|key size|show|notes around|shape|view|colou?rs?|names?)/i],["Input",/^(i play with|input|mic|midi|latency|tuning|calib|level)/i],["Screen",/^screen/i]];
+function czCat(lab){lab=(lab||"").replace(/^§/,"").replace(/^[^A-Za-z]+/,"").trim();if(/^pkCal/.test(lab))return 4;for(var i=0;i<CZ_CATS.length;i++)if(CZ_CATS[i][1].test(lab))return i;return CZ_CATS.length;}
+function czSort(body){var items=[].slice.call(body.children).filter(function(x){return x.hasAttribute("data-czk")&&x.getAttribute("data-czk").charAt(0)!=="§";});
+  body.querySelectorAll('[data-czk^="§"],.czCat').forEach(function(x){x.remove();});
+  var groups={};items.forEach(function(el){var c=czCat(el.getAttribute("data-czk"));(groups[c]=groups[c]||[]).push(el);});
+  Object.keys(groups).map(Number).sort(function(a,b){return a-b;}).forEach(function(c){var h=document.createElement("div");h.className="czSec czCat";h.textContent=c<CZ_CATS.length?CZ_CATS[c][0]:"More";body.appendChild(h);
+    groups[c].forEach(function(el){var rl=el.querySelector(".rlab");if(rl&&c<CZ_CATS.length&&rl.textContent.trim().toLowerCase()===CZ_CATS[c][0].toLowerCase())rl.style.display="none";var n=el.nextElementSibling&&el.nextElementSibling.hasAttribute("data-czn")?el.nextElementSibling:null;body.appendChild(el);if(n)body.appendChild(n);});});}
 var CZ_CFG={/* per-screen tuning by title: keep = extra labels to leave in view, off = leave the screen alone */
-  "Piano Studio":{into:"#pkModeBar",move:/^(speed|exact speed|screen|hands|loop)/i,keep:/^(root|type|songs?|scale|chord|progression|mode)\b/i},"Heart Sync":{off:1},"Breathwork":{off:1},"Morning":{off:1},"Afternoon":{off:1},"Bedtime":{off:1},"About":{off:1}};
+  "Piano Studio":{into:"#pkModeBar",move:/^(screen|hands|loop)/i,keep:/^(root|type|songs?|scale|chord|progression|mode)\b/i},"Heart Sync":{off:1},"Breathwork":{off:1},"Morning":{off:1},"Afternoon":{off:1},"Bedtime":{off:1},"About":{off:1}};
 var CZOPEN={},CZ_BUSY=false;
 /* long chip lists become one swipeable row, with the chosen chip kept in view */
 function czRails(root){var seen=[];root.querySelectorAll(".rchip").forEach(function(c){var p=c.parentNode;if(p&&seen.indexOf(p)<0)seen.push(p);});
@@ -1173,7 +1182,10 @@ var CZ_ON=true;
 function czAuto(){if(CZ_BUSY||!CZ_ON)return;var v=document.getElementById("view");if(!v||v.hidden)return;var panel=v.querySelector(".panel")||v.querySelector("#pkCtlWrap");if(!panel)return;
   try{czRails(panel);}catch(e){}
   if(v.querySelector(".czSheet:not([data-auto])"))return;var title=((v.querySelector(".ttitle")||{}).textContent||"").trim(),cfg=czCfg(title);if(cfg.off)return;
-  var rows=[].slice.call(panel.querySelectorAll(".rrow,.rrow2,details")).filter(function(el){return el.getClientRects().length>0&&!el.closest(".czSheet")&&!el.closest("[data-nocz]")&&!el.parentNode.closest(".rrow,.rrow2,details")&&czIsSetting(el,cfg);});
+  /* a ⚙ settings drawer is opened up so each of its rows lands in its own category */
+  panel.querySelectorAll("details").forEach(function(d){if(d.closest(".czSheet")||d.closest("[data-nocz]"))return;var su=d.querySelector("summary");if(!su||!/⚙/.test(su.textContent))return;d.open=true;d.style.display="none";d.setAttribute("data-czdrawer","1");});
+  var drawerKids=[];panel.querySelectorAll("details[data-czdrawer]").forEach(function(d){[].slice.call(d.children).forEach(function(k){if(k.tagName!=="SUMMARY"&&!k.hasAttribute("data-czk"))drawerKids.push(k);});});
+  var rows=drawerKids.concat([].slice.call(panel.querySelectorAll(".rrow,.rrow2,details:not([data-czdrawer])")).filter(function(el){if(el.closest("details[data-czdrawer]"))return false;return el.getClientRects().length>0&&!el.closest(".czSheet")&&!el.closest("[data-nocz]")&&!el.parentNode.closest(".rrow,.rrow2,details")&&czIsSetting(el,cfg);}));
   var sheet=document.getElementById("czA");if(!rows.length&&!sheet)return;
   var have=sheet?sheet.querySelectorAll("#czABody>[data-czk]").length:0;if(!sheet&&rows.length<2)return;
   CZ_BUSY=true;try{
@@ -1190,6 +1202,7 @@ function czAuto(){if(CZ_BUSY||!CZ_ON)return;var v=document.getElementById("view"
       if(note){note.setAttribute("data-czn","1");el.after(note);}});
     var btn=document.getElementById("czABtn");if(!btn||!panel.contains(btn)){btn=document.createElement("button");btn.className="czOpen";btn.id="czABtn";btn.onclick=function(){sheet.classList.add("on");document.getElementById("czABk").classList.add("on");CZOPEN[title]=true;};
       var into=cfg.into&&panel.querySelector(cfg.into),aft=cfg.after&&panel.querySelector(cfg.after);var act=panel.querySelector(".actions");if(into){btn.style.margin="0";btn.style.display="inline-block";into.appendChild(btn);}else if(aft)aft.after(btn);else if(act)act.after(btn);else{var intro=panel.querySelector(".intro");if(intro)intro.after(btn);else panel.insertBefore(btn,panel.firstChild);}}
+    try{czSort(body);}catch(e){}
     czSum();}finally{CZ_BUSY=false;}}
 function czModeRefresh(){var b=document.querySelectorAll("#czAMode button");b.forEach(function(x){x.classList.toggle("sel",(x.getAttribute("data-m")==="adv")===isAdv());});}
 function czSum(){var btn=document.getElementById("czABtn"),body=document.getElementById("czABody");if(!btn||!body)return;var bits=[];body.querySelectorAll(".rchip.sel,.rchip.on").forEach(function(c){var t=c.textContent.replace(/^[^A-Za-z0-9♩½¼¾]+/,"").trim();if(t&&t.length<16&&bits.length<2&&bits.indexOf(t)<0)bits.push(t);});btn.textContent="⚙️ Settings"+(bits.length?" · "+bits.join(" · "):"");}
