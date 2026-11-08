@@ -820,6 +820,69 @@ function howWrap(root){if(!root)return;root.querySelectorAll(".intro:not([data-h
   el.parentNode.insertBefore(d,el);d.querySelector(".hw-body").appendChild(el);d.addEventListener("toggle",function(){HOW_OPEN[k]=d.open;});});}
 /* text-only DOM updates (live numbers, timers, cues) don't need the page re-organized */
 function moTextOnly(recs){for(var i=0;i<recs.length;i++){var r=recs[i];if(r.type!=="childList")return false;var L=[r.addedNodes,r.removedNodes];for(var k=0;k<2;k++)for(var j=0;j<L[k].length;j++)if(L[k][j].nodeType!==3)return false;}return true;}
+/* ===== ICONS: one modern line set (24px grid, 1.6 stroke, round joins) replacing the emoji on cards, doors and tiles ===== */
+var MJK_IC={
+"🧭":'<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2.1 4.9-4.9 2.1 2.1-4.9z"/>',
+"🎼":'<path d="M3 6h18M3 10h18M3 14h18M3 18h18"/><circle cx="9" cy="16" r="2"/><path d="M11 16V5"/>',
+"📏":'<circle cx="7" cy="16" r="2"/><circle cx="17" cy="8" r="2"/><path d="M9 16h4a2 2 0 002-2v-4" stroke-dasharray="2 2.4"/>',
+"🔑":'<circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l1.5 1.5"/>',
+"🎵":'<path d="M12 17V4c2.5.6 5 2.2 6 5"/><circle cx="9.5" cy="17" r="2.5"/>',
+"🎶":'<path d="M9 18V6l11-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>',
+"🎧":'<path d="M4 15v-3a8 8 0 0116 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/>',
+"🎹":'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7.5 5v8h2V5M14.5 5v8h2V5M12 13v6"/>',
+"🔚":'<path d="M3 12h12M11 7l5 5-5 5M20 5v14"/>',
+"🎤":'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21M9 21h6"/>',
+"🎙":'<rect x="8.5" y="2.5" width="7" height="11" rx="3.5"/><path d="M8.5 7h3M8.5 10h3M5 11a7 7 0 0014 0M12 18v3"/>',
+"📖":'<path d="M3 5.5c2.5-1 6-1 9 1 3-2 6.5-2 9-1V19c-2.5-1-6-1-9 1-3-2-6.5-2-9-1z"/><path d="M12 6.5V20"/>',
+"🥁":'<ellipse cx="12" cy="9" rx="8" ry="3"/><path d="M4 9v7c0 1.7 3.6 3 8 3s8-1.3 8-3V9M8 3l3 5M16 3l-3 5"/>',
+"👆":'<circle cx="12" cy="12" r="2.5"/><circle cx="12" cy="12" r="6.5"/><path d="M12 2v1.5M12 20.5V22M2 12h1.5M20.5 12H22"/>',
+"🧠":'<path d="M2 12h4l2-5 3.5 10 3-8 2 3H22"/>',
+"🧘":'<circle cx="12" cy="5" r="2"/><path d="M12 8v5M7 11l5 2 5-2M4 19c3-1.5 5.5-2.2 8-2.2s5 .7 8 2.2M8 17l4-4 4 4"/>',
+"⏱":'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M10 2h4M12 2v3"/>',
+"🎸":'<path d="M13 11l6.5-6.5M18 3l3 3"/><path d="M11.5 8.6c-1.4-1-3.3-.6-4 .9-.4.9-.3 1.7-1.3 2.3-1.8 1-3 3-2 5.2 1 2.1 3.4 2.9 5.4 1.8.9-.5 1.2-1.4 2.3-1.6 1.7-.2 2.8-1.8 2.5-3.4-.2-.8-.6-1.4-1.2-1.8"/><circle cx="9" cy="15" r="1.3"/>',
+"🪕":'<path d="M13 11l6.5-6.5M18 3l3 3"/><circle cx="9" cy="15" r="5"/><circle cx="9" cy="15" r="1.3"/>',
+"🎛":'<path d="M6 4v16M12 4v16M18 4v16M4 14h4M10 8h4M16 16h4"/>',
+"🎚":'<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="7" cy="18" r="2"/>',
+"🛸":'<ellipse cx="12" cy="13" rx="9" ry="5"/><ellipse cx="12" cy="11.5" rx="3" ry="1.6"/><circle cx="6.5" cy="13.5" r="1"/><circle cx="17.5" cy="13.5" r="1"/><circle cx="12" cy="16" r="1"/>',
+"🎯":'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.3"/>',
+"🪘":'<ellipse cx="12" cy="5.5" rx="7" ry="2"/><path d="M5 5.5l3 7-2 8h12l-2-8 3-7"/>',
+"⭐":'<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+"🧪":'<path d="M9 3h6M10 3v6l-5 9a2 2 0 001.7 3h10.6a2 2 0 001.7-3l-5-9V3M7.5 15h9"/>',
+"🧩":'<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
+"🔊":'<path d="M4 9h4l5-4v14l-5-4H4zM16.5 9a4 4 0 010 6M19 6.5a8 8 0 010 11"/>',
+"✍":'<path d="M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3M13 20h7"/>',
+"🎓":'<path d="M2 9l10-5 10 5-10 5zM6 11v5c3 2.5 9 2.5 12 0v-5M22 9v5"/>',
+"🔬":'<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M7 11h1.5l1-2.5 2 5 1-2.5H14"/>',
+"🌬":'<path d="M3 8h10a3 3 0 10-3-3M3 12h15a3 3 0 11-3 3M3 16h7"/>',
+"💓":'<path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0112 7.4a4.2 4.2 0 017.5 2.4C19.5 15.4 12 20 12 20z"/><path d="M7.5 11.5h2l1-2 2 4 1-2h3"/>',
+"🌀":'<path d="M2 9c2.5-4 5-4 7.5 0s5 4 7.5 0 3.5-2.7 5-1.3M2 15c2.5-4 5-4 7.5 0s5 4 7.5 0 3.5-2.7 5-1.3"/>',
+"🌍":'<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><ellipse cx="12" cy="12" rx="4" ry="9"/>',
+"🏗":'<rect x="3" y="13" width="5" height="7" rx="1"/><rect x="9.5" y="8" width="5" height="12" rx="1"/><rect x="16" y="4" width="5" height="16" rx="1"/>',
+"📈":'<path d="M3 20h18M5 16l5-5 3 3 6-7M15 7h4v4"/>',
+"⚡":'<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+"🔥":'<path d="M12 3c1 3 5 5 5 10a5 5 0 01-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-3-1-5 1-8.5z"/>',
+"🏆":'<path d="M8 4h8v5a4 4 0 01-8 0zM8 6H5a3 3 0 003 4M16 6h3a3 3 0 01-3 4M12 13v4M8 21h8M9.5 17h5"/>',
+"🔒":'<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>',
+"📘":'<path d="M5 19.5v-15A1.5 1.5 0 016.5 3H19v15H6.5A1.5 1.5 0 005 19.5 1.5 1.5 0 006.5 21H19M9 7h6"/>',
+"📐":'<path d="M4 20V4l16 16zM8 16v-4l4 4z"/>',
+"👁":'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+"🕯":'<rect x="9" y="10" width="6" height="11" rx="1"/><path d="M12 10V8.5M12 3c1.6 1.4 1.6 3 0 4-1.6-1-1.6-2.6 0-4z"/>',
+"🌱":'<path d="M12 21v-9M12 12C12 8 9 6 5 6c0 4 3 6 7 6zM12 14c0-3 2.5-5 6-5 0 3-2.5 5-6 5z"/>',
+"🌿":'<path d="M12 21V4M12 9c-3 0-5-2-5-4 3 0 5 2 5 4zM12 9c3 0 5-2 5-4-3 0-5 2-5 4zM12 15c-3 0-5-2-5-4 3 0 5 2 5 4zM12 15c3 0 5-2 5-4-3 0-5 2-5 4z"/>',
+"🌳":'<circle cx="12" cy="9" r="6"/><path d="M12 12v9M9 21h6"/>',
+"👑":'<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/>',
+"☀":'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+"🍃":'<path d="M5 19C5 11 11 5 20 5c0 9-6 15-14 15M5 19l8-8"/>',
+"🌙":'<path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/>',
+"📚":'<rect x="3.5" y="4" width="4" height="16" rx="1"/><rect x="9.5" y="4" width="4" height="16" rx="1"/><path d="M15.5 5.2l3.9-1 3 14.6-3.9 1z"/>',
+"🔎":'<circle cx="11" cy="11" r="7"/><path d="M16 16l5 5"/>',
+"🗣":'<path d="M4 5h16v10H9l-5 4z"/><path d="M8 9h8M8 12h5"/>'
+};
+function mjkIcon(e){var k=(e||"").replace(/[️‍]/g,"").trim();var p=MJK_IC[k];if(!p)return null;return '<svg class="mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+p+'</svg>';}
+var MJK_IC_SEL=".card .ic,.door .di,.ph-ic,.kb-ic,.dic";
+function iconize(root){if(!root)return;root.querySelectorAll(MJK_IC_SEL).forEach(function(el){if(el.firstElementChild)return;var t=el.textContent.trim();if(!t||t.length>4)return;var s=mjkIcon(t);if(s){el.setAttribute("data-emoji",t);el.innerHTML=s;el.classList.add("hasic");}});}
+(function(){try{var st=document.createElement("style");st.textContent=".hasic{display:inline-flex!important;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;background:rgba(244,183,64,.09);border:1px solid rgba(244,183,64,.22);color:var(--gold);font-size:0!important;line-height:0}.hasic .mic{width:24px;height:24px}.card .hasic{margin-bottom:8px}.door .hasic{width:38px;height:38px;margin:0 auto 6px}.door .hasic .mic{width:21px;height:21px}.kb-ic.hasic{width:30px;height:30px;border-radius:9px}.dic.hasic{width:36px;height:36px;border-radius:10px;flex:none}.dic.hasic .mic{width:20px;height:20px}.kb-ic.hasic .mic{width:17px;height:17px}.ph-ic.hasic{width:48px;height:48px}.ph-ic.hasic .mic{width:26px;height:26px}";document.head.appendChild(st);}catch(e){}
+  ["home","view"].forEach(function(id){var r=document.getElementById(id);if(!r||!window.MutationObserver)return;var q=false;new MutationObserver(function(recs){if(q||moTextOnly(recs))return;q=true;requestAnimationFrame(function(){q=false;try{iconize(r);}catch(e){}});}).observe(r,{childList:true,subtree:true});try{iconize(r);}catch(e){}});})();
 (function(){try{var q=false;var mo=new MutationObserver(function(recs){if(q||moTextOnly(recs))return;q=true;Promise.resolve().then(function(){q=false;howWrap(view);});});mo.observe(view,{childList:true,subtree:true});}catch(e){}})();
 /* ===== FLOATING METRONOME — on every screen, own tempo + own volume, keeps running between screens ===== */
 /* ONE click volume for the whole app (metronomes, count-ins, practice clicks). Default 20%. */
@@ -9202,7 +9265,7 @@ function dayPlanDraw(bid){bid=bid||"dayPlan";var box=document.getElementById(bid
   box.innerHTML='<div style="margin:12px 0 2px;font-size:1.25rem;font-weight:700;color:var(--gold)">Today\u2019s practice</div><div class="site-note" style="margin-bottom:8px">Three short sessions to carry you through the day. Tap one, then press Begin.</div><div id="'+bid+'Rows" style="display:grid;gap:8px'+(compact?';grid-template-columns:repeat(3,minmax(0,1fr))':'')+'"></div>';
   var rows=document.getElementById(bid+"Rows");DAY_PLAN.forEach(function(p){var done=!!v[p.k],cur=p.k===now&&!done,b=document.createElement("button");b.className="card";
     b.style.cssText=(compact?"display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;padding:10px 6px;width:100%;":"display:flex;align-items:center;gap:12px;text-align:left;padding:12px 14px;width:100%;")+(cur?"border-color:var(--gold);":"")+(done?"opacity:.6;":"");
-    if(compact)b.innerHTML='<span style="font-size:1.5rem">'+p.ic+'</span><b style="font-size:.9rem">'+p.when+'</b><span style="font-size:.72rem;opacity:.75">'+(done?"\u2713 done":cur?"now \u00b7 "+p.len:p.len)+'</span>';else b.innerHTML='<span style="font-size:1.6rem">'+p.ic+'</span><span style="flex:1"><b>'+p.when+'</b>'+(cur?' <span style="font-size:.72rem;color:var(--gold);font-weight:700">\u00b7 NOW</span>':'')+'<br><span style="font-size:.85rem;opacity:.85">'+p.what+'</span><br><span style="font-size:.75rem;opacity:.6">'+p.len+(p.k==="n"?" \u00b7 2 steps, flows on its own":"")+'</span></span><span style="font-size:1.3rem">'+(done?'\u2713':'\u25b6')+'</span>';
+    if(compact)b.innerHTML='<span class="dic" style="font-size:1.5rem">'+p.ic+'</span><b style="font-size:.9rem">'+p.when+'</b><span style="font-size:.72rem;opacity:.75">'+(done?"\u2713 done":cur?"now \u00b7 "+p.len:p.len)+'</span>';else b.innerHTML='<span class="dic" style="font-size:1.6rem">'+p.ic+'</span><span style="flex:1"><b>'+p.when+'</b>'+(cur?' <span style="font-size:.72rem;color:var(--gold);font-weight:700">\u00b7 NOW</span>':'')+'<br><span style="font-size:.85rem;opacity:.85">'+p.what+'</span><br><span style="font-size:.75rem;opacity:.6">'+p.len+(p.k==="n"?" \u00b7 2 steps, flows on its own":"")+'</span></span><span style="font-size:1.3rem">'+(done?'\u2713':'\u25b6')+'</span>';
     b.onclick=function(){p.go(function(){dayMark(p.k);});};rows.appendChild(b);});}
 /* ===== HEART SYNC — your heartbeat, outside you: a bass-drum pulse locked to your heart, music tuned to it, then gently guiding it down ===== */
 const HSX={mode:load("mjk-hsmode","guide"),goal:load("mjk-hsgoal","calm"),mins:load("mjk-hsmins",20),ocean:load("mjk-hsocean",true),chimes:load("mjk-hschimes",true),breath:load("mjk-hsbreath",true),drum:load("mjk-hsdrum",0.8),music:load("mjk-hsmusic",0.6),bpat:load("mjk-hsbpat","heart"),carrier:load("mjk-hscar",528),lat:load("mjk-hslat",0),mel:load("mjk-hsmel","hchime"),gong:load("mjk-hsgong",true)};
