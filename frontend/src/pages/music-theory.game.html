@@ -7146,9 +7146,14 @@ const SPATS=[
  {id:"68",name:"6/8 ballad",genre:"Ballad · folk",ts:"6/8",div:1,beats:6,pat:"DDUDDU",acc:[0,3],bpm:120},
  {id:"shuffle",name:"Blues shuffle",genre:"Blues",ts:"4/4 swing",div:2,beats:4,pat:"DUDUDUDU",swing:true,acc:[2,6],bpm:85},
  {id:"funk",name:"Funk 16ths",genre:"Funk",ts:"4/4",div:4,beats:4,pat:"DudU-UduDudU-UDu",bpm:80},
- {id:"punk",name:"Pop-punk downs",genre:"Pop-punk",ts:"4/4",div:2,beats:4,pat:"DDDDDDDD",bpm:150}
+ {id:"punk",name:"Pop-punk downs",genre:"Pop-punk",ts:"4/4",div:2,beats:4,pat:"DDDDDDDD",bpm:150},
+ {id:"gballad",name:"Gentle ballad",genre:"Slow songs",ts:"4/4",div:2,beats:4,pat:"D--UD-DU",bpm:68,info:"ballad"},
+ {id:"bounce",name:"Folk / country bounce",genre:"Country · bluegrass",ts:"4/4",div:2,beats:4,pat:"D-DUD-DU",bpm:96,info:"country"}
 ];
-const ST={prog:load("mjk-stprog","pop"),key:load("mjk-stkey","G"),barsN:load("mjk-stbars",8),test:false,one:"G",chordQ:[],pi:2,chord:"G",mode:"watch",bpm:null,bpmFor:null,inst:"guitar",running:false,schID:null,raf:null,visQ:[],exp:[],click:load("mjk-stclick",true),clickVol:load("mjk-stclickvol",load("mjk-stclick",true)?0.35:0)};
+/* song examples and the "why it works" notes carried over from the old Strumming screen */
+const ST_INFO={downs:"alldown",eighths:"downup",folk:"dduudu",rock:"8down",reggae:"reggae",gballad:"ballad",bounce:"country"};
+function stInfo(P){var id=ST_INFO[P.id];if(!id)return null;for(var i=0;i<STRUM_PATS.length;i++)if(STRUM_PATS[i].id===id)return STRUM_PATS[i];return null;}
+const ST={input:load("mjk-stinput","touch"),micRaf:null,prog:load("mjk-stprog","pop"),key:load("mjk-stkey","G"),barsN:load("mjk-stbars",8),test:false,one:"G",chordQ:[],pi:2,chord:"G",mode:"watch",bpm:null,bpmFor:null,inst:"guitar",running:false,schID:null,raf:null,visQ:[],exp:[],click:load("mjk-stclick",true),clickVol:load("mjk-stclickvol",load("mjk-stclick",true)?0.35:0)};
 (function(){try{var s=document.createElement("style");s.textContent=
 ".stlane{display:flex;gap:3px;margin:6px 0 4px}"+
 ".stc{flex:1;min-width:0;border-radius:8px;background:var(--card2);border:1px solid var(--line);text-align:center;padding:7px 0 4px;transition:background .06s}"+
@@ -7166,7 +7171,7 @@ function stKeys(inst){return Object.keys(KEY_CHORDS).filter(function(k){return s
 function stProgChords(){var d=stProgDef();if(!d.d)return null;var K=KEY_CHORDS[ST.key];if(!K)return null;return d.d.map(function(i){return K.chords[i];});}
 function stChordAt(bar){var pr=stProgChords();return pr?pr[((bar%pr.length)+pr.length)%pr.length]:ST.one;}
 function stStats(){return load("mjk-strstats",{});}
-function stStatKey(){var P=stP();return ST.inst+"|"+P.id+"|"+(ST.prog==="one"?ST.one:ST.prog+"-"+ST.key)+"|"+(ST.test?"test":"play");}
+function stStatKey(){var P=stP();return ST.inst+"|"+P.id+"|"+(ST.prog==="one"?ST.one:ST.prog+"-"+ST.key)+"|"+(ST.test?"test":ST.mode);}
 function stScoresHTML(){var all=stStats(),rows=Object.keys(all).map(function(k){return all[k];}).filter(function(x){return x.inst===ST.inst;}).sort(function(a,b){return (b.at||0)-(a.at||0);});
   if(!rows.length)return '<div class="site-note">No scored runs yet. Pick <b>🎸 I\'ll play</b> and press Start.</div>';
   return rows.map(function(x){return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)"><div style="flex:1;min-width:0"><b>'+esc(x.t)+'</b>'+(x.m==="test"?' <span style="color:var(--gold);font-size:.75rem">TEST</span>':'')+'<div class="site-note" style="margin:0;font-size:.76rem">'+esc(x.c)+' · best '+x.bestAcc+'% · '+x.tries+' tr'+(x.tries===1?"y":"ies")+(x.bestBpm?' · '+x.bestBpm+' BPM':'')+'</div></div>'+melSpark(x.hist)+'</div>';}).join("");}
@@ -7177,13 +7182,13 @@ function stHwyDraw(now){var cv=document.getElementById("stHwy");if(!cv)return;va
   var hitY=H-30,pxs=(hitY-6)/(barDur*1.3),base=ST.running?ST.firstT:now+0.12,rel=now-base,res={};ST.exp.forEach(function(x){if(x.res)res[x.bar*100+x.slot]=x.res;});
   var lane=Math.min(W*0.5,260),cx=W/2,xD=cx-lane*0.2,xU=cx+lane*0.2;c.fillStyle="rgba(255,255,255,.04)";c.fillRect(cx-lane/2,0,lane,H);
   var b0=Math.floor((rel-0.4)/barDur),b1=Math.ceil((rel+barDur*1.4)/barDur);
-  for(var b=b0;b<=b1;b++){if(b<0)continue;if(ST.running&&ST.mode==="play"&&b>=ST.bars)break;var bs=b*barDur,yb=hitY-(bs-rel)*pxs;
-    if(yb>-30&&yb<H+4){c.fillStyle="rgba(255,255,255,.22)";c.fillRect(0,yb,W,2);c.fillStyle="#ffe27a";c.font="900 "+Math.round(Math.min(26,W*0.06))+"px system-ui";c.textAlign="left";c.fillText(stChordAt(b),10,yb-6);}
+  for(var b=b0;b<=b1;b++){if(b<0)continue;if(ST.running&&ST.mode!=="watch"&&b>=ST.bars)break;var bs=b*barDur,yb=hitY-(bs-rel)*pxs;
+    if(yb>-30&&yb<H+4){c.fillStyle="rgba(255,255,255,.22)";c.fillRect(0,yb,W,2);c.fillStyle="#ffe27a";c.font="900 "+Math.round(Math.min(26,W*0.06))+"px system-ui";c.textAlign="left";c.fillText(stChordAt(b),10,yb-6);if(ST.mode==="cr"){c.fillStyle=b%2===0?"rgba(180,140,255,.9)":"rgba(127,240,214,.95)";c.font="800 11px system-ui";c.textAlign="right";c.fillText(b%2===0?"LISTEN":"YOUR TURN",W-8,yb-8);}}
     for(var bt=1;bt<P.beats;bt++){var ybt=hitY-(bs+bt*bd-rel)*pxs;if(ybt>0&&ybt<H){c.fillStyle="rgba(255,255,255,.07)";c.fillRect(cx-lane/2,ybt,lane,1);}}
     if(ST.test&&ST.running&&b>=1)continue;
     for(var i=0;i<n;i++){var ch=P.pat[i];if(ch==="-")continue;var t=stSlotT(P,0,i,bd)+bs,y=hitY-(t-rel)*pxs;if(y<-24||y>H+24)continue;
       var r=res[b*100+i],acc=P.acc&&P.acc.indexOf(i)>=0,mute=(ch==="d"||ch==="u"),down=(ch==="D"||ch==="d"),x=ch==="B"?cx:(down?xD:xU),col=r==="hit"?"#3fcf7a":r==="wrong"?"#ff9f43":r==="miss"?"#ff5d5d":ch==="B"?"#b48cff":mute?"#9aa3ad":down?"#f4b740":"#49d6c0";
-      var w=acc?62:52,h=acc?30:26;c.globalAlpha=r==="miss"?0.55:1;c.fillStyle=col;c.beginPath();if(c.roundRect)c.roundRect(x-w/2,y-h/2,w,h,9);else c.rect(x-w/2,y-h/2,w,h);c.fill();if(acc){c.strokeStyle="#fff";c.lineWidth=2;c.stroke();}
+      var w=acc?62:52,h=acc?30:26;c.globalAlpha=r==="miss"?0.55:(ST.mode==="cr"&&b%2===0?0.5:1);c.fillStyle=col;c.beginPath();if(c.roundRect)c.roundRect(x-w/2,y-h/2,w,h,9);else c.rect(x-w/2,y-h/2,w,h);c.fill();if(acc){c.strokeStyle="#fff";c.lineWidth=2;c.stroke();}
       c.fillStyle="#1a1206";c.font="900 "+(acc?20:17)+"px system-ui";c.textAlign="center";c.textBaseline="middle";c.fillText(stGlyph(ch)+(mute?"✕":""),x,y+1);c.textBaseline="alphabetic";c.globalAlpha=1;
       c.fillStyle="rgba(255,255,255,.45)";c.font="700 11px system-ui";c.textAlign="center";c.fillText(stCountLbl(P,i),cx+lane/2+14,y+4);}}
   c.fillStyle="rgba(244,183,64,.95)";c.fillRect(cx-lane/2-6,hitY-1.5,lane+12,3);}
@@ -7208,10 +7213,10 @@ function stSchedule(){if(ST.schedDone)return;var a=ac(),P=stP(),bd=60/ST.bpm,n=P
     if(ST.cnt>0){var tc=ST.next;if(tc>a.currentTime+ahead)break;var num=P.beats-ST.cnt+1;click(tc,num===1?"accent":"beat",ST.clickVol);ST.visQ.push({t:tc,count:num});ST.cnt--;ST.next+=bd;if(ST.cnt===0){ST.barStart=ST.next;ST.slot=0;}continue;}
     var t=stSlotT(P,ST.barStart,ST.slot,bd);if(t>a.currentTime+ahead)break;var ch=P.pat[ST.slot];
     if(ST.slot%P.div===0)click(t,ST.slot===0?"accent":"beat",ST.clickVol);
-    if(ST.slot===0)ST.chordQ.push({t:t,bar:ST.bar});if(ST.mode==="watch"&&ch!=="-")stPlay(ch,t,P,ST.slot,stChordAt(ST.bar));
-    if(ST.mode==="play"&&ch!=="-")ST.exp.push({t:t,ch:ch,slot:ST.slot,bar:ST.bar,done:false});
+    if(ST.slot===0)ST.chordQ.push({t:t,bar:ST.bar});var callB=ST.mode==="watch"||(ST.mode==="cr"&&ST.bar%2===0);if(callB&&ch!=="-")stPlay(ch,t,P,ST.slot,stChordAt(ST.bar));
+    if(!callB&&ch!=="-")ST.exp.push({t:t,ch:ch,slot:ST.slot,bar:ST.bar,done:false});
     ST.visQ.push({t:t,slot:ST.slot,bar:ST.bar,ch:ch});
-    ST.slot++;if(ST.slot>=n){ST.slot=0;ST.bar++;ST.barStart+=P.beats*bd;if(ST.mode==="play"&&ST.bar>=ST.bars){ST.endT=ST.barStart;ST.schedDone=true;break;}}}}
+    ST.slot++;if(ST.slot>=n){ST.slot=0;ST.bar++;ST.barStart+=P.beats*bd;if(ST.mode!=="watch"&&ST.bar>=ST.bars){ST.endT=ST.barStart;ST.schedDone=true;break;}}}}
 function stCells(){return document.querySelectorAll("#stLane .stc");}
 function stLaneLight(slot){var c=stCells(),n=c.length;c.forEach(function(x){x.classList.remove("on","nx");});if(c[slot])c[slot].classList.add("on");if(leadOn()){var P=stP();for(var k=1;k<=n;k++){var j=(slot+k)%n;if(P.pat[j]!=="-"){if(c[j])c[j].classList.add("nx");break;}}}}
 function stLaneClear(bar){ST.laneBar=bar;stCells().forEach(function(x){x.classList.remove("hit","wrong","miss");});}
@@ -7221,28 +7226,32 @@ function stTip(m){var e=$("#stTip");if(e)e.innerHTML=m||"";}
 function stFrame(){var now=ac().currentTime;while(ST.chordQ.length&&ST.chordQ[0].t-0.1<=now){var cq=ST.chordQ.shift(),nc=stChordAt(cq.bar);if(nc!==ST.chord){ST.chord=nc;stNeckRender();}}stHwyDraw(now);
   while(ST.visQ.length&&ST.visQ[0].t<=now){var e=ST.visQ.shift();
     if(e.count){var cn=$("#stCount");if(cn)cn.textContent=String(e.count);}
-    else{var cn2=$("#stCount");if(cn2&&cn2.textContent)cn2.textContent="";if(e.slot===0)stLaneClear(e.bar);stLaneLight(e.slot);if(ST.mode==="watch"&&e.ch!=="-")stViz(e.ch,e.slot);}}
-  if(ST.mode==="play"&&ST.running){var win=stWin();ST.exp.forEach(function(x){if(!x.done&&now>x.t+win){x.done=true;x.res="miss";ST.miss++;ST.streak=0;stMark(x,"miss");stHud();}});
+    else{var cn2=$("#stCount");if(cn2&&cn2.textContent)cn2.textContent="";if(e.slot===0)stLaneClear(e.bar);stLaneLight(e.slot);if((ST.mode==="watch"||(ST.mode==="cr"&&e.bar%2===0))&&e.ch!=="-")stViz(e.ch,e.slot);}}
+  if(ST.mode!=="watch"&&ST.running){var win=stWin();ST.exp.forEach(function(x){if(!x.done&&now>x.t+win){x.done=true;x.res="miss";ST.miss++;ST.streak=0;stMark(x,"miss");stHud();}});
     if(ST.schedDone&&now>ST.endT+0.35){stFinish();return;}}
   ST.raf=requestAnimationFrame(stFrame);}
-function stJudge(kind){if(ST.mode!=="play"||!ST.running)return;var now=ac().currentTime;if(now<ST.firstT-0.2)return;var win=stWin(),best=null,bd=1e9;
+function stJudge(kind){if(ST.mode==="watch"||!ST.running)return;var now=ac().currentTime;if(now<ST.firstT-0.2)return;if(ST.mode==="cr"){var bdur=stP().beats*60/ST.bpm,cb=Math.floor((now-ST.firstT+0.12)/bdur);if(cb%2===0)return;}var win=stWin(),best=null,bd=1e9;
   ST.exp.forEach(function(x){if(x.done)return;var d=Math.abs(x.t-now);if(d<=win&&d<bd){bd=d;best=x;}});
-  if(!best){ST.extra++;stTip("Extra strum — on a <b>·</b> keep your hand moving but miss the strings.");return;}
-  best.done=true;var want=(best.ch==="D"||best.ch==="d")?"down":(best.ch==="U"||best.ch==="u")?"up":"pick";
+  if(!best){if(kind==="any")return;ST.extra++;stTip("Extra strum — on a <b>·</b> keep your hand moving but miss the strings.");return;}
+  best.done=true;var want=(best.ch==="D"||best.ch==="d")?"down":(best.ch==="U"||best.ch==="u")?"up":"pick";if(kind==="any")kind=want;
   if(kind===want){best.res="hit";ST.hit++;ST.streak++;ST.err+=bd;ST.nErr++;stMark(best,"hit");stTip("");}
   else{best.res="wrong";ST.wrong++;ST.streak=0;stMark(best,"wrong");stTip(want==="pick"?"That one’s a <b>● bass note</b> — tap one string.":want==="down"?"That one’s <b>↓ down</b> — swipe right.":"That one’s <b>↑ up</b> — swipe left.");}
   stHud();}
-function stStop(keep){ST.running=false;if(ST.schID){clearInterval(ST.schID);ST.schID=null;}if(ST.raf){cancelAnimationFrame(ST.raf);ST.raf=null;}ST.visQ=[];
-  var b=$("#stGo");if(b)b.textContent=ST.mode==="play"?"▶ Start":"▶ Watch it";var tb=$("#stTest");if(tb)tb.textContent="🎯 Test";var cn=$("#stCount");if(cn)cn.textContent="";
+function stStop(keep){ST.running=false;if(ST.micRaf){cancelAnimationFrame(ST.micRaf);ST.micRaf=null;}if(ST.schID){clearInterval(ST.schID);ST.schID=null;}if(ST.raf){cancelAnimationFrame(ST.raf);ST.raf=null;}ST.visQ=[];
+  var b=$("#stGo");if(b)b.textContent=ST.mode==="watch"?"▶ Watch it":"▶ Start";var tb=$("#stTest");if(tb)tb.textContent="🎯 Test";var cn=$("#stCount");if(cn)cn.textContent="";
   if(!keep)stCells().forEach(function(x){x.classList.remove("on","nx","hit","wrong","miss");});else stCells().forEach(function(x){x.classList.remove("on","nx");});}
 function stStart(){unlockAudio();if(ST.running)return;var a=ac(),P=stP();ST.running=true;ST.visQ=[];ST.exp=[];ST.hit=0;ST.wrong=0;ST.miss=0;ST.extra=0;ST.streak=0;ST.err=0;ST.nErr=0;ST.bar=0;ST.slot=0;ST.schedDone=false;ST.bars=ST.barsN;ST.laneBar=0;ST.chordQ=[];ST.chord=stChordAt(0);stNeckRender();
   ST.cnt=P.beats;ST.next=a.currentTime+0.15;ST.firstT=ST.next+P.beats*(60/ST.bpm);ST.barStart=ST.firstT;stLaneClear(0);
   ST.schID=setInterval(stSchedule,25);ST.raf=requestAnimationFrame(stFrame);var b=$("#stGo");if(b)b.textContent="⏹ Stop";
-  if(ST.mode==="play"){stHud();stTip("Count-in… then swipe the guitar body: right = ↓, left = ↑.");}else{var h=$("#stHud");if(h)h.textContent="";stTip("");}}
+  if(ST.mode!=="watch"&&ST.input==="mic")stMicListen();
+  if(ST.mode!=="watch"){stHud();stTip(ST.mode==="cr"?"I play a bar, then you play it back — every other bar is yours.":ST.input==="mic"?"Count-in… then strum your guitar in time.":"Count-in… then swipe the guitar body: right = ↓, left = ↑.");}else{var h=$("#stHud");if(h)h.textContent="";stTip("");}}
+/* your own guitar through the mic: each strum's attack counts as a hit (the mic can't tell down from up) */
+function stMicListen(){ensureMic().then(function(ok){if(!ok||!ST.running||!toneAnalyser){stTip("Mic is off — swipe the guitar body instead, or allow the mic.");return;}var buf=new Float32Array(toneAnalyser.fftSize),prev=0,last=-1;
+  var loop=function(){if(!ST.running){ST.micRaf=null;return;}toneAnalyser.getFloatTimeDomainData(buf);var q=0;for(var i=0;i<buf.length;i++)q+=buf[i]*buf[i];var r=Math.sqrt(q/buf.length),now=ac().currentTime;if(r>0.045&&(r-prev)>0.02&&(now-last)>0.09){last=now;stJudge("any");}prev=r;ST.micRaf=requestAnimationFrame(loop);};ST.micRaf=requestAnimationFrame(loop);});}
 function stFinish(){stStop(true);var P=stP(),total=ST.exp.length,pct=total?Math.round(100*ST.hit/total):0,ms=ST.nErr?Math.round(1000*ST.err/ST.nErr):0;
   var bests=load(mk("strum","best"),{}),key=ST.inst+"-"+P.id,rec=(bests[key]==null||pct>bests[key]);if(rec){bests[key]=pct;save(mk("strum","best"),bests);}
   var bn=pct>=80?5:pct>=50?2:0;if(bn&&activeId()){addBeans(bn);try{beanChip();}catch(e){}}
-  {const all=stStats(),k=stStatKey(),st=all[k]||{t:P.name,c:(ST.prog==="one"?ST.one:stProgDef().n+" in "+ST.key),inst:ST.inst,m:ST.test?"test":"play",tries:0,bestAcc:0,bestBpm:0,hist:[]};st.tries++;st.at=Date.now();if(pct>st.bestAcc){st.bestAcc=pct;st.bestBpm=ST.bpm;}st.hist.push({a:pct,s:pct,b:ST.bpm,t:Date.now()});st.hist=st.hist.slice(-30);all[k]=st;save("mjk-strstats",all);const rr=$("#stRes");if(rr)rr.innerHTML=(ST.test?'<div style="text-align:center;color:var(--gold);font-weight:800;font-size:.8rem">TEST · '+(pct>=90?"Passed with honors":pct>=75?"Passed":"Not yet — practice and test again")+'</div>':'')+'<div class="site-note" style="text-align:center;margin:4px 0 0">🏆 Best '+st.bestAcc+'% · Try #'+st.tries+'</div>'+melSpark(st.hist);}
+  {const all=stStats(),k=stStatKey(),st=all[k]||{t:P.name+(ST.mode==="cr"&&!ST.test?" · call & response":""),c:(ST.prog==="one"?ST.one:stProgDef().n+" in "+ST.key),inst:ST.inst,m:ST.test?"test":ST.mode,tries:0,bestAcc:0,bestBpm:0,hist:[]};st.tries++;st.at=Date.now();if(pct>st.bestAcc){st.bestAcc=pct;st.bestBpm=ST.bpm;}st.hist.push({a:pct,s:pct,b:ST.bpm,t:Date.now()});st.hist=st.hist.slice(-30);all[k]=st;save("mjk-strstats",all);const rr=$("#stRes");if(rr)rr.innerHTML=(ST.test?'<div style="text-align:center;color:var(--gold);font-weight:800;font-size:.8rem">TEST · '+(pct>=90?"Passed with honors":pct>=75?"Passed":"Not yet — practice and test again")+'</div>':'')+'<div class="site-note" style="text-align:center;margin:4px 0 0">🏆 Best '+st.bestAcc+'% · Try #'+st.tries+'</div>'+melSpark(st.hist);}
   var h=$("#stHud");if(h)h.innerHTML='<b style="font-size:1.15rem;color:'+(pct>=80?"#5fe0a8":pct>=50?"#f4b740":"#ff9f9a")+'">'+(pct>=95?"🌟 ":pct>=80?"🔥 ":"")+pct+"%</b> · ✓ "+ST.hit+" · ↺ "+ST.wrong+" wrong way · ✗ "+ST.miss+" missed"+(ms?" · ±"+ms+" ms":"");
   stTip((rec&&pct>0?"🏆 New best! ":"")+(bn?"+"+bn+" beans · ":"")+(pct>=80?"Locked in — try it faster.":pct>=50?"Close — slow it down and watch the lit arrow.":"Try 👀 Watch first, then slow the tempo.")+(ST.extra?" ("+ST.extra+" extra strums)":""));
   var inf=$("#stBest");if(inf)inf.textContent="best "+bests[key]+"%";}
@@ -7260,7 +7269,7 @@ function renderStrumTrainer(inst){inst=inst||"guitar";if(toneRAF)cancelAnimation
       '<div class="rrow2"><span class="rlab">Pattern</span><span class="rchips tight" id="stPats"></span></div>'+
       '<div class="rrow2"><span class="rlab">Progression</span><span class="rchips tight" id="stProgs"></span></div>'+
       (ST.prog==="one"?'<div class="rrow2"><span class="rlab">Chord</span><span class="rchips tight" id="stChords"></span></div>':'<div class="rrow2"><span class="rlab">Key</span><span class="rchips tight" id="stKeys"></span></div>')+
-      '<div class="site-note" style="margin:2px 0"><b>'+esc(P.name)+'</b> · '+esc(P.genre)+' · '+P.ts+(PD.d?' · '+esc(stProgChords().join(" – ")):'')+'</div>'+
+      '<div class="site-note" style="margin:2px 0"><b>'+esc(P.name)+'</b> · '+esc(P.genre)+' · '+P.ts+(PD.d?' · '+esc(stProgChords().join(" – ")):'')+'</div>'+(stInfo(P)?'<details class="howto" style="margin:2px 0 4px"><summary>Why it works · great for</summary><div class="site-note" style="margin:4px 0 0">'+esc(stInfo(P).why)+'<br><b>Great for:</b> '+esc(stInfo(P).great)+'</div></details>':'')+
       '<div id="stCount" style="text-align:center;font:900 1.5rem system-ui;color:#f4b740;min-height:1.8rem"></div>'+
       '<div class="feedback" id="stHud" style="min-height:22px;text-align:center"></div><div class="site-note" id="stTip" style="text-align:center;min-height:18px;margin:0 0 4px"></div><div id="stRes"></div>'+
       '<div id="stNeck" style="width:min(80%,460px,calc((100vh - 300px)*0.55));margin:4px auto 0"><canvas id="stHwy" style="display:block;width:100%;height:min(32vh,250px);border-radius:14px 14px 0 0"></canvas><div id="fbSvgWrap"></div><div id="fbZone" style="touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;margin-top:-4.6%;position:relative;overflow:hidden;filter:drop-shadow(0 10px 20px rgba(0,0,0,.45))"></div></div>'+
@@ -7268,10 +7277,11 @@ function renderStrumTrainer(inst){inst=inst||"guitar";if(toneRAF)cancelAnimation
       '<div class="rrow"><span class="rlab">Tempo</span><input type="range" id="stBpm" min="40" max="180" value="'+ST.bpm+'" style="flex:1"><span class="rbpm" id="stBpmV">'+ST.bpm+'</span></div>'+
       '<div class="rrow2"><span class="rlab">Speed</span><span class="rchips tight" id="stSpd"></span></div>'+
       '<div class="rrow2"><span class="rlab">Bars</span><span class="rchips tight" id="stBars"></span></div>'+
+      '<div class="rrow2"><span class="rlab">I play with</span><span class="rchips tight"><button class="rchip sm'+(ST.input==="touch"?" sel":"")+'" data-stin="touch">👆 Screen</button><button class="rchip sm'+(ST.input==="mic"?" sel":"")+'" data-stin="mic">🎸 My guitar (mic)</button></span></div>'+
       clickVolRow("stClickV",ST.clickVol)+volSlider("stVol")+'</div>';
     $("#eBack").onclick=function(){stStop();FB.onSwipe=null;FB.onStringTap=null;FB.upright=false;fbRestore();window.removeEventListener("resize",onRs);renderStrings(ST.inst);};
     SPATS.forEach(function(p,i){var b=document.createElement("button");b.className="rchip sm"+(i===ST.pi?" sel":"");b.textContent=p.name;b.onclick=function(){ST.pi=i;draw();};$("#stPats").appendChild(b);});
-    [["watch","👀 Watch"],["play","🎸 I'll play"]].forEach(function(o){var b=document.createElement("button");b.className="rchip sm"+(ST.mode===o[0]?" sel":"");b.textContent=o[1];b.onclick=function(){ST.mode=o[0];draw();};$("#stModes").appendChild(b);});
+    [["watch","👀 Watch"],["play","🎸 I'll play"],["cr","🔁 Call & response"]].forEach(function(o){var b=document.createElement("button");b.className="rchip sm"+(ST.mode===o[0]?" sel":"");b.textContent=o[1];b.onclick=function(){ST.mode=o[0];draw();};$("#stModes").appendChild(b);});
     ST_PROGS.forEach(function(pr){if(pr.d&&!ks.length)return;var b=document.createElement("button");b.className="rchip sm"+(ST.prog===pr.id?" sel":"");b.innerHTML=esc(pr.n)+(pr.g?' <span style="opacity:.6;font-size:.75em">'+pr.g+'</span>':'');b.onclick=function(){ST.prog=pr.id;save("mjk-stprog",pr.id);draw();};$("#stProgs").appendChild(b);});
     if(ST.prog==="one"){["G","C","D","Em","Am","E","A","Dm","F"].filter(function(c){return CHORDS[ST.inst][c];}).forEach(function(c){var b=document.createElement("button");b.className="rchip sm"+(c===ST.one?" sel":"");b.textContent=c;b.onclick=function(){ST.one=c;draw();};$("#stChords").appendChild(b);});}
     else ks.forEach(function(k){var b=document.createElement("button");b.className="rchip sm"+(k===ST.key?" sel":"");b.textContent=KEY_CHORDS[k].label.replace(/ major$/,"");b.onclick=function(){ST.key=k;save("mjk-stkey",k);draw();};$("#stKeys").appendChild(b);});
@@ -7280,6 +7290,7 @@ function renderStrumTrainer(inst){inst=inst||"guitar";if(toneRAF)cancelAnimation
     stNeckRender();var z=document.getElementById("fbZone");z.innerHTML=fbZoneSVG();fbBindZone(z);
     var bp=$("#stBpm");bp.oninput=function(){ST.bpm=+bp.value;$("#stBpmV").textContent=ST.bpm;if(!ST.running)stHwyDraw(ac().currentTime);};
     bindClickVol("stClickV",function(v){ST.clickVol=v;save("mjk-stclickvol",v);});bindVol("stVol");
+    view.querySelectorAll("[data-stin]").forEach(function(b){b.onclick=function(){ST.input=b.dataset.stin;save("mjk-stinput",ST.input);view.querySelectorAll("[data-stin]").forEach(function(x){x.classList.toggle("sel",x===b);});if(ST.input==="mic"){unlockAudio();ensureMic();}};});
     $("#stGo").onclick=function(){if(ST.running)stStop(true);else{ST.test=false;$("#stRes").innerHTML="";stStart();}};
     $("#stTest").onclick=function(){if(ST.running){stStop(true);return;}if(ST.mode!=="play"){ST.mode="play";draw();}ST.test=true;$("#stRes").innerHTML="";stStart();$("#stTest").textContent="⏹ Stop test";};
     $("#stSc").onclick=function(){var bx=$("#stScBox");if(bx.style.display==="none"){bx.innerHTML='<div style="font-weight:800;margin-bottom:4px">🏆 My scores · Strum Patterns</div>'+stScoresHTML();bx.style.display="";}else bx.style.display="none";};
@@ -7303,9 +7314,8 @@ function renderStrings(inst){try{sfLoadInst("guitar");}catch(e){}
     {t:"Progressions",ic:"🔁",b:"Strum along to common progressions, on tempo.",go:()=>strProg(inst)},
     {t:"Chord Finder",ic:"👂",b:"Strum a chord and I'll name it — with capo shapes — and work out what key you're in.",go:()=>strChordFind(inst)},
     {t:"Melodies",ic:"🎼",b:"Play real melodies on a scrolling highway \u2014 classics and cool originals across genres. Watch it, tap the neck, or play your own "+I.name.toLowerCase()+" and get scored.",go:()=>renderMelody(inst)},
-    {t:"Strum Patterns",ic:"↕️",b:"13 strum patterns fall down a highway onto the neck, over chord progressions — watch, then strum along at any speed and get scored.",go:()=>renderStrumTrainer(inst)},
+    {t:"Strum Patterns",ic:"↕️",b:"15 strum patterns fall down a highway onto the neck, over chord progressions — watch, play along, or call & response, at any speed, scored by swipe or your real guitar.",go:()=>renderStrumTrainer(inst)},
     {t:"Scales on the Neck",ic:"🎶",b:"See and play scales across the neck — major, pentatonic, blues — with the root and degrees labeled.",go:()=>renderFretboard(inst,"scale")},
-    {t:"Strumming",ic:"👋",b:"Strum patterns for different song styles, play-along, and call-and-response that listens and grades your timing.",go:()=>renderStrumming(inst)},
     {t:"Bring a Song",ic:"🎼",b:"Paste a chord sheet, snap a photo of one, or build a progression — then play along with loop, tempo and transpose.",go:()=>renderLearnSong()}];
   if(inst==="guitar"||inst==="ukulele")cards.unshift({t:(inst==="guitar"?"Guitar":"Ukulele")+" Method",ic:"📘",b:"A step-by-step beginner course — read music and play it, one string at a time. Lessons unlock as you go.",go:()=>renderMethod(inst)});
   if(inst==="guitar")cards.splice(2,0,{t:"Tricky Chords",ic:"💪",b:"Stuck on F or Bm? Easy versions, a step-by-step barre build-up, and fixes for buzzing and muting.",go:()=>strBarre(inst)});
