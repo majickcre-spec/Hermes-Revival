@@ -2,7 +2,7 @@
    Network-first for same-origin GETs (so deploys land immediately),
    with a cached fallback so the app opens offline. Cross-origin requests
    (fonts, the API, NOAA data) are left completely alone. */
-const CACHE = 'mmu-v1';
+const CACHE = 'mmu-v2';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -22,7 +22,8 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // don't touch fonts / API / NOAA
   e.respondWith(
-    fetch(req)
+    /* always check the server for pages and scripts (ETag revalidation), so a deploy shows up on the next open instead of a stale browser-cached copy */
+    fetch(req, (req.mode === 'navigate' || /\.(html|js|json|webmanifest)$/.test(url.pathname) || url.pathname.indexOf('.') < 0) ? { cache: 'no-cache' } : undefined)
       .then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
