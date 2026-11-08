@@ -1170,7 +1170,8 @@ function czSort(body){var items=[].slice.call(body.children).filter(function(x){
   Object.keys(groups).map(Number).sort(function(a,b){return a-b;}).forEach(function(c){var h=document.createElement("div");h.className="czSec czCat";h.textContent=c<CZ_CATS.length?CZ_CATS[c][0]:"More";body.appendChild(h);
     groups[c].forEach(function(el){var rl=el.querySelector(".rlab");if(rl&&c<CZ_CATS.length&&rl.textContent.trim().toLowerCase()===CZ_CATS[c][0].toLowerCase())rl.style.display="none";var n=el.nextElementSibling&&el.nextElementSibling.hasAttribute("data-czn")?el.nextElementSibling:null;body.appendChild(el);if(n)body.appendChild(n);});});}
 var CZ_CFG={/* per-screen tuning by title: keep = extra labels to leave in view, off = leave the screen alone */
-  "Piano Studio":{into:"#pkModeBar",move:/^(screen|hands|loop)/i,keep:/^(root|type|songs?|scale|chord|progression|mode)\b/i},"Heart Sync":{off:1},"Breathwork":{off:1},"Morning":{off:1},"Afternoon":{off:1},"Bedtime":{off:1},"About":{off:1}};
+  "Lyric Lab":{keep:/(^section|word bank)/i},"Piano Studio":{into:"#pkModeBar",move:/^(screen|hands|loop)/i,keep:/^(root|type|songs?|scale|chord|progression|mode)\b/i},"Heart Sync":{off:1},"Breathwork":{off:1},"Morning":{off:1},"Afternoon":{off:1},"Bedtime":{off:1},"About":{off:1}};
+(function(){try{var st=document.createElement("style");st.textContent="@media (max-width:560px){.llrow{flex-wrap:wrap;justify-content:flex-end}.llrow .llin{flex:1 1 100%;min-width:0}.llrow .rchip{flex:0 0 auto}}";document.head.appendChild(st);}catch(e){}})();
 var CZOPEN={},CZ_BUSY=false;
 /* long chip lists become one swipeable row, with the chosen chip kept in view */
 function czRails(root){var seen=[];root.querySelectorAll(".rchip").forEach(function(c){var p=c.parentNode;if(p&&seen.indexOf(p)<0)seen.push(p);});
