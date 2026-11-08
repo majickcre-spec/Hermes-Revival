@@ -8819,7 +8819,7 @@ function camBeat(tb,gap){const ms=gap*1000;HR.src="camera";HR.ch=null;HR.connect
   /* phase-accurate save: fit beat number → time with a straight line over the last steady beats (up to 10), so the drum can project your beat forward accurately even if Begin comes 10+ s later */
   var B=CAMP.bts,run=[B[B.length-1]];for(var q=B.length-2;q>=0&&run.length<10;q--){var gp=(run[0]-B[q])/1000;if(gp<Pm*0.7||gp>Pm*1.4)break;run.unshift(B[q]);}
   var fitP=Pm,fitT=tb;if(run.length>=4){var n=run.length,sx=0,sy=0,sxx=0,sxy=0;for(var q2=0;q2<n;q2++){sx+=q2;sy+=run[q2];sxx+=q2*q2;sxy+=q2*run[q2];}var sl=(n*sxy-sx*sy)/(n*sxx-sx*sx),ic=(sy-sl*sx)/n;if(sl>400&&sl<1600){fitP=sl/1000;fitT=ic+sl*(n-1);}}
-  CAMP.saved={P:fitP,bpm:Math.round(60/fitP),t:fitT,at:performance.now(),n:(CAMP.saved&&CAMP.saved.n||0)+1,fit:run.length};CAMP.bpm=CAMP.saved.bpm;HR.bpm=CAMP.bpm;HR.updated=performance.now();try{save("mjk-hrever",true);}catch(e){}
+  var old=CAMP.saved,nowp=performance.now();if(!old||run.length>=4||run.length>=(old.fit||0)||nowp-old.at>20000){CAMP.saved={P:fitP,bpm:Math.round(60/fitP),t:fitT,at:nowp,n:(old&&old.n||0)+1,fit:run.length};}else{old.n++;}CAMP.bpm=CAMP.saved.bpm;HR.bpm=CAMP.bpm;HR.updated=performance.now();try{save("mjk-hrever",true);}catch(e){}
   if(!CAMP.wasOn){CAMP.wasOn=true;try{if(CAMP.onState)CAMP.onState();}catch(e){}}CAMP.flash=performance.now();}
 function camUI(on){let el=document.getElementById("camBox");if(!on){if(el)el.remove();CAMP.wasOn=false;return;}
   const host=document.getElementById("camHost");if(!el){el=document.createElement("div");el.id="camBox";}
@@ -8831,7 +8831,8 @@ function camUI(on){let el=document.getElementById("camBox");if(!on){if(el)el.rem
     '<div class="site-note" id="camTip" style="margin:4px 0 0;font-size:.74rem;display:'+(CAMP.min?"none":"block")+'">Rest your fingertip lightly over the back camera'+(CAMP.torch?" (the light is on)":"")+'. Don’t press hard, and stay still. '+(CAMP.torch?"":"Works best in a bright room.")+'</div>';
   document.getElementById("camOff").onclick=function(){camStop();};document.getElementById("camMin").onclick=function(){CAMP.min=!CAMP.min;camUI(true);};}
 function camPaint(y){const now=performance.now();if(now-(CAMP.lastPaint||0)<60)return;CAMP.lastPaint=now;const st=document.getElementById("camSt"),bp=document.getElementById("camBpm"),hz=document.getElementById("camHeart");
-  if(st)st.textContent=CAMP.status;if(bp)bp.textContent=CAMP.locked&&CAMP.bpm?"💓 "+CAMP.bpm+" BPM":"Fingertip pulse";
+  var sv=CAMP.saved&&CAMP.saved.n>=3&&now-CAMP.saved.at<180000?CAMP.saved:null;
+  if(st)st.textContent=(!CAMP.locked&&sv&&!CAMP.finger)?"Saved — press Begin, or put your finger back for a live lock.":CAMP.status;if(bp)bp.textContent=CAMP.locked&&CAMP.bpm?"💓 "+CAMP.bpm+" BPM":sv?"💾 "+sv.bpm+" BPM saved":"Fingertip pulse";
   if(hz){hz.textContent=CAMP.locked?"💓":"☝️";hz.style.transform=CAMP.flash&&now-CAMP.flash<160?"scale(1.25)":"scale(1)";}
   const cv=document.getElementById("camCv");if(!cv||CAMP.min)return;const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;if(!W)return;if(cv.width!==W*dpr){cv.width=W*dpr;cv.height=H*dpr;}const g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
   const Y=CAMP.y,T=CAMP.t;if(Y.length<2||!CAMP.finger)return;const t1=T[T.length-1],t0=t1-5000;let m=CAMP.env||1;g.strokeStyle=CAMP.locked?"#ef6262":"rgba(255,255,255,.5)";g.lineWidth=2;g.beginPath();let st2=false;
