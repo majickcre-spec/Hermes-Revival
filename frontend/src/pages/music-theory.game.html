@@ -1175,7 +1175,7 @@ var CZ_CFG={/* per-screen tuning by title: keep = extra labels to leave in view,
 var CZOPEN={},CZ_BUSY=false;
 /* long chip lists become one swipeable row, with the chosen chip kept in view */
 function czRails(root){var seen=[];root.querySelectorAll(".rchip").forEach(function(c){var p=c.parentNode;if(p&&seen.indexOf(p)<0)seen.push(p);});
-  seen.forEach(function(p){if(p.closest(".czSheet")||p.classList.contains("czRail")||p.closest("[data-nocz]"))return;var n=0;for(var i=0;i<p.children.length;i++)if(p.children[i].classList.contains("rchip"))n++;if(n<7)return;
+  seen.forEach(function(p){if(p.closest(".czSheet")||p.classList.contains("czRail")||p.closest("[data-nocz]"))return;try{var cs=getComputedStyle(p);if(cs.display==="grid"||cs.flexDirection==="column")return;}catch(e){}var n=0;for(var i=0;i<p.children.length;i++)if(p.children[i].classList.contains("rchip"))n++;if(n<7)return;
     p.classList.add("czRail");var sel=p.querySelector(".rchip.sel,.rchip.on");if(sel)requestAnimationFrame(function(){try{p.scrollLeft=Math.max(0,sel.offsetLeft-p.offsetLeft-24);}catch(e){}});});}
 function czCfg(t){for(var k in CZ_CFG){if(t.indexOf(k)>=0)return CZ_CFG[k];}return {};}
 function czIsSetting(el,cfg){if(el.tagName==="DETAILS"){var su=el.querySelector("summary");return !!(su&&/⚙/.test(su.textContent));}
