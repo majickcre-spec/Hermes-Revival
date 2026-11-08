@@ -9262,20 +9262,22 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
   function hsG(){return HSX.mode==="sleep"?"sleep":HSX.goal;}
   function prog(){return S.run?Math.min(1,el()/(HSX.mins*60)):0;}
   /* breath counted in heartbeats: a pattern's seconds become whole beats at the current drum tempo */
-  function breathPlan(){const B=(HS_BPAT.find(function(b){return b[0]===HSX.bpat;})||HS_BPAT[0])[2],P=S.Pm||1;if(!B){const n=Math.max(6,Math.min(16,Math.round(60/P/5.5))),i=Math.max(2,Math.round(n*0.4));return [["In",i],["Out",n-i]];}
+  function breathPlan(){const B=(HS_BPAT.find(function(b){return b[0]===HSX.bpat;})||HS_BPAT[0])[2],P=S.musP||S.Pm||1;if(!B){const n=Math.max(6,Math.min(16,Math.round(60/P/5.5))),i=Math.max(2,Math.round(n*0.4));return [["In",i],["Out",n-i]];}
     return B.map(function(ph){return [ph[0],Math.max(1,Math.round(ph[1]/P))];});}
   function breathPos(){if(!S.bp||S.bk>=S.bp.reduce(function(x,y){return x+y[1];},0)){S.bp=breathPlan();S.bk=0;}
     let k=S.bk,i=0;while(k>=S.bp[i][1]){k-=S.bp[i][1];i++;}const lvl=function(j){let v=0;for(let q=0;q<j;q++){v=S.bp[q][0]==="In"?1:S.bp[q][0]==="Out"?0:v;}return v;};
     const ph=S.bp[i],len=ph[1],x=ph[0]==="In"?(k+1)/len:ph[0]==="Out"?1-(k+1)/len:lvl(i);return {name:ph[0],k:k,len:len,start:k===0,x:x};}
   function schedBeat(a,t){const lat=0,tt=Math.max(a.currentTime+0.01,t+HSX.lat/1000);
     if(HSX.drum>0.01){hsDrum(a,S.nodes.drum,tt,1,false);const P=S.Pm,dd=Math.max(0.2,Math.min(0.36,0.28+0.12*(P-0.85)));hsDrum(a,S.nodes.drum,tt+dd,1,true);}
-    S.mb.push(t);while(S.mb.length>120)S.mb.shift();
+    S.mb.push(t);while(S.mb.length>120)S.mb.shift();(S.hq=S.hq||[]).push(tt);}
+  /* music runs on a steady clock of its own (S.musP): it starts at your heart tempo and only drifts slowly (≤0.2% per note) as your heart settles or is guided down — the drum alone follows each real heartbeat */
+  function schedMusic(a,t){const lat=0,tt=Math.max(a.currentTime+0.01,t+HSX.lat/1000);
     const bp2=breathPos(),N=S.nodes,f=S.note,pr=prog(),dark=HSX.mode==="sleep"?1-0.65*pr:1;S.bk++;
-    if(N&&bp2.start){const g=N.brG.gain,lv=HSX.breath?(bp2.name==="In"?0.09:bp2.name==="Out"?0.014:null):0.0001;if(lv!=null){g.cancelScheduledValues(tt);g.setValueAtTime(Math.max(0.0001,g.value),tt);g.linearRampToValueAtTime(lv*dark+0.0001,tt+S.Pm*bp2.len);}}
+    if(N&&bp2.start){const g=N.brG.gain,lv=HSX.breath?(bp2.name==="In"?0.09:bp2.name==="Out"?0.014:null):0.0001;if(lv!=null){g.cancelScheduledValues(tt);g.setValueAtTime(Math.max(0.0001,g.value),tt);g.linearRampToValueAtTime(lv*dark+0.0001,tt+S.musP*bp2.len);}}
     if(HSX.chimes&&N){const c=S.co||0,H=[4,5,6,8,10,12,9,16];
       if(HSX.breath&&bp2.start&&bp2.name==="In")hsChime(a,N.mus,tt,f*8,0.05*dark,(Math.random()-0.5)*0.6);
       else if(HSX.breath&&bp2.start&&bp2.name==="Out")hsChime(a,N.mus,tt,f*6,0.04*dark,(Math.random()-0.5)*0.6);
-      else if(Math.random()<(0.06+0.16*c)*dark)hsChime(a,N.mus,tt+(Math.random()<0.3?S.Pm/2:0),f*H[Math.floor(Math.random()*H.length)],0.025+0.02*c,(Math.random()-0.5)*1.4);}
+      else if(Math.random()<(0.06+0.16*c)*dark)hsChime(a,N.mus,tt+(Math.random()<0.3?S.musP/2:0),f*H[Math.floor(Math.random()*H.length)],0.025+0.02*c,(Math.random()-0.5)*1.4);}
     if(N){const isSleep=HSX.mode==="sleep";
       /* gong: opens the session, then marks every 6th breath (rarer and softer as you go down for sleep) */
       if(bp2.start&&bp2.name==="In"){S.cyc++;}
@@ -9287,7 +9289,7 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
         if(S.mel==null)S.mel=2;
         if(bp2.start&&cue==="In")S.mel=Math.max(0,S.mel-1);
         if(Math.random()<pPlay||(bp2.start&&cue!=="Hold")){const step=cue==="In"?(Math.random()<0.75?1:0):cue==="Out"?(Math.random()<0.75?-1:0):(Math.random()<0.5?0:(Math.random()<0.5?1:-1));
-          S.mel=Math.max(0,Math.min(R.length-1,S.mel+step+(Math.random()<0.12?(Math.random()<0.5?2:-2):0)));const f2=base*R[S.mel],sub=Math.random()<0.25?S.Pm/2:0;
+          S.mel=Math.max(0,Math.min(R.length-1,S.mel+step+(Math.random()<0.12?(Math.random()<0.5?2:-2):0)));const f2=base*R[S.mel],sub=Math.random()<0.25?S.musP/2:0;
           hsSamp(a,N.mus,HSX.mel,f2,tt+sub,(HSX.mel==="glass"?0.22:HSX.mel==="tbell"?0.2:0.3)*dark,HSX.mel==="glass"?10:7,(Math.random()-0.5)*1.1);}}}
     S.vq.push({t:tt+lat,b:bp2});S.bIdx++;}
   /* follow (and later lead) the heart: tempo eases toward your heart period, phase is pulled onto your real beats */
@@ -9298,19 +9300,21 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
       S.Pm+=(target-S.Pm)*0.25;
       const tb=lastHeart(),R3=S.beats.slice(-3).map(function(b){return b.r;}),Pn=R3.length===3?Math.max(0.6*P,Math.min(1.4*P,R3[2]+(R3[2]-R3[0])/4)):P,hb=tb+Math.round((t-tb)/Pn)*Pn;let e=hb-t;if(e>P/2)e-=P;if(e<-P/2)e+=P;const cor=Math.max(-0.15*S.Pm,Math.min(0.15*S.Pm,w*e));return t+S.Pm+cor;}
     if(S.tapP)S.Pm+=(S.tapP-S.Pm)*0.25;return t+S.Pm;}
+  function nextMusic(t){const tgt=S.Pm||S.musP,step=Math.max(-0.002*S.musP,Math.min(0.002*S.musP,(tgt-S.musP)*0.03));S.musP+=step;return t+S.musP;}
   function sched(){if(!S.run)return;const a=ac();ingest(a);while(S.nb<a.currentTime+0.3){if(S.nb<a.currentTime-0.2)S.nb=a.currentTime+0.05;schedBeat(a,S.nb);S.nb=nextBeat(S.nb);}
+    if(S.mn==null){S.mn=S.nb;S.musP=S.musP||S.Pm;}while(S.mn<a.currentTime+0.3){if(S.mn<a.currentTime-0.2)S.mn=a.currentTime+0.05;schedMusic(a,S.mn);S.mn=nextMusic(S.mn);}
     const T=el(),now=performance.now();
     if(now-S.lastCo>2000){S.lastCo=now;const c=bioCoherence();if(c){S.co=c.score/(1+c.score);S.coSum+=S.co;S.coN++;S.coPk=Math.max(S.coPk,S.co);opening(a);}
       if(S.O!=null&&S.P){const tNow=a.currentTime,hs=S.beats.map(function(b){return S.O+b.c;}).filter(function(x){return x>tNow-20&&x<tNow;});let hit=0;hs.forEach(function(h){let d=1e9;S.mb.forEach(function(m){d=Math.min(d,Math.abs(m-h));});if(d<=0.1*S.P)hit++;});S.syncN=hs.length;S.sync=hs.length?hit/hs.length:0;if(S.stage!=="match"||T>30){S.syncHit+=hit;S.syncAll=(S.syncAll||0)+hs.length;}}
-      const hz=1/S.Pm;if(Math.abs(hsNote(hz)-S.note)/S.note>0.004||Math.abs(hsBeatHz(hz,hsG(),prog())-S.beatHz)/S.beatHz>0.01)retune(a,hz);
+      const hz=1/(S.musP||S.Pm);if(now-(S.rtT||0)>15000&&Math.abs(hsBeatHz(hz,hsG(),prog())-S.beatHz)/S.beatHz>0.01){S.rtT=now;retune(a,hz);}
       if(HSX.mode==="sleep"&&S.nodes){const pr=prog(),t=a.currentTime;const fd=pr<0.75?1:Math.max(0.0001,1-(pr-0.75)/0.25);S.nodes.drum.gain.setTargetAtTime(HSX.drum*0.32*(1-0.5*pr)*fd,t,2);S.nodes.master.gain.setTargetAtTime(Math.max(0.0001,HSX.music*fd),t,2);}}
     if(now-S.lastChart>1000){S.lastChart=now;S.hist.push({t:T,hr:fresh()?60/S.P:null,mb:60/S.Pm,co:S.co});if(S.hist.length>2400)S.hist.shift();
       if(S.stage==="guide"&&S.hist.length>90){const md=function(a2){const b=a2.filter(function(x){return x!=null;}).sort(function(x,y){return x-y;});return b.length?b[b.length>>1]:null;};const r1=md(S.hist.slice(-30).map(function(h){return h.hr;})),r0=md(S.hist.slice(-90,-60).map(function(h){return h.hr;}));S.hold=r1!=null&&r0!=null&&r1>=r0-0.3;}
       paint();}
     if(T>=HSX.mins*60)finish();}
-  function frame(){if(!S.run)return;const a=ac();let hit=null;while(S.vq.length&&S.vq[0].t<=a.currentTime)hit=S.vq.shift();const c=$("#hsC"),core=$("#hsCore");
-    if(hit&&core){core.style.transition="none";core.style.transform="scale(1.12)";core.style.boxShadow="0 0 60px rgba(239,98,98,.55)";requestAnimationFrame(function(){core.style.transition="transform .45s ease-out, box-shadow .6s ease-out";core.style.transform="scale(1)";core.style.boxShadow="0 0 18px rgba(239,98,98,.2)";});}
-    if(hit&&c&&HSX.breath){const b=hit.b;c.style.transition="transform "+(S.Pm*0.95).toFixed(2)+"s ease-in-out";c.style.transform="scale("+(0.62+0.38*b.x).toFixed(3)+")";const q=$("#hsCue");if(q)q.textContent=(b.name==="In"?"Breathe in":b.name==="Out"?"Breathe out":"Hold")+" · "+(b.len-b.k);}
+  function frame(){if(!S.run)return;const a=ac();let hit=null,hb=false;while(S.vq.length&&S.vq[0].t<=a.currentTime)hit=S.vq.shift();while(S.hq&&S.hq.length&&S.hq[0]<=a.currentTime){S.hq.shift();hb=true;}const c=$("#hsC"),core=$("#hsCore");
+    if(hb&&core){core.style.transition="none";core.style.transform="scale(1.12)";core.style.boxShadow="0 0 60px rgba(239,98,98,.55)";requestAnimationFrame(function(){core.style.transition="transform .45s ease-out, box-shadow .6s ease-out";core.style.transform="scale(1)";core.style.boxShadow="0 0 18px rgba(239,98,98,.2)";});}
+    if(hit&&c&&HSX.breath){const b=hit.b;c.style.transition="transform "+((S.musP||S.Pm)*0.95).toFixed(2)+"s ease-in-out";c.style.transform="scale("+(0.62+0.38*b.x).toFixed(3)+")";const q=$("#hsCue");if(q)q.textContent=(b.name==="In"?"Breathe in":b.name==="Out"?"Breathe out":"Hold")+" · "+(b.len-b.k);}
     S.raf=requestAnimationFrame(frame);}
   function stageText(){if(!HR.connected)return S.tapP?"Holding the pulse you tapped.":"No heart sensor — tap your pulse below to set the drum.";if(!fresh())return "Finding your heartbeat…";
     if(S.stage==="match")return "Matching your heart — listen for the drum landing with your own beat.";
@@ -9345,8 +9349,8 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     if(R.ns!=null)tk.push("Nervous system shift <b>"+(R.ns>0?"+":"")+R.ns+"</b> — "+(R.ns>=20?"clearly toward rest.":R.ns>=5?"a gentle move toward rest.":R.ns>-5?"about where you started.":"more activated than when you began."));
     tk.push("Your heart note went from "+R.n0.toFixed(1)+" to "+R.n1.toFixed(1)+" Hz.");
     return '<div class="idea-fb"><b>Your session</b><ul style="margin:6px 0 0 18px;padding:0">'+tk.map(function(x){return "<li style=\"margin:4px 0\">"+x+"</li>";}).join("")+'</ul></div>';}
-  function begin(){unlockAudio();const a=ac();medStop();S.run=true;S.t0=a.currentTime;S.stage="match";S.hist=[];S.mb=[];S.vq=[];S.bIdx=0;S.co=null;S.coSum=0;S.coN=0;S.note0=0;S.coPk=0;S.syncHit=0;S.syncAll=0;S.base=null;S.rep=null;S.hold=false;
-    ingest(a);S.Pm=S.P||S.tapP||1;S.bp=null;S.bk=0;
+  function begin(){unlockAudio();const a=ac();medStop();S.run=true;S.t0=a.currentTime;S.stage="match";S.hist=[];S.mb=[];S.vq=[];S.hq=[];S.bIdx=0;S.co=null;S.coSum=0;S.coN=0;S.note0=0;S.coPk=0;S.syncHit=0;S.syncAll=0;S.base=null;S.rep=null;S.hold=false;
+    ingest(a);S.Pm=S.P||S.tapP||1;S.musP=S.Pm;S.mn=null;S.bp=null;S.bk=0;
     if(fresh()){const P=S.P,tb=lastHeart();S.nb=tb+Math.ceil((a.currentTime+0.4-tb)/P)*P;}else if(S.tapAt&&S.tapP){const k=Math.ceil((a.currentTime+0.3-S.tapAt)/S.tapP);S.nb=S.tapAt+k*S.tapP;}else S.nb=a.currentTime+0.4;
     BIO.t0=Date.now();try{tgtReset();bioStart();sensEnsureTimer();}catch(e){}build(a);try{medWake(true);bgKeep(true,"Heart Sync");}catch(e){}
     draw();S.timer=setInterval(sched,40);sched();frame();}
