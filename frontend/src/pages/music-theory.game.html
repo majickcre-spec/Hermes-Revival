@@ -4920,6 +4920,77 @@ function buildKeyboard(low,oct,onKey,labels){
   for(let o=0;o<oct;o++){const base=low+o*12;[[0,1],[1,3],[3,6],[4,8],[5,10]].forEach(ab=>{const after=ab[0],semi=ab[1],m=base+semi,idx=o*7+after;const b=document.createElement("button");b.className="pk-b";b.style.left=((idx+1)/totalW*100)+"%";b.setAttribute("data-m",m);b.onpointerdown=e=>{e.preventDefault();onKey(m,b);};blk.appendChild(b);});}
   return wrap;}
 function noteNameOct(m){return NOTE_NAMES[((m%12)+12)%12]+(Math.floor(m/12)-1);}
+/* ===== PIANO · practice games: Chords in a Key, Key Rush, Echo Me (call & response) ===== */
+function pkgStore(){return load("mjk-pkgames",{});}
+function pkgRecord(k,score,extra){var all=pkgStore(),st=all[k]||{tries:0,best:0,hist:[]};st.tries++;st.at=Date.now();var rec=score>st.best;if(rec)st.best=score;st.hist.push({a:extra!=null?extra:score,s:score,t:Date.now()});st.hist=st.hist.slice(-30);all[k]=st;save("mjk-pkgames",all);return {st:st,rec:rec};}
+function pkgShell(title,body){if(toneRAF)cancelAnimationFrame(toneRAF);try{teardown&&teardown();}catch(e){}teardown=null;document.body.classList.remove("pkWide");home.hidden=true;view.hidden=false;window.scrollTo(0,0);try{sfLoadInst("piano");}catch(e){}
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+title+'</span></div><div class="panel">'+body+'</div>';$("#eBack").onclick=function(){try{teardown&&teardown();}catch(e){}teardown=null;renderPianoStudio();};}
+function pkgKb(host,low,oct,onKey,labels){var kb=buildKeyboard(low,oct,function(m,k){unlockAudio();pkSound(m,0,0.9,0.8);k.classList.add("on");setTimeout(function(){k.classList.remove("on");},160);onKey&&onKey(m,k);},labels);kb.classList.add("pkg");host.innerHTML="";host.appendChild(kb);return kb;}
+function pkgMark(kb,ms,cls,ms2){kb.querySelectorAll("[data-m]").forEach(function(k){k.classList.remove(cls);});(ms||[]).forEach(function(m){var k=kb.querySelector('[data-m="'+m+'"]');if(k)k.classList.add(cls);});if(ms2)setTimeout(function(){pkgMark(kb,[],cls);},ms2);}
+function pkgPc(name){var m=/^([A-G])([#b♯♭]?)/.exec(name);if(!m)return 0;var b={C:0,D:2,E:4,F:5,G:7,A:9,B:11}[m[1]];if(m[2]==="#"||m[2]==="♯")b++;if(m[2]==="b"||m[2]==="♭")b--;return (b+12)%12;}
+function pkgChord(name){var pc=pkgPc(name),q=/dim|°/.test(name)?"dim":(/^[A-G][#b♯♭]?m/.test(name)?"min":"maj");return pkChordNotes(pc,q,0,3);}
+/* 1 · Chords in a Key */
+function pkKeyChords(){var key=load("mjk-pkkey","C");if(!KEY_CHORDS[key])key="C";var T=[];
+  var KP=[{n:"I–V–vi–IV",d:"pop",maj:[0,4,5,3],min:[0,5,2,6]},{n:"I–IV–V–I",d:"rock & folk",maj:[0,3,4,0],min:[0,3,4,0]},{n:"vi–IV–I–V",d:"ballad",maj:[5,3,0,4],min:[0,6,5,6]},{n:"ii–V–I",d:"jazz",maj:[1,4,0,0],min:[3,4,0,0]},{n:"I–vi–IV–V",d:"50s",maj:[0,5,3,4],min:[0,5,3,4]}];
+  function stop(){T.forEach(clearTimeout);T=[];document.querySelectorAll(".pkgCard").forEach(function(c){c.classList.remove("kgon");});}
+  function hear(ns,t){ns.forEach(function(m){pkSound(m,t||0,1.3,0.55);});}
+  function seq(idx,ms){stop();unlockAudio();var K=KEY_CHORDS[key];idx.forEach(function(ci,k){T.push(setTimeout(function(){document.querySelectorAll(".pkgCard").forEach(function(c,j){c.classList.toggle("kgon",j===ci);});hear(pkgChord(K.chords[ci]));var n=$("#kNow");if(n)n.innerHTML='<b>'+esc(K.chords[ci])+'</b> <span style="color:var(--muted)">'+K.rn[ci]+'</span>';},k*ms));});T.push(setTimeout(function(){stop();var n=$("#kNow");if(n)n.textContent="";},idx.length*ms+300));}
+  function draw(){var K=KEY_CHORDS[key];
+    pkgShell("🔑 Chords in a Key",'<div class="intro">Every key has a family of 7 chords — songs in that key mostly use these. Pick a key, tap a chord to hear it, or play the family and common progressions. Each card shows where the notes sit on the keys.</div>'+
+      '<div class="rrow2"><span class="rlab">Key · major</span><span class="rchips tight" id="keyMaj"></span></div><div class="rrow2"><span class="rlab">Key · minor</span><span class="rchips tight" id="keyMin"></span></div>'+
+      '<div style="margin:10px 0 4px;font:900 1.25rem system-ui,sans-serif">'+K.label+' <span style="font-size:.85rem;font-weight:700;color:var(--muted)">· '+K.chords[0]+' is home</span></div>'+
+      '<div class="actions" style="margin:4px 0"><button class="btn" id="kFam" style="flex:1 1 100%">▶ Play the family</button></div><div class="rrow2"><span class="rlab">Play</span><span class="rchips tight" id="kProg"></span></div>'+
+      '<div id="kNow" style="min-height:1.6em;text-align:center;font:800 1.05rem system-ui,sans-serif;margin:6px 0"></div><div class="pkgGrid" id="kg"></div>');
+    teardown=stop;
+    Object.keys(KEY_CHORDS).forEach(function(k){var kk=KEY_CHORDS[k],b=document.createElement("button");b.className="rchip sm"+(k===key?" sel":"");b.textContent=kk.label.replace(/ (major|minor)$/,"");b.onclick=function(){stop();key=k;save("mjk-pkkey",k);draw();};$(kk.minor?"#keyMin":"#keyMaj").appendChild(b);});
+    $("#kFam").onclick=function(){seq([0,1,2,3,4,5,6,0],750);};
+    KP.forEach(function(pr){var idx=K.minor?pr.min:pr.maj,b=document.createElement("button");b.className="rchip sm";b.innerHTML=idx.map(function(i){return esc(K.chords[i]);}).join(" ")+' <span style="opacity:.6;font-size:.75em">'+pr.d+'</span>';b.onclick=function(){seq(idx.concat(idx),900);};$("#kProg").appendChild(b);});
+    K.chords.forEach(function(name,i){var fn=K.rn[i],fam=/°/.test(fn)?"dim":(fn===fn.toUpperCase()?"maj":"min"),ns=pkgChord(name),card=document.createElement("div");card.className="pkgCard";
+      card.innerHTML='<h4>'+esc(name)+' <span style="color:'+(fam==="maj"?"var(--gold)":fam==="min"?"#7ff0d6":"#ff8f8c")+';font-size:.85rem;font-weight:900">'+fn+'</span></h4><div class="pkgMini"></div><div class="site-note" style="margin:4px 0 0;text-align:center">'+ns.map(function(m){return NOTE_NAMES[m%12];}).join(" · ")+'</div>';
+      var kb=pkgKb(card.querySelector(".pkgMini"),Math.floor(ns[0]/12)*12,2,null,false);pkgMark(kb,ns,"tg");card.onclick=function(e){if(e.target.closest("[data-m]"))return;stop();unlockAudio();hear(ns);};$("#kg").appendChild(card);});}
+  draw();}
+/* 2 · Key Rush — find the named note, 60 seconds */
+function pkRush(){var lvl=load("mjk-pkrushlvl","nat"),G={on:false,score:0,streak:0,hits:0,miss:0,q:null,end:0,iv:null,kb:null};
+  function stop(){G.on=false;if(G.iv)clearInterval(G.iv);G.iv=null;}
+  function mult(){return Math.min(5,1+Math.floor(G.streak/3));}
+  function hud(){$("#krHud").textContent="⭐ "+G.score+" · 🔥×"+mult()+" · "+G.hits+" found";}
+  function pick(){var pool=lvl==="nat"?[0,2,4,5,7,9,11]:[0,1,2,3,4,5,6,7,8,9,10,11],q;do{q=pool[Math.floor(Math.random()*pool.length)];}while(q===G.q&&pool.length>1);G.q=q;var nm=NOTE_NAMES[q];if(nm.length>1&&lvl==="all"&&Math.random()<0.5)nm=NOTE_NAMES[(q+1)%12]+"♭";$("#krQ").textContent=nm;}
+  function tap(m,k){if(!G.on)return;if(((m%12)+12)%12===G.q){G.streak++;G.hits++;G.score+=10*mult();k.classList.add("ok");setTimeout(function(){k.classList.remove("ok");},220);pick();}else{G.streak=0;G.miss++;k.classList.add("bad");setTimeout(function(){k.classList.remove("bad");},260);}hud();}
+  function over(){stop();var acc=G.hits+G.miss?Math.round(100*G.hits/(G.hits+G.miss)):0,r=pkgRecord("rush-"+lvl,G.score,acc);$("#krQ").textContent="Time!";$("#krGo").textContent="▶ Play again";
+    $("#krRes").innerHTML='<div style="text-align:center;margin-top:8px"><div style="font-weight:800;font-size:1.2rem">'+G.score+' pts'+(r.rec?' · <span style="color:var(--gold)">New best!</span>':'')+'</div><div style="color:var(--muted)">'+G.hits+' found · '+acc+'% accurate</div><div class="site-note" style="margin:4px 0 0">🏆 Best '+r.st.best+' · Try #'+r.st.tries+'</div>'+melSpark(r.st.hist)+'</div>';}
+  function go(){stop();G.score=0;G.streak=0;G.hits=0;G.miss=0;$("#krRes").innerHTML="";$("#krGo").textContent="⏹ Stop";var n=3;(function cd(){if(n>0){$("#krQ").textContent=n;n--;G.iv=setTimeout(cd,650);}else{G.on=true;G.end=Date.now()+60000;pick();hud();G.iv=setInterval(function(){var left=Math.max(0,G.end-Date.now());$("#krBar").style.width=(left/600)+"%";if(left<=0)over();},100);}})();}
+  function draw(){var st=pkgStore()["rush-"+lvl];
+    pkgShell("🔥 Key Rush",'<div class="intro">60 seconds. A note name appears — tap it on the keys, any octave. Every 3 in a row raises your multiplier (up to ×5).'+(st?' Best: <b>'+st.best+'</b>':'')+'</div>'+
+      '<div class="rrow2"><span class="rlab">Notes</span><span class="rchips tight"><button class="rchip sm'+(lvl==="nat"?" sel":"")+'" data-lv="nat">White keys</button><button class="rchip sm'+(lvl==="all"?" sel":"")+'" data-lv="all">All 12 (♯ and ♭)</button></span></div>'+
+      '<div style="height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;margin:8px 0"><div id="krBar" style="height:100%;width:100%;background:var(--gold,#e9c46a)"></div></div>'+
+      '<div id="krQ" style="text-align:center;font:900 3rem system-ui,sans-serif;color:#ffe27a;min-height:1.3em">Ready?</div><div id="krHud" style="text-align:center;font-weight:800;margin-bottom:8px"></div>'+
+      '<div id="krKb" class="pkgBig"></div><div class="actions" style="margin-top:10px"><button class="btn" id="krGo" style="flex:1 1 100%">▶ Go!</button></div><div id="krRes"></div>');
+    teardown=stop;G.kb=pkgKb($("#krKb"),60,2,tap,false);hud();
+    view.querySelectorAll("[data-lv]").forEach(function(b){b.onclick=function(){stop();lvl=b.dataset.lv;save("mjk-pkrushlvl",lvl);draw();};});
+    $("#krGo").onclick=function(){if(G.on||G.iv){stop();$("#krGo").textContent="▶ Go!";$("#krQ").textContent="Ready?";}else go();};}
+  draw();}
+/* 3 · Echo Me — listen to a short phrase, play it back */
+function pkEcho(){var lvl=load("mjk-pkecholvl","easy"),R=8,E={round:0,ok:0,phrase:[],pos:0,busy:false,T:[],kb:null,done:false,miss:false};
+  var LV={easy:{n:3,pool:[60,62,64,67,69],sp:0.62,nm:"Easy · 3 notes"},mid:{n:4,pool:[60,62,64,65,67,69,71,72],sp:0.55,nm:"Medium · 4 notes"},hard:{n:5,pool:[60,61,62,63,64,65,66,67,68,69,70,71,72],sp:0.5,nm:"Hard · 5 notes, any key"}};
+  function stop(){E.T.forEach(clearTimeout);E.T=[];}
+  function say(t,sub){$("#ecSay").innerHTML=t;$("#ecSub").innerHTML=sub||"";}
+  function playPhrase(){stop();E.busy=true;unlockAudio();var L=LV[lvl];E.phrase.forEach(function(m,i){E.T.push(setTimeout(function(){pkSound(m,0,0.7,0.8);pkgMark(E.kb,[m],"tg",Math.round(L.sp*800));},i*L.sp*1000));});E.T.push(setTimeout(function(){E.busy=false;E.pos=0;say("Your turn","Play it back — "+E.phrase.length+" notes.");},E.phrase.length*L.sp*1000+150));say("Listen…","");}
+  function next(){if(E.round>=R){finish();return;}E.round++;E.miss=false;var L=LV[lvl],p=[],q;p.push(L.pool[Math.floor(Math.random()*L.pool.length)]);while(p.length<L.n){do{q=L.pool[Math.floor(Math.random()*L.pool.length)];}while(Math.abs(q-p[p.length-1])>7||(q===p[p.length-1]&&Math.random()<0.7));p.push(q);}E.phrase=p;$("#ecHud").textContent="Round "+E.round+" of "+R+" · ✓ "+E.ok;setTimeout(playPhrase,350);}
+  function tap(m,k){if(E.busy||E.done||!E.phrase.length||E.round===0)return;var want=E.phrase[E.pos];if(m===want){k.classList.add("ok");setTimeout(function(){k.classList.remove("ok");},220);E.pos++;if(E.pos>=E.phrase.length){E.busy=true;if(!E.miss)E.ok++;$("#ecHud").textContent="Round "+E.round+" of "+R+" · ✓ "+E.ok;say(E.miss?"Got it":"✓ Nice","");E.T.push(setTimeout(next,900));}}
+    else{k.classList.add("bad");setTimeout(function(){k.classList.remove("bad");},260);E.miss=true;E.pos=0;say("Not quite","Listen again, then start from the first note.");E.T.push(setTimeout(playPhrase,900));}}
+  function finish(){E.done=true;var acc=Math.round(100*E.ok/R),r=pkgRecord("echo-"+lvl,E.ok,acc);say(E.ok+" / "+R,"rounds right on the first try");$("#ecGo").textContent="▶ Play again";
+    $("#ecRes").innerHTML='<div style="text-align:center;margin-top:8px">'+(r.rec?'<div style="color:var(--gold);font-weight:800">New best!</div>':'')+'<div class="site-note" style="margin:4px 0 0">🏆 Best '+r.st.best+' / '+R+' · Try #'+r.st.tries+'</div>'+melSpark(r.st.hist)+'</div>';}
+  function draw(){var st=pkgStore()["echo-"+lvl];
+    pkgShell("🔁 Echo Me",'<div class="intro">Call and response: the piano plays a short phrase, you play it back. '+R+' rounds — a round counts if you get it on the first try.'+(st?' Best: <b>'+st.best+' / '+R+'</b>':'')+'</div>'+
+      '<div class="rrow2"><span class="rlab">Level</span><span class="rchips tight">'+Object.keys(LV).map(function(k){return '<button class="rchip sm'+(lvl===k?" sel":"")+'" data-lv="'+k+'">'+LV[k].nm+'</button>';}).join("")+'</span></div>'+
+      '<div id="ecSay" style="text-align:center;font:900 1.8rem system-ui,sans-serif;color:#ffe27a;min-height:1.3em;margin-top:8px">Ready?</div><div id="ecSub" class="site-note" style="text-align:center;min-height:1.3em;margin:2px 0"></div><div id="ecHud" style="text-align:center;font-weight:800;margin-bottom:8px"></div>'+
+      '<div id="ecKb" class="pkgBig"></div><div class="actions" style="margin-top:10px"><button class="btn" id="ecGo" style="flex:1 1 60%">▶ Start</button><button class="btn ghost" id="ecAgain" style="flex:0 1 auto">🔈 Hear it again</button></div><div id="ecRes"></div>');
+    teardown=stop;E.kb=pkgKb($("#ecKb"),60,1,tap,true);
+    view.querySelectorAll("[data-lv]").forEach(function(b){b.onclick=function(){stop();lvl=b.dataset.lv;save("mjk-pkecholvl",lvl);E.round=0;E.ok=0;E.phrase=[];E.done=false;draw();};});
+    $("#ecGo").onclick=function(){stop();E.round=0;E.ok=0;E.done=false;E.busy=false;$("#ecRes").innerHTML="";$("#ecGo").textContent="↺ Restart";next();};
+    $("#ecAgain").onclick=function(){if(E.phrase.length&&!E.done){E.pos=0;playPhrase();}};}
+  draw();}
+(function(){try{var st=document.createElement("style");st.textContent=".pkg{position:relative;display:flex;height:100%;border-radius:8px;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}.pkgMini{pointer-events:none}.pkgMini .pk{height:64px;margin:0}.pkgMini .pk-w{font-size:0;padding:0}.pkgMini .pk-b{width:4.6%;max-width:14px}.pkgBig .pk{height:min(34vh,220px);margin:0}.pkg .tg{background:#7ff0d6!important}.pkg .ok{background:#3fcf7a!important}.pkg .bad{background:#ff6b6b!important}.pkgGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}.pkgCard{background:var(--card2,#1b1530);border-radius:14px;padding:10px;box-shadow:inset 0 0 0 1px var(--line);cursor:pointer}.pkgCard h4{margin:0 0 6px;text-align:center}.pkgCard.kgon{box-shadow:inset 0 0 0 2px var(--gold,#e9c46a)}";document.head.appendChild(st);}catch(e){}})();
 function renderPiano(){renderPianoStudio();}
 /* ===================== PIANO STUDIO — big landscape keyboard + falling-note highway =====================
    One engine (events → highway → keys) drives every mode: Play, Chords, Scales, Melodies, Progressions.
@@ -5252,7 +5323,7 @@ function pkDrawCtl(){const box=document.getElementById("pkCtl");if(!box)return;c
     h+=ks.length?'<div class="site-note" style="margin-bottom:6px">Every run is saved. Tap one to load it and try to beat it. Wait-mode runs are kept separately.</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px">'+ks.map(k=>{const t=all[k],hs=(t.hist||[]).slice(-10),mx=Math.max.apply(null,hs.map(x=>x.s).concat([1]));
       return '<button class="rchip" data-stat="'+esc(k)+'" style="display:block;text-align:left;padding:10px 12px;border-radius:14px;width:100%"><div style="font-weight:800">'+(lab[t.m]||"🎹")+' '+esc(t.t)+(t.w?' <span style="color:var(--muted);font-size:.75rem">· wait</span>':'')+'</div><div style="font-size:.82rem;color:var(--muted);margin:3px 0">🏆 <b style="color:var(--gold)">'+t.best+'</b> pts @ ♩'+t.bestBpm+' · 🎯 best '+t.bestAcc+'% · '+t.tries+' tr'+(t.tries===1?'y':'ies')+'</div><div style="display:flex;align-items:flex-end;gap:3px;height:22px">'+hs.map((x,i)=>'<span style="width:12px;height:'+Math.max(2,Math.round(22*x.s/mx))+'px;border-radius:2px;background:'+(i===hs.length-1?'#7ff0d6':x.s===t.best?'#f3c14a':'rgba(255,255,255,.28)')+'"></span>').join("")+'</div></button>';}).join("")+'</div>'+'<div class="rchips tight" style="margin-top:8px"><button class="rchip sm" id="pkClrStats">🗑 Clear all scores</button></div>'
       :'<div class="site-note">No scores yet. Pick a chord, scale, melody or progression, tap <b>🎹 I\'ll play</b>, then Start — every run gets a score and is saved here.</div>';}
-  else h+='<div class="site-note">Free play. Keys: <b>a w s e d f t g y h u j k</b> on a computer · any MIDI keyboard · or tap.</div><div class="rchips tight" style="margin-top:4px"><button class="rchip sm" id="pkMethod">\ud83d\udcd8 Piano Method</button></div>';
+  else h+='<div class="site-note">Free play. Keys: <b>a w s e d f t g y h u j k</b> on a computer · any MIDI keyboard · or tap.</div><div class="rchips tight" style="margin-top:4px"><button class="rchip sm" id="pkMethod">\ud83d\udcd8 Piano Method</button><button class="rchip sm" id="pkGKey">🔑 Chords in a Key</button><button class="rchip sm" id="pkGRush">🔥 Key Rush</button><button class="rchip sm" id="pkGEcho">🔁 Echo Me</button></div>';
   box.innerHTML=h;
   const re=()=>{const was=PK.running;pkStop();pkSaveState();pkBuild();pkDrawCtl();pkMsg("");if(was){PK._stay=true;pkStart();}};
   box.querySelectorAll("[data-root]").forEach(b=>b.onclick=()=>{PK.chord.root=+b.dataset.root;re();});box.querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>{PK.chord.q=b.dataset.q;re();});
@@ -5288,6 +5359,7 @@ function pkDrawCtl(){const box=document.getElementById("pkCtl");if(!box)return;c
     PK.mode=m;PK.play="you";pkSaveState();try{teardown&&teardown();}catch(e){}teardown=null;renderPianoStudio();if(t.bestBpm){PK.bpm=t.bestBpm;const bv=document.getElementById("pkBpmV");if(bv)bv.textContent=PK.bpm;const br=document.getElementById("pkBpm");if(br)br.value=PK.bpm;}pkMsg("Loaded <b>"+esc(t.t)+"</b> — high score "+t.best+". Tap Start to beat it.");});
   const clr=document.getElementById("pkClrStats");if(clr)clr.onclick=()=>{if(clr.dataset.sure){save("mjk-pkstats",{});pkDrawCtl();}else{clr.dataset.sure=1;clr.textContent="Tap again to clear";}};
   const pmb=document.getElementById("pkMethod");if(pmb)pmb.onclick=()=>{try{teardown&&teardown();}catch(e){}teardown=null;renderMethod("piano");};
+  [["pkGKey",pkKeyChords],["pkGRush",pkRush],["pkGEcho",pkEcho]].forEach(x=>{const b=document.getElementById(x[0]);if(b)b.onclick=()=>x[1]();});
   pkSpdPaint();
   const inp=document.getElementById("pkIn");if(inp)inp.querySelectorAll("[data-in]").forEach(b=>b.classList.toggle("sel",b.dataset.in===PK.input));}
 /* free Play needs only the keyboard: lesson tools (Watch it, Test, tempo, speed, watch/I'll play) show in the lesson tabs */
@@ -7286,8 +7358,8 @@ function strKey(inst){
     const K=KEY_CHORDS[key];
     view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔑 Chords in a Key</span></div>
       <div class="panel"><div class="intro">Every key has a family of 7 chords — songs in that key mostly use these. Pick a key, tap a chord to hear it, or play the whole family and common progressions.</div>
-      <div class="rrow2"><span class="rlab">Major</span><span class="rchips tight" id="keyMaj"></span></div>
-      <div class="rrow2" style="margin-top:2px"><span class="rlab">Minor</span><span class="rchips tight" id="keyMin"></span></div>
+      <div class="rrow2"><span class="rlab">Key · major</span><span class="rchips tight" id="keyMaj"></span></div>
+      <div class="rrow2" style="margin-top:2px"><span class="rlab">Key · minor</span><span class="rchips tight" id="keyMin"></span></div>
       <div style="margin:10px 0 4px;font:900 1.25rem system-ui,sans-serif">${K.label} <span style="font-size:.85rem;font-weight:700;color:var(--muted)">· ${K.chords[0]} is home</span></div>
       <div class="actions" style="margin:4px 0"><button class="btn" id="kFam" style="flex:1 1 100%">▶ Play the family</button></div>
       <div class="rrow2" style="margin-top:4px"><span class="rlab">Play</span><span class="rchips tight" id="kProg"></span></div>
