@@ -8787,7 +8787,7 @@ async function camStart(onState){if(CAMP.on){camUI(true);return true;}CAMP.onSta
     try{const cap=CAMP.track.getCapabilities&&CAMP.track.getCapabilities();if(cap&&cap.torch){await CAMP.track.applyConstraints({advanced:[{torch:true}]});CAMP.torch=true;}}catch(e){}
     const v=document.createElement("video");v.setAttribute("playsinline","");v.muted=true;v.autoplay=true;v.srcObject=st;CAMP.video=v;await v.play().catch(function(){});
     CAMP.cv=document.createElement("canvas");CAMP.cv.width=32;CAMP.cv.height=24;CAMP.cx=CAMP.cv.getContext("2d",{willReadFrequently:true});
-    Object.assign(CAMP,{on:true,t:[],y:[],base:null,lp:null,env:0.001,last:0,rr:[],locked:false,good:0,finger:false,bpm:0,hist:[],t0:performance.now(),fing0:0,status:"Cover the back camera"+(CAMP.torch?"":" and its light")+" fully with a fingertip."});
+    Object.assign(CAMP,{on:true,saved:null,t:[],y:[],base:null,lp:null,env:0.001,last:0,rr:[],locked:false,good:0,finger:false,bpm:0,hist:[],t0:performance.now(),fing0:0,status:"Cover the back camera"+(CAMP.torch?"":" and its light")+" fully with a fingertip."});
     camUI(true);camLoop();return true;}
   catch(e){CAMP.on=false;HR_ERR="Couldn’t open the camera"+(e&&e.name==="NotAllowedError"?": camera permission was blocked. Allow camera access for this site and try again.":".");if(onState)onState(e);return false;}}
 function camStop(){CAMP.on=false;try{if(CAMP.video&&CAMP.vfc&&CAMP.video.cancelVideoFrameCallback)CAMP.video.cancelVideoFrameCallback(CAMP.vfc);}catch(e){}if(CAMP.raf)cancelAnimationFrame(CAMP.raf);
@@ -8815,7 +8815,7 @@ function camFrame(ts){const v=CAMP.video,cx=CAMP.cx;if(!v||!v.videoWidth)return;
   if(CAMP.last&&ts-CAMP.last>2500){CAMP.locked=false;CAMP.good=0;}
   CAMP.status=CAMP.locked?"Pulse found. Keep your finger still.":"Reading… keep still"+(CAMP.good?" ("+CAMP.good+"/3)":"");camPaint(y);}
 function camBeat(tb,gap){const ms=gap*1000;HR.src="camera";HR.ch=null;HR.connected=true;HR.userOff=false;HR.rr.push(ms);while(HR.rr.length>800)HR.rr.shift();HR.n=(HR.n||0)+1;HR.pkI=(HR.pkI||0)+1;(HR.pk||(HR.pk=[])).push({t:tb,n:HR.n,i:HR.pkI});if(HR.pk.length>40)HR.pk.shift();
-  const r=CAMP.rr.slice(-6).sort(function(x,y){return x-y;});CAMP.bpm=Math.round(60/r[r.length>>1]);HR.bpm=CAMP.bpm;HR.updated=performance.now();try{save("mjk-hrever",true);}catch(e){}
+  const r=CAMP.rr.slice(-8).sort(function(x,y){return x-y;}),Pm=r[r.length>>1];CAMP.bpm=Math.round(60/Pm);HR.bpm=CAMP.bpm;CAMP.saved={P:Pm,bpm:CAMP.bpm,t:tb,at:performance.now(),n:(CAMP.saved&&CAMP.saved.n||0)+1};HR.updated=performance.now();try{save("mjk-hrever",true);}catch(e){}
   if(!CAMP.wasOn){CAMP.wasOn=true;try{if(CAMP.onState)CAMP.onState();}catch(e){}}CAMP.flash=performance.now();}
 function camUI(on){let el=document.getElementById("camBox");if(!on){if(el)el.remove();CAMP.wasOn=false;return;}
   const host=document.getElementById("camHost");if(!el){el=document.createElement("div");el.id="camBox";}
@@ -9351,8 +9351,8 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     if(R.ns!=null)tk.push("Nervous system shift <b>"+(R.ns>0?"+":"")+R.ns+"</b> — "+(R.ns>=20?"clearly toward rest.":R.ns>=5?"a gentle move toward rest.":R.ns>-5?"about where you started.":"more activated than when you began."));
     tk.push("Your heart note went from "+R.n0.toFixed(1)+" to "+R.n1.toFixed(1)+" Hz.");
     return '<div class="idea-fb"><b>Your session</b><ul style="margin:6px 0 0 18px;padding:0">'+tk.map(function(x){return "<li style=\"margin:4px 0\">"+x+"</li>";}).join("")+'</ul></div>';}
-  function begin(){const a=ac();S.camUsed=null;if(CAMP.on){try{const rr=CAMP.rr.slice(-8).sort(function(x,y){return x-y;});if(rr.length>=3){S.tapP=Math.max(0.4,Math.min(1.5,rr[rr.length>>1]));const lp=HR.pk&&HR.pk.length?HR.pk[HR.pk.length-1]:null;S.tapAt=lp?lp.t/1000+off(a):a.currentTime;S.camUsed=Math.round(60/S.tapP);}}catch(e){}try{camStop();}catch(e){}}unlockAudio();try{a.resume();}catch(e){}medStop();S.run=true;S.t0=a.currentTime;S.stage="match";S.hist=[];S.mb=[];S.vq=[];S.hq=[];S.bIdx=0;S.co=null;S.coSum=0;S.coN=0;S.note0=0;S.coPk=0;S.syncHit=0;S.syncAll=0;S.base=null;S.rep=null;S.hold=false;
-    ingest(a);S.Pm=S.P||S.tapP||1;S.musP=S.Pm;S.mn=null;S.bp=null;S.bk=0;
+  function begin(){const a=ac();S.camUsed=null;const sv=CAMP.saved;if(sv&&sv.n>=3&&performance.now()-sv.at<180000){S.tapP=Math.max(0.4,Math.min(1.5,sv.P));S.tapAt=sv.t/1000+off(a);S.camUsed=sv.bpm;}if(CAMP.on){try{camStop();}catch(e){}}unlockAudio();try{a.resume();}catch(e){}medStop();S.run=true;S.t0=a.currentTime;S.stage="match";S.hist=[];S.mb=[];S.vq=[];S.hq=[];S.bIdx=0;S.co=null;S.coSum=0;S.coN=0;S.note0=0;S.coPk=0;S.syncHit=0;S.syncAll=0;S.base=null;S.rep=null;S.hold=false;
+    ingest(a);S.Pm=(S.camUsed?S.tapP:null)||S.P||S.tapP||1;S.musP=S.Pm;S.mn=null;S.bp=null;S.bk=0;
     if(fresh()){const P=S.P,tb=lastHeart();S.nb=tb+Math.ceil((a.currentTime+0.4-tb)/P)*P;}else if(S.tapAt&&S.tapP){const k=Math.ceil((a.currentTime+0.3-S.tapAt)/S.tapP);S.nb=S.tapAt+k*S.tapP;}else S.nb=a.currentTime+0.4;
     BIO.t0=Date.now();try{tgtReset();bioStart();sensEnsureTimer();}catch(e){}build(a);try{medWake(true);bgKeep(true,"Heart Sync");}catch(e){}
     draw();S.timer=setInterval(sched,40);sched();frame();}
@@ -9437,7 +9437,7 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     else if(S.run){if(fresh()){t=nm+" · "+Math.round(60/S.P)+" BPM — the drum is following it"+(S.syncN>=5?" ("+Math.round(S.sync*100)+"% on beat)":"");col="#7ff0d6";}
       else if(HR.connected||CAMP.on){t="Waiting for a steady pulse from the "+(CAMP.on?"camera":"sensor")+"… the drum holds a steady "+Math.round(60/S.Pm)+" BPM until it locks";col="#e9c46a";}
       else if(S.tapP){t="👆 Drum on your taps · steady "+Math.round(60/S.tapP)+" BPM";}else t="No heartbeat source · steady "+Math.round(60/S.Pm)+" BPM";}
-    else{if(HR.connected&&HR.bpm&&HR.src==="camera"){t="✓ Camera pulse "+HR.bpm+" BPM — press Begin. The camera turns off when you begin, so the sound can play through your speaker.";col="#7ff0d6";}
+    else{if(CAMP.saved&&CAMP.saved.n>=3&&performance.now()-CAMP.saved.at<180000){t="✓ Camera pulse saved: "+CAMP.saved.bpm+" BPM — press Begin and the drum keeps it. (You can lift your finger.)";col="#7ff0d6";}
       else if(HR.connected&&HR.bpm){t="✓ "+nm+" reading "+HR.bpm+" BPM — press Begin and the drum will follow it";col="#7ff0d6";}
       else if(CAMP.on){t="Camera is finding your pulse"+(CAMP.good?" ("+Math.min(CAMP.good,3)+"/3)":"")+" — wait for ✓, then press Begin";col="#e9c46a";}
       else t="Heartbeat source: connect a sensor or the camera — or tap the heart circle on each beat to start";}
