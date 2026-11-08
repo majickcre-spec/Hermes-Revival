@@ -8883,7 +8883,7 @@ async function camStart(onState){if(CAMP.on){camUI(true);return true;}CAMP.onSta
     try{const cap=CAMP.track.getCapabilities&&CAMP.track.getCapabilities();if(cap&&cap.torch){await CAMP.track.applyConstraints({advanced:[{torch:true}]});CAMP.torch=true;}}catch(e){}
     const v=document.createElement("video");v.setAttribute("playsinline","");v.muted=true;v.autoplay=true;v.srcObject=st;CAMP.video=v;await v.play().catch(function(){});
     CAMP.cv=document.createElement("canvas");CAMP.cv.width=32;CAMP.cv.height=24;CAMP.cx=CAMP.cv.getContext("2d",{willReadFrequently:true});
-    Object.assign(CAMP,{on:true,saved:null,bts:[],t:[],y:[],base:null,lp:null,env:0.001,last:0,rr:[],locked:false,good:0,finger:false,bpm:0,hist:[],t0:performance.now(),fing0:0,status:"Cover the back camera"+(CAMP.torch?"":" and its light")+" fully with a fingertip."});
+    Object.assign(CAMP,{on:true,saved:null,bts:[],acH:[],acP:0,acQ:0,acT:0,t:[],y:[],base:null,lp:null,env:0.001,last:0,rr:[],locked:false,good:0,finger:false,bpm:0,hist:[],t0:performance.now(),fing0:0,status:"Cover the back camera"+(CAMP.torch?"":" and its light")+" fully with a fingertip."});
     camUI(true);camLoop();return true;}
   catch(e){CAMP.on=false;HR_ERR="Couldn’t open the camera"+(e&&e.name==="NotAllowedError"?": camera permission was blocked. Allow camera access for this site and try again.":".");if(onState)onState(e);return false;}}
 function camStop(){CAMP.on=false;try{if(CAMP.video&&CAMP.vfc&&CAMP.video.cancelVideoFrameCallback)CAMP.video.cancelVideoFrameCallback(CAMP.vfc);}catch(e){}if(CAMP.raf)cancelAnimationFrame(CAMP.raf);
@@ -8896,18 +8896,28 @@ function camLoop(){if(!CAMP.on)return;const v=CAMP.video;const step=function(now
 function camACF(){const T=CAMP.t,Y=CAMP.y,N=T.length;if(N<90)return;const t1=T[N-1],t0=Math.max(T[0],t1-8000);if(t1-t0<4500)return;const fs=60,M=Math.floor((t1-t0)/1000*fs),x=new Float32Array(M);let j=0;
   for(let i=0;i<M;i++){const t=t0+i*1000/fs;while(j<N-2&&T[j+1]<t)j++;const a=T[j],b=T[j+1],u=b>a?(t-a)/(b-a):0;x[i]=Y[j]+(Y[j+1]-Y[j])*Math.max(0,Math.min(1,u));}
   let m=0;for(let i=0;i<M;i++)m+=x[i];m/=M;let e=0;for(let i=0;i<M;i++){x[i]-=m;e+=x[i]*x[i];}if(e<=0)return;
-  const lo=Math.round(0.42*fs),hi=Math.min(Math.round(1.5*fs),M-60),r=[];for(let L=lo;L<=hi;L++){let c=0;for(let i=0;i+L<M;i++)c+=x[i]*x[i+L];r.push(c/e*M/(M-L));}
-  let bi=-1,bv=-1;for(let k=1;k<r.length-1;k++){if(r[k]>r[k-1]&&r[k]>=r[k+1]&&r[k]>bv){bv=r[k];bi=k;}}if(bi<0)return;
-  /* prefer the shorter period if a strong peak sits at half the chosen lag (true beat), never the half-beat notch below 0.42 s */
-  const L0=lo+bi,h=Math.round(L0/2)-lo;if(h>0&&h<r.length-1&&r[h]>0.8*bv&&r[h]>=r[h-1]&&r[h]>=r[h+1]){bi=h;bv=r[h];}
-  const k=bi,d=(k>0&&k<r.length-1)?(r[k-1]-r[k+1])/(2*(r[k-1]-2*r[k]+r[k+1])||1):0;CAMP.acP=(lo+k+Math.max(-0.5,Math.min(0.5,d)))/fs;CAMP.acQ=bv;}
+  const lo=Math.round(0.42*fs),hi=Math.min(Math.round(1.5*fs),M-60),top=Math.min(Math.round(3.2*fs),M-40),R=new Float32Array(top+2);
+  for(let L=lo;L<=top;L++){let c=0;for(let i=0;i+L<M;i++)c+=x[i]*x[i+L];R[L]=c/e*M/(M-L);}
+  /* harmonic check: the true beat period also lines up at 2x and 3x the lag; an echo-bump lag doesn't */
+  const at=function(L){L=Math.round(L);return L<=top?R[L]:0;};let bL=-1,bs=-1e9,bv=0;
+  for(let L=lo+1;L<hi;L++){if(!(R[L]>R[L-1]&&R[L]>=R[L+1]&&R[L]>0.1))continue;const sc=R[L]+0.7*Math.max(at(2*L),at(2*L-1),at(2*L+1))+0.4*Math.max(at(3*L),at(3*L-1),at(3*L+1));if(sc>bs){bs=sc;bL=L;bv=R[L];}}
+  if(bL<0)return;const d=(R[bL-1]-R[bL+1])/(2*(R[bL-1]-2*R[bL]+R[bL+1])||1);CAMP.acP=(bL+Math.max(-0.5,Math.min(0.5,d)))/fs;CAMP.acQ=bv;
+  /* faint pulse: if the rhythm holds steady for ~1.5 s of checks, trust it for the reading even when single beats are too faint to pick */
+  const H=CAMP.acH=(CAMP.acH||[]);H.push(CAMP.acP);if(H.length>4)H.shift();const now=performance.now();
+  if(H.length>=4&&bv>=0.22&&Math.max.apply(null,H)/Math.min.apply(null,H)<1.05){const Hs=H.slice().sort(function(a,b){return a-b;}),P=(Hs[1]+Hs[2])/2,sv=CAMP.saved;
+    if(!sv||(now-sv.at>3000&&(Math.abs(P-sv.P)/sv.P<0.1||now-sv.at>15000))){const lastPk=CAMP.last&&now-CAMP.last<1500?CAMP.last:now,tb=lastPk+Math.floor((now-lastPk)/1000/P)*P*1000;
+      CAMP.saved={P:P,bpm:Math.round(60/P),t:tb,at:now,n:(sv&&sv.n||0)+1,fit:4,ac:true};CAMP.bpm=CAMP.saved.bpm;CAMP.locked=true;HR.src="camera";HR.connected=true;HR.bpm=CAMP.bpm;HR.updated=now;
+      if(!CAMP.wasOn){CAMP.wasOn=true;try{if(CAMP.onState)CAMP.onState();}catch(e){}}}}}
+function camSteady(){const H=CAMP.acH||[];if(H.length<4||!(CAMP.acQ>=0.22))return 0;const lo=Math.min.apply(null,H),hi=Math.max.apply(null,H);if(hi/lo>1.06)return 0;const Hs=H.slice().sort(function(a,b){return a-b;});return (Hs[1]+Hs[2])/2;}
 function camFrame(ts){const v=CAMP.video,cx=CAMP.cx;if(!v||!v.videoWidth)return;try{cx.drawImage(v,0,0,32,24);}catch(e){return;}const d=cx.getImageData(0,0,32,24).data;let R=0,G=0,B=0,red=0;const n=d.length/4;
   for(let i=0;i<d.length;i+=4){R+=d[i];G+=d[i+1];B+=d[i+2];if(d[i]>45&&d[i]>d[i+1]*1.35&&d[i]>d[i+2]*1.35)red++;}R/=n;G/=n;B/=n;
   const fing=red/n>0.8&&R>40;if(fing!==CAMP.finger){CAMP.finger=fing;CAMP.fing0=ts;if(!fing){CAMP.base=null;CAMP.lp=null;CAMP.env=0.001;CAMP.good=0;CAMP.locked=false;CAMP.rr=[];}}
   if(!fing){CAMP.status="Cover the back camera"+(CAMP.torch?"":" and its light")+" fully with a fingertip. Press gently.";camPaint(null);return;}
   /* signal: brightness falls as each pulse of blood arrives; flip it so beats are peaks, then band-pass about 0.7–3.5 Hz */
-  const raw=-(CAMP.torch&&G>30?G:R);if(CAMP.base==null){CAMP.base=raw;CAMP.lp=0;}CAMP.base+= (raw-CAMP.base)*0.045;const hp=raw-CAMP.base;CAMP.lp+=(hp-CAMP.lp)*0.4;const y=CAMP.lp;
-  CAMP.t.push(ts);CAMP.y.push(y);if(CAMP.t.length>300){CAMP.t.shift();CAMP.y.shift();}CAMP.env=Math.max(Math.abs(y),CAMP.env*0.992);
+  const raw=-(CAMP.torch&&G>30?G:R);if(CAMP.base==null){CAMP.base=raw;CAMP.b2=0;CAMP.b3=0;CAMP.lp=0;CAMP.l2=0;}
+  /* band-pass ~0.7–4 Hz: three high-pass stages strip slow drift from pressure/breathing (it used to swamp a faint pulse), two light low-pass stages smooth sensor noise */
+  CAMP.base+=(raw-CAMP.base)*0.14;const h1=raw-CAMP.base;CAMP.b2+=(h1-CAMP.b2)*0.14;const h1b=h1-CAMP.b2;CAMP.b3+=(h1b-CAMP.b3)*0.14;const h2=h1b-CAMP.b3;CAMP.lp+=(h2-CAMP.lp)*0.45;CAMP.l2+=(CAMP.lp-CAMP.l2)*0.45;const y=CAMP.l2;
+  CAMP.t.push(ts);CAMP.y.push(y);if(CAMP.t.length>300){CAMP.t.shift();CAMP.y.shift();}CAMP.env=Math.max(Math.abs(y),CAMP.env*0.985);
   if(!CAMP.acT||ts-CAMP.acT>500){CAMP.acT=ts;try{camACF();}catch(e){}}
   const N=CAMP.y.length;if(ts-CAMP.fing0<1000){CAMP.status="Hold still… finding your pulse.";camPaint(y);return;}
   if(N>=3){const a=CAMP.y[N-3],b=CAMP.y[N-2],c=CAMP.y[N-1];
@@ -8925,7 +8935,11 @@ function camBeat(tb,gap){const ms=gap*1000;HR.src="camera";HR.ch=null;HR.connect
   /* phase-accurate save: fit beat number → time with a straight line over the last steady beats (up to 10), so the drum can project your beat forward accurately even if Begin comes 10+ s later */
   var B=CAMP.bts,run=[B[B.length-1]];for(var q=B.length-2;q>=0&&run.length<10;q--){var gp=(run[0]-B[q])/1000;if(gp<Pm*0.7||gp>Pm*1.4)break;run.unshift(B[q]);}
   var fitP=Pm,fitT=tb;if(run.length>=4){var n=run.length,sx=0,sy=0,sxx=0,sxy=0;for(var q2=0;q2<n;q2++){sx+=q2;sy+=run[q2];sxx+=q2*q2;sxy+=q2*run[q2];}var sl=(n*sxy-sx*sy)/(n*sxx-sx*sx),ic=(sy-sl*sx)/n;if(sl>400&&sl<1600){fitP=sl/1000;fitT=ic+sl*(n-1);}}
-  var old=CAMP.saved,nowp=performance.now();if(!old||run.length>=4||(run.length>=(old.fit||0)&&nowp-old.at>8000)||nowp-old.at>20000){CAMP.saved={P:fitP,bpm:Math.round(60/fitP),t:fitT,at:nowp,n:(old&&old.n||0)+1,fit:run.length};}else{old.n++;}CAMP.bpm=CAMP.saved.bpm;HR.bpm=CAMP.bpm;HR.updated=performance.now();try{save("mjk-hrever",true);}catch(e){}
+  var old=CAMP.saved,nowp=performance.now(),acH=CAMP.acH||[];
+  /* once the rhythm (autocorrelation) is known, it sets the rate; single picked beats only set the timing, and only when they agree with it */
+  if(acH.length>=3&&CAMP.acQ>=0.2){var hs=acH.slice().sort(function(a,b){return a-b;}),acM=hs[hs.length>>1];
+    if(Math.abs(fitP-acM)/acM<0.12)CAMP.saved={P:acM,bpm:Math.round(60/acM),t:fitT,at:nowp,n:(old&&old.n||0)+1,fit:Math.max(run.length,4)};else if(old){old.P=acM;old.bpm=Math.round(60/acM);old.n++;}}
+  else if(!old||run.length>=4||(run.length>=(old.fit||0)&&nowp-old.at>8000)||nowp-old.at>20000){CAMP.saved={P:fitP,bpm:Math.round(60/fitP),t:fitT,at:nowp,n:(old&&old.n||0)+1,fit:run.length};}else{old.n++;}CAMP.bpm=CAMP.saved.bpm;HR.bpm=CAMP.bpm;HR.updated=performance.now();try{save("mjk-hrever",true);}catch(e){}
   if(!CAMP.wasOn){CAMP.wasOn=true;try{if(CAMP.onState)CAMP.onState();}catch(e){}}CAMP.flash=performance.now();}
 function camUI(on){let el=document.getElementById("camBox");if(!on){if(el)el.remove();CAMP.wasOn=false;return;}
   const host=document.getElementById("camHost");if(!el){el=document.createElement("div");el.id="camBox";}
@@ -9576,7 +9590,8 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     camStart(function(){S.myN=HR.n||0;S.beats=[];S.cum=0;S.pk=[];S.O=null;try{sens();}catch(e){}}).then(function(ok){if(!ok&&S.rr){S.rr=null;S.rrMsg={t:"Couldn’t open the camera — tempo unchanged",until:performance.now()+6000};rrBtn();try{srcLine();}catch(e){}}});}
   function rereadCheck(a){if(!S.rr)return;const sv=CAMP.saved;
     const got=sv&&sv.at>S.rr.t&&isFinite(sv.P)&&isFinite(sv.t);if(got&&!S.rr.first)S.rr.first=performance.now();
-    if(got&&(sv.fit>=4||(sv.fit>=2&&performance.now()-S.rr.first>15000))){newPulse(sv.P,sv.t/1000+off(a),sv.bpm,"camera");rereadEnd();return;}
+    const Pst=camSteady();if(got&&Pst&&Math.abs(sv.P-Pst)/Pst<0.08){newPulse(Pst,sv.t/1000+off(a),Math.round(60/Pst),"camera");rereadEnd();return;}
+    if(got&&performance.now()-S.rr.first>20000&&sv.fit>=2){newPulse(sv.P,sv.t/1000+off(a),sv.bpm,"camera");rereadEnd();return;}
     if(performance.now()-S.rr.t>60000){rereadEnd();S.rrMsg={t:"No steady reading — tempo unchanged",until:performance.now()+6000};try{srcLine();}catch(e){}}}
   function runTap(){if(!S.run||S.rr)return;const a=ac(),now=performance.now()/1000,t=now+off(a),bg=$("#hsBig"),bl=$("#hsBigL"),core=$("#hsCore");
     if(fresh()){S.rrMsg={t:"Your sensor is already setting the drum",until:performance.now()+4000};try{srcLine();}catch(e){}return;}
