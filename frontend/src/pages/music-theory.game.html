@@ -8803,17 +8803,17 @@ function camFrame(ts){const v=CAMP.video,cx=CAMP.cx;if(!v||!v.videoWidth)return;
   /* signal: brightness falls as each pulse of blood arrives; flip it so beats are peaks, then band-pass about 0.7–3.5 Hz */
   const raw=-(CAMP.torch&&G>30?G:R);if(CAMP.base==null){CAMP.base=raw;CAMP.lp=0;}CAMP.base+= (raw-CAMP.base)*0.045;const hp=raw-CAMP.base;CAMP.lp+=(hp-CAMP.lp)*0.4;const y=CAMP.lp;
   CAMP.t.push(ts);CAMP.y.push(y);if(CAMP.t.length>300){CAMP.t.shift();CAMP.y.shift();}CAMP.env=Math.max(Math.abs(y),CAMP.env*0.992);
-  const N=CAMP.y.length;if(ts-CAMP.fing0<1500){CAMP.status="Hold still… finding your pulse.";camPaint(y);return;}
+  const N=CAMP.y.length;if(ts-CAMP.fing0<1000){CAMP.status="Hold still… finding your pulse.";camPaint(y);return;}
   if(N>=3){const a=CAMP.y[N-3],b=CAMP.y[N-2],c=CAMP.y[N-1];
     if(b>a&&b>=c&&b>0.45*CAMP.env){const den=a-2*b+c,off=den!==0?Math.max(-0.5,Math.min(0.5,0.5*(a-c)/den)):0,tb=CAMP.t[N-2]+off*((CAMP.t[N-1]-CAMP.t[N-3])/2),gap=(tb-CAMP.last)/1000;
       const med=CAMP.rr.length>=3?CAMP.rr.slice(-5).sort(function(x,y2){return x-y2;})[Math.min(2,CAMP.rr.slice(-5).length>>1)]:null;
       if(CAMP.last===0||gap>Math.max(0.33,med?med*0.55:0.33)){if(CAMP.last&&gap<1.7){const ok=!med||(gap>med*0.7&&gap<med*1.4);
           if(ok){CAMP.rr.push(gap);CAMP.good++;}else CAMP.good=Math.max(0,CAMP.good-1);if(CAMP.rr.length>30)CAMP.rr.shift();
-          if(CAMP.good>=4)CAMP.locked=true;
+          if(CAMP.good>=3)CAMP.locked=true;
           if(CAMP.locked&&ok)camBeat(tb,gap);}
         CAMP.last=tb;}}}
   if(CAMP.last&&ts-CAMP.last>2500){CAMP.locked=false;CAMP.good=0;}
-  CAMP.status=CAMP.locked?"Pulse found. Keep your finger still.":"Reading… keep still"+(CAMP.good?" ("+CAMP.good+"/4)":"");camPaint(y);}
+  CAMP.status=CAMP.locked?"Pulse found. Keep your finger still.":"Reading… keep still"+(CAMP.good?" ("+CAMP.good+"/3)":"");camPaint(y);}
 function camBeat(tb,gap){const ms=gap*1000;HR.src="camera";HR.ch=null;HR.connected=true;HR.userOff=false;HR.rr.push(ms);while(HR.rr.length>800)HR.rr.shift();HR.n=(HR.n||0)+1;HR.pkI=(HR.pkI||0)+1;(HR.pk||(HR.pk=[])).push({t:tb,n:HR.n,i:HR.pkI});if(HR.pk.length>40)HR.pk.shift();
   const r=CAMP.rr.slice(-6).sort(function(x,y){return x-y;});CAMP.bpm=Math.round(60/r[r.length>>1]);HR.bpm=CAMP.bpm;HR.updated=performance.now();try{save("mjk-hrever",true);}catch(e){}
   if(!CAMP.wasOn){CAMP.wasOn=true;try{if(CAMP.onState)CAMP.onState();}catch(e){}}CAMP.flash=performance.now();}
@@ -9351,7 +9351,7 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     if(R.ns!=null)tk.push("Nervous system shift <b>"+(R.ns>0?"+":"")+R.ns+"</b> — "+(R.ns>=20?"clearly toward rest.":R.ns>=5?"a gentle move toward rest.":R.ns>-5?"about where you started.":"more activated than when you began."));
     tk.push("Your heart note went from "+R.n0.toFixed(1)+" to "+R.n1.toFixed(1)+" Hz.");
     return '<div class="idea-fb"><b>Your session</b><ul style="margin:6px 0 0 18px;padding:0">'+tk.map(function(x){return "<li style=\"margin:4px 0\">"+x+"</li>";}).join("")+'</ul></div>';}
-  function begin(){unlockAudio();const a=ac();medStop();S.run=true;S.t0=a.currentTime;S.stage="match";S.hist=[];S.mb=[];S.vq=[];S.hq=[];S.bIdx=0;S.co=null;S.coSum=0;S.coN=0;S.note0=0;S.coPk=0;S.syncHit=0;S.syncAll=0;S.base=null;S.rep=null;S.hold=false;
+  function begin(){const a=ac();S.camUsed=null;if(CAMP.on){try{const rr=CAMP.rr.slice(-8).sort(function(x,y){return x-y;});if(rr.length>=3){S.tapP=Math.max(0.4,Math.min(1.5,rr[rr.length>>1]));const lp=HR.pk&&HR.pk.length?HR.pk[HR.pk.length-1]:null;S.tapAt=lp?lp.t/1000+off(a):a.currentTime;S.camUsed=Math.round(60/S.tapP);}}catch(e){}try{camStop();}catch(e){}}unlockAudio();try{a.resume();}catch(e){}medStop();S.run=true;S.t0=a.currentTime;S.stage="match";S.hist=[];S.mb=[];S.vq=[];S.hq=[];S.bIdx=0;S.co=null;S.coSum=0;S.coN=0;S.note0=0;S.coPk=0;S.syncHit=0;S.syncAll=0;S.base=null;S.rep=null;S.hold=false;
     ingest(a);S.Pm=S.P||S.tapP||1;S.musP=S.Pm;S.mn=null;S.bp=null;S.bk=0;
     if(fresh()){const P=S.P,tb=lastHeart();S.nb=tb+Math.ceil((a.currentTime+0.4-tb)/P)*P;}else if(S.tapAt&&S.tapP){const k=Math.ceil((a.currentTime+0.3-S.tapAt)/S.tapP);S.nb=S.tapAt+k*S.tapP;}else S.nb=a.currentTime+0.4;
     BIO.t0=Date.now();try{tgtReset();bioStart();sensEnsureTimer();}catch(e){}build(a);try{medWake(true);bgKeep(true,"Heart Sync");}catch(e){}
@@ -9433,11 +9433,13 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     sens();if(S.run)paint();else{drawChart();try{ansPaint("ansHs");}catch(e){}}}
   /* which heartbeat the drum is following, in one place */
   function srcLine(){const el=$("#hsSrc");if(!el)return;const nm=HR.src==="camera"?"☝️ Camera pulse":"💓 Heart sensor";let t="",col="#cfc6e8";
-    if(S.run){if(fresh()){t=nm+" · "+Math.round(60/S.P)+" BPM — the drum is following it"+(S.syncN>=5?" ("+Math.round(S.sync*100)+"% on beat)":"");col="#7ff0d6";}
+    if(S.run&&S.camUsed&&!fresh()){t="☝️ Camera measured "+S.camUsed+" BPM — camera is off so the sound can play through your speaker; the drum holds your tempo";col="#7ff0d6";}
+    else if(S.run){if(fresh()){t=nm+" · "+Math.round(60/S.P)+" BPM — the drum is following it"+(S.syncN>=5?" ("+Math.round(S.sync*100)+"% on beat)":"");col="#7ff0d6";}
       else if(HR.connected||CAMP.on){t="Waiting for a steady pulse from the "+(CAMP.on?"camera":"sensor")+"… the drum holds a steady "+Math.round(60/S.Pm)+" BPM until it locks";col="#e9c46a";}
       else if(S.tapP){t="👆 Drum on your taps · steady "+Math.round(60/S.tapP)+" BPM";}else t="No heartbeat source · steady "+Math.round(60/S.Pm)+" BPM";}
-    else{if(HR.connected&&HR.bpm){t="✓ "+nm+" reading "+HR.bpm+" BPM — press Begin and the drum will follow it";col="#7ff0d6";}
-      else if(CAMP.on){t="Camera is finding your pulse — wait for ✓, then press Begin";col="#e9c46a";}
+    else{if(HR.connected&&HR.bpm&&HR.src==="camera"){t="✓ Camera pulse "+HR.bpm+" BPM — press Begin. The camera turns off when you begin, so the sound can play through your speaker.";col="#7ff0d6";}
+      else if(HR.connected&&HR.bpm){t="✓ "+nm+" reading "+HR.bpm+" BPM — press Begin and the drum will follow it";col="#7ff0d6";}
+      else if(CAMP.on){t="Camera is finding your pulse"+(CAMP.good?" ("+Math.min(CAMP.good,3)+"/3)":"")+" — wait for ✓, then press Begin";col="#e9c46a";}
       else t="Heartbeat source: connect a sensor or the camera — or tap the heart circle on each beat to start";}
     el.style.color=col;el.textContent=t;}
   if(!S.srcIv)S.srcIv=setInterval(function(){try{srcLine();}catch(e){}},1000);
