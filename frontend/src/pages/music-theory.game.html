@@ -12077,6 +12077,41 @@ function renderBioSession(){
   bsDrawChart();
 }
 
+/* ===== Hear → Name → See: keyboard reveal card (video-style visual) ===== */
+(function(){try{var s=document.createElement("style");s.textContent=
+".ivCard{position:relative;background:#141022;border:1px solid var(--line);border-radius:14px;padding:10px 10px 8px;margin:12px 0}"+
+".ivLab{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:2px 4px 10px;min-height:1.5em}"+
+".ivLab .ivName{font-weight:800;font-size:1rem;color:var(--gold)}"+
+".ivLab .ivSub{font-weight:700;font-size:.8rem;color:var(--muted)}"+
+".ivCard .pk{margin:0;height:128px;pointer-events:none}"+
+".ivCard.listen .pk-w{background:linear-gradient(#2b2543,#211b36);border-color:#141022}"+
+".ivCard.listen .pk-b{background:#0d0a18;border-color:#0d0a18}"+
+".ivCard .pk-w{color:transparent}"+
+".ivCard .pk-w.hiA{background:var(--gold)!important;color:#241800}.ivCard .pk-w.hiT{background:#34e0c6!important;color:#00332b}"+
+".ivCard .pk-b.hiA{background:var(--gold)!important;border-color:#8a6a1d}.ivCard .pk-b.hiT{background:#34e0c6!important;border-color:#0f7f6d}"+
+".ivCard .kl{position:absolute;bottom:4px;left:0;right:0;text-align:center;font:800 .6rem system-ui,sans-serif;pointer-events:none}"+
+".ivCard .pk-w{position:relative}.ivCard .pk-w .kl{color:#241800}.ivCard .pk-b .kl{color:#00231d}"+
+".ivArc{position:absolute;inset:0;pointer-events:none;overflow:visible}";
+document.head.appendChild(s);}catch(e){}})();
+function ivCardHTML(){return '<div class="ivCard listen" id="ivCard"><div class="ivLab" id="ivLab"><span class="ivSub">Listen…</span></div><div id="ivKb" style="position:relative"></div></div>';}
+function ivMountKb(low){var box=document.getElementById("ivKb");if(!box)return null;var kb=buildKeyboard(low,2,function(){},false);box.appendChild(kb);return kb;}
+function ivKeyLabel(kb,m){var k=kb.querySelector('[data-m="'+m+'"]');if(!k)return;if(!k.querySelector(".kl")){var sp=document.createElement("span");sp.className="kl";sp.textContent=NOTE_NAMES[((m%12)+12)%12];k.appendChild(sp);}}
+function ivReveal(kb,root,semis){
+  var card=document.getElementById("ivCard"),lab=document.getElementById("ivLab");if(!card||!kb)return;
+  card.classList.remove("listen");
+  var top=root+semis,a=kb.querySelector('[data-m="'+root+'"]'),b=kb.querySelector('[data-m="'+top+'"]');
+  if(a)a.classList.add("hiA");if(b&&top!==root)b.classList.add("hiT");
+  ivKeyLabel(kb,root);if(top!==root)ivKeyLabel(kb,top);
+  if(lab)lab.innerHTML='<span class="ivName">'+INAMES[semis]+'</span><span class="ivSub">'+noteNameOct(root).replace(/-?\d+$/,"")+' to '+noteNameOct(top).replace(/-?\d+$/,"")+' · '+semis+' half step'+(semis===1?"":"s")+'</span>';
+  if(a&&b&&top!==root){try{
+    var W=kb.clientWidth,H=kb.clientHeight;
+    function cx(el){var r=el.getBoundingClientRect(),k=kb.getBoundingClientRect();return r.left-k.left+r.width/2;}
+    var x1=cx(a),x2=cx(b),y=H*0.72,lift=Math.min(H*0.5,Math.max(18,(x2-x1)*0.25));
+    var svg=document.createElementNS("http://www.w3.org/2000/svg","svg");svg.setAttribute("class","ivArc");svg.setAttribute("width",W);svg.setAttribute("height",H);
+    svg.innerHTML='<path d="M '+x1+' '+y+' Q '+((x1+x2)/2)+' '+(y-lift)+' '+x2+' '+y+'" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="2.5" stroke-linecap="round"/>';
+    kb.appendChild(svg);
+  }catch(e){}}
+}
 function renderLevels(){
   view.innerHTML=`<div class="play-top"><button class="back" id="eBack" aria-label="Back">←</button><span class="ttitle">🎧 Interval Trainer</span></div>
     <div class="panel" style="margin-bottom:14px"><div class="intro">Hear two notes, then name the interval. Start at <b>Level 1</b> and work up — each level adds more intervals to listen for.</div></div>
@@ -12107,15 +12142,18 @@ function renderRound(level){
   function step(){
     if(qi>=TOTAL){done();return;}
     const root=48+Math.floor(Math.random()*20),semis=set[Math.floor(Math.random()*set.length)],qMode=ivMode()==="mixed"?["up","down","together"][Math.floor(Math.random()*3)]:ivMode();
+    const kbLow=root-((root%12)+12)%12;
     view.innerHTML=`<div class="play-top"><button class="back" id="eBack" aria-label="Back">←</button><span class="ttitle">🎧 Level ${level}</span>
         <span style="margin-left:auto;color:var(--muted);font-weight:800;font-size:.8rem">${qi+1}/${TOTAL}</span></div>
       <div class="panel">
         <div class="ask">Listen, then name the interval</div>
+        ${ivCardHTML()}
         <div class="actions"><button class="btn" id="play">▶ Play</button><button class="btn ghost" id="replay">↻ Again</button></div>
         <div class="opts" id="opts" style="margin-top:14px"></div>
         <div class="feedback" id="fb"></div>
         <div class="actions"><button class="btn" id="next" disabled>Next</button></div></div>`;
     $("#eBack").onclick=goHome;
+    const kb=ivMountKb(kbLow);
     const playIt=()=>playInterval(root,semis,ivMode()==="mixed"?qMode:ivMode());drillRow("#opts","iv");
     $("#play").onclick=playIt;$("#replay").onclick=playIt;
     const box=$("#opts");
@@ -12124,6 +12162,7 @@ function renderRound(level){
         if(s===semis){box.dataset.lock="1";b.classList.add("correct");[...box.children].forEach(c=>c.disabled=true);
           var _f=!box.dataset.miss;if(_f)correct++;$("#fb").innerHTML=(_f?"Correct — ":"That's it (not counted — first answers only): ")+INAMES[semis]+(SONGS[semis]?'<div style="font-size:.85rem;color:var(--muted);margin-top:4px;font-family:\'Nunito Sans\',sans-serif">think: '+SONGS[semis]+'</div>':"");
           $("#fb").className="feedback good";$("#next").disabled=false;$("#next").focus();
+          ivReveal(kb,root,semis);setTimeout(playIt,350);
           if(_f&&activeId()&&load(mk("ear","lvl"+level),false)){addBeans(1);beanChip();}}
         else{box.dataset.miss="1";b.classList.add("wrong");b.disabled=true;$("#fb").textContent="Not quite — tap ↻ and listen again.";$("#fb").className="feedback try";}};
       box.appendChild(b);});
