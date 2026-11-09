@@ -38,13 +38,14 @@ Humans don't like overwhelming and over complicated things.
 23. Can I play it with real finger positions, the way I'd play the real instrument (e.g. piano fingering)?
 24. Can I actually play the instrument itself? No pad buttons on instruments — play the instrument directly.
 25. Is anything obstructing my view of what I need to see to play?
+26. Am I referencing the sound against something professional — a reference track or reference sound? Is that reference professionally produced, or a professionally made sample?
 
 More get added as Travis finds issues (keep this file and the project doc `claude/mmu-goals-and-build-checklist.md` in step).
 
 ## How to test before calling a build done
 1. Syntax-check the built app (`node --check` on the inline script) before every push.
 2. Screenshot every screen touched at phone size (390×844 portrait and 844×390 landscape), as the player.
-3. Answer all 25 questions for each screen; fix what fails before reporting.
+3. Answer all 26 questions for each screen; fix what fails before reporting.
 4. Test the way it's really used: full session start to finish, with a device connected, including being cut off (sleep, screen lock, reload).
 5. Report briefly: what passed, what was fixed, what only a real phone/instrument can confirm.
 6. Log the change in the Google Doc tracker (1CIYtRw3wclwBQDeJARNoqcuiqvTEkm1H5ODro-b2ATo).
