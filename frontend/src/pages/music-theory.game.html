@@ -289,6 +289,13 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .rcell.T{color:#ffd9a8;border-color:var(--gold);background:rgba(255,159,92,.14)}
 .rcell.S{color:#bfe3ff;border-color:var(--sky);background:rgba(85,214,232,.14)}
 .dpads{display:flex;gap:10px;margin:14px 0 4px}
+.djLay{display:flex;flex-direction:column;gap:6px}.djSide{min-width:0}.djPats{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-bottom:4px}.djPats::-webkit-scrollbar{display:none}
+.djGo{display:flex;align-items:center;gap:10px;margin:8px 0 2px}.djGo .btn{flex:1;margin:0}.djBpmTag{font:800 .95rem system-ui;color:var(--gold,#f4b740);white-space:nowrap}
+.djDrumWrap{display:flex;justify-content:center}.djDrumWrap .drum{margin-top:6px}
+.drum-zl{position:absolute;font:700 .55rem "Hanken Grotesk",system-ui,sans-serif;letter-spacing:1px;color:rgba(50,34,16,.5);pointer-events:none}.drum-zl.t{left:0;width:200px;text-align:center;top:44px}.drum-zl.s{left:0;width:200px;text-align:center;top:6px}
+.djMore{justify-content:center;margin:10px 0 4px}.drum.playable .drum-lbl{font-size:.85rem;top:158px}.djGo+.czOpen{display:block;margin:6px auto 0}
+body.djOn #metFab{display:none!important}
+@media (orientation:landscape) and (min-width:640px){.djLay{flex-direction:row;align-items:flex-start;gap:14px}.djSide{flex:1 1 42%;order:2}.djDrumWrap{flex:1 1 58%;order:1}.djSide .rcells{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:4px 0 6px}.djSide .rbeat{gap:3px}.djSide .rcell{width:auto;flex:1;height:40px;min-width:0}}
 .dpad{flex:1;height:92px;border-radius:14px;border:2px solid var(--line);background:var(--card2);color:var(--cream);font-family:"Hanken Grotesk",system-ui,sans-serif;font-size:1.05rem;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
 .dpad .pl{font-size:.72rem;color:var(--muted);letter-spacing:2px}
 .dpad.bass{border-color:var(--violet)} .dpad.tone{border-color:var(--gold)} .dpad.slap{border-color:var(--sky)}
@@ -1250,7 +1257,7 @@ function czSort(body){var items=[].slice.call(body.children).filter(function(x){
   Object.keys(groups).map(Number).sort(function(a,b){return a-b;}).forEach(function(c){var h=document.createElement("div");h.className="czSec czCat";h.textContent=c<CZ_CATS.length?CZ_CATS[c][0]:"More";body.appendChild(h);
     groups[c].forEach(function(el){var rl=el.querySelector(".rlab");if(rl&&c<CZ_CATS.length&&rl.textContent.trim().toLowerCase()===CZ_CATS[c][0].toLowerCase())rl.style.display="none";var n=el.nextElementSibling&&el.nextElementSibling.hasAttribute("data-czn")?el.nextElementSibling:null;body.appendChild(el);if(n)body.appendChild(n);});});}
 var CZ_CFG={/* per-screen tuning by title: keep = extra labels to leave in view, off = leave the screen alone */
-  "Lyric Lab":{keep:/(^section|word bank)/i},"Piano Studio":{into:"#pkModeBar",move:/^(screen|hands|loop)/i,keep:/^(root|type|songs?|scale|chord|progression|mode)\b/i},"Heart Sync":{off:1},"Breathwork":{off:1},"Morning":{off:1},"Afternoon":{off:1},"Bedtime":{off:1},"About":{off:1}};
+  "Lyric Lab":{keep:/(^section|word bank)/i},"Djembe Groove":{after:".djGo"},"Piano Studio":{into:"#pkModeBar",move:/^(screen|hands|loop)/i,keep:/^(root|type|songs?|scale|chord|progression|mode)\b/i},"Heart Sync":{off:1},"Breathwork":{off:1},"Morning":{off:1},"Afternoon":{off:1},"Bedtime":{off:1},"About":{off:1}};
 (function(){try{var st=document.createElement("style");st.textContent="@media (max-width:560px){.llrow{flex-wrap:wrap;justify-content:flex-end}.llrow .llin{flex:1 1 100%;min-width:0}.llrow .rchip{flex:0 0 auto}}";document.head.appendChild(st);}catch(e){}})();
 var CZOPEN={},CZ_BUSY=false;
 /* long chip lists become one swipeable row, with the chosen chip kept in view */
@@ -4769,7 +4776,8 @@ function djSchedule(){const a=ac(),ahead=0.12,P=DJP(),div=P.div,cells=4*div,cell
   }}
 function djLight(cell){const cells=document.querySelectorAll("#djCells .rcell");if(DJ.litCell>=0&&cells[DJ.litCell])cells[DJ.litCell].classList.remove("on");if(cells[cell])cells[cell].classList.add("on");DJ.litCell=cell;}
 /* the drum head itself is the instrument: center = bass, middle = tone, rim = slap; scaled up to fill the screen */
-function djHeadBind(dr){if(!dr||dr._bound)return;dr._bound=true;djkLoad();var sc=Math.max(1,Math.min(1.85,((dr.parentElement||document.body).clientWidth-12)/200));dr.style.setProperty("--djs",sc.toFixed(3));dr.classList.add("playable");
+function djFit(dr,big){var w=(dr.parentElement||document.body).clientWidth-8,h=big?(window.innerHeight-24):1e9;return Math.max(1,Math.min(big?3.2:1.85,w/200,h/215));}
+function djHeadBind(dr,big){if(!dr||dr._bound)return;dr._bound=true;djkLoad();var sc=djFit(dr,big);dr.style.setProperty("--djs",sc.toFixed(3));dr.classList.add("playable");if(big){var rf=function(){if(!dr.isConnected){window.removeEventListener("resize",rf);return;}dr.style.setProperty("--djs",djFit(dr,true).toFixed(3));};window.addEventListener("resize",rf);}
   var head=dr.querySelector(".drum-head");dr.addEventListener("pointerdown",function(e){var R=dr.getBoundingClientRect(),k=R.width/200,cx=R.left+100*k,cy=R.top+100*k,dx=e.clientX-cx,dy=e.clientY-cy,d=Math.sqrt(dx*dx+dy*dy)/(100*k);if(d>1.1)return;e.preventDefault();unlockAudio();
     var kind=d<=0.44?"bass":d<=0.86?"tone":"slap",vel=0.62+Math.random()*0.12+(e.pressure&&e.pressure!==0.5?(e.pressure-0.5)*0.4:0);djembe(ac().currentTime+0.005,kind,vel);djHit(kind==="bass"?"B":kind==="tone"?"T":"S",dx<0?"L":"R");
     var rp=document.createElement("div");rp.className="djripple "+kind;rp.style.left=((e.clientX-R.left)/k)+"px";rp.style.top=((e.clientY-R.top)/k)+"px";rp.style.zIndex=5;dr.appendChild(rp);setTimeout(function(){rp.remove();},500);},{passive:false});}
@@ -5065,43 +5073,43 @@ function renderStrikeCheck(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
 }
 async function renderDjembe(){
   if(toneRAF)cancelAnimationFrame(toneRAF);djStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  teardown=()=>{djStop();stopMic();};
+  teardown=()=>{djStop();stopMic();document.body.classList.remove("djOn");};
   function toggleChip(id,label,on){return `<button class="rchip sm${on?" sel":""}" id="${id}">${label}</button>`;}
   function draw(){
     view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🪘 Djembe Groove</span></div>
-      <div class="panel">
-        <div class="intro">Pick a pattern — it loops with <b>bass/tone/slap</b> so you can play along and lock the tempo. Mute the pattern to keep just the click, or turn on <b>Score</b> to check your timing with the mic. Tap the drum itself to play: <b>center</b> for bass, <b>middle</b> for tone, <b>rim</b> for slap.</div>
-        <div class="rchips" id="djChips"></div>
-        <div class="djlegend"><b style="color:#c9b3ff">B</b> Bass (center) · <b style="color:#ffd9a8">T</b> Tone (edge) · <b style="color:#bfe3ff">S</b> Slap (sharp edge). The <b style="color:#ffce6e">R</b>/<b style="color:#8fd0ff">L</b> under each hit is the <b>sticking</b> (which hand). A <b style="color:#ffce6e">gold top</b> = accent (hit harder); a <b>dimmed</b> cell = ghost note (soft). That&rsquo;s the dynamics — loud and soft are what make it groove.</div>
-        <div class="rrow2"><span class="rlab">Lead hand</span>${toggleChip("djLeadR","✋ Right",DJ.lead==="R")}${toggleChip("djLeadL","🤚 Left",DJ.lead==="L")}</div>
-        <div class="drum">
-          <div class="drum-head"></div><div class="drum-edge"></div><div class="drum-bass">bass</div>
-          <div class="flashzone" id="drumFlash"></div><div class="drum-lbl" id="drumLbl"></div>
-          <div class="djhand" id="djHand"></div>
+      <div class="panel djPanel">
+        <div class="intro">Pick a pattern and press Start — it loops so you can play along and lock the tempo. Play the drum itself: <b>center</b> = bass, <b>inner ring</b> = tone, <b>outer edge</b> = slap. In the pattern, <b style="color:#c9b3ff">B</b>/<b style="color:#ffd9a8">T</b>/<b style="color:#bfe3ff">S</b> is the stroke, the <b>R</b>/<b>L</b> under it is the hand, a <b style="color:#ffce6e">gold top</b> is an accent and a <b>dimmed</b> cell is a ghost note.</div>
+        <div class="djLay">
+          <div class="djSide">
+            <div class="rchips djPats" id="djChips"></div>
+            <div class="rbanner" id="djBanner" hidden></div>
+            <div class="rcells" id="djCells"></div>
+            <div class="djGo"><button class="btn" id="djStart">${DJ.running?"⏸ Stop":"▶ Start"}</button><span class="djBpmTag" id="djBpmTag">${DJ.bpm} BPM</span></div>
+            ${DJ.scoring?`<div class="rrow2"><span class="rlab">Mic</span><div class="rmeter"><div class="rmeter-f" id="djMeterF"></div></div></div>
+            <div class="rscore"><div class="racc" id="djAcc">—</div><div class="rfeel" id="djFeel">Start, then play along on every hit</div></div>
+            <div class="djlegend" id="djHist" style="margin-top:8px"></div>`:""}
+          </div>
+          <div class="djDrumWrap">
+            <div class="drum">
+              <div class="drum-head"></div><div class="drum-edge"></div><div class="drum-bass">bass</div><div class="drum-zl t">tone</div><div class="drum-zl s">slap</div>
+              <div class="flashzone" id="drumFlash"></div><div class="drum-lbl" id="drumLbl"></div>
+              <div class="djhand" id="djHand"></div>
+            </div>
+          </div>
         </div>
-        <div class="actions"><button class="btn ghost" id="djStrike">🎯 Strike Check</button><button class="btn ghost" id="djCR">🔁 Call &amp; Response</button><button class="btn ghost" id="djDex">👐 Hand independence</button><button class="btn ghost" id="djBeat">🧩 Beat Maker</button></div>
-        <div class="rbanner" id="djBanner" hidden></div>
-        <div class="rcells" id="djCells"></div>
+        <div class="rchips tight djMore"><button class="rchip sm" id="djStrike">🎯 Strike Check</button><button class="rchip sm" id="djCR">🔁 Call &amp; Response</button><button class="rchip sm" id="djDex">👐 Hand independence</button><button class="rchip sm" id="djBeat">🧩 Beat Maker</button></div>
+        <div class="rrow2"><span class="rlab">Lead hand</span>${toggleChip("djLeadR","✋ Right",DJ.lead==="R")}${toggleChip("djLeadL","🤚 Left",DJ.lead==="L")}</div>
         <div class="rrow"><span class="rlab">Tempo</span><input type="range" id="djBpm" min="50" max="180" value="${DJ.bpm}" style="flex:1"><span class="rbpm" id="djBpmV">${DJ.bpm}</span><button class="rtap" id="djTap">Tap</button></div>
         <div class="rrow2"><span class="rlab">Play</span>${toggleChip("tgPat","🪘 Pattern",DJ.playPattern)}${toggleChip("tgClick","🥁 Click",DJ.metClick)}${toggleChip("tgScore","🎤 Score me",DJ.scoring)}</div>
-        ${DJ.scoring?`<div class="rrow2"><span class="rlab">Round</span><span class="rchips tight" id="djMeas"></span></div>
-        <div class="djlegend" style="opacity:.8">A scored round plays a <b>count-in</b> then <b>${DJ.measures}</b> ${DJ.measures===1?"measure":"measures"}, then grades it and saves your score. Start short, graduate to longer.</div>`:""}
-        <div class="actions"><button class="btn" id="djStart">${DJ.running?"⏸ Stop":"▶ Start"}</button></div>
-        <div class="dpads">
-          <button class="dpad bass" id="padB"><span>Bass</span><span class="pl">B</span></button>
-          <button class="dpad tone" id="padT"><span>Tone</span><span class="pl">T</span></button>
-          <button class="dpad slap" id="padS"><span>Slap</span><span class="pl">S</span></button>
-        </div>
-        ${DJ.scoring?`<div class="rrow2"><span class="rlab">Mic</span><div class="rmeter"><div class="rmeter-f" id="djMeterF"></div></div></div>
-        <div class="rscore"><div class="racc" id="djAcc">—</div><div class="rfeel" id="djFeel">Start, then play along on every hit</div></div>
-        <div class="djlegend" id="djHist" style="margin-top:8px"></div>
-        <div class="djlegend" style="opacity:.8">🎧 Tip: keep <b>🪘 Pattern</b> on and wear <b>headphones</b> — then you can follow the drum and still get an honest score (the mic only hears you, not the app). Your score saves when you press Stop.</div>`:""}
+        ${DJ.scoring?`<div class="rrow2"><span class="rlab">Round</span><span class="rchips tight" id="djMeas"></span></div>`:""}
       </div>`;
-    $("#eBack").onclick=goHome;
+    document.body.classList.add("djOn");
+    setTimeout(()=>{if(innerWidth>innerHeight&&innerHeight<520){const L=view.querySelector(".djLay");if(L)L.scrollIntoView({block:"start"});}},60);
+    $("#eBack").onclick=()=>{document.body.classList.remove("djOn");goHome();};
     const ch=$("#djChips");DJEMBE_PATTERNS.forEach((p,i)=>{const b=document.createElement("button");b.className="rchip"+(i===DJ.patIdx?" sel":"");b.textContent=p.name;b.onclick=()=>{DJ.patIdx=i;if(DJ.running){DJ.cur=0;DJ.nextTime=ac().currentTime+0.1;DJ.visQ=[];DJ.barCount=0;}draw();};ch.appendChild(b);});
     djRenderCells();
-    const bp=$("#djBpm");bp.oninput=()=>{DJ.bpm=+bp.value;$("#djBpmV").textContent=DJ.bpm;};
-    $("#djTap").onclick=()=>{const now=performance.now();if(DJ.taps.length&&now-DJ.taps[DJ.taps.length-1]>2000)DJ.taps=[];DJ.taps.push(now);if(DJ.taps.length>5)DJ.taps.shift();if(DJ.taps.length>=2){let s=0;for(let i=1;i<DJ.taps.length;i++)s+=DJ.taps[i]-DJ.taps[i-1];let b=Math.round(60000/(s/(DJ.taps.length-1)));b=Math.max(50,Math.min(180,b));DJ.bpm=b;bp.value=b;$("#djBpmV").textContent=b;}};
+    const bp=$("#djBpm");const bpTag=()=>{const t=$("#djBpmTag");if(t)t.textContent=DJ.bpm+" BPM";};bp.oninput=()=>{DJ.bpm=+bp.value;$("#djBpmV").textContent=DJ.bpm;bpTag();};
+    $("#djTap").onclick=()=>{const now=performance.now();if(DJ.taps.length&&now-DJ.taps[DJ.taps.length-1]>2000)DJ.taps=[];DJ.taps.push(now);if(DJ.taps.length>5)DJ.taps.shift();if(DJ.taps.length>=2){let s=0;for(let i=1;i<DJ.taps.length;i++)s+=DJ.taps[i]-DJ.taps[i-1];let b=Math.round(60000/(s/(DJ.taps.length-1)));b=Math.max(50,Math.min(180,b));DJ.bpm=b;bp.value=b;$("#djBpmV").textContent=b;bpTag();}};
     const lr=$("#djLeadR"),ll=$("#djLeadL");if(lr)lr.onclick=()=>{DJ.lead="R";draw();};if(ll)ll.onclick=()=>{DJ.lead="L";draw();};
     $("#tgPat").onclick=()=>{DJ.playPattern=!DJ.playPattern;draw();};
     $("#tgClick").onclick=()=>{DJ.metClick=!DJ.metClick;draw();};
@@ -5113,10 +5121,7 @@ async function renderDjembe(){
     const crb=$("#djCR");if(crb)crb.onclick=()=>{djStop();renderCR();};
     const ddx=$("#djDex");if(ddx)ddx.onclick=()=>{djStop();renderDexterity("djembe");};
     const dbt=$("#djBeat");if(dbt)dbt.onclick=()=>{djStop();renderBeat("djembe");};
-    djHeadBind(document.querySelector(".panel .drum"));
-    const pb=$("#padB"),pt=$("#padT"),ps=$("#padS");
-    function pad(el,kind){el.addEventListener("pointerdown",e=>{e.preventDefault();unlockAudio();djembe(ac().currentTime+0.01,kind);el.classList.add("hit");setTimeout(()=>el.classList.remove("hit"),90);});}
-    pad(pb,"bass");pad(pt,"tone");pad(ps,"slap");
+    djHeadBind(document.querySelector(".djDrumWrap .drum"),true);
   }
   draw();
 }
@@ -5177,11 +5182,6 @@ function renderCR(){
         <div class="rrow2"><span class="rlab">Mic</span><div class="rmeter"><div class="rmeter-f" id="crMeterF"></div></div></div>
         <div class="feedback" id="crStatus">Tap Start — listen, then play it back.</div>
         <div class="actions"><button class="btn" id="crStart">▶ Start</button></div>
-        <div class="dpads">
-          <button class="dpad bass" id="padB"><span>Bass</span><span class="pl">B</span></button>
-          <button class="dpad tone" id="padT"><span>Tone</span><span class="pl">T</span></button>
-          <button class="dpad slap" id="padS"><span>Slap</span><span class="pl">S</span></button>
-        </div>
         <div id="crResults"></div>
       </div>`;
     $("#eBack").onclick=goHome;
@@ -5190,8 +5190,7 @@ function renderCR(){
     djRenderCells();
     const bp=$("#crBpm");bp.oninput=()=>{DJ.bpm=+bp.value;$("#crBpmV").textContent=DJ.bpm;};
     $("#crStart").onclick=()=>{unlockAudio();crGo();};
-    function pad(el,kind){el.addEventListener("pointerdown",e=>{e.preventDefault();unlockAudio();djembe(ac().currentTime+0.01,kind);el.classList.add("hit");setTimeout(()=>el.classList.remove("hit"),90);});}
-    pad($("#padB"),"bass");pad($("#padT"),"tone");pad($("#padS"),"slap");
+    {const d=view.querySelector(".drum");if(d){if(!d.querySelector(".drum-zl"))d.querySelector(".drum-edge").insertAdjacentHTML("afterend",'<div class="drum-zl t">tone</div><div class="drum-zl s">slap</div>');const w=document.createElement("div");w.className="djDrumWrap";const act=$("#crStart")&&$("#crStart").closest(".actions");if(act)act.after(w);else d.parentNode.insertBefore(w,d);w.appendChild(d);djHeadBind(d,true);}}
   }
   draw();
 }
