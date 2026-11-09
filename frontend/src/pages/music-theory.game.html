@@ -2795,134 +2795,234 @@ function feedbackText(a,level){
   if(!tips.length)tips.push("solid shape — try a contrasting variation for the next phrase");
   return `<b>${a.n} notes</b> · range ${a.range} st · ${a.distinct} pitch classes · ~${a.stepPct}% stepwise · ${a.repPct}% repeats.<br>Best fit: <b>${a.keyRoot} ${a.keyType}</b>${a.out?" ("+a.out+" out of key)":" (all in key)"} · contour: ${a.contour}.<br><b>Suggestions:</b> ${tips.slice(0,2).join("; ")}.`;
 }
-/* ===== LYRIC LAB — clean songwriter (Nov 8): one song at a time, built in sections, line by line.
-   Each line can carry a melody you sing, type, or ask for. Everything saves into the song/section it belongs to. ===== */
-const SW={data:null,stopT:null,rec:null,active:null,rhyme:null};
+/* ===== LYRIC LAB — clean songwriter (Nov 8, v2): set up the song (title, topic, structure), then write bar by bar.
+   Each section type gets ONE melody: flip through generated ones or sing your own, then every line fits it by syllables.
+   RhymeZone word data (Datamuse) helps find the next line: rhymes, near rhymes, topic rhymes, and the stress pattern to match. ===== */
+const SW={data:null,stopT:null,tm:[],rec:null,active:null,ideas:null,mp:null,pi:{},dm:{}};
 const SW_TAGS=["Intro","Verse","Pre-Chorus","Chorus","Bridge","Outro"];
+const SW_FORMS=[["Verse","Chorus","Verse","Chorus","Bridge","Chorus"],["Verse","Pre-Chorus","Chorus","Verse","Pre-Chorus","Chorus","Bridge","Chorus"],["Verse","Chorus","Verse","Chorus"],["Verse","Verse","Bridge","Verse"],["Verse"]];
+const SW_LINES=8,SW_SYL_LO=5,SW_SYL_HI=8;
 function swId(){return Math.random().toString(36).slice(2,9);}
-function swLine(t){return {t:t||"",notes:null,src:null,seed:1};}
-function swNewSong(title){return {id:"s"+swId(),title:title||"Untitled song",bpm:90,sections:[{id:swId(),tag:"Verse",lines:[swLine()]}]};}
-function swFromOld(){try{const o=load("mjk-llsong",null);if(!o||!Array.isArray(o.sections))return null;const secs=o.sections.map(s=>{const tg=String(s.type||"Verse");const tag=SW_TAGS.find(x=>x.toLowerCase()===tg.toLowerCase())||"Verse";const lines=(s.lines||[]).map(l=>(l&&l.t)||"").filter(t=>t.trim()).map(swLine);return {id:swId(),tag:tag,lines:lines};}).filter(s=>s.lines.length);if(!secs.length)return null;const s=swNewSong(o.name||"My song");s.sections=secs;s.bpm=load("mjk-ideabpm",90)||90;return s;}catch(e){return null;}}
-function swData(){if(!SW.data)SW.data=load("mjk-sw",null);let D=SW.data;if(!D||!D.songs||!D.songs.length){const old=swFromOld();D=SW.data={songs:[old||swNewSong("My song")],cur:null,alt:false,voice:"piano",bars:2,syl:true};D.cur=D.songs[0].id;swSave();}return D;}
+function swLine(t){return {t:t||""};}
+function swSec(tag){return {id:swId(),tag:tag,lines:Array.from({length:SW_LINES},()=>swLine()),same:null};}
+function swNewSong(title){return {id:"s"+swId(),title:title||"",topic:"",bpm:90,setup:false,sections:[],mel:{},sung:{}};}
+function swFromOld(){try{const o=load("mjk-llsong",null);if(!o||!Array.isArray(o.sections))return null;const secs=o.sections.map(s=>{const tg=String(s.type||"Verse");const tag=SW_TAGS.find(x=>x.toLowerCase()===tg.toLowerCase())||"Verse";const lines=(s.lines||[]).map(l=>(l&&l.t)||"").filter(t=>t.trim()).map(swLine);return {id:swId(),tag:tag,lines:lines,same:null};}).filter(s=>s.lines.length);if(!secs.length)return null;const s=swNewSong(o.name||"My song");s.sections=secs;s.setup=true;return s;}catch(e){return null;}}
+function swFix(D){if(D.v===2)return D;(D.songs||[]).forEach(s=>{s.topic=s.topic||"";s.mel=s.mel||{};s.sung=s.sung||{};if(s.setup==null)s.setup=true;(s.sections||[]).forEach(sec=>{sec.same=sec.same||null;sec.lines=(sec.lines||[]).map(l=>swLine(l&&l.t));});});D.bars=1;D.v=2;delete D.alt;return D;}
+function swData(){if(!SW.data)SW.data=load("mjk-sw",null);let D=SW.data;if(!D||!D.songs||!D.songs.length){const old=swFromOld();D=SW.data={v:2,songs:[old||swNewSong("")],cur:null,voice:"piano",bars:1,syl:true};D.cur=D.songs[0].id;swSave();}else swFix(D);return D;}
 function swSong(){const D=swData();let s=D.songs.find(x=>x.id===D.cur);if(!s){s=D.songs[0];D.cur=s.id;}return s;}
 function swSave(){try{save("mjk-sw",SW.data);}catch(e){}}
 function swEsc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");}
-function swSecName(song,sec){const same=song.sections.filter(x=>x.tag===sec.tag);return same.length>1?sec.tag+" "+(same.indexOf(sec)+1):sec.tag;}
-function swSteps(){return (swData().bars||2)*16;}
+function swTarget(song,sec){if(!sec.same)return null;const t=song.sections.find(x=>x.id===sec.same&&!x.same);if(!t){sec.same=null;return null;}return t;}
+function swLinesOf(song,sec){const t=swTarget(song,sec);return t?t.lines:sec.lines;}
+function swSecName(song,sec){if(swTarget(song,sec))return sec.tag+" (repeat)";const same=song.sections.filter(x=>x.tag===sec.tag&&!swTarget(song,x));return same.length>1?sec.tag+" "+(same.indexOf(sec)+1):sec.tag;}
+function swSteps(){return (swData().bars||1)*16;}
 function swS16(){return 60/(swSong().bpm||90)/4;}
-function swNoteName(m){return ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"][((m%12)+12)%12]+(Math.floor(m/12)-1);}
-/* auto melody for one line from the lyric's syllables (fits the line's bar length) */
-function swAuto(t,seed){const steps=swSteps();let ns=llLineNotes(t,0,false,"even",seed||1);if(!ns||!ns.length)return null;if(steps<32)ns=ns.map(n=>({midi:n.midi,step:Math.floor(n.step/2),len:Math.max(1,Math.round(n.len/2))}));return ns.filter(n=>n.step<steps).map(n=>({midi:n.midi,step:n.step,len:n.len}));}
-/* typed melody: note names like "C D E G" or "C4 E4 G4 -" ( - holds the note longer ) */
-function swParse(txt){const toks=(txt||"").trim().split(/[\s,]+/).filter(Boolean);if(!toks.length)return null;const steps=swSteps(),units=[];let lastOct=4;
-  for(const tk of toks){if(tk==="-"||tk==="_"){if(units.length)units[units.length-1].u++;continue;}const m=tk.match(/^([A-Ga-g])([#b♯♭]?)(\d)?$/);if(!m)return {err:"I didn't understand “"+tk+"”"};
-    const pc={c:0,d:2,e:4,f:5,g:7,a:9,b:11}[m[1].toLowerCase()]+(m[2]==="#"||m[2]==="♯"?1:m[2]==="b"||m[2]==="♭"?-1:0);if(m[3]!=null)lastOct=+m[3];units.push({midi:12*(lastOct+1)+pc,u:1});}
-  if(!units.length)return null;const tot=units.reduce((a,b)=>a+b.u,0),L=Math.max(1,Math.min(8,Math.floor(steps/tot)));let st=0;return units.map(x=>{const n={midi:x.midi,step:st,len:x.u*L};st+=x.u*L;return n;}).filter(n=>n.step<steps);}
+function swNoteName(m){return ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"][((m%12)+12)%12];}
+/* ---- melody: one per section type. a = odd lines (open ending), b = even lines (resolves home) ---- */
+function swRng(seed){let s=((seed>>>0)*2654435761+12345)>>>0;return ()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};}
+function swDeg2Midi(d){const SC=[0,2,4,5,7,9,11];return 60+SC[((d%7)+7)%7]+12*Math.floor(d/7);}
+function swGen(n,seed,tag){const r=swRng(seed*31+n*7+SW_TAGS.indexOf(tag)*101),ri=(a,b)=>a+Math.floor(r()*(b-a+1));n=Math.max(1,Math.min(12,n));
+  /* rhythm in one bar of 16ths: strong beats first, last syllable held */
+  const W=[6,.4,1.6,.5,4,.4,1.6,.5,4.5,.4,1.6,.5,3,.3,1,.3];const pick=r()<0.3&&n<=7?2:0;
+  const L=n<=4?8:n<=6?(r()<.5?10:12):12;const pool=[];for(let i=pick;i<L;i++)pool.push(i);const on=[];
+  const need=Math.min(n-1,pool.length);for(let k=0;k<need;k++){let tot=0;pool.forEach(i=>tot+=W[i]);let x=r()*tot,j=0;for(;j<pool.length;j++){x-=W[pool[j]];if(x<=0)break;}on.push(pool.splice(Math.min(j,pool.length-1),1)[0]);}
+  on.sort((p,q)=>p-q);on.push(L);const m=on.length;
+  /* pitch contour in scale degrees; register rises from verse to chorus */
+  const lo={"Intro":0,"Verse":0,"Pre-Chorus":2,"Chorus":4,"Bridge":3,"Outro":0}[tag]||0,shape=ri(0,3),amp=ri(3,5);let prev=lo+ri(0,2);const degs=[];
+  for(let k=0;k<m;k++){const x=m>1?k/(m-1):0;let tg=shape===0?lo+1+amp*Math.sin(Math.PI*Math.min(1,x*1.15)):shape===1?lo+amp+1-amp*x:shape===2?lo+amp*x:lo+2+2*Math.sin(x*Math.PI*2.2);
+    let d=k&&r()<0.22?prev:Math.round(tg+(r()-.5)*1.4);if(Math.abs(d-prev)>3&&k)d=prev+Math.sign(d-prev)*ri(1,3);degs.push(d);prev=d;}
+  const near=(d,set)=>{let best=d,bd=99;for(let c=d-4;c<=d+4;c++)if(set.includes(((c%7)+7)%7)&&Math.abs(c-d)<bd){bd=Math.abs(c-d);best=c;}return best;};
+  const A=degs.slice();A[m-1]=near(A[m-1],[1,4]);const B=degs.slice();B[m-1]=near(B[m-1],[0,2]);if(m>=3&&r()<.7)B[m-2]=B[m-1]+(r()<.5?1:-1);
+  const mk=ds=>ds.map((d,k)=>({midi:swDeg2Midi(d),step:on[k],len:Math.max(1,(k<m-1?on[k+1]:16)-on[k])}));
+  return {a:mk(A),b:mk(B),n:m,S:16,src:"auto"};}
+/* fit a melody bar to a line's syllables: merge the shortest notes or split the longest ones */
+function swFit(tpl,s){let ns=(tpl||[]).map(n=>({midi:n.midi,step:n.step,len:n.len}));if(!s||!ns.length)return [];
+  while(ns.length>s){let bi=ns.length>1?1:0;for(let i=1;i<ns.length-1;i++)if(ns[i].len<ns[bi].len)bi=i;if(ns.length===1)break;ns[bi-1].len+=ns[bi].len;ns.splice(bi,1);}
+  while(ns.length<s){let bi=-1;ns.forEach((n,i)=>{if(n.len>=2&&(bi<0||n.len>ns[bi].len))bi=i;});if(bi<0)break;const n=ns[bi],h=Math.floor(n.len/2);ns.splice(bi,1,{midi:n.midi,step:n.step,len:h},{midi:n.midi,step:n.step+h,len:n.len-h});}
+  return ns;}
+function swScale(ns,S){const f=swSteps()/(S||16);return ns.map(n=>({midi:n.midi,step:Math.round(n.step*f),len:Math.max(1,Math.round(n.len*f))}));}
+function swLineNotes(song,tag,li,text){const m=song.mel[tag];if(!m)return [];const s=llSylN(text);return swScale(swFit(li%2?m.b:m.a,s),m.S);}
+function swTagN(song,tag){const c=[];song.sections.forEach(sec=>{if(sec.tag===tag&&!swTarget(song,sec))sec.lines.forEach(l=>{const n=llSylN(l.t);if(n)c.push(n);});});if(!c.length)return 6;c.sort((p,q)=>p-q);return Math.max(SW_SYL_LO,Math.min(SW_SYL_HI,c[c.length>>1]));}
+function swCands(song,tag){return song.sung[tag]?1:0;}
+function swCand(song,tag,i){const hs=swCands(song,tag);if(hs&&i===0){const m=song.sung[tag];return Object.assign({},m,{label:"Your sung melody"});}const k=i-hs+1;const m=swGen(swTagN(song,tag),k,tag);m.label="Melody "+k;m.seed=k;return m;}
 function swPlayNotes(ns,off){const s16=swS16(),v=swData().voice||"piano";(ns||[]).forEach(n=>melNote(n.midi,off+n.step*s16,Math.max(0.12,n.len*s16*0.92),v));}
-function swStopPlay(){if(SW.stopT){clearTimeout(SW.stopT);SW.stopT=null;}}
+function swStopPlay(){if(SW.stopT){clearTimeout(SW.stopT);SW.stopT=null;}SW.tm.forEach(clearTimeout);SW.tm=[];view.querySelectorAll(".sw-line.pl").forEach(x=>x.classList.remove("pl"));const b=$("#swPlay");if(b)b.textContent="▶ Play song";}
 function swRecStop(){if(SW.rec){if(SW.rec.raf)cancelAnimationFrame(SW.rec.raf);SW.rec=null;try{stopMic();}catch(e){}}}
-function renderIdeaLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);SW.rhyme=null;teardown=()=>{swStopPlay();swRecStop();};swDraw();}
-function swDraw(){const D=swData(),song=swSong();const act=SW.active;const setOpen=!!($("#swSet")&&$("#swSet").open);
-  const secHTML=song.sections.map((sec,si)=>{const lines=sec.lines.map((ln,li)=>{const on=act&&act.s===sec.id&&act.l===li,syl=llSylN(ln.t);
-      const mel=ln.notes&&ln.notes.length?'<span class="sw-mel">'+({sung:"🎤",typed:"✏️",auto:"✨"}[ln.src]||"♪")+" "+ln.notes.slice(0,12).map(n=>swNoteName(n.midi).replace(/\d/,"")).join(" ")+(ln.notes.length>12?" …":"")+'</span>':"";
-      return '<div class="sw-line'+(on?" on":"")+'" data-s="'+sec.id+'" data-l="'+li+'"><div class="sw-row"><input class="sw-t" value="'+swEsc(ln.t)+'" placeholder="Line '+(li+1)+'" enterkeyhint="next" autocomplete="off">'+(D.syl?'<span class="sw-syl">'+(syl||"")+'</span>':'')+'</div>'+mel+
-        ('<div class="sw-tools"><button data-a="play"'+(ln.notes&&ln.notes.length?"":" disabled")+' aria-label="Play line">▶</button><button data-a="sing">🎤 Sing</button><button data-a="type">✏️ Notes</button><button data-a="auto">✨ Melody</button>'+(D.alt&&ln.src==="auto"?'<button data-a="again">↻ Another</button>':'')+'<button data-a="rhyme">🔎 Rhymes</button><button data-a="del" aria-label="Delete line">✕</button></div>'+
-          '<div class="sw-type" style="display:none"><input class="sw-ti" placeholder="C D E G  or  C4 E4 G4 -" autocomplete="off" autocapitalize="characters" value="'+(ln.src==="typed"&&ln.notes?ln.notes.map(n=>swNoteName(n.midi)).join(" "):"")+'"><button data-a="typeok">Set</button></div><div class="sw-msg"></div>')+'</div>';}).join("");
-    return '<div class="sw-sec" data-sec="'+sec.id+'"><div class="sw-hd"><select class="sw-tag" aria-label="Section type">'+SW_TAGS.map(t=>'<option'+(t===sec.tag?" selected":"")+'>'+t+'</option>').join("")+'</select>'+(swSecName(song,sec)!==sec.tag?'<span class="sw-name">'+swSecName(song,sec).slice(sec.tag.length).trim()+'</span>':'')+'<span style="flex:1"></span><button data-sa="play" aria-label="Play section">▶</button><button data-sa="up" aria-label="Move up"'+(si?"":" disabled")+'>↑</button><button data-sa="down" aria-label="Move down"'+(si<song.sections.length-1?"":" disabled")+'>↓</button><button data-sa="del" aria-label="Delete section">✕</button></div>'+lines+'<button class="sw-addl" data-sa="addl">+ Line</button></div>';}).join("");
-  view.innerHTML=`<style>
-    .sw-title{width:100%;box-sizing:border-box;background:transparent;border:0;border-bottom:1px solid rgba(255,255,255,.15);color:inherit;font:900 1.3rem system-ui;padding:6px 2px 8px;margin-bottom:6px}
-    .sw-sec{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:10px;margin:10px 0}
-    .sw-hd{display:flex;align-items:center;gap:6px;margin-bottom:4px}.sw-hd select{background:rgba(255,255,255,.06);color:inherit;border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:4px 6px;font:800 .8rem system-ui}
-    .sw-name{font:900 .95rem system-ui;color:var(--gold,#f4b740)}.sw-hd button,.sw-tools button,.sw-type button{background:rgba(255,255,255,.07);color:inherit;border:1px solid rgba(255,255,255,.12);border-radius:9px;padding:6px 10px;font:800 .8rem system-ui}
-    .sw-hd button:disabled,.sw-tools button:disabled{opacity:.35}.sw-line{padding:2px 4px;border-radius:10px}.sw-line.on{background:rgba(244,183,64,.07);padding-bottom:8px}
-    .sw-row{display:flex;align-items:center;gap:6px}.sw-t{flex:1;min-width:0;background:transparent;border:0;border-bottom:1px solid rgba(255,255,255,.1);color:inherit;font:600 1.05rem system-ui;padding:9px 2px;outline:none}.sw-line.on .sw-t{border-bottom-color:rgba(244,183,64,.5)}
-    .sw-syl{font:800 .72rem system-ui;color:var(--muted,#a79fc4);min-width:1.4em;text-align:right}.sw-mel{display:block;font:700 .74rem ui-monospace,monospace;color:#7ff0d6;margin:3px 0 0 2px}
-    .sw-tools{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}.sw-type{gap:6px;margin-top:6px}.sw-ti{flex:1;min-width:0;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:9px;color:inherit;padding:7px;font:700 .9rem ui-monospace,monospace}
-    .sw-line:not(.on) .sw-tools,.sw-line:not(.on) .sw-type,.sw-line:not(.on) .sw-msg{display:none!important}.sw-msg{font:700 .78rem system-ui;color:var(--muted,#a79fc4);margin-top:4px}.sw-addl{background:transparent;border:0;color:var(--muted,#a79fc4);font:800 .82rem system-ui;padding:8px 2px}
-    .sw-rh{position:sticky;bottom:8px;background:#1b1530;border:1px solid rgba(244,183,64,.35);border-radius:14px;padding:10px;margin-top:10px;box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:5}
-    .sw-rh .w{display:inline-block;margin:3px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);font:700 .88rem system-ui;cursor:pointer}
-  </style>
-  <div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">✍️ Lyric Lab</span></div>
+function renderIdeaLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);SW.ideas=null;SW.mp=null;teardown=()=>{swStopPlay();swRecStop();};swDraw();}
+const SW_CSS=`<style>
+ .sw-title{width:100%;box-sizing:border-box;background:transparent;border:0;border-bottom:1px solid rgba(255,255,255,.15);color:inherit;font:900 1.3rem system-ui;padding:6px 2px 8px;margin-bottom:4px}
+ .sw-sub{font:700 .78rem system-ui;color:var(--muted,#a79fc4);margin:0 2px 6px}
+ .sw-sec{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:10px;margin:10px 0}
+ .sw-hd{display:flex;align-items:center;gap:5px;margin-bottom:4px;min-width:0}.sw-hd select{max-width:40%}.sw-hd .sw-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}.sw-hd button{flex:none;padding:6px 8px!important}.sw-hd select{background:rgba(255,255,255,.06);color:inherit;border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:4px 6px;font:800 .8rem system-ui}
+ .sw-name{font:900 .9rem system-ui;color:var(--gold,#f4b740)}.sw-hd button,.sw-tools button,.sw-mp button,.sw-melbar button{background:rgba(255,255,255,.07);color:inherit;border:1px solid rgba(255,255,255,.12);border-radius:9px;padding:6px 10px;font:800 .8rem system-ui}
+ .sw-hd button:disabled,.sw-tools button:disabled,.sw-mp button:disabled{opacity:.35}
+ .sw-melbar{display:flex;align-items:center;gap:8px;margin:2px 0 6px;font:800 .8rem system-ui;color:#7ff0d6}.sw-melbar span{flex:1}
+ .sw-mp{background:rgba(127,240,214,.06);border:1px solid rgba(127,240,214,.25);border-radius:12px;padding:10px;margin:4px 0 8px}
+ .sw-mp .nav{display:flex;align-items:center;gap:8px}.sw-mp .nav div{flex:1;text-align:center;font:900 .95rem system-ui}.sw-mp .nav small{display:block;font:700 .72rem system-ui;color:var(--muted,#a79fc4)}
+ .sw-mp .row{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:8px}.sw-mp .go{background:#7ff0d6;color:#10202a;border-color:#7ff0d6}
+ .sw-line{padding:2px 4px;border-radius:10px}.sw-line.on{background:rgba(244,183,64,.07);padding-bottom:8px}.sw-line.pl{background:rgba(127,240,214,.12)}
+ .sw-row{display:flex;align-items:center;gap:6px}.sw-n{font:800 .68rem system-ui;color:var(--muted,#a79fc4);width:1.1em;text-align:right;opacity:.6}
+ .sw-t{flex:1;min-width:0;background:transparent;border:0;border-bottom:1px solid rgba(255,255,255,.1);color:inherit;font:600 1.05rem system-ui;padding:9px 2px;outline:none}.sw-line.on .sw-t{border-bottom-color:rgba(244,183,64,.5)}
+ .sw-syl{font:800 .74rem system-ui;min-width:1.5em;text-align:right;color:var(--muted,#a79fc4)}.sw-syl.ok{color:#7ff0d6}.sw-syl.lo,.sw-syl.hi{color:#f4b740}.sw-syl.bad{color:#ff7a7a}
+ .sw-fit{display:flex;flex-wrap:wrap;gap:3px;margin:4px 0 0 1.6em}.sw-fit span{display:inline-flex;flex-direction:column;align-items:center;padding:2px 5px;border-radius:7px;background:rgba(127,240,214,.08);font:700 .74rem system-ui}.sw-fit i{font:800 .62rem ui-monospace,monospace;color:#7ff0d6;font-style:normal}
+ .sw-tools{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0 1.6em}.sw-line:not(.on) .sw-tools,.sw-line:not(.on) .sw-fit,.sw-line:not(.on) .sw-ideas,.sw-line:not(.on) .sw-msg{display:none!important}
+ .sw-msg{font:700 .78rem system-ui;color:var(--muted,#a79fc4);margin:4px 0 0 1.6em}.sw-addl{background:transparent;border:0;color:var(--muted,#a79fc4);font:800 .82rem system-ui;padding:8px 2px}
+ .sw-ideas{background:#1b1530;border:1px solid rgba(244,183,64,.35);border-radius:12px;padding:10px;margin:8px 0 0}
+ .sw-ideas h5{margin:8px 0 3px;font:900 .74rem system-ui;letter-spacing:.04em;text-transform:uppercase;color:var(--muted,#a79fc4)}
+ .sw-ideas .w{display:inline-block;margin:3px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);font:700 .88rem system-ui;cursor:pointer}.sw-ideas .w sup{font-size:.6rem;color:var(--muted,#a79fc4);margin-left:2px}
+ .sw-ideas .tg{display:inline-block;margin:2px;padding:4px 9px;border-radius:999px;border:1px solid rgba(255,255,255,.15);font:800 .78rem system-ui;cursor:pointer}.sw-ideas .tg.sel{background:var(--gold,#f4b740);color:#1a1300;border-color:transparent}
+ .sw-pros{font:800 .9rem ui-monospace,monospace;letter-spacing:.12em;color:#f4b740}
+ .sw-lnk{opacity:.55;font:600 .92rem system-ui;padding:3px 2px 3px 1.6em}
+ .sw-form{display:block;width:100%;text-align:left;margin:6px 0;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:inherit;font:700 .85rem system-ui}.sw-form.sel{border-color:var(--gold,#f4b740);background:rgba(244,183,64,.1)}
+ .sw-in{width:100%;box-sizing:border-box;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:10px;color:inherit;padding:10px;font:600 1rem system-ui;margin:4px 0 10px}
+</style>`;
+/* ---- song setup: name, topic, structure ---- */
+function swSetupDraw(){const D=swData(),song=swSong();SW.form=SW.form==null?0:SW.form;
+  view.innerHTML=SW_CSS+`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">✍️ Lyric Lab</span></div>
+  <div class="panel"><div style="font:900 1.15rem system-ui;margin-bottom:10px">New song</div>
+   <div class="sw-sub">Song title</div><input class="sw-in" id="swSTitle" value="${swEsc(song.title)}" placeholder="Name your song" autocomplete="off">
+   <div class="sw-sub">What's it about? <span style="opacity:.7">(optional — helps find rhymes that fit)</span></div><input class="sw-in" id="swSTopic" value="${swEsc(song.topic)}" placeholder="e.g. leaving home, the ocean, first love" autocomplete="off">
+   <div class="sw-sub">Song structure</div>${SW_FORMS.map((f,i)=>'<button class="sw-form'+(SW.form===i?" sel":"")+'" data-f="'+i+'">'+(f.length===1?"Start with one verse — add sections as you go":f.join(" · "))+'</button>').join("")}
+   <div class="rrow" style="margin-top:8px"><span class="rlab">Tempo</span><input type="range" id="swSBpm" min="50" max="160" value="${song.bpm||90}" style="flex:1"><span class="rbpm" id="swSBpmV">${song.bpm||90} BPM</span></div>
+   <div class="sw-sub" style="margin-top:6px">Each section starts with ${SW_LINES} lines, one bar each. Aim for ${SW_SYL_LO}–${SW_SYL_HI} syllables a line.</div>
+   <div class="actions"><button class="btn" id="swStart">Start writing</button>${D.songs.length>1?'<button class="btn ghost" id="swCancel">Cancel</button>':""}</div></div>`;
+  $("#eBack").onclick=()=>goHome();
+  view.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{SW.form=+b.dataset.f;view.querySelectorAll("[data-f]").forEach(x=>x.classList.toggle("sel",x===b));});
+  const bp=$("#swSBpm");bp.oninput=()=>{$("#swSBpmV").textContent=bp.value+" BPM";};
+  if($("#swCancel"))$("#swCancel").onclick=()=>{D.songs=D.songs.filter(s=>s.id!==song.id);D.cur=D.songs[0].id;swSave();swDraw();};
+  $("#swStart").onclick=()=>{song.title=$("#swSTitle").value.trim()||"Untitled song";song.topic=$("#swSTopic").value.trim();song.bpm=+bp.value;
+    const first={};song.sections=SW_FORMS[SW.form].map(tag=>{const s=swSec(tag);if((tag==="Chorus"||tag==="Pre-Chorus")&&first[tag]){s.same=first[tag];s.lines=[];}else first[tag]=s.id;return s;});
+    song.setup=true;SW.active={s:song.sections[0].id,l:0};SW.form=null;swSave();swDraw();swFocus();};
+  setTimeout(()=>{const t=$("#swSTitle");if(t&&!t.value)t.focus();},50);}
+/* ---- main writer ---- */
+function swSylClass(n,mel){if(!n)return "";if(mel&&Math.abs(n-mel.n)>2)return "bad";return n<SW_SYL_LO?"lo":n>SW_SYL_HI?"hi":"ok";}
+function swDraw(){const D=swData(),song=swSong();if(!song.setup){swSetupDraw();return;}const act=SW.active;const setOpen=!!($("#swSet")&&$("#swSet").open);const seenTag={};
+  const secHTML=song.sections.map((sec,si)=>{const tgt=swTarget(song,sec),mel=song.mel[sec.tag],firstOfTag=!seenTag[sec.tag];seenTag[sec.tag]=1;
+    const hd='<div class="sw-hd"><select class="sw-tag" aria-label="Section type">'+SW_TAGS.map(t=>'<option'+(t===sec.tag?" selected":"")+'>'+t+'</option>').join("")+'</select>'+(swSecName(song,sec)!==sec.tag?'<span class="sw-name">'+swEsc(swSecName(song,sec).slice(sec.tag.length).trim())+'</span>':'')+'<span style="flex:1"></span><button data-sa="play" aria-label="Play section">▶</button><button data-sa="up" aria-label="Move up"'+(si?"":" disabled")+'>↑</button><button data-sa="down" aria-label="Move down"'+(si<song.sections.length-1?"":" disabled")+'>↓</button><button data-sa="del" aria-label="Delete section">✕</button></div>';
+    let melRow="";if(firstOfTag&&!tgt){if(SW.mp===sec.tag){const i=SW.pi[sec.tag]||0,c=swCand(song,sec.tag,i);melRow='<div class="sw-mp"><div class="nav"><button data-m="prev" aria-label="Previous melody"'+(i?"":" disabled")+'>←</button><div>'+c.label+'<small>'+(c.src==="sung"?"from your voice":"built for "+c.n+" syllables a line")+'</small></div><button data-m="next" aria-label="Next melody">→</button></div><div class="row"><button data-m="listen">▶ Listen</button><button data-m="use" class="go">✓ Use for every '+sec.tag.toLowerCase()+'</button><button data-m="sing">🎤 Sing my own</button><button data-m="close">Close</button></div><div class="sw-msg" style="margin-left:0;text-align:center"></div></div>';}
+      else melRow='<div class="sw-melbar"><span>🎵 '+(mel?(mel.label||"Melody")+" · "+mel.n+" notes a line":"No melody yet")+'</span><button data-m="open">'+(mel?"Change":"Pick a melody")+'</button></div>';}
+    else if(mel)melRow='<div class="sw-melbar"><span>🎵 Same melody as the first '+sec.tag.toLowerCase()+'</span></div>';
+    if(tgt)return '<div class="sw-sec" data-sec="'+sec.id+'">'+hd+melRow+(tgt.lines.some(l=>l.t.trim())?tgt.lines.filter(l=>l.t.trim()).map(l=>'<div class="sw-lnk">'+swEsc(l.t)+'</div>').join(""):'<div class="sw-lnk">Repeats the first '+sec.tag.toLowerCase()+' — the words fill in as you write it.</div>')+'<button class="sw-addl" data-sa="unlink">✎ Write different words for this one</button></div>';
+    const lines=sec.lines.map((ln,li)=>{const on=act&&act.s===sec.id&&act.l===li,syl=llSylN(ln.t);let fit="";
+      if(mel&&syl){const sy=lyricSyllables(ln.t),ns=swLineNotes(song,sec.tag,li,ln.t);fit='<div class="sw-fit">'+sy.map((x,k)=>'<span>'+swEsc(x)+'<i>'+(ns[k]?swNoteName(ns[k].midi):"·")+'</i></span>').join("")+'</div>';}
+      return '<div class="sw-line'+(on?" on":"")+'" data-s="'+sec.id+'" data-l="'+li+'"><div class="sw-row"><span class="sw-n">'+(li+1)+'</span><input class="sw-t" value="'+swEsc(ln.t)+'" placeholder="'+(li===0?"Write line 1…":"")+'" enterkeyhint="next" autocomplete="off">'+(D.syl?'<span class="sw-syl '+swSylClass(syl,mel)+'">'+(syl||"")+'</span>':'')+'</div>'+fit+
+        '<div class="sw-tools"><button data-a="play"'+(mel&&syl?"":" disabled")+' aria-label="Play line with melody">▶</button><button data-a="ideas">💡 Next-line ideas</button><button data-a="del" aria-label="Delete line">✕</button></div><div class="sw-msg"></div><div class="sw-ideas" style="display:none"></div></div>';}).join("");
+    return '<div class="sw-sec" data-sec="'+sec.id+'">'+hd+melRow+lines+'<button class="sw-addl" data-sa="addl">+ Line</button></div>';}).join("");
+  view.innerHTML=SW_CSS+`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">✍️ Lyric Lab</span></div>
   <div class="panel">
     <input class="sw-title" id="swTitle" value="${swEsc(song.title)}" aria-label="Song title" autocomplete="off">
+    ${song.topic?'<div class="sw-sub">About: '+swEsc(song.topic)+'</div>':''}
     <div id="swSecs">${secHTML}</div>
     <div class="rchips tight" style="justify-content:center;margin:6px 0">${["Verse","Pre-Chorus","Chorus","Bridge","Outro"].map(t=>'<button class="rchip sm" data-add="'+t+'">+ '+t+'</button>').join("")}</div>
     <div class="actions"><button class="btn" id="swPlay">${SW.stopT?"■ Stop":"▶ Play song"}</button></div>
-    <div id="swRh"></div>
     <details id="swSet" style="margin-top:8px"${setOpen?" open":""}><summary style="cursor:pointer;list-style:none;padding:8px 2px;font:800 .85rem system-ui;color:var(--muted)">⚙️ Settings</summary>
-      <div class="rrow2"><span class="rlab">Songs</span><span class="rchips tight">${D.songs.map(s=>'<button class="rchip sm'+(s.id===song.id?" sel":"")+'" data-song="'+s.id+'">'+swEsc(s.title)+'</button>').join("")}<button class="rchip sm" id="swNew">+ New song</button></span></div>
+      <div class="rrow2"><span class="rlab">Songs</span><span class="rchips tight">${D.songs.map(s=>'<button class="rchip sm'+(s.id===song.id?" sel":"")+'" data-song="'+s.id+'">'+swEsc(s.title||"Untitled")+'</button>').join("")}<button class="rchip sm" id="swNew">+ New song</button></span></div>
+      <div class="rrow"><span class="rlab">Topic</span><input id="swTopic" value="${swEsc(song.topic)}" placeholder="What's it about?" style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:8px;color:inherit;padding:6px"></div>
       <div class="rrow"><span class="rlab">Tempo</span><input type="range" id="swBpm" min="50" max="160" value="${song.bpm||90}" style="flex:1"><span class="rbpm" id="swBpmV">${song.bpm||90} BPM</span></div>
-      <div class="rrow2"><span class="rlab">Each line is</span><span class="rchips tight">${[1,2].map(b=>'<button class="rchip sm'+((D.bars||2)===b?" sel":"")+'" data-bars="'+b+'">'+b+(b>1?" bars":" bar")+'</button>').join("")}</span></div>
+      <div class="rrow2"><span class="rlab">Each line is</span><span class="rchips tight">${[1,2].map(b=>'<button class="rchip sm'+((D.bars||1)===b?" sel":"")+'" data-bars="'+b+'">'+b+(b>1?" bars":" bar")+'</button>').join("")}</span></div>
       <div class="rrow2"><span class="rlab">Melody sound</span><span class="rchips tight">${[["piano","Piano"],["keys","Keys"],["voice","Voice"]].map(v=>'<button class="rchip sm'+((D.voice||"piano")===v[0]?" sel":"")+'" data-voice="'+v[0]+'">'+v[1]+'</button>').join("")}</span></div>
-      <div class="rrow2"><span class="rlab">Alternative melodies</span><span class="rchips tight"><button class="rchip sm${D.alt?" sel":""}" id="swAlt">${D.alt?"On":"Off"}</button></span></div>
       <div class="rrow2"><span class="rlab">Syllable counts</span><span class="rchips tight"><button class="rchip sm${D.syl?" sel":""}" id="swSyl">${D.syl?"On":"Off"}</button></span></div>
       <div class="actions"><button class="btn ghost" id="swCopy">Copy lyrics</button><button class="btn ghost" id="swDelSong">Delete this song</button></div>
     </details>
   </div>`;
+  swWire(D,song);}
+function swWire(D,song){
   $("#eBack").onclick=()=>{swStopPlay();swRecStop();goHome();};
-  const T=$("#swTitle");T.oninput=()=>{song.title=T.value||"Untitled song";swSave();};
+  const T=$("#swTitle");T.oninput=()=>{song.title=T.value;swSave();};
   view.querySelectorAll(".sw-sec").forEach(el=>{const sec=song.sections.find(x=>x.id===el.dataset.sec);
-    el.querySelector(".sw-tag").onchange=e=>{sec.tag=e.target.value;swSave();swDraw();};
+    el.querySelector(".sw-tag").onchange=e=>{sec.tag=e.target.value;sec.same=null;if(!sec.lines.length)sec.lines=Array.from({length:SW_LINES},()=>swLine());swSave();swDraw();};
+    el.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>swMelAct(b.dataset.m,sec,el));
     el.querySelectorAll("[data-sa]").forEach(b=>b.onclick=()=>{const a=b.dataset.sa,i=song.sections.indexOf(sec);
       if(a==="play")swPlaySecs([sec]);
       else if(a==="up"&&i>0){song.sections.splice(i,1);song.sections.splice(i-1,0,sec);swSave();swDraw();}
       else if(a==="down"&&i<song.sections.length-1){song.sections.splice(i,1);song.sections.splice(i+1,0,sec);swSave();swDraw();}
-      else if(a==="del"){if(sec.lines.some(l=>l.t.trim())&&b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Delete?";setTimeout(()=>{if(b.isConnected){b.dataset.sure="";b.textContent="✕";}},2500);return;}song.sections.splice(i,1);if(!song.sections.length)song.sections.push({id:swId(),tag:"Verse",lines:[swLine()]});SW.active=null;swSave();swDraw();}
+      else if(a==="unlink"){const t=swTarget(song,sec);sec.same=null;sec.lines=t?t.lines.map(l=>swLine(l.t)):Array.from({length:SW_LINES},()=>swLine());SW.active={s:sec.id,l:0};swSave();swDraw();swFocus();}
+      else if(a==="del"){if(sec.lines.some(l=>l.t.trim())&&b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Delete?";setTimeout(()=>{if(b.isConnected){b.dataset.sure="";b.textContent="✕";}},2500);return;}
+        song.sections.forEach(x=>{if(x.same===sec.id){x.same=null;x.lines=sec.lines.map(l=>swLine(l.t));}});song.sections.splice(i,1);SW.active=null;swSave();swDraw();}
       else if(a==="addl"){sec.lines.push(swLine());SW.active={s:sec.id,l:sec.lines.length-1};swSave();swDraw();swFocus();}});});
   view.querySelectorAll(".sw-line").forEach(el=>{const sec=song.sections.find(x=>x.id===el.dataset.s),li=+el.dataset.l,ln=sec.lines[li],inp=el.querySelector(".sw-t");
     inp.onfocus=()=>{SW.active={s:sec.id,l:li};view.querySelectorAll(".sw-line.on").forEach(x=>{if(x!==el)x.classList.remove("on");});el.classList.add("on");};
-    inp.oninput=()=>{ln.t=inp.value;const sy=el.querySelector(".sw-syl");if(sy)sy.textContent=llSylN(ln.t)||"";swSave();};
-    inp.onkeydown=e=>{if(e.key==="Enter"&&!e.isComposing){e.preventDefault();sec.lines.splice(li+1,0,swLine());SW.active={s:sec.id,l:li+1};swSave();swDraw();swFocus();}};
-    el.querySelectorAll("[data-a]").forEach(b=>{b.onmousedown=e=>e.preventDefault();b.onclick=()=>swLineAct(b.dataset.a,sec,li,el);});
-    const ti=el.querySelector(".sw-ti");if(ti)ti.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();swLineAct("typeok",sec,li,el);}};});
-  view.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{const sec={id:swId(),tag:b.dataset.add,lines:[swLine()]};song.sections.push(sec);SW.active={s:sec.id,l:0};swSave();swDraw();swFocus();});
-  $("#swPlay").onclick=()=>{if(SW.stopT){swStopPlay();$("#swPlay").textContent="▶ Play song";return;}swPlaySecs(song.sections);};
-  view.querySelectorAll("[data-song]").forEach(b=>b.onclick=()=>{D.cur=b.dataset.song;SW.active=null;SW.rhyme=null;swSave();swDraw();});
-  $("#swNew").onclick=()=>{const s=swNewSong("New song "+(D.songs.length+1));D.songs.push(s);D.cur=s.id;SW.active=null;SW.rhyme=null;swSave();swDraw();const t=$("#swTitle");t.focus();t.select();};
+    inp.oninput=()=>{ln.t=inp.value;const n=llSylN(ln.t),sy=el.querySelector(".sw-syl");if(sy){sy.textContent=n||"";sy.className="sw-syl "+swSylClass(n,song.mel[sec.tag]);}if(song.mel[sec.tag])swRefit(song,sec,li,el);swSave();};
+    inp.onkeydown=e=>{if(e.key==="Enter"&&!e.isComposing){e.preventDefault();if(li===sec.lines.length-1)sec.lines.push(swLine());SW.active={s:sec.id,l:li+1};swSave();swDraw();swFocus();}};
+    el.querySelectorAll("[data-a]").forEach(b=>{b.onmousedown=e=>e.preventDefault();b.onclick=()=>swLineAct(b.dataset.a,sec,li,el);});});
+  view.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{const tag=b.dataset.add,sec=swSec(tag);const prev=(tag==="Chorus"||tag==="Pre-Chorus")&&song.sections.find(x=>x.tag===tag&&!x.same&&x.lines.some(l=>l.t.trim()));if(prev){sec.same=prev.id;sec.lines=[];}song.sections.push(sec);if(!prev)SW.active={s:sec.id,l:0};swSave();swDraw();if(!prev)swFocus();});
+  $("#swPlay").onclick=()=>{if(SW.stopT){swStopPlay();return;}swPlaySecs(song.sections);};
+  view.querySelectorAll("[data-song]").forEach(b=>b.onclick=()=>{D.cur=b.dataset.song;SW.active=null;SW.ideas=null;SW.mp=null;swSave();swDraw();});
+  $("#swNew").onclick=()=>{const s=swNewSong("");D.songs.push(s);D.cur=s.id;SW.active=null;SW.ideas=null;SW.mp=null;swSave();swDraw();};
+  const tp=$("#swTopic");tp.oninput=()=>{song.topic=tp.value.trim();swSave();};
   const bp=$("#swBpm");bp.oninput=()=>{song.bpm=+bp.value;$("#swBpmV").textContent=song.bpm+" BPM";swSave();};
   view.querySelectorAll("[data-bars]").forEach(b=>b.onclick=()=>{D.bars=+b.dataset.bars;swSave();swDraw();});
   view.querySelectorAll("[data-voice]").forEach(b=>b.onclick=()=>{D.voice=b.dataset.voice;swSave();swDraw();});
-  $("#swAlt").onclick=()=>{D.alt=!D.alt;swSave();swDraw();};
   $("#swSyl").onclick=()=>{D.syl=!D.syl;swSave();swDraw();};
-  $("#swCopy").onclick=()=>{const txt=song.title+"\n\n"+song.sections.map(s=>"["+swSecName(song,s)+"]\n"+s.lines.map(l=>l.t).filter(Boolean).join("\n")).join("\n\n");try{navigator.clipboard.writeText(txt);$("#swCopy").textContent="Copied ✓";}catch(e){}};
-  $("#swDelSong").onclick=e=>{const b=e.target;if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Tap again to delete";return;}D.songs=D.songs.filter(s=>s.id!==song.id);if(!D.songs.length)D.songs.push(swNewSong("My song"));D.cur=D.songs[0].id;SW.active=null;swSave();swDraw();};
-  if(SW.rhyme)swRhymeShow(SW.rhyme.word,SW.rhyme.sec,SW.rhyme.li);}
-function swFocus(){const a=SW.active;if(!a)return;const el=view.querySelector('.sw-line[data-s="'+a.s+'"][data-l="'+a.l+'"] .sw-t');if(el){el.focus();try{el.setSelectionRange(el.value.length,el.value.length);}catch(e){}}}
-function swLineAct(a,sec,li,el){const ln=sec.lines[li],msg=el.querySelector(".sw-msg"),say=t=>{if(msg)msg.textContent=t;};
-  if(a==="play"){swStopPlay();unlockAudio();swPlayNotes(ln.notes,0.05);}
-  else if(a==="auto"||a==="again"){if(!ln.t.trim()){say("Write the line first — the melody follows its syllables.");return;}if(a==="again")ln.seed=(ln.seed||1)+1;ln.notes=swAuto(ln.t,ln.seed||1);ln.src="auto";swSave();swDraw();unlockAudio();swPlayNotes(ln.notes,0.05);}
-  else if(a==="type"){const ty=el.querySelector(".sw-type");const show=ty.style.display==="none";ty.style.display=show?"flex":"none";if(show)ty.querySelector(".sw-ti").focus();}
-  else if(a==="typeok"){const r=swParse(el.querySelector(".sw-ti").value);if(!r){say("Type some notes, like C D E G.");return;}if(r.err){say(r.err+" — use note names like C, D#, Bb4, and - to hold.");return;}ln.notes=r;ln.src="typed";swSave();swDraw();unlockAudio();swPlayNotes(ln.notes,0.05);}
-  else if(a==="sing")swRecLine(sec,li,el);
-  else if(a==="rhyme"){const w=lastWord(ln.t);if(!w){say("Write a line first — I'll find rhymes for its last word.");return;}swRhymeShow(w,sec.id,li);}
-  else if(a==="del"){sec.lines.splice(li,1);if(!sec.lines.length)sec.lines.push(swLine());SW.active=null;swSave();swDraw();}}
-/* play sections back to back: each line gets its bar slot; lines without a melody just count through */
-function swPlaySecs(secs){swStopPlay();unlockAudio();const steps=swSteps(),s16=swS16();let off=0.1;secs.forEach(sec=>sec.lines.forEach(ln=>{if(!ln.t.trim()&&!(ln.notes&&ln.notes.length))return;if(ln.notes)swPlayNotes(ln.notes,off);off+=steps*s16;}));
-  const b=$("#swPlay");if(b)b.textContent="■ Stop";SW.stopT=setTimeout(()=>{SW.stopT=null;const b2=$("#swPlay");if(b2)b2.textContent="▶ Play song";},off*1000+300);}
-/* sing a line's melody: one bar of clicks, then it listens for the line's length and writes the notes it heard on the 16th-note grid */
-async function swRecLine(sec,li,el){const ln=sec.lines[li];let msg=el.querySelector(".sw-msg");const say=t=>{msg=view.querySelector('.sw-line[data-s="'+sec.id+'"][data-l="'+li+'"] .sw-msg')||msg;if(msg)msg.textContent=t;};
-  if(SW.rec){swRecStop();say("Stopped.");return;}
-  swStopPlay();unlockAudio();say("Turning on the mic…");const ok=await ensureMic();if(!ok){say("I need the microphone to hear your melody.");return;}
-  const a=ac(),s16=swS16(),steps=swSteps(),beat=4*s16,start=a.currentTime+0.15,t0=start+4*beat;for(let k=0;k<4;k++)click(start+k*beat,k?"beat":"accent",0.7);
-  const frames=[],buf=new Float32Array(toneAnalyser.fftSize),R=SW.rec={raf:null};
-  const tick=()=>{if(SW.rec!==R)return;const now=a.currentTime;if(now<t0){say("Sing in "+Math.ceil((t0-now)/beat)+"…");R.raf=requestAnimationFrame(tick);return;}
+  $("#swCopy").onclick=()=>{const txt=(song.title||"Untitled")+"\n\n"+song.sections.map(s=>"["+swSecName(song,s)+"]\n"+swLinesOf(song,s).map(l=>l.t).filter(Boolean).join("\n")).join("\n\n");try{navigator.clipboard.writeText(txt);$("#swCopy").textContent="Copied ✓";}catch(e){}};
+  $("#swDelSong").onclick=e=>{const b=e.target;if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Tap again to delete";return;}D.songs=D.songs.filter(s=>s.id!==song.id);if(!D.songs.length)D.songs.push(swNewSong(""));D.cur=D.songs[0].id;SW.active=null;swSave();swDraw();};
+  if(SW.ideas){const el=view.querySelector('.sw-line[data-s="'+SW.ideas.s+'"][data-l="'+SW.ideas.l+'"]');if(el)swIdeas(song,song.sections.find(x=>x.id===SW.ideas.s),SW.ideas.l,el);else SW.ideas=null;}}
+/* refresh the syllable→note row of a line after editing, without redrawing the page */
+function swRefit(song,sec,li,el){const ln=sec.lines[li],box=el.querySelector(".sw-fit"),syl=llSylN(ln.t);const ns=swLineNotes(song,sec.tag,li,ln.t),html=syl?lyricSyllables(ln.t).map((x,k)=>{return '<span>'+swEsc(x)+'<i>'+(ns[k]?swNoteName(ns[k].midi):"·")+'</i></span>';}).join(""):"";
+  if(box)box.innerHTML=html;else if(html){const d=document.createElement("div");d.className="sw-fit";d.innerHTML=html;el.querySelector(".sw-row").after(d);}const pb=el.querySelector('[data-a="play"]');if(pb)pb.disabled=!syl;}
+function swFocus(atStart){const a=SW.active;if(!a)return;const el=view.querySelector('.sw-line[data-s="'+a.s+'"][data-l="'+a.l+'"] .sw-t');if(el){el.focus();const p=atStart?0:el.value.length;try{el.setSelectionRange(p,p);}catch(e){}el.scrollIntoView({block:"nearest"});}}
+function swLineAct(a,sec,li,el){const song=swSong(),ln=sec.lines[li],msg=el.querySelector(".sw-msg"),say=t=>{if(msg)msg.textContent=t;};
+  if(a==="play"){swStopPlay();unlockAudio();swPlayNotes(swLineNotes(song,sec.tag,li,ln.t),0.05);}
+  else if(a==="ideas"){const box=el.querySelector(".sw-ideas");if(SW.ideas&&SW.ideas.s===sec.id&&SW.ideas.l===li){SW.ideas=null;box.style.display="none";return;}SW.ideas={s:sec.id,l:li,w:null};swIdeas(song,sec,li,el);}
+  else if(a==="del"){sec.lines.splice(li,1);if(!sec.lines.length)sec.lines.push(swLine());SW.active=null;SW.ideas=null;swSave();swDraw();}}
+/* ---- melody picker: one at a time, flip, listen, choose; or sing your own ---- */
+function swMelAct(a,sec,el){const song=swSong(),tag=sec.tag,msg=el.querySelector(".sw-mp .sw-msg"),say=t=>{if(msg)msg.textContent=t;};let i=SW.pi[tag]||0;
+  if(a==="open"){SW.mp=tag;const m=song.mel[tag];SW.pi[tag]=m?(m.src==="sung"?0:(m.seed||1)-1+swCands(song,tag)):0;swDraw();return;}
+  if(a==="close"){SW.mp=null;swRecStop();swDraw();return;}
+  if(a==="prev"||a==="next"){SW.pi[tag]=Math.max(0,i+(a==="next"?1:-1));swDraw();swMelListen(song,sec);return;}
+  if(a==="listen"){swMelListen(song,sec);return;}
+  if(a==="use"){const c=swCand(song,tag,i);song.mel[tag]=c;SW.mp=null;swSave();swStopPlay();swDraw();return;}
+  if(a==="sing"){swSingMel(song,sec,say);}}
+function swMelListen(song,sec){swStopPlay();unlockAudio();const c=swCand(song,sec.tag,SW.pi[sec.tag]||0),steps=swSteps(),s16=swS16();
+  const lines=sec.lines.filter(l=>l.t.trim()).slice(0,2);let off=0.1;if(!lines.length){swPlayNotes(swScale(c.a,c.S),off);swPlayNotes(swScale(c.b,c.S),off+steps*s16);return;}
+  lines.forEach((l,k)=>{swPlayNotes(swScale(swFit(k%2?c.b:c.a,llSylN(l.t)),c.S),off);off+=steps*s16;});}
+/* sing two lines' worth (line 1 = open, line 2 = answer) after one bar of clicks */
+async function swSingMel(song,sec,say){if(SW.rec){swRecStop();say("Stopped.");return;}swStopPlay();unlockAudio();say("Turning on the mic…");const ok=await ensureMic();if(!ok){say("I need the microphone to hear your melody.");return;}
+  const a=ac(),s16=swS16(),S=swSteps(),beat=4*s16,start=a.currentTime+0.15,t0=start+4*beat,tot=2*S;for(let k=0;k<4;k++)click(start+k*beat,k?"beat":"accent",0.7);
+  const frames=[],buf=new Float32Array(toneAnalyser.fftSize),R=SW.rec={raf:null};const msgEl=()=>view.querySelector(".sw-mp .sw-msg");const say2=t=>{const m=msgEl();if(m)m.textContent=t;};
+  const tick=()=>{if(SW.rec!==R)return;const now=a.currentTime;if(now<t0){say2("Sing lines 1 and 2 in "+Math.ceil((t0-now)/beat)+"…");R.raf=requestAnimationFrame(tick);return;}
     toneAnalyser.getFloatTimeDomainData(buf);let rms=0;for(let i=0;i<buf.length;i++)rms+=buf[i]*buf[i];rms=Math.sqrt(rms/buf.length);const f=rms>0.01?autoCorrelate(buf,a.sampleRate):-1;frames.push({t:now-t0,m:f>70&&f<1200?69+12*Math.log2(f/440):null});
-    const left=steps*s16-(now-t0);say("🎤 Listening… "+Math.max(0,left).toFixed(1)+" s");
-    if(left>0){R.raf=requestAnimationFrame(tick);return;}
-    swRecStop();
-    const ns=swGridNotes(frames,steps,s16);if(!ns.length){say("I didn't hear a melody — try again a little louder.");return;}
-    ln.notes=ns;ln.src="sung";swSave();swDraw();swPlayNotes(ln.notes,0.1);};
+    const left=tot*s16-(now-t0);say2("🎤 "+((now-t0)<S*s16?"Line 1":"Line 2")+"… "+Math.max(0,left).toFixed(1)+" s");if(left>0){R.raf=requestAnimationFrame(tick);return;}
+    swRecStop();const ns=swGridNotes(frames,tot,s16);let A=ns.filter(n=>n.step<S).map(n=>({midi:n.midi,step:n.step,len:Math.min(n.len,S-n.step)})),B=ns.filter(n=>n.step>=S).map(n=>({midi:n.midi,step:n.step-S,len:n.len}));
+    if(!A.length&&B.length){A=B;}if(!A.length){say2("I didn't hear a melody — try again a little louder.");return;}if(!B.length)B=A;
+    song.sung[sec.tag]={a:A,b:B,n:A.length,S:S,src:"sung"};SW.pi[sec.tag]=0;swSave();swDraw();say2("Here's what I heard. ✓ to use it.");swMelListen(song,sec);};
   R.raf=requestAnimationFrame(tick);}
-/* pitch frames → notes on the 16th grid: median pitch per step, equal neighbours merge into one held note */
 function swGridNotes(frames,steps,s16){const grid=[];for(let s=0;s<steps;s++){const fr=frames.filter(x=>x.t>=s*s16&&x.t<(s+1)*s16),v=fr.filter(x=>x.m!=null).map(x=>x.m).sort((p,q)=>p-q);grid.push(fr.length&&v.length>=fr.length*0.5?Math.round(v[v.length>>1]):null);}
   for(let s=1;s<steps-1;s++)if(grid[s]!=null&&grid[s-1]!=null&&grid[s-1]===grid[s+1]&&Math.abs(grid[s]-grid[s-1])<=1)grid[s]=grid[s-1];
   const ns=[];grid.forEach((m,s)=>{if(m==null)return;const last=ns[ns.length-1];if(last&&last.midi===m&&last.step+last.len===s)last.len++;else ns.push({midi:m,step:s,len:1});});return ns;}
-/* rhymes for the last word of a line (RhymeZone's word data); tap one to put it at the end of the line */
-function swRhymeShow(word,secId,li){SW.rhyme={word:word,sec:secId,li:li};const box=$("#swRh");if(!box)return;box.innerHTML='<div class="sw-rh"><div style="display:flex;align-items:center;gap:6px"><b style="flex:1">Rhymes for “'+swEsc(word)+'”</b><button class="rchip sm" id="swRhX">Close</button></div><div id="swRhL" style="margin-top:6px;color:var(--muted)">Looking…</div><div style="font:700 .72rem system-ui;color:var(--muted);margin-top:6px">Tap a word to end your line with it.</div></div>';
-  $("#swRhX").onclick=()=>{SW.rhyme=null;box.innerHTML="";};
-  rhymeFind(word,(r,err)=>{const L=$("#swRhL");if(!L)return;if(!r){L.textContent=err==="offline"?"Rhymes need an internet connection.":"No word to rhyme.";return;}
-    const words=r.perfect.slice(0,18),near=r.near.slice(0,12);L.innerHTML=(words.length?words.map(w=>'<span class="w" data-w="'+swEsc(w)+'">'+swEsc(w)+'</span>').join(""):"No perfect rhymes.")+(near.length?'<div style="font:800 .72rem system-ui;margin:8px 0 2px">Close rhymes</div>'+near.map(w=>'<span class="w" data-w="'+swEsc(w)+'">'+swEsc(w)+'</span>').join(""):"");
-    L.querySelectorAll("[data-w]").forEach(s=>s.onclick=()=>{const song=swSong(),sec=song.sections.find(x=>x.id===secId);if(!sec||!sec.lines[li])return;const ln=sec.lines[li],nw=s.dataset.w,m=ln.t.match(/^(.*?)([a-zA-Z']+)([^a-zA-Z']*)$/);ln.t=m?m[1]+nw+m[3]:(ln.t+" "+nw).trim();if(ln.src==="auto")ln.notes=swAuto(ln.t,ln.seed||1);swSave();SW.rhyme=null;box.innerHTML="";SW.active={s:secId,l:li};swDraw();});});}
+/* ---- playback: sections in order, each written line gets its bar, karaoke highlight ---- */
+function swPlaySecs(secs){swStopPlay();unlockAudio();const song=swSong(),steps=swSteps(),s16=swS16(),t0=performance.now();let off=0.1,any=false;
+  secs.forEach(sec=>{const ls=swLinesOf(song,sec),mel=song.mel[sec.tag];if(!mel)return;ls.forEach((ln,li)=>{if(!ln.t.trim())return;any=true;swPlayNotes(swLineNotes(song,sec.tag,li,ln.t),off);const at=off;
+    SW.tm.push(setTimeout(()=>{view.querySelectorAll(".sw-line.pl").forEach(x=>x.classList.remove("pl"));const e=view.querySelector('.sw-line[data-s="'+sec.id+'"][data-l="'+li+'"]');if(e)e.classList.add("pl");},at*1000));off+=steps*s16;});});
+  if(!any){const b=$("#swPlay");if(b){b.textContent="Pick a melody for a section first";setTimeout(()=>{if(b.isConnected&&!SW.stopT)b.textContent="▶ Play song";},1800);}return;}
+  const b=$("#swPlay");if(b)b.textContent="■ Stop";SW.stopT=setTimeout(()=>{SW.stopT=null;swStopPlay();},off*1000+300);}
+/* ---- next-line ideas: RhymeZone word data (Datamuse) + prosody (stress pattern to match) ---- */
+function swDM(q){if(SW.dm[q])return Promise.resolve(SW.dm[q]);return fetch("https://api.datamuse.com/words?"+q).then(r=>r.json()).then(j=>{SW.dm[q]=j;return j;});}
+const SW_WEAK={a:1,an:1,the:1,and:1,or:1,but:1,of:1,to:1,in:1,on:1,at:1,for:1,with:1,by:1,from:1,as:1,is:1,am:1,are:1,was:1,were:1,be:1,i:1,you:1,he:1,she:1,it:1,we:1,they:1,me:1,my:1,your:1,his:1,her:1,its:1,our:1,their:1,him:1,them:1,us:1,that:1,this:1,if:1,so:1,than:1,then:1,can:1,will:1,do:1,did:1,has:1,had:1,have:1,just:1,not:1};
+function swStressWord(w){w=w.toLowerCase().replace(/[^a-z']/g,"");if(!w)return Promise.resolve("");const n=Math.max(1,llSylN(w));if(SW_WEAK[w]&&n===1)return Promise.resolve("○");
+  return swDM("sp="+encodeURIComponent(w)+"&md=r&max=1").then(j=>{const t=j&&j[0]&&j[0].word===w&&(j[0].tags||[]).find(x=>x.indexOf("pron:")===0);if(!t)return "·".repeat(n);const ds=t.slice(5).match(/[012]/g)||[];return ds.length?ds.map(d=>d==="0"?"○":"●").join(""):"·".repeat(n);}).catch(()=>"·".repeat(n));}
+function swStress(line){const ws=(line||"").split(/\s+/).filter(x=>/[a-zA-Z]/.test(x));return Promise.all(ws.map(swStressWord)).then(p=>p.join(" "));}
+function swIdeas(song,sec,li,el){const box=el.querySelector(".sw-ideas");if(!box)return;box.style.display="block";const ln=sec.lines[li],mel=song.mel[sec.tag];
+  const prevs=[];for(let k=li-1;k>=0&&prevs.length<3;k--){const w=lastWord(sec.lines[k].t);if(w&&!prevs.some(p=>p.w.toLowerCase()===w.toLowerCase()))prevs.push({w:w,k:k});}
+  if(SW.ideas.w==null)SW.ideas.w=prevs.length?prevs[0].w:"";const W=SW.ideas.w,above=li>0?sec.lines[li-1].t:"",an=llSylN(above);
+  const aim=mel?mel.n:(an>=SW_SYL_LO&&an<=SW_SYL_HI?an:null);
+  box.innerHTML='<div style="display:flex;align-items:center;gap:6px"><b style="flex:1">Line '+(li+1)+'</b><button class="rchip sm" data-x="1">Close</button></div>'+
+    '<div class="sw-sub" style="margin:4px 0 0">'+(aim?"Aim for "+aim+" syllables"+(mel?" (the melody fits "+Math.max(1,aim-2)+"–"+(aim+2)+")":" to match line "+li):"Aim for "+SW_SYL_LO+"–"+SW_SYL_HI+" syllables")+' · this line: '+(llSylN(ln.t)||0)+'</div>'+
+    (above.trim()?'<h5>Prosody — match the beat of line '+li+'</h5><div class="sw-pros" data-p="a">…</div>'+(ln.t.trim()?'<div class="sw-pros" data-p="b" style="color:#7ff0d6">…</div>':'')+'<div class="sw-sub" style="margin:2px 0 0">● stressed  ○ light — lining up the ●s makes lines sing alike.</div>':'')+
+    (prevs.length?'<h5>Rhyme with</h5>'+prevs.map(p=>'<span class="tg'+(p.w===W?" sel":"")+'" data-tg="'+swEsc(p.w)+'">'+swEsc(p.w)+' <small>(line '+(p.k+1)+')</small></span>').join(""):"")+
+    '<div data-r="1" style="margin-top:4px;color:var(--muted)">'+(W||song.topic?"Looking…":"Write a line (or add a topic in Settings) and I'll suggest words.")+'</div>'+
+    (W?'<div style="margin-top:8px"><a href="https://www.rhymezone.com/r/rhyme.cgi?Word='+encodeURIComponent(W)+'&typeofrhyme=perfect" target="_blank" rel="noopener" style="color:var(--gold,#f4b740);font:800 .8rem system-ui">Open “'+swEsc(W)+'” in RhymeZone ↗</a></div>':'');
+  box.querySelector("[data-x]").onclick=()=>{SW.ideas=null;box.style.display="none";};
+  box.querySelectorAll("[data-tg]").forEach(t=>{t.onmousedown=e=>e.preventDefault();t.onclick=()=>{SW.ideas.w=t.dataset.tg;swIdeas(song,sec,li,el);};});
+  if(above.trim()){swStress(above).then(p=>{const e=box.querySelector('[data-p="a"]');if(e)e.textContent=p||"—";});if(ln.t.trim())swStress(ln.t).then(p=>{const e=box.querySelector('[data-p="b"]');if(e)e.textContent=p||"—";});}
+  const R=box.querySelector("[data-r]"),tp=(song.topic||"").trim(),enc=encodeURIComponent,groups=[];
+  if(W){if(tp)groups.push(["Rhymes about "+tp,"rel_rhy="+enc(W)+"&ml="+enc(tp)+"&md=s&max=14"]);groups.push(["Rhymes","rel_rhy="+enc(W)+"&md=s&max=36"]);groups.push(["Near rhymes","rel_nry="+enc(W)+"&md=s&max=20"]);}
+  else if(tp){groups.push(["Words about "+tp,"ml="+enc(tp)+"&md=s&max=30"]);}
+  if(!groups.length)return;
+  Promise.all(groups.map(g=>swDM(g[1]).catch(()=>null))).then(res=>{if(!R.isConnected)return;if(res.every(x=>x==null)){R.textContent="Word ideas need an internet connection.";return;}const seen={};
+    R.innerHTML=groups.map((g,i)=>{const ws=(res[i]||[]).filter(x=>x&&x.word&&!seen[x.word]&&(seen[x.word]=1));if(!ws.length)return "";return '<h5>'+swEsc(g[0])+'</h5>'+ws.map(x=>'<span class="w" data-w="'+swEsc(x.word)+'">'+swEsc(x.word)+(x.numSyllables?'<sup>'+x.numSyllables+'</sup>':'')+'</span>').join("");}).join("")||"No matches — try the other line or RhymeZone.";
+    R.querySelectorAll("[data-w]").forEach(s=>{s.onmousedown=e=>e.preventDefault();s.onclick=()=>{const nw=s.dataset.w,m=ln.t.match(/^(.*?)([a-zA-Z']+)([^a-zA-Z']*)$/),empty=!ln.t.trim();
+      ln.t=empty?nw:(m?m[1]+nw+m[3]:(ln.t+" "+nw));swSave();SW.ideas=null;SW.active={s:sec.id,l:li};swDraw();swFocus(empty);};});});}
 
 function renderIdeaLabOld(){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
