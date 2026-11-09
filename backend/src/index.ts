@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { registerRoutes } from './routes.js';
 import { initAccounts } from './accounts.js';
+import { initSessions } from './sessions.js';
 
 dotenv.config();
 
@@ -42,6 +43,7 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 
 // Initialize accounts/progress tables (no-op without DATABASE_URL)
 initAccounts().catch((e) => console.error('initAccounts failed:', e));
+initSessions().catch((e) => console.error('initSessions failed:', e));
 
 // Start server
 app.listen(PORT, () => {
