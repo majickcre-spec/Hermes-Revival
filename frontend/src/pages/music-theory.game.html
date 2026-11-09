@@ -294,7 +294,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .djDrumWrap{display:flex;justify-content:center}.djDrumWrap .drum{margin-top:6px}
 .drum-zl{position:absolute;font:700 .55rem "Hanken Grotesk",system-ui,sans-serif;letter-spacing:1px;color:rgba(50,34,16,.5);pointer-events:none}.drum-zl.t{left:0;width:200px;text-align:center;top:44px}.drum-zl.s{left:0;width:200px;text-align:center;top:6px}
 .djMore{justify-content:center;margin:10px 0 4px}.djZone{position:absolute;left:6px;top:6px;width:188px;height:188px;border-radius:50%;pointer-events:none;opacity:0;transition:opacity .2s}.djZone.bass{opacity:1;background:radial-gradient(circle closest-side,rgba(201,179,255,.55) 0 42%,transparent 43%)}.djZone.tone{opacity:1;background:radial-gradient(circle closest-side,transparent 0 45%,rgba(255,206,110,.45) 46% 84%,transparent 85%)}.djZone.slap{opacity:1;background:radial-gradient(circle closest-side,transparent 0 86%,rgba(191,227,255,.6) 87% 100%)}.drum.playable .drum-lbl{font-size:.85rem;top:158px}.djGo+.czOpen{display:block;margin:6px auto 0}
-body.djOn #metFab{display:none!important}
+body.djOn #metFab,body.djOn #sensFab{display:none!important}
 @media (orientation:landscape) and (min-width:640px){.djLay{flex-direction:row;align-items:flex-start;gap:14px}.djSide{flex:1 1 42%;order:2}.djDrumWrap{flex:1 1 58%;order:1}.djSide .rcells{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:4px 0 6px}.djSide .rbeat{gap:3px}.djSide .rcell{width:auto;flex:1;height:40px;min-width:0}}
 .dpad{flex:1;height:92px;border-radius:14px;border:2px solid var(--line);background:var(--card2);color:var(--cream);font-family:"Hanken Grotesk",system-ui,sans-serif;font-size:1.05rem;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
 .dpad .pl{font-size:.72rem;color:var(--muted);letter-spacing:2px}
@@ -1315,7 +1315,7 @@ function renderAbout(){if(teardown){try{teardown();}catch(e){}teardown=null;}hom
    '<p class="rlab" style="margin-top:14px">Your data</p><p style="margin:6px 0">Recordings, sessions and sensor logs are saved on your device. Signing in syncs your players and progress.</p>'+
    '<p class="rlab" style="margin-top:14px">Sounds &amp; credits</p><p style="margin:6px 0">Piano: Salamander Grand Piano by Alexander Holm (CC-BY 3.0). Other sampled instruments from the MusyngKite soundfonts. Nature recordings are CC0 / Pixabay-licensed field recordings collected by the open-source Moodist project. Niko Kotoulas MIDI packs are included for practice.</p></div>';
   $("#eBack").onclick=goHome;}
-function goHome(){if(teardown){try{teardown();}catch(e){}teardown=null;}if(NAV_MENU&&!view.hidden&&!navAtMenu()){var m=NAV_MENU;try{m();window.scrollTo(0,0);return;}catch(e){}}NAV_MENU=null;view.hidden=true;home.hidden=false;renderHome();window.scrollTo(0,0);if(window.__mjkNavConsume)window.__mjkNavConsume();}
+function goHome(){document.body.classList.remove("djOn");if(teardown){try{teardown();}catch(e){}teardown=null;}if(NAV_MENU&&!view.hidden&&!navAtMenu()){var m=NAV_MENU;try{m();window.scrollTo(0,0);return;}catch(e){}}NAV_MENU=null;view.hidden=true;home.hidden=false;renderHome();window.scrollTo(0,0);if(window.__mjkNavConsume)window.__mjkNavConsume();}
 /* Back button (esp. iPhone): drop to the music home first, then out to Hermes — not straight out */
 (function(){try{if(!view)return;var primed=false,inPop=false;function prime(){if(primed)return;try{history.pushState({mjk:"view"},"");}catch(e){}primed=true;}
   try{var mo=new MutationObserver(function(){if(!view.hidden)prime();});mo.observe(view,{attributes:true,attributeFilter:["hidden"]});}catch(e){}
@@ -4783,7 +4783,7 @@ function hpPanEl(notes,idp){const box=document.createElement("div");box.classNam
     b.addEventListener("pointerdown",e=>{e.preventDefault();unlockAudio();handpan(ac().currentTime+0.01,m);b.classList.remove("glow");void b.offsetWidth;b.classList.add("glow");setTimeout(()=>b.classList.remove("glow"),400);});box.appendChild(b);});
   const w=document.createElement("div");w.className="djDrumWrap";w.appendChild(box);setTimeout(()=>hpFit(box),0);return w;}
 function hpGlow(id){const el=document.getElementById(id);if(!el)return;el.classList.remove("glow");void el.offsetWidth;el.classList.add("glow");setTimeout(()=>{if(el)el.classList.remove("glow");},300);}
-function hpFit(box){if(!box)return;var w=(box.parentElement||document.body).clientWidth-8,h=window.innerHeight-24,sc=Math.max(1,Math.min(2.6,w/272,h/272));box.style.transformOrigin="50% 0";box.style.transform="scale("+sc.toFixed(3)+")";box.style.marginBottom=(272*(sc-1)+8)+"px";}
+function hpFit(box){if(!box)return;var B=box.offsetWidth||260,w=(box.parentElement||document.body).clientWidth-8,h=window.innerHeight-24,sc=Math.max(1,Math.min(2.6,w/B,h/B));box.style.transformOrigin="50% 0";box.style.transform="scale("+sc.toFixed(3)+")";box.style.marginBottom=(B*(sc-1)+8)+"px";}
 function djFit(dr,big){var w=(dr.parentElement||document.body).clientWidth-8,h=big?(window.innerHeight-24):1e9;return Math.max(1,Math.min(big?3.2:1.85,w/200,h/215));}
 function djHeadBind(dr,big,onHit){if(!dr||dr._bound)return;dr._bound=true;djkLoad();var sc=djFit(dr,big);dr.style.setProperty("--djs",sc.toFixed(3));dr.classList.add("playable");if(big){var rf=function(){if(!dr.isConnected){window.removeEventListener("resize",rf);return;}dr.style.setProperty("--djs",djFit(dr,true).toFixed(3));};window.addEventListener("resize",rf);}
   var head=dr.querySelector(".drum-head");dr.addEventListener("pointerdown",function(e){var R=dr.getBoundingClientRect(),k=R.width/200,cx=R.left+100*k,cy=R.top+100*k,dx=e.clientX-cx,dy=e.clientY-cy,d=Math.sqrt(dx*dx+dy*dy)/(100*k);if(d>1.1)return;e.preventDefault();unlockAudio();
@@ -5085,6 +5085,7 @@ function renderStrikeCheck(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
   draw();
 }
 async function renderDjembe(){
+  if(!DJ._ld){DJ._ld=1;const st=load(mk("dj","st"),null);if(st)Object.assign(DJ,st);}
   if(toneRAF)cancelAnimationFrame(toneRAF);djStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   teardown=()=>{djStop();stopMic();document.body.classList.remove("djOn");};
   function toggleChip(id,label,on){return `<button class="rchip sm${on?" sel":""}" id="${id}">${label}</button>`;}
@@ -5116,12 +5117,12 @@ async function renderDjembe(){
         <div class="rrow2"><span class="rlab">Play</span>${toggleChip("tgPat","🪘 Pattern",DJ.playPattern)}${toggleChip("tgClick","🥁 Click",DJ.metClick)}${toggleChip("tgScore","🎤 Score me",DJ.scoring)}</div>
         ${DJ.scoring?`<div class="rrow2"><span class="rlab">Round</span><span class="rchips tight" id="djMeas"></span></div>`:""}
       </div>`;
-    document.body.classList.add("djOn");
+    document.body.classList.add("djOn");save(mk("dj","st"),{bpm:DJ.bpm,patIdx:DJ.patIdx,lead:DJ.lead,metClick:DJ.metClick,playPattern:DJ.playPattern,measures:DJ.measures});
     setTimeout(()=>{if(innerWidth>innerHeight&&innerHeight<520){const L=view.querySelector(".djLay");if(L)L.scrollIntoView({block:"start"});}},60);
     $("#eBack").onclick=()=>{document.body.classList.remove("djOn");goHome();};
     const ch=$("#djChips");DJEMBE_PATTERNS.forEach((p,i)=>{const b=document.createElement("button");b.className="rchip"+(i===DJ.patIdx?" sel":"");b.textContent=p.name;b.onclick=()=>{DJ.patIdx=i;if(DJ.running){DJ.cur=0;DJ.nextTime=ac().currentTime+0.1;DJ.visQ=[];DJ.barCount=0;}draw();};ch.appendChild(b);});
     djRenderCells();
-    const bp=$("#djBpm");const bpTag=()=>{const t=$("#djBpmTag");if(t)t.textContent=DJ.bpm+" BPM";};bp.oninput=()=>{DJ.bpm=+bp.value;$("#djBpmV").textContent=DJ.bpm;bpTag();};
+    const bp=$("#djBpm");const bpTag=()=>{const t=$("#djBpmTag");if(t)t.textContent=DJ.bpm+" BPM";save(mk("dj","st"),Object.assign(load(mk("dj","st"),{}),{bpm:DJ.bpm}));};bp.oninput=()=>{DJ.bpm=+bp.value;$("#djBpmV").textContent=DJ.bpm;bpTag();save(mk("dj","st"),Object.assign(load(mk("dj","st"),{}),{bpm:DJ.bpm}));};
     $("#djTap").onclick=()=>{const now=performance.now();if(DJ.taps.length&&now-DJ.taps[DJ.taps.length-1]>2000)DJ.taps=[];DJ.taps.push(now);if(DJ.taps.length>5)DJ.taps.shift();if(DJ.taps.length>=2){let s=0;for(let i=1;i<DJ.taps.length;i++)s+=DJ.taps[i]-DJ.taps[i-1];let b=Math.round(60000/(s/(DJ.taps.length-1)));b=Math.max(50,Math.min(180,b));DJ.bpm=b;bp.value=b;$("#djBpmV").textContent=b;bpTag();}};
     const lr=$("#djLeadR"),ll=$("#djLeadL");if(lr)lr.onclick=()=>{DJ.lead="R";draw();};if(ll)ll.onclick=()=>{DJ.lead="L";draw();};
     $("#tgPat").onclick=()=>{DJ.playPattern=!DJ.playPattern;draw();};
@@ -6921,7 +6922,7 @@ function hpLightStrip(step){const all=document.querySelectorAll(".hpcell");if(!a
 function hpLightNext(step,idx){document.querySelectorAll(".hpcell.next").forEach(e=>e.classList.remove("next"));const box=document.getElementById("handpan");if(box)box.querySelectorAll(".hp-field.next").forEach(e=>e.classList.remove("next"));if(!leadOn())return;const s=document.getElementById("hpS"+step);if(s)s.classList.add("next");const f=document.getElementById("hpF"+idx);if(f)f.classList.add("next");}
 function hpFrame(){const now=ac().currentTime;while(HP.visQ.length&&HP.visQ[0].t<=now){const e=HP.visQ.shift();hpLight(e.idx);hpLightStrip(e.step);hpLightNext(e.nextStep,e.nextIdx);}HP.raf=requestAnimationFrame(hpFrame);}
 function hpStart(){unlockAudio();if(HP.running)return;const a=ac();HP.running=true;HP.i=0;HP.nextTime=a.currentTime+0.2;HP.visQ=[];HP.schID=setInterval(hpSchedule,30);HP.raf=requestAnimationFrame(hpFrame);const b=$("#hpStart");if(b)b.textContent="⏸ Stop";}
-function renderHandpan(){try{sfLoadInst("handpan");}catch(e){}
+function renderHandpan(){try{sfLoadInst("handpan");}catch(e){}try{hpkLoad();}catch(e){}if(!HP._ld){HP._ld=1;const st=load(mk("hp","st"),null);if(st)Object.assign(HP,st);}
   if(toneRAF)cancelAnimationFrame(toneRAF);hpStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   HP.mode=HP.mode||"play";
   let tRAF=null,tbuf=null,last=null;
@@ -7093,14 +7094,14 @@ function renderHandpan(){try{sfLoadInst("handpan");}catch(e){}
         '<div class="rrow"><span class="rlab">Tempo</span><input type="range" id="hpBpm" min="45" max="140" value="'+HP.bpm+'" style="flex:1"><span class="rbpm" id="hpBpmV">'+HP.bpm+'</span><button class="rtap" id="hpTap">Tap</button></div>'+
         '<div class="rrow2"><span class="rlab">Sound</span><button class="rchip sm'+(HP.playNotes?" sel":"")+'" id="hpMute">'+(HP.playNotes?"🔊 Plays the notes":"🔇 Just the glow")+'</button></div>'+
         '<div class="rrow2"><span class="rlab">Lead note</span><span class="rchips tight">'+leadChip()+'</span></div>'+
-      '</div>';document.body.classList.add("djOn");setTimeout(()=>{if(innerWidth>innerHeight&&innerHeight<520){const L=view.querySelector(".djLay");if(L)L.scrollIntoView({block:"start"});}},60);
+      '</div>';document.body.classList.add("djOn");save(mk("hp","st"),{scaleIdx:HP.scaleIdx,patIdx:HP.patIdx,bpm:HP.bpm,playNotes:HP.playNotes});setTimeout(()=>{if(innerWidth>innerHeight&&innerHeight<520){const L=view.querySelector(".djLay");if(L)L.scrollIntoView({block:"start"});}},60);
     $("#eBack").onclick=goHome;wireMode();
     const scc=$("#hpScales");hpScaleList().forEach((s,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===HP.scaleIdx?" sel":"");b.textContent=s.name;b.onclick=()=>{HP.scaleIdx=i;if(HP.running){HP.i=0;HP.nextTime=ac().currentTime+0.1;HP.visQ=[];}draw();};scc.appendChild(b);});
     const pc=$("#hpPats");HP_PATTERNS.forEach((p,i)=>{const b=document.createElement("button");b.className="rchip"+(i===HP.patIdx?" sel":"");b.textContent=p.name;b.onclick=()=>{HP.patIdx=i;if(HP.running){HP.i=0;HP.nextTime=ac().currentTime+0.1;HP.visQ=[];}draw();};pc.appendChild(b);});
     const strip=$("#hpStrip");if(strip){const P=HP_PATTERNS[HP.patIdx],sc=hpScaleList()[HP.scaleIdx].notes;strip.innerHTML="";P.seq.forEach((st,i)=>{const idx=Math.min(st[0],sc.length-1);const c=document.createElement("span");c.className="hpcell"+(st[0]===0?" ding":"");c.id="hpS"+i;c.textContent=midiName(sc[idx]);strip.appendChild(c);});}
     buildPan();
     {const P0=HP_PATTERNS[HP.patIdx],sc0=hpScaleList()[HP.scaleIdx].notes;if(!HP.running)hpLightNext(0,Math.min(P0.seq[0][0],sc0.length-1));}
-    const bp=$("#hpBpm");const bpTag=()=>{const t=$("#hpBpmTag");if(t)t.textContent=HP.bpm+" BPM";};bp.oninput=()=>{HP.bpm=+bp.value;$("#hpBpmV").textContent=HP.bpm;bpTag();};
+    const bp=$("#hpBpm");const bpTag=()=>{const t=$("#hpBpmTag");if(t)t.textContent=HP.bpm+" BPM";save(mk("hp","st"),Object.assign(load(mk("hp","st"),{}),{bpm:HP.bpm}));};bp.oninput=()=>{HP.bpm=+bp.value;$("#hpBpmV").textContent=HP.bpm;bpTag();save(mk("hp","st"),Object.assign(load(mk("hp","st"),{}),{bpm:HP.bpm}));};
     $("#hpTap").onclick=()=>{const now=performance.now();if(HP.taps.length&&now-HP.taps[HP.taps.length-1]>2000)HP.taps=[];HP.taps.push(now);if(HP.taps.length>5)HP.taps.shift();if(HP.taps.length>=2){let s=0;for(let i=1;i<HP.taps.length;i++)s+=HP.taps[i]-HP.taps[i-1];let b=Math.round(60000/(s/(HP.taps.length-1)));b=Math.max(45,Math.min(140,b));HP.bpm=b;bp.value=b;$("#hpBpmV").textContent=b;bpTag();}};
     $("#hpMute").onclick=()=>{HP.playNotes=!HP.playNotes;draw();};
     wireLead(draw);
