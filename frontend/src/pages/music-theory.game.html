@@ -2359,7 +2359,7 @@ const RHYTHM_CARDS=[
  {ic:"👆",title:"Tap It Back",blurb:"Hear a rhythm, then tap it back on the pad — scored, no mic needed.",go:()=>tapBackMenu()},
  {ic:"🧠",title:"Name That Rhythm",blurb:"Hear a rhythm and pick which one it was — train your ear to read the beat.",go:()=>rhythmNameQuiz()},
  {ic:"🧘",title:"Speak the Rhythm",blurb:"Count the rhythm out loud into the mic — a breath-and-beat meditation that scores how in-time you are.",go:()=>renderRhythm(true)},
- {ic:"⏱",title:"Inner Clock",blurb:"The beat plays for 4 counts, then goes silent for 4 — keep it going and tap. Shows how steady your internal pulse is.",go:()=>renderRhythmMind(true)}
+ {ic:"⏱",title:"Inner Clock",blurb:"A rhythm plays for a bar, then goes silent — keep it alive and tap it. Eight rhythms, from steady pulse to son clave.",go:()=>renderRhythmMind(true)}
 ];
 /* click voices */
 const SOUNDS=[
@@ -11814,39 +11814,85 @@ function mpSpark(h){if(h.length<2)return '';const W=300,Hh=60,mx=Math.max(...h.m
  ".mpRing{position:absolute;width:min(74vw,300px);height:min(74vw,300px);border-radius:50%;border:2px solid rgba(160,170,255,.25);transition:transform .14s,border-color .4s}"+
  ".mpTxt{position:absolute;bottom:18px;left:0;right:0;text-align:center;pointer-events:none}#mpCue{font-size:1.25rem;font-weight:700;letter-spacing:.04em}#mpCue::after{content:attr(data-r);display:block;font-size:.8rem;opacity:.55;font-weight:400;margin-top:2px}.mpSub{font-size:.85rem;opacity:.75;margin-top:4px}"+
  ".mpHand{position:absolute;top:14px;font-weight:800;opacity:.3;font-size:1.1rem;transition:opacity .12s}.mpHand.L{left:18px}.mpHand.R{right:18px}.mpHand.nx{opacity:.75}.mpHand.on{opacity:1;color:var(--gold)}";document.head.appendChild(s);}catch(e){}})();
+const RM_PATS=[
+ {id:"pulse",name:"Steady pulse",tip:"the plain beat — the foundation",div:4,pat:"X...X...X...X..."},
+ {id:"eighth",name:"Eighths",tip:"double-time — keep it even",div:4,pat:"X.X.X.X.X.X.X.X."},
+ {id:"off",name:"Offbeats",tip:"only the &s — reggae skank",div:4,pat:"..X...X...X...X."},
+ {id:"back",name:"Backbeat",tip:"2 and 4 — where the snare lives",div:4,pat:"....X.......X..."},
+ {id:"charl",name:"Charleston",tip:"1 and the & of 2 — the classic push",div:4,pat:"X.....X........."},
+ {id:"clave",name:"Son clave 3–2",tip:"the key pattern of Latin music",div:4,pat:"X..X..X...X.X..."},
+ {id:"gallop",name:"Gallop",tip:"long–short–short, like hoofbeats",div:4,pat:"X.XXX.XXX.XXX.XX"},
+ {id:"six",name:"6/8 sway",tip:"triple feel — count 1-2-3 4-5-6",div:3,pat:"X..X..X..X.."}
+];
 function renderRhythmMind(fromRhythm){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  let bpm=80,running=false,schID=null,raf=null,beat=0,nextT=0,taps=[],expect=[],phase="audible",round=0,results=[];
+  const cfg=Object.assign({bpm:80,patId:"pulse",rounds:4},load(mk("rhythmmind","cfg"),{}));
+  let running=false,schID=null,raf=null,cell=0,nextT=0,t0=0,taps=[],expect=[],phase="idle",results=[],visQ=[],lit=-1;
+  const P=()=>RM_PATS.find(p=>p.id===cfg.patId)||RM_PATS[0];
   teardown=()=>{running=false;if(schID)clearInterval(schID);if(raf)cancelAnimationFrame(raf);};
+  function saveCfg(){save(mk("rhythmmind","cfg"),cfg);}
+  function bestFor(id){const arr=load(mk("rhythmmind","best"),[]).filter(x=>(x.pat||"pulse")===id);return arr.length?Math.min.apply(null,arr.map(x=>x.ms)):null;}
+  function cellsHTML(){const p=P(),cpb=4*p.div;let h='<div class="rcells" data-nocz style="margin:8px 0">';
+    for(let i=0;i<cpb;i++){const hit=p.pat[i]==="X",beatStart=i%p.div===0;
+      h+='<span class="rcell'+(hit?"":" mute")+'" data-rmc="'+i+'" style="'+(hit?"":"opacity:.3;")+(beatStart?"border-left:2px solid rgba(255,255,255,.22)":"")+'">'+(hit?(i===0?"●":"●"):"·")+'</span>';}
+    return h+'</div>';}
   function draw(){
+    const p=P(),best=bestFor(p.id);
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">⏱ Inner Clock</span></div><div class="panel">'+
-      '<div class="intro">Your inner clock is a trainable muscle. The beat plays for <b>4 counts</b>, then goes <b>silent for 4</b> — keep it alive in your head and <b>tap</b> on the silent beats. I&rsquo;ll show how steady your internal pulse is.</div>'+
-      '<div class="rrow"><span class="rlab">Tempo</span><input type="range" id="rmBpm" min="50" max="140" value="'+bpm+'" style="flex:1"><span class="rbpm" id="rmBpmV">'+bpm+'</span></div>'+
-      '<div class="rbanner" id="rmPhase" style="margin:10px 0">Press Start, then listen</div>'+
+      '<div class="intro">Your inner clock is a trainable muscle. Pick a rhythm — it plays for <b>a bar</b>, goes <b>silent for a bar</b>, and you <b>tap its hits</b> through the silence. The steadier your taps, the stronger your internal pulse.</div>'+
+      '<div class="rchips" data-nocz id="rmPats">'+RM_PATS.map(x=>'<button class="rchip'+(x.id===cfg.patId?" sel":"")+'" data-rmp="'+x.id+'">'+esc(x.name)+'</button>').join("")+'</div>'+
+      '<div class="site-note" style="margin:2px 0 0">'+esc(p.tip)+(best!=null?' · your best ±'+best+' ms':'')+'</div>'+
+      cellsHTML()+
+      '<div class="rrow"><span class="rlab">Tempo</span><button class="rtap" id="rmDn">−</button><span class="rbpm" id="rmBpmV">'+cfg.bpm+'</span><button class="rtap" id="rmUp">+</button><input type="range" id="rmBpm" min="50" max="140" value="'+cfg.bpm+'" style="flex:1"></div>'+
+      '<div class="rrow2"><span class="rlab">Rounds</span><span class="rchips tight">'+[4,8].map(n=>'<button class="rchip sm'+(cfg.rounds===n?" sel":"")+'" data-rmr="'+n+'">'+n+'</button>').join("")+'</span></div>'+
+      clickVolRow("rmClickV",CLICK_VOL)+
+      '<div class="rbanner" id="rmPhase" style="margin:10px 0">Press Start — one bar of count-in, then listen</div>'+
       '<div class="actions"><button class="btn" id="rmTap" style="font-size:1.3rem;padding:22px">TAP</button></div>'+
       '<div class="actions"><button class="btn ghost" id="rmStart">▶ Start</button></div>'+
-      '<div class="idea-fb" id="rmScore" style="margin-top:12px">Tap on every silent beat — aim for dead-on.</div></div>';
+      '<div class="idea-fb" id="rmScore" style="margin-top:12px">Tap every hit of the pattern while it&rsquo;s silent — aim for dead-on.</div></div>';
     $("#eBack").onclick=()=>{running=false;if(schID)clearInterval(schID);if(fromRhythm)goHome();else renderMeditation();};
-    const bp=$("#rmBpm");bp.oninput=()=>{if(running)return;bpm=+bp.value;$("#rmBpmV").textContent=bpm;};
+    view.querySelectorAll("[data-rmp]").forEach(b=>{b.onclick=()=>{if(running)stopR();cfg.patId=b.dataset.rmp;saveCfg();draw();};});
+    view.querySelectorAll("[data-rmr]").forEach(b=>{b.onclick=()=>{cfg.rounds=+b.dataset.rmr;saveCfg();draw();};});
+    const bp=$("#rmBpm"),setB=v=>{cfg.bpm=Math.max(50,Math.min(140,v));bp.value=cfg.bpm;$("#rmBpmV").textContent=cfg.bpm;saveCfg();};
+    bp.oninput=()=>{if(running)return;setB(+bp.value);};
+    $("#rmDn").onclick=()=>{if(!running)setB(cfg.bpm-2);};$("#rmUp").onclick=()=>{if(!running)setB(cfg.bpm+2);};
+    bindClickVol("rmClickV",function(v){setClickVol(v);});
     $("#rmStart").onclick=()=>{if(running)stopR();else startR();};
     const tp=$("#rmTap");tp.onclick=()=>tap();
   }
-  function tap(){if(!running||phase!=="silent")return;const now=ac().currentTime;taps.push(now);const fl=$("#rmTap");if(fl){fl.classList.add("hit");setTimeout(()=>fl.classList.remove("hit"),80);}}
-  function startR(){unlockAudio();running=true;beat=0;round=0;taps=[];expect=[];results=[];phase="audible";nextT=ac().currentTime+0.3;$("#rmStart").textContent="■ Stop";
+  function light(i){const cs=view.querySelectorAll("[data-rmc]");if(lit>=0&&cs[lit])cs[lit].classList.remove("on");if(i>=0&&cs[i])cs[i].classList.add("on");lit=i;}
+  function tap(){if(!running||phase!=="silent")return;taps.push(ac().currentTime);const fl=$("#rmTap");if(fl){fl.classList.add("hit");setTimeout(()=>fl.classList.remove("hit"),80);}}
+  function startR(){unlockAudio();const p=P();if(CLICK_VOL<=0.001){const el=$("#rmScore");if(el)el.innerHTML="🔇 Click volume is off — slide the 🥁 Click row up so you can hear the rhythm.";return;}
+    running=true;cell=0;taps=[];expect=[];results=[];visQ=[];phase="count";nextT=ac().currentTime+0.3;t0=nextT;$("#rmStart").textContent="■ Stop";
     schID=setInterval(sched,25);raf=requestAnimationFrame(frameR);}
-  function stopR(){running=false;if(schID){clearInterval(schID);schID=null;}if(raf)cancelAnimationFrame(raf);const b=$("#rmStart");if(b)b.textContent="▶ Start";}
-  function sched(){const a=ac(),spb=60/bpm;while(nextT<a.currentTime+0.12){const inBar=beat%8;phase=inBar<4?"audible":"silent";
-    if(phase==="audible")click(nextT,inBar===0?"accent":"beat");else expect.push(nextT);
-    const ph=$("#rmPhase");if(ph)ph.textContent=phase==="audible"?"🔊 Listen… ("+(inBar+1)+")":"🤫 Keep it going — TAP ("+(inBar-3)+")";
-    nextT+=spb;beat++;
-    if(beat%8===0&&beat>0){scoreRound();round++;if(round>=4){setTimeout(()=>{if(running)stopR();showFinal();},50);}}
-  }}
-  function scoreRound(){if(!expect.length)return;const spb=60/bpm,win=spb*0.5;expect.forEach(et=>{let bd=1e9;taps.forEach(tp=>{const d=Math.abs(tp-et);if(d<bd)bd=d;});if(bd<=win)results.push(bd*1000);});expect=[];taps=[];}
-  function showFinal(){const el=$("#rmScore");if(!el)return;if(!results.length){el.innerHTML="No taps landed — tap on each silent beat next time.";return;}
-    const avg=Math.round(results.reduce((a,b)=>a+b,0)/results.length),acc=Math.max(0,Math.round(100-avg/3));
-    const key=mk("rhythmmind","best"),arr=load(key,[]);arr.push({t:Date.now(),bpm,ms:avg});while(arr.length>40)arr.shift();save(key,arr);if(activeId())addBeans(acc>=75?3:1);
-    const best=Math.min.apply(null,arr.map(x=>x.ms));
-    el.innerHTML='<div style="text-align:center"><div style="font-size:2rem;font-weight:800;color:'+(acc>=75?"#5fd38d":acc>=50?"#e9c46a":"#e76f51")+'">±'+avg+' ms</div><div class="site-note">your inner pulse vs the real beat · best ±'+best+' ms</div><div style="margin-top:8px">'+(acc>=80?"Rock-solid internal clock. 🔥":acc>=55?"Good — your sense of time is sharpening.":"Keep training — feel the beat in your body, not your head.")+'</div></div>';}
-  function frameR(){const now=ac().currentTime;raf=requestAnimationFrame(frameR);}
+  function stopR(){running=false;if(schID){clearInterval(schID);schID=null;}if(raf)cancelAnimationFrame(raf);light(-1);const b=$("#rmStart");if(b)b.textContent="▶ Start";}
+  function sched(){const a=ac(),p=P(),cpb=4*p.div,cellDur=(60/cfg.bpm)/p.div,totalBars=1+cfg.rounds*2;
+    while(running&&nextT<a.currentTime+0.12){
+      const bar=Math.floor(cell/cpb),ic=cell%cpb;
+      if(bar>=totalBars){clearInterval(schID);schID=null;const wait=(nextT-a.currentTime)*1000+200;setTimeout(()=>{if(running){scoreRound();stopR();showFinal();}},Math.max(60,wait));return;}
+      if(ic===0&&bar>0&&((bar-1)%2)===1&&bar!==1)scoreRound(); /* leaving a silent bar */
+      const silent=bar>0&&((bar-1)%2)===1;
+      phase=bar===0?"count":silent?"silent":"audible";
+      if(bar===0){if(ic%p.div===0)click(nextT,ic===0?"accent":"beat");}
+      else if(p.pat[ic]==="X"){if(!silent)click(nextT,ic===0?"accent":"beat");else expect.push(nextT);}
+      visQ.push({t:nextT,ic,ph:phase,bar});
+      nextT+=cellDur;cell++;}}
+  function scoreRound(){if(!expect.length)return;const p=P(),cellDur=(60/cfg.bpm)/p.div;
+    let gaps=[],idx=[];p.pat.split("").forEach((c,i)=>{if(c==="X")idx.push(i);});
+    for(let i=1;i<idx.length;i++)gaps.push((idx[i]-idx[i-1])*cellDur);if(idx.length>1)gaps.push((4*p.div-idx[idx.length-1]+idx[0])*cellDur);
+    const minGap=gaps.length?Math.min.apply(null,gaps):cellDur*p.div;
+    const win=Math.max(0.09,Math.min(0.28,minGap*0.45));
+    expect.forEach(et=>{let bd=1e9;taps.forEach(tt=>{const d=Math.abs(tt-et);if(d<bd)bd=d;});if(bd<=win)results.push(bd*1000);else results.push(null);});
+    expect=[];taps=[];}
+  function showFinal(){const el=$("#rmScore");if(!el)return;const p=P(),hitArr=results.filter(x=>x!=null),missed=results.length-hitArr.length;
+    if(!hitArr.length){el.innerHTML="No taps landed — tap each ● of <b>"+esc(p.name)+"</b> while it&rsquo;s silent. Slow the tempo and try again.";return;}
+    const avg=Math.round(hitArr.reduce((a,b)=>a+b,0)/hitArr.length),acc=Math.max(0,Math.round(100-avg/3));
+    const key=mk("rhythmmind","best"),arr=load(key,[]);arr.push({t:Date.now(),bpm:cfg.bpm,ms:avg,pat:p.id});while(arr.length>60)arr.shift();save(key,arr);if(activeId())addBeans(acc>=75?3:1);
+    const best=bestFor(p.id);
+    el.innerHTML='<div style="text-align:center"><div style="font-size:2rem;font-weight:800;color:'+(acc>=75?"#5fd38d":acc>=50?"#e9c46a":"#e76f51")+'">±'+avg+' ms</div><div class="site-note">'+esc(p.name)+' at '+cfg.bpm+' BPM · '+hitArr.length+'/'+results.length+' hits'+(missed?' · '+missed+' missed':'')+(best!=null?' · best ±'+best+' ms':'')+'</div><div style="margin-top:8px">'+(acc>=80?"Rock-solid internal clock. 🔥":acc>=55?"Good — your sense of time is sharpening.":"Keep training — feel the rhythm in your body, not your head.")+'</div></div>';}
+  function frameR(){if(!running)return;const now=ac().currentTime;
+    while(visQ.length&&visQ[0].t<=now){const e=visQ.shift();light(e.ic);
+      const ph=$("#rmPhase");if(ph)ph.textContent=e.ph==="count"?("1 bar count-in… ("+(Math.floor(e.ic/P().div)+1)+")"):e.ph==="audible"?"🔊 Listen — round "+(Math.floor((e.bar-1)/2)+1)+" of "+cfg.rounds:"🤫 Silent — TAP the pattern";}
+    raf=requestAnimationFrame(frameR);}
   draw();
 }
 function renderMedSession(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
