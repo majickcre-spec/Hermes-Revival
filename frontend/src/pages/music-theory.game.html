@@ -1239,7 +1239,7 @@ function homeDoors(){var H=document.getElementById("home"),box=document.getEleme
   box.querySelectorAll(".door").forEach(function(b){b.onclick=function(){var d=b.getAttribute("data-d"),nx=(cur===d)?null:d;try{if(nx)sessionStorage.setItem("mjk-door",nx);else sessionStorage.removeItem("mjk-door");}catch(e){}homeDoors();var t=document.getElementById("doors");if(nx&&t)t.scrollIntoView({block:"start"});};});
   try{dayPlanDraw("homeDay");}catch(e){}
   var pg=document.getElementById("progressGrid");if(pg){pg.innerHTML="";[["🧭","The Path","Your guided journey, step by step",function(){var b=document.querySelector("#pathHero button");if(b)b.click();}],["📈","Sessions & insights","What helped you most, from your saved sessions",function(){renderInsights();}],["🎯","My Frequencies","Your resonant tone and how it changes",function(){renderMyFreq();}]].forEach(function(c){if(c[1]!=="The Path"&&!isAdv()&&!sensEver())return;var b=document.createElement("button");b.className="card";b.innerHTML='<span class="ic">'+c[0]+'</span><h3>'+c[1]+'</h3><span class="blurb">'+c[2]+'</span>';b.onclick=c[3];pg.appendChild(b);});}
-  var bg=document.getElementById("bioGrid");if(bg&&!bg.querySelector("[data-quick]")){var first=bg.firstChild;[["🌬️","Breathwork","Follow the circle to calm down or wake up",renderBreathwork],["💓","Heart Sync","Your heartbeat as a deep drum, with music tuned to it",renderHeartSync],["🌀","Brainwave Journey","Binaural journeys for calm, focus, creativity and sleep",renderJourney],["🎧","Soundscapes","Real ocean, rain, forest and more",renderNature],["👁️","Perception Lab","Heart coherence, a soft field and the edge of sleep",renderPerception],["🕯️","Meditation Session","A quiet timer with a soft ground tone and bells",renderMedSession],["🌀","Brainwave Binaural","Pick an intention and ride the matching brainwave",renderBrainwave],["🥁","Rhythm Mind","Hold the pulse inside you through growing silence",renderMindPulse],["🎯","My Frequencies","Find the tone that resonates most in your body",renderMyFreq],["🎙","Record a Voice Journey","Read a script line by line and record it in your voice",renderVoiceJourney],["🧠","Brain Charts","Big-screen EEG: spectrum mirror, flow and hemi-sync",renderBrainCharts],["📈","Session Reports","Every measured session: heart, brain and sync",renderSessions]].forEach(function(c){var b=document.createElement("button");b.className="card";b.setAttribute("data-quick","1");b.innerHTML='<span class="ic">'+c[0]+'</span><h3>'+c[1]+'</h3><span class="blurb">'+c[2]+'</span>';b.onclick=function(){c[3]();};bg.insertBefore(b,first);});
+  var bg=document.getElementById("bioGrid");if(bg&&!bg.querySelector("[data-quick]")){var first=bg.firstChild;[["🌬️","Breathwork","Follow the circle to calm down or wake up",renderBreathwork],["💓","Heart Sync","Your heartbeat as a deep drum, with music tuned to it",renderHeartSync],["🌀","Brainwave Journey","Binaural journeys for calm, focus, creativity and sleep",renderJourney],["🎧","Soundscapes","Real ocean, rain, forest and more",renderNature],["👁️","Perception Lab","Heart coherence, a soft field and the edge of sleep",renderPerception],["🕯️","Meditation Session","A quiet timer with a soft ground tone and bells",renderMedSession],["🌀","Brainwave Binaural","Pick an intention and ride the matching brainwave",renderBrainwave],["🥁","Rhythm Mind","Hold the pulse inside you through growing silence",renderMindPulse],["🎯","My Frequencies","Find the tone that resonates most in your body",renderMyFreq],["🎙","Record a Voice Journey","Read a script line by line and record it in your voice",renderVoiceJourney],["🧠","Brain Charts","Big-screen EEG: spectrum mirror, flow and hemi-sync",renderBrainCharts],["🌙","Lucid Dream Journey","Sleep-long cue cycles toward knowing you’re dreaming",renderLucid],["📈","Session Reports","Every measured session: heart, brain and sync",renderSessions]].forEach(function(c){var b=document.createElement("button");b.className="card";b.setAttribute("data-quick","1");b.innerHTML='<span class="ic">'+c[0]+'</span><h3>'+c[1]+'</h3><span class="blurb">'+c[2]+'</span>';b.onclick=function(){c[3]();};bg.insertBefore(b,first);});
     bg.querySelectorAll(".card").forEach(function(c){if(!c.hasAttribute("data-quick")&&/^\s*🧘/.test(c.textContent)){var h=c.querySelector("h3");if(h)h.textContent="All meditation";}});}
   /* one meditation list: the quick cards cover every module, so the old "All meditation" hub and Schumann are hidden */
   if(bg){bg.querySelectorAll(".card").forEach(function(c){if(!c.hasAttribute("data-quick"))c.style.display="none";});}
@@ -10236,6 +10236,128 @@ function srSyncOne(e){var v0=e.v||0;return idbGet("pl-"+e.at).then(function(D){i
 /* sessions recorded before the index existed (Perception Lab, Nov 9) join it once */
 function srBoot(){try{var have={};srIdx().forEach(function(e){have[e.at]=1;});plStore().forEach(function(s){if(have[s.at])return;idbGet("pl-"+s.at).then(function(D){if(D&&D.tl&&D.tl.t&&D.tl.t.length)srIdxPut({at:s.at,kind:"perception",label:"Perception Lab · "+srWhen(s.at),mins:s.mins,sens:D.sens,eegBlocks:D.eegBlocks||0,v:1});});});}catch(e){}setTimeout(srSync,4000);}
 setTimeout(srBoot,3000);setInterval(srSync,120000);
+/* ===== LUCID DREAM JOURNEY — silent descent, REM-window cues pre-scheduled on the audio clock, morning recall ===== */
+const LUC={on:false,at:0,cfg:null,windows:[],g:null,keep:null,base:[],state:"descent",t:null,shifts:{},pads:{},view:"home"};
+function lucCfg(){return LUC.cfg||(LUC.cfg=Object.assign({hours:8,first:4.5,style:"chime",vol:0.5,gate:true,wind:true},load(mk("lucid","cfg"),{})));}
+function lucSaveCfg(){try{save(mk("lucid","cfg"),LUC.cfg);}catch(e){}}
+function lucPadLoad(name){return fetch("/sounds/lucid/"+name+".mp3").then(function(r){if(!r.ok)throw 0;return r.arrayBuffer();}).then(function(b){return ac().decodeAudioData(b);}).catch(function(){return null;});}
+/* one 30-second cue, gentle attack, through the live volume bus */
+function lucCueAt(a,t){var g=LUC.g,st=lucCfg().style;
+  if(st==="pad"&&LUC.pads.cue){var s=a.createBufferSource();s.buffer=LUC.pads.cue;var e=a.createGain();e.gain.setValueAtTime(0.0001,t);e.gain.linearRampToValueAtTime(1,t+2);e.gain.setValueAtTime(1,t+27);e.gain.linearRampToValueAtTime(0.0001,t+30);s.connect(e);e.connect(g);s.start(t);s.stop(t+30.2);return [s];}
+  var ns=[];
+  if(st==="pulse"){var o=a.createOscillator();o.type="sine";o.frequency.value=210;var am=a.createGain();am.gain.value=0;var lfo=a.createOscillator();lfo.frequency.value=4;var dep=a.createGain();dep.gain.value=0.22;lfo.connect(dep);dep.connect(am.gain);
+    var env=a.createGain();env.gain.setValueAtTime(0.0001,t);env.gain.linearRampToValueAtTime(0.5,t+4);env.gain.setValueAtTime(0.5,t+26);env.gain.linearRampToValueAtTime(0.0001,t+30);
+    o.connect(am);am.connect(env);env.connect(g);o.start(t);o.stop(t+30.3);lfo.start(t);lfo.stop(t+30.3);ns.push(o,lfo);return ns;}
+  for(var k=0;k<6;k++){var tt=t+k*5,f=k%2?528:660;var o2=a.createOscillator();o2.type="sine";o2.frequency.value=f;var e2=a.createGain();e2.gain.setValueAtTime(0.0001,tt);e2.gain.linearRampToValueAtTime(0.34,tt+1.4);e2.gain.exponentialRampToValueAtTime(0.0001,tt+4.6);o2.connect(e2);e2.connect(g);o2.start(tt);o2.stop(tt+4.8);ns.push(o2);}
+  return ns;}
+/* a cue window = 3 cue sets with 2-minute gaps */
+function lucWindowAt(a,t){var ns=[];[0,150,300].forEach(function(off){ns=ns.concat(lucCueAt(a,t+off));});return ns;}
+function lucCancel(ns){(ns||[]).forEach(function(n){try{n.stop(0);}catch(e){}try{n.disconnect();}catch(e){}});}
+function lucPlan(){var c=lucCfg(),ws=[c.first,c.first+1.5,c.first+3,c.first+4.25].filter(function(h){return h<c.hours-0.4;});return ws;}
+function lucStart(){unlockAudio();var a=ac(),c=lucCfg();LUC.on=true;LUC.at=Date.now();LUC.state="descent";LUC.windows=[];LUC.base=[];LUC.shifts={};
+  LUC.g=a.createGain();LUC.g.gain.value=c.vol;LUC.g.connect(a.destination);
+  /* inaudible keepalive holds the audio session (and its clock) open all night */
+  LUC.keep=a.createOscillator();var kg=a.createGain();kg.gain.value=0.0004;LUC.keep.frequency.value=37;LUC.keep.connect(kg);kg.connect(a.destination);LUC.keep.start();
+  var t0=a.currentTime+0.3;
+  var begin=function(){
+    if(c.wind){if(LUC.pads.wind){var s=a.createBufferSource();s.buffer=LUC.pads.wind;var e=a.createGain();e.gain.setValueAtTime(0.0001,t0);e.gain.linearRampToValueAtTime(0.8,t0+6);e.gain.setValueAtTime(0.8,t0+480);e.gain.linearRampToValueAtTime(0.0001,t0+600);s.connect(e);e.connect(LUC.g);s.start(t0);s.stop(t0+601);}
+      else{[132,198].forEach(function(f,i){var o=a.createOscillator();o.type="sine";o.frequency.value=f;var e2=a.createGain();e2.gain.setValueAtTime(0.0001,t0);e2.gain.linearRampToValueAtTime(i?0.05:0.12,t0+8);e2.gain.setValueAtTime(i?0.05:0.12,t0+420);e2.gain.linearRampToValueAtTime(0.0001,t0+600);o.connect(e2);e2.connect(LUC.g);o.start(t0);o.stop(t0+601);});}}
+    lucPlan().forEach(function(h,i){var t=t0+h*3600;LUC.windows.push({i:i,t:t,nodes:lucWindowAt(a,t),shift:0});});
+    try{plrStart(LUC.at,"lucid","Lucid Dream Journey");}catch(e){}
+    if(LUC.t)clearInterval(LUC.t);LUC.t=setInterval(lucTick,1000);LUC.view="night";renderLucid();};
+  Promise.all([lucPadLoad("wind-down"),lucPadLoad("cue")]).then(function(r){LUC.pads.wind=r[0];LUC.pads.cue=r[1];begin();}).catch(begin);}
+function lucEnd(){LUC.on=false;if(LUC.t)clearInterval(LUC.t);LUC.t=null;
+  LUC.windows.forEach(function(w){lucCancel(w.nodes);});LUC.windows=[];
+  try{if(LUC.keep){LUC.keep.stop();LUC.keep=null;}}catch(e){}
+  try{if(LUC.g){LUC.g.disconnect();LUC.g=null;}}catch(e){}
+  try{plrEnd();}catch(e){}
+  LUC.view="morning";}
+function lucRem(){var b=LUC.base;if(b.length<240)return null;var now=b.slice(-90).filter(function(x){return x;}),all=b.slice(0,-90).filter(function(x){return x;});if(now.length<45||all.length<120)return null;
+  var med=function(a2){var s=a2.slice().sort(function(x,y){return x-y;});return s[s.length>>1];};
+  return med(now)>=med(all)*1.05;}
+function lucTick(){if(!LUC.on)return;var a=ac(),c=lucCfg(),el=(a.currentTime,(Date.now()-LUC.at)/1000);
+  LUC.base.push(bioHR()||null);if(LUC.base.length>3600)LUC.base.shift();
+  try{plrTick(Date.now(),LUC.state,null);}catch(e){}
+  var next=LUC.windows.find(function(w){return w.t>a.currentTime-330;});
+  LUC.state=!next?"after cues":(a.currentTime>=next.t&&a.currentTime<next.t+330)?"cue window "+(next.i+1):"descent";
+  /* REM gating: just before a window, if clearly not REM yet, slide it 12 min (at most twice) */
+  if(c.gate&&HR.connected){LUC.windows.forEach(function(w){if(w.shift>=2||a.currentTime<w.t-10||a.currentTime>w.t-2)return;var r=lucRem();
+    if(r===false){lucCancel(w.nodes);w.t+=720;w.shift++;w.nodes=lucWindowAt(a,w.t);}});}
+  if(el>c.hours*3600){lucEnd();renderLucid();return;}
+  if(LUC.view==="night"){var cEl=document.getElementById("lucClock");if(cEl){var d=new Date();cEl.textContent=(d.getHours()%12||12)+":"+String(d.getMinutes()).padStart(2,"0");}
+    var ph=document.getElementById("lucPhase");if(ph){var nx=LUC.windows.find(function(w){return w.t>a.currentTime;});
+      ph.textContent=LUC.state.indexOf("cue")===0?("Cue window "+LUC.state.split(" ")[2]+" of "+LUC.windows.length+" — stay in the dream"):nx?("Silent descent — next cues "+new Date(Date.now()+(nx.t-a.currentTime)*1000).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})):"Cues done — sleep on to morning";}
+    var hEl=document.getElementById("lucHr");if(hEl)hEl.textContent=bioHR()?("❤️ "+bioHR()):(c.gate?"❤️ —":"");}}
+function lucLogs(){return load(mk("lucid","logs"),[]);}
+function lucStars(cv){var g=cv.getContext("2d"),W=cv.clientWidth,H=cv.clientHeight,dpr=Math.min(2,window.devicePixelRatio||1);cv.width=W*dpr;cv.height=H*dpr;g.setTransform(dpr,0,0,dpr,0,0);
+  if(!LUC.stars||LUC.stars.W!==W){LUC.stars={W:W,s:[]};for(var i=0;i<110;i++)LUC.stars.s.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.5+0.4,v:0.02+Math.random()*0.05,p:Math.random()*7});}
+  var draw=function(){if(!document.getElementById(cv.id)){return;}g.fillStyle="#0A0C11";g.fillRect(0,0,W,H);
+    var t=Date.now()/1000;
+    g.fillStyle="rgba(59,217,186,.05)";g.beginPath();g.arc(W*0.5,H*1.35,H*0.9+Math.sin(t/5)*8,0,7);g.fill();
+    LUC.stars.s.forEach(function(st){st.x-=st.v;if(st.x<0)st.x=W;var tw=0.5+0.5*Math.sin(t*0.8+st.p);g.fillStyle="rgba(236,237,239,"+(0.25+0.55*tw)+")";g.beginPath();g.arc(st.x,st.y,st.r,0,7);g.fill();});
+    if(LUC.on){var a=ac(),c=lucCfg(),tot=c.hours*3600,e2=(Date.now()-LUC.at)/1000,y0=H-26;
+      g.strokeStyle="rgba(255,255,255,.18)";g.lineWidth=2;g.beginPath();g.moveTo(16,y0);g.lineTo(W-16,y0);g.stroke();
+      LUC.windows.forEach(function(w){var fx=16+Math.max(0,Math.min(1,((w.t-(a.currentTime-e2))/tot)))*(W-32);g.fillStyle="#f4b740";g.fillRect(fx-1.5,y0-7,3,14);});
+      var px=16+Math.max(0,Math.min(1,e2/tot))*(W-32);g.fillStyle="#ECEDEF";g.beginPath();g.arc(px,y0,5,0,7);g.fill();}
+    LUC.starsRaf=requestAnimationFrame(draw);};
+  if(LUC.starsRaf)cancelAnimationFrame(LUC.starsRaf);draw();}
+function lucSaveLog(txt,signs,voiceKey){var L=lucLogs();L.unshift({at:Date.now(),txt:txt||"",signs:signs||[],voice:voiceKey||null});save(mk("lucid","logs"),L.slice(0,60));}
+function renderLucid(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);var c=lucCfg();
+  teardown=function(){if(LUC.starsRaf)cancelAnimationFrame(LUC.starsRaf);if(LUC.recMr){try{LUC.recMr.stop();}catch(e){}LUC.recMr=null;}};
+  if(LUC.on)LUC.view="night";
+  if(LUC.view==="night"){
+    view.innerHTML='<div style="position:relative;height:'+Math.max(330,window.innerHeight-70)+'px;border-radius:14px;overflow:hidden;background:#0A0C11">'
+     +'<canvas id="lucCv" style="position:absolute;inset:0;width:100%;height:100%"></canvas>'
+     +'<div style="position:absolute;left:0;right:0;top:0;padding:10px;display:flex;align-items:center"><button class="rchip sm" id="eBack">←</button><span style="margin-left:auto" class="rchip sm" id="lucHr"></span></div>'
+     +'<div style="position:absolute;left:0;right:0;top:26%;text-align:center"><div id="lucClock" style="font:200 64px system-ui;letter-spacing:2px;color:#ECEDEF">'+(new Date().getHours()%12||12)+':'+String(new Date().getMinutes()).padStart(2,"0")+'</div>'
+     +'<div id="lucPhase" style="font:700 13px system-ui;color:#9BA1AC;margin-top:6px;padding:0 20px">Silent descent</div></div>'
+     +'<div style="position:absolute;left:0;right:0;bottom:40px;display:flex;gap:8px;justify-content:center"><button class="rchip sm" id="lucTest">🔔 Test cue</button><button class="rchip sm" id="lucEndB">■ End night</button></div></div>';
+    $("#eBack").onclick=goHome;lucStars(document.getElementById("lucCv"));
+    $("#lucTest").onclick=function(){unlockAudio();lucCueAt(ac(),ac().currentTime+0.1);};
+    var endB=$("#lucEndB");endB.onclick=function(){if(endB.dataset.sure!=="1"){endB.dataset.sure="1";endB.textContent="Tap again to end";setTimeout(function(){if(endB.isConnected){endB.dataset.sure="";endB.textContent="■ End night";}},3000);return;}lucEnd();renderLucid();};
+    return;}
+  if(LUC.view==="morning"){
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌅 Morning recall</span></div>'
+     +'<div class="panel"><div class="sw-sub">Before it fades — say it or type it. Fragments count.</div>'
+     +'<div class="actions" style="margin:8px 0"><button class="btn ghost" id="lucVo">🎙 Record what you remember</button></div><div id="lucVoSt" class="site-note" style="margin:0 0 6px"></div>'
+     +'<textarea id="lucTxt" placeholder="The dream, in any order…" style="width:100%;box-sizing:border-box;min-height:110px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;color:inherit;padding:10px;font:600 1rem system-ui"></textarea>'
+     +'<div class="sw-sub" style="margin-top:10px">Dream signs you noticed</div><div class="rchips tight" id="lucSigns">'+["Flying","Hands looked odd","Text kept changing","Lights / glow","Familiar people","Knew I was dreaming"].map(function(s2){return '<button class="rchip sm" data-sg="'+esc(s2)+'">'+s2+'</button>';}).join("")+'</div>'
+     +'<div class="actions" style="margin-top:12px"><button class="btn" id="lucSave">Save & finish</button></div></div>';
+    $("#eBack").onclick=function(){LUC.view="home";renderLucid();};
+    var signs=[];view.querySelectorAll("[data-sg]").forEach(function(b){b.onclick=function(){b.classList.toggle("sel");var s2=b.dataset.sg;var i=signs.indexOf(s2);if(i<0)signs.push(s2);else signs.splice(i,1);};});
+    var vKey=null,vb=$("#lucVo"),vSt=$("#lucVoSt");
+    vb.onclick=function(){if(LUC.recMr){try{LUC.recMr.stop();}catch(e){}return;}
+      ensureMic().then(function(ok){if(!ok){vSt.textContent="Mic blocked — in Bluefy: aA → Website Settings → Microphone → Allow.";return;}
+        try{var mt=MediaRecorder.isTypeSupported("audio/mp4")?"audio/mp4":"audio/webm";var mr=new MediaRecorder(micStream,{mimeType:mt}),ch=[];LUC.recMr=mr;
+          mr.ondataavailable=function(e){if(e.data&&e.data.size)ch.push(e.data);};
+          mr.onstop=function(){LUC.recMr=null;try{stopMic();}catch(e){}var bl=new Blob(ch,{type:mt});if(bl.size>2000){vKey="lucidlog:"+Date.now();idbPut(vKey,bl);vSt.textContent="Voice note saved ✓";}vb.textContent="🎙 Record what you remember";};
+          mr.start(500);vb.textContent="■ Stop recording";vSt.textContent="Recording — speak freely…";}catch(e){vSt.textContent="Recording isn't available in this browser.";}});};
+    $("#lucSave").onclick=function(){lucSaveLog($("#lucTxt").value.trim(),signs,vKey);LUC.view="home";renderLucid();};
+    return;}
+  /* home */
+  var logs=lucLogs();
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌙 Lucid Dream Journey</span></div>'
+   +'<div style="position:relative;height:120px;border-radius:14px;overflow:hidden;margin-bottom:10px"><canvas id="lucCv" style="position:absolute;inset:0;width:100%;height:100%"></canvas><div style="position:absolute;left:14px;bottom:10px;font:700 .8rem system-ui;color:#9BA1AC">Sleep normally. Soft cues visit your REM windows and whisper: notice you’re dreaming.</div></div>'
+   +'<div class="panel">'
+   +'<div class="rrow2"><span class="rlab">Sleep</span><span class="rchips tight">'+[6,7,8,9].map(function(h){return '<button class="rchip sm'+(c.hours===h?" sel":"")+'" data-lh="'+h+'">'+h+' h</button>';}).join("")+'</span></div>'
+   +'<div class="rrow2"><span class="rlab">First cues after</span><span class="rchips tight">'+[3,4.5,6].map(function(h){return '<button class="rchip sm'+(c.first===h?" sel":"")+'" data-lf="'+h+'">'+h+' h</button>';}).join("")+'</span></div>'
+   +'<div class="rrow2"><span class="rlab">Cue sound</span><span class="rchips tight"><button class="rchip sm'+(c.style==="chime"?" sel":"")+'" data-ls="chime">Chimes</button><button class="rchip sm'+(c.style==="pulse"?" sel":"")+'" data-ls="pulse">Theta pulse</button><button class="rchip sm'+(c.style==="pad"?" sel":"")+'" data-ls="pad">Your pad</button></span></div>'
+   +'<div class="rrow"><span class="rlab">Cue volume</span><input type="range" id="lucVol" min="10" max="100" value="'+Math.round(c.vol*100)+'" style="flex:1"><button class="rchip sm" id="lucTry">🔔 Try</button></div>'
+   +'<div class="rrow2"><span class="rlab">Smart timing</span><span class="rchips tight"><button class="rchip sm'+(c.gate?" sel":"")+'" id="lucGate">❤️ Wait for REM signs</button><button class="rchip sm'+(c.wind?" sel":"")+'" id="lucWind">🌊 10-min wind-down</button></span></div>'
+   +'<div class="site-note" style="font-size:.76rem">Phone plugged in, volume at half, Bluefy in front. Cues fire on schedule even if the screen locks; REM-smart timing needs the HeartMath on and the screen awake (dim is fine).</div>'
+   +'<div class="actions" style="margin-top:10px"><button class="btn" id="lucGo" style="width:100%;padding:14px">🌙 Begin the night</button></div>'
+   +(logs.length?'<div class="rlab" style="display:block;margin:14px 0 4px">Dream log</div>'+logs.slice(0,7).map(function(l,i){return '<div style="display:flex;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line)"><div style="flex:1;min-width:0"><b style="font-size:.85rem">'+new Date(l.at).toLocaleDateString([],{month:"short",day:"numeric"})+'</b>'+(l.signs&&l.signs.length?' <span class="site-note" style="margin:0;font-size:.72rem">'+esc(l.signs.join(" · "))+'</span>':'')+(l.txt?'<div class="site-note" style="margin:0;font-size:.76rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(l.txt)+'</div>':'')+'</div>'+(l.voice?'<button class="rchip sm" data-lv="'+l.voice+'">▶</button>':'')+'</div>';}).join(""):'')
+   +'</div>';
+  $("#eBack").onclick=goHome;lucStars(document.getElementById("lucCv"));
+  view.querySelectorAll("[data-lh]").forEach(function(b){b.onclick=function(){c.hours=+b.dataset.lh;lucSaveCfg();renderLucid();};});
+  view.querySelectorAll("[data-lf]").forEach(function(b){b.onclick=function(){c.first=+b.dataset.lf;lucSaveCfg();renderLucid();};});
+  view.querySelectorAll("[data-ls]").forEach(function(b){b.onclick=function(){c.style=b.dataset.ls;lucSaveCfg();renderLucid();if(c.style==="pad")lucPadLoad("cue").then(function(r){if(!r){var n=view.querySelector(".site-note");if(n)n.innerHTML="<b>No pad uploaded yet</b> — drop cue.mp3 into /sounds/lucid/ and it takes over. Chimes play until then.";}});};});
+  var lv=$("#lucVol");if(lv)lv.oninput=function(){c.vol=+lv.value/100;lucSaveCfg();if(LUC.g)LUC.g.gain.setTargetAtTime(c.vol,ac().currentTime,0.1);};
+  $("#lucTry").onclick=function(){unlockAudio();var a=ac();if(!LUC.g){LUC.g=a.createGain();LUC.g.gain.value=c.vol;LUC.g.connect(a.destination);}LUC.g.gain.value=c.vol;if(c.style==="pad"&&!LUC.pads.cue){lucPadLoad("cue").then(function(r){LUC.pads.cue=r;lucCueAt(a,a.currentTime+0.05);});}else lucCueAt(a,a.currentTime+0.05);};
+  $("#lucGate").onclick=function(){c.gate=!c.gate;lucSaveCfg();renderLucid();};
+  $("#lucWind").onclick=function(){c.wind=!c.wind;lucSaveCfg();renderLucid();};
+  $("#lucGo").onclick=function(){lucStart();};
+  view.querySelectorAll("[data-lv]").forEach(function(b){b.onclick=function(){idbGet(b.dataset.lv).then(function(bl){if(!bl)return;var u=URL.createObjectURL(bl),au=new Audio(u);au.onended=function(){URL.revokeObjectURL(u);};au.play();});};});}
 /* ===== BRAIN CHARTS — full-screen EEG views: mirror spectrum, flow (waterfall), 3D ridge; live or recorded ===== */
 const BC={on:false,view:"mirror",src:"live",hist:[],t:null,win:null,norm:1,fl:null,rec:null,ri:0,playing:false,load:""};
 const BC_BANDS=[[1,4,"#ff8f8c","Delta"],[4,8,"#f4b740","Theta"],[8,13,"#5fe0a8","Alpha"],[13,30,"#5fc8e0","Beta"],[30,45,"#c9b3ff","Gamma"]];
@@ -10347,15 +10469,108 @@ function bcVitals(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);var D=b
       if(v!=null){g.fillStyle=b[2];g.fillRect(bx,8+(thh-30)-bhh,bw,bhh);}
       g.fillStyle="#9BA1AC";g.fillText(b[0]+(v!=null?" "+Math.round(v):""),bx+bw/2,thh-6);});
     if(al==null&&th==null&&be==null){g.fillStyle="#9BA1AC";g.fillText("no EEG",tw/2,thh/2);}});}
-function bcNoData(g,x,y,w,h){g.fillStyle="#9BA1AC";g.font="700 13px system-ui";g.textAlign="center";g.fillText(BC.src==="live"?(M.connected?"Listening… signal settling.":"Connect the Muse (any meditation → Sensors), or switch to 📼 Recorded."):(BC.load||"Pick a recorded session below."),x+w/2,y+h/2);}
+function bcNoData(g,x,y,w,h,msg){g.fillStyle="#9BA1AC";g.font="700 13px system-ui";g.textAlign="center";g.fillText(msg||(BC.src==="live"?(M.connected?"Listening… signal settling.":"Connect the Muse (any meditation → Sensors), or switch to 📼 Recorded."):(BC.load||"Pick a recorded session below.")),x+w/2,y+h/2);}
+/* ---- heart views: waves monitor, LF/HF crossover, beat-by-beat rhythm ---- */
+function bcResv(h){return h-(BC.src==="rec"?160:52);}
+/* LF/HF over the whole recording, computed once from the saved beats and cached */
+function bcLH(){var R=BC.rec;if(!R)return null;if(R.lh)return R.lh;var rr=R.rr||[],rt=R.rrT||[];R.lh=[];
+  if(rr.length<40)return R.lh;var end=rt[rt.length-1]||0;
+  for(var T=130;T<=end;T+=10){var xs=[],ts=[];
+    for(var i=0;i<rr.length;i++){if(rt[i]>T)break;if(rt[i]>T-120&&rr[i]>250&&rr[i]<2000){xs.push(rr[i]);ts.push(rt[i]);}}
+    if(xs.length<40)continue;
+    var t0=ts[0],t1=ts[ts.length-1],N=Math.floor((t1-t0)*2);if(N<80)continue;
+    var sig=[],j=0;for(var k=0;k<N;k++){var tt=t0+k/2;while(j<ts.length-1&&ts[j+1]<tt)j++;var a=ts[j],b2=ts[Math.min(j+1,ts.length-1)],va=xs[j],vb=xs[Math.min(j+1,xs.length-1)];sig.push(b2>a?va+(vb-va)*(tt-a)/(b2-a):va);}
+    var mean=0;sig.forEach(function(v){mean+=v;});mean/=sig.length;var lf=0,hf=0,Mn=sig.length;
+    for(var fq=0.04;fq<=0.4;fq+=0.01){var re=0,im=0;
+      for(var n3=0;n3<Mn;n3++){var w3=0.5-0.5*Math.cos(2*Math.PI*n3/(Mn-1)),an=2*Math.PI*fq*(n3/2),v3=(sig[n3]-mean)*w3;re+=v3*Math.cos(an);im-=v3*Math.sin(an);}
+      var p=re*re+im*im;if(fq<0.15)lf+=p;else hf+=p;}
+    var tot=lf+hf;if(tot>0)R.lh.push({t:T,lf:lf/tot,hf:hf/tot});}
+  return R.lh;}
+/* view: ❤️ Waves — monitor strip scrolling past, playhead at the right */
+function bcWaves(g,x,y,w,h){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);var D=bcSeries();if(!D)return bcNoData(g,x,y,w,h,BC.src==="live"?"Connect the HeartMath or Muse, or switch to 📼 Recorded.":null);
+  h=bcResv(h);var S=D.S,tc=D.cur,win=240,cx0=x+14,cw=w-28,cy0=y+40,ch2=h-124,px=cx0+cw*0.86;
+  var tX=function(t){return px-(tc-t)/win*cw*0.86;};
+  g.strokeStyle="rgba(255,255,255,.05)";for(var gt=Math.max(0,Math.ceil((tc-win)/60)*60);gt<=tc;gt+=60){g.beginPath();g.moveTo(tX(gt),cy0);g.lineTo(tX(gt),cy0+ch2);g.stroke();g.fillStyle="rgba(155,161,172,.5)";g.font="700 9px system-ui";g.textAlign="center";g.fillText(bcT(gt),tX(gt),cy0+ch2+12);}
+  var near=function(key){var best=null,bd=1e9;for(var i=0;i<S.t.length;i++){var d=Math.abs(S.t[i]-tc);if(d<bd&&S[key][i]!=null&&isFinite(S[key][i])){bd=d;best=S[key][i];}if(S.t[i]>tc+5)break;}return bd<=6?best:null;};
+  /* coherence ribbon under everything */
+  g.beginPath();var rs=false;for(var i2=0;i2<S.t.length;i2++){var t2=S.t[i2];if(t2<tc-win)continue;if(t2>tc)break;var c2=S.co[i2];if(c2==null){rs=false;continue;}var yy2=cy0+ch2-Math.min(100,c2)/100*ch2;if(!rs){g.moveTo(tX(t2),cy0+ch2);g.lineTo(tX(t2),yy2);rs=true;}else g.lineTo(tX(t2),yy2);}
+  if(rs){g.lineTo(px,cy0+ch2);g.closePath();g.fillStyle="rgba(244,183,64,.10)";g.fill();}
+  var line=function(key,col,lo,hi,lw){g.strokeStyle=col;g.lineWidth=lw;g.lineJoin="round";g.beginPath();var st=false;
+    for(var i3=0;i3<S.t.length;i3++){var t3=S.t[i3];if(t3<tc-win)continue;if(t3>tc)break;var v=S[key][i3];if(v==null||!isFinite(v)){st=false;continue;}
+      var yy=cy0+ch2-(Math.max(lo,Math.min(hi,v))-lo)/(hi-lo)*ch2;if(!st){g.moveTo(tX(t3),yy);st=true;}else g.lineTo(tX(t3),yy);}g.stroke();};
+  line("hrv","#5fe0a8",0,130,2);line("hr","#ff8f8c",38,115,2.6);
+  g.strokeStyle="#f4b740";g.lineWidth=2;g.shadowColor="#f4b740";g.shadowBlur=8;g.beginPath();g.moveTo(px,cy0-8);g.lineTo(px,cy0+ch2+8);g.stroke();g.shadowBlur=0;
+  /* big readouts along the bottom, clear of the chips */
+  var hr=near("hr"),hv=near("hrv"),co=near("co"),ry=y+h-16;g.textAlign="left";
+  g.fillStyle="#ff8f8c";g.font="900 44px system-ui";var hrS=hr!=null?String(Math.round(hr)):"—";g.fillText(hrS,cx0,ry);var hw=g.measureText(hrS).width;
+  g.fillStyle="#9BA1AC";g.font="800 11px system-ui";g.fillText("BPM",cx0+hw+8,ry);
+  g.fillStyle="#5fe0a8";g.font="900 24px system-ui";g.fillText(hv!=null?Math.round(hv)+" ms":"—",cx0+cw*0.42,ry-2);g.fillStyle="#9BA1AC";g.font="800 10px system-ui";g.fillText("HRV (RMSSD)",cx0+cw*0.42,ry-32);
+  g.fillStyle="#f4b740";g.font="900 24px system-ui";g.fillText(co!=null?Math.round(co)+"%":"—",cx0+cw*0.74,ry-2);g.fillStyle="#9BA1AC";g.font="800 10px system-ui";g.fillText("coherence",cx0+cw*0.74,ry-32);}
+/* view: 🔀 LF·HF — the crossover film: effort vs rest trading the lead */
+function bcXoV(g,x,y,w,h){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);h=bcResv(h);
+  var pts,tc;
+  if(BC.src==="rec"){if(!BC.rec)return bcNoData(g,x,y,w,h);pts=bcLH();tc=BC.rec.frames[BC.ri]?BC.rec.frames[BC.ri].t:0;
+    if(!pts.length)return bcNoData(g,x,y,w,h,(BC.rec.rr||[]).length<40?"Not enough beats saved in this session for LF/HF.":"Needs a couple of minutes of beats — scrub forward.");}
+  else{var L=(BIO.lh||[]);if(L.length<2)return bcNoData(g,x,y,w,h,"LF/HF builds up after ~2 minutes with the HeartMath on.");
+    var tz=BIO.t0;pts=L.map(function(p){return {t:(p.t-tz)/1000,lf:p.lf,hf:p.hf};});tc=pts[pts.length-1].t;}
+  var cx0=x+16,cw=w-32,cy0=y+34,ch2=h-118,t0=pts[0].t,t1=Math.max(pts[pts.length-1].t,tc),tX=function(t){return cx0+(t-t0)/Math.max(1,(t1-t0))*cw;},vY=function(v){return cy0+ch2-v*ch2;};
+  /* leader-tinted bands up to the playhead */
+  for(var i=1;i<pts.length;i++){if(pts[i].t>tc)break;var lead=pts[i].hf>=pts[i].lf;
+    g.fillStyle=lead?"rgba(95,200,224,.07)":"rgba(233,196,106,.07)";g.fillRect(tX(pts[i-1].t),cy0,tX(pts[i].t)-tX(pts[i-1].t),ch2);}
+  g.strokeStyle="rgba(255,255,255,.08)";g.setLineDash([4,5]);g.beginPath();g.moveTo(cx0,vY(0.5));g.lineTo(cx0+cw,vY(0.5));g.stroke();g.setLineDash([]);
+  var trace=function(key,col){ /* faint full ghost, solid to playhead */
+    [0.16,1].forEach(function(al,pass){g.strokeStyle=col;g.globalAlpha=al;g.lineWidth=pass?2.4:1.2;g.beginPath();var st=false;
+      for(var i4=0;i4<pts.length;i4++){if(pass&&pts[i4].t>tc)break;var yy=vY(pts[i4][key]);if(!st){g.moveTo(tX(pts[i4].t),yy);st=true;}else g.lineTo(tX(pts[i4].t),yy);}g.stroke();g.globalAlpha=1;});};
+  trace("lf","#e9c46a");trace("hf","#5fc8e0");
+  /* crossover dots */
+  for(var i5=1;i5<pts.length;i5++){if(pts[i5].t>tc)break;var a5=pts[i5-1],b5=pts[i5];if((a5.hf>=a5.lf)!==(b5.hf>=b5.lf)){g.fillStyle="#ECEDEF";g.beginPath();g.arc(tX(b5.t),vY((b5.lf+b5.hf)/2),3.4,0,7);g.fill();}}
+  g.strokeStyle="#f4b740";g.lineWidth=2;g.shadowColor="#f4b740";g.shadowBlur=8;g.beginPath();g.moveTo(tX(tc),cy0-6);g.lineTo(tX(tc),cy0+ch2+6);g.stroke();g.shadowBlur=0;
+  /* current state readout */
+  var cur=null;for(var i6=0;i6<pts.length;i6++){if(pts[i6].t>tc)break;cur=pts[i6];}
+  g.textAlign="left";g.font="900 22px system-ui";
+  if(cur){var restLed=cur.hf>=cur.lf;g.fillStyle=restLed?"#5fc8e0":"#e9c46a";g.fillText(restLed?"Rest is leading":"Effort is leading",cx0,y+h-34);
+    g.font="800 11px system-ui";g.fillStyle="#9BA1AC";g.fillText("LF "+Math.round(cur.lf*100)+"% · HF "+Math.round(cur.hf*100)+"%",cx0,y+h-16);}
+  g.textAlign="right";g.font="800 10px system-ui";g.fillStyle="#e9c46a";g.fillText("— LF · effort / stress",cx0+cw,y+h-34);g.fillStyle="#5fc8e0";g.fillText("— HF · rest / repair",cx0+cw,y+h-20);
+  g.textAlign="left";g.fillStyle="rgba(155,161,172,.6)";g.font="700 9px system-ui";g.fillText(bcT(t0),cx0,cy0+ch2+13);g.textAlign="right";g.fillText(bcT(t1),cx0+cw,cy0+ch2+13);}
+/* view: 📈 Rhythm — every beat as it landed, like a pulse strip */
+function bcBeat(g,x,y,w,h){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);h=bcResv(h);
+  var rr,rt,tc;
+  if(BC.src==="rec"){if(!BC.rec)return bcNoData(g,x,y,w,h);rr=BC.rec.rr||[];rt=BC.rec.rrT||[];tc=BC.rec.frames[BC.ri]?BC.rec.frames[BC.ri].t:0;
+    if(!rr.length)return bcNoData(g,x,y,w,h,"No beat-by-beat data saved in this session.");}
+  else{var src=HR.connected&&HR.rr&&HR.rr.length?HR.rr:(M.connected&&M.ibis&&M.ibis.length?M.ibis.map(function(q){return q.ibi;}):null);
+    if(!src)return bcNoData(g,x,y,w,h,"Connect the HeartMath (or Muse) to watch each beat land.");
+    rr=src.slice(-80);rt=[];var acc=0;rr.forEach(function(v){acc+=v/1000;rt.push(acc);});tc=acc;}
+  var win=24,cx0=x+14,cw=w-28,cy0=y+34,ch2=h-130,base=cy0+ch2*0.78;
+  var tX=function(t){return cx0+cw-((tc-t)/win)*cw;};
+  g.strokeStyle="rgba(255,255,255,.07)";g.beginPath();g.moveTo(cx0,base);g.lineTo(cx0+cw,base);g.stroke();
+  var beats=[];for(var i=0;i<rr.length;i++){if(rt[i]>tc)break;if(rt[i]>=tc-win&&rr[i]>250&&rr[i]<2000)beats.push({t:rt[i],rr:rr[i]});}
+  if(!beats.length)return bcNoData(g,x,y,w,h,BC.src==="rec"?"No beats here — scrub to another part of the session.":"Waiting for the first beats…");
+  /* RR curve above (interval length) */
+  var lo=1e9,hi=0;beats.forEach(function(b){lo=Math.min(lo,b.rr);hi=Math.max(hi,b.rr);});lo=Math.min(lo,600);hi=Math.max(hi,1100);
+  var rY=function(v){return cy0+ch2*(0.52-(v-lo)/(hi-lo)*0.3);};
+  g.strokeStyle="#5fe0a8";g.lineWidth=2;g.lineJoin="round";g.beginPath();beats.forEach(function(b,i7){var xx=tX(b.t),yy=rY(b.rr);if(!i7)g.moveTo(xx,yy);else g.lineTo(xx,yy);});g.stroke();
+  /* each beat: a pulse spike on the baseline; teal flash when the gap moved >50 ms (vagal activity) */
+  beats.forEach(function(b,i8){var xx=tX(b.t),amp=ch2*0.2,big=i8>0&&Math.abs(b.rr-beats[i8-1].rr)>50;
+    g.strokeStyle=big?"#5fe0a8":"#ff8f8c";g.lineWidth=big?2.6:2;g.beginPath();
+    g.moveTo(xx-7,base);g.lineTo(xx-3,base-amp*0.22);g.lineTo(xx-1,base+amp*0.12);g.lineTo(xx+1,base-amp);g.lineTo(xx+3,base+amp*0.3);g.lineTo(xx+5,base);g.lineTo(xx+9,base);g.stroke();
+    g.fillStyle="rgba(236,237,239,.45)";g.font="700 8px system-ui";g.textAlign="center";if(i8%3===0)g.fillText(String(Math.round(b.rr)),xx,base+16);});
+  var last=beats[beats.length-1],prev=beats.length>1?beats[beats.length-2]:null,ry2=y+h-16;
+  g.textAlign="left";g.fillStyle="#ff8f8c";g.font="900 40px system-ui";g.fillText(String(Math.round(60000/last.rr)),cx0,ry2);
+  g.fillStyle="#9BA1AC";g.font="800 10px system-ui";g.fillText("BPM this beat",cx0,ry2-44);
+  g.fillStyle="#ECEDEF";g.font="900 20px system-ui";g.fillText(Math.round(last.rr)+" ms",cx0+cw*0.42,ry2-2);g.fillStyle="#9BA1AC";g.font="800 10px system-ui";g.fillText("beat gap"+(prev?" · moved "+(last.rr-prev.rr>=0?"+":"")+Math.round(last.rr-prev.rr)+" ms":""),cx0+cw*0.42,ry2-30);
+  g.textAlign="right";g.fillStyle="rgba(155,161,172,.7)";g.font="700 9px system-ui";g.fillText("teal spike = gap moved >50 ms — the rest nerve speaking",cx0+cw,ry2-44);}
 function bcDraw(){var cv=document.getElementById("bcCv");if(!cv)return;var dpr=Math.min(2,window.devicePixelRatio||1),W=cv.clientWidth,H=cv.clientHeight;
   if(cv.width!==Math.round(W*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
   var g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);
   var f=BC.src==="live"?BC.hist[BC.hist.length-1]:(BC.rec&&BC.rec.frames[BC.ri]);
+  if(BC.src==="rec"&&BC.rec&&!BC.rec.hasEEG&&["mirror","flow","ridge","pair"].indexOf(BC.view)>=0){g.fillStyle="#0E0F13";g.fillRect(0,0,W,H);return bcNoData(g,0,0,W,H,"No EEG in this session — try ❤️ Waves, LF·HF or Rhythm.");}
   if(BC.view==="pair"){bcMirror(g,0,0,W,H*0.55-2,f);bcFlow(g,0,H*0.55+2,W,H*0.45-2,f);}
   else if(BC.view==="mirror")bcMirror(g,0,0,W,H,f);
   else if(BC.view==="flow")bcFlow(g,0,0,W,H,f);
   else if(BC.view==="vitals")bcVitals(g,0,0,W,H,f);
+  else if(BC.view==="waves")bcWaves(g,0,0,W,H);
+  else if(BC.view==="xo")bcXoV(g,0,0,W,H);
+  else if(BC.view==="beat")bcBeat(g,0,0,W,H);
   else bcRidge(g,0,0,W,H,f);}
 function bcTick(){if(!BC.on)return;
   if(BC.src==="live"){bcPush(bcFrameLive());}
@@ -10368,31 +10583,40 @@ function bcTick(){if(!BC.on)return;
   bcDraw();}
 /* load a recorded session's raw EEG into frames (one per second, strided to stay light) */
 function bcLoadRec(at,label){BC.rec=null;BC.ri=0;BC.playing=false;BC.load="Loading…";BC.hist=[];BC.fl=null;
-  idbGet("pl-"+at).then(function(D){if(!D||!D.eegBlocks){BC.load="That session has no raw EEG saved.";return;}
+  idbGet("pl-"+at).then(function(D){if(!D){BC.load="Couldn’t open that session.";var s0=document.getElementById("bcLoad");if(s0)s0.textContent=BC.load;return;}
+    var tl=(D.tl&&D.tl.t&&D.tl.t.length)?D.tl:null;
+    var fin=function(frames,dur,fdt,hasEEG){if(!frames.length){BC.load="Nothing playable in that session.";var s1=document.getElementById("bcLoad");if(s1)s1.textContent=BC.load;return;}
+      if(tl&&tl.co){var ti=0;frames.forEach(function(f){while(ti<tl.t.length-1&&tl.t[ti+1]<=f.t)ti++;f.co=tl.co[ti];});}
+      BC.rec={at:at,label:label,frames:frames,dur:dur,frameDt:fdt,hasEEG:!!hasEEG,rr:D.rr||[],rrT:D.rrT||[],lh:null,tl:tl?{t:tl.t,hr:tl.hr||[],hrv:tl.hrv||[],co:tl.co||[],al:tl.al||[],th:tl.th||[],be:tl.be||[]}:null};BC.load="";BC.ri=0;BC.pos=0;
+      if(!hasEEG&&["mirror","flow","ridge","pair"].indexOf(BC.view)>=0)BC.view="waves";
+      document.querySelectorAll("[data-bcv]").forEach(function(b){b.classList.toggle("sel",b.dataset.bcv===BC.view);});
+      var sl2=document.getElementById("bcSlide");if(sl2){sl2.max=frames.length-1;sl2.value=0;}var st2=document.getElementById("bcLoad");if(st2)st2.textContent=label+" · "+Math.round(dur/60)+" min loaded"+(hasEEG?"":" · ❤️ heart session");
+      bcMarks();bcDraw();};
+    if(!D.eegBlocks){/* heart-only session: frames straight from the 1 s timeline */
+      if(!tl){BC.load="No detailed data in that session.";var s2=document.getElementById("bcLoad");if(s2)s2.textContent=BC.load;return;}
+      var n2=tl.t.length,str=Math.max(1,Math.floor(n2/1800)),hf=[];
+      for(var i2=0;i2<n2;i2+=str)hf.push({t:tl.t[i2]});
+      fin(hf,tl.t[n2-1]||1,str,false);return;}
     var nb=D.eegBlocks,frames=[],ch=[[],[],[],[]],fs=256,k=0;
     var step=function(){if(k>=nb){finish();return;}BC.load="Loading minute "+(k+1)+" of "+nb+"…";var st=document.getElementById("bcLoad");if(st)st.textContent=BC.load;
       idbGet("pl-"+at+"-e"+k).then(function(B){if(B&&B.ch)for(var c=0;c<4;c++){var a=B.ch[c];for(var i=0;i<a.length;i++)ch[c].push(a[i]*0.1);}k++;setTimeout(step,10);});};
-    var finish=function(){var total=Math.min.apply(null,ch.map(function(a){return a.length;}));if(!isFinite(total)||total<1024){BC.load="Not enough EEG in that session.";return;}
+    var finish=function(){var total=Math.min.apply(null,ch.map(function(a){return a.length;}));if(!isFinite(total)||total<1024){BC.load="Not enough EEG in that session.";var s3=document.getElementById("bcLoad");if(s3)s3.textContent=BC.load;return;}
       var stride=Math.max(fs,Math.floor(total/900));
       for(var off=1024;off<=total;off+=stride){var sl=function(c){return ch[c].slice(Math.max(0,off-2048),off);};
         var L=bcPSD([sl(0),sl(1)]),R=bcPSD([sl(2),sl(3)]),C=bcCoh(sl(1),sl(2));
         frames.push({t:off/fs,L:L,R:R,pk:bcPeaksOf(C)});}
-      var tl=(D.tl&&D.tl.t&&D.tl.t.length)?D.tl:null;
-      if(tl&&tl.co){var ti=0;frames.forEach(function(f){while(ti<tl.t.length-1&&tl.t[ti+1]<=f.t)ti++;f.co=tl.co[ti];});}
-      BC.rec={at:at,label:label,frames:frames,dur:total/fs,frameDt:stride/fs,tl:tl?{t:tl.t,hr:tl.hr||[],hrv:tl.hrv||[],co:tl.co||[],al:tl.al||[],th:tl.th||[],be:tl.be||[]}:null};BC.load="";BC.ri=0;BC.pos=0;
-      var sl2=document.getElementById("bcSlide");if(sl2){sl2.max=frames.length-1;sl2.value=0;}var st2=document.getElementById("bcLoad");if(st2)st2.textContent=label+" · "+Math.round(total/fs/60)+" min loaded";
-      bcMarks();bcDraw();};
+      fin(frames,total/fs,stride/fs,true);};
     step();});}
 function renderBrainCharts(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  BC.on=true;BC.hist=BC.src==="live"?[]:BC.hist;BC.fl=null;BC.lastFlow=null;teardown=function(){BC.on=false;if(BC.t)clearInterval(BC.t);BC.t=null;};
-  var recs=srIdx().filter(function(e){return (e.eegBlocks||0)>0;}).sort(function(a,b){return b.at-a.at;}).slice(0,12);
+  try{bioStart();}catch(e){}BC.on=true;BC.hist=BC.src==="live"?[]:BC.hist;BC.fl=null;BC.lastFlow=null;teardown=function(){BC.on=false;if(BC.t)clearInterval(BC.t);BC.t=null;};
+  var recs=srIdx().filter(function(e){return (e.eegBlocks||0)>0||(e.sens&&e.sens.hr);}).sort(function(a,b){return b.at-a.at;}).slice(0,12);
   var isRec=BC.src==="rec",H=Math.max(420,window.innerHeight-64);
   var chip=function(sel,attr,txt){return '<button class="rchip sm'+(sel?" sel":"")+'" '+attr+' style="backdrop-filter:blur(6px)">'+txt+'</button>';};
   view.innerHTML='<div id="bcWrap" style="position:relative;height:'+H+'px;border-radius:14px;overflow:hidden;background:#0E0F13">'
    +'<canvas id="bcCv" style="position:absolute;inset:0;width:100%;height:100%;display:block"></canvas>'
    +'<div id="bcTop" style="position:absolute;left:0;right:0;top:0;padding:8px 8px 18px;display:flex;gap:5px;align-items:center;flex-wrap:wrap;background:linear-gradient(rgba(10,11,14,.88),rgba(10,11,14,.5) 60%,transparent);transition:opacity .35s">'
     +'<button class="rchip sm" id="eBack" aria-label="Back">←</button>'
-    +[["mirror","🪞 Mirror"],["flow","🌊 Flow"],["ridge","⛰ Ridge"],["vitals","💓 Vitals"],["pair","◫ Pair"]].map(function(v){return chip(BC.view===v[0],'data-bcv="'+v[0]+'"',v[1]);}).join("")
+    +[["mirror","🪞 Mirror"],["flow","🌊 Flow"],["ridge","⛰ Ridge"],["vitals","💓 Vitals"],["pair","◫ Pair"],["waves","❤️ Waves"],["xo","🔀 LF·HF"],["beat","📈 Rhythm"]].map(function(v){return chip(BC.view===v[0],'data-bcv="'+v[0]+'"',v[1]);}).join("")
     +chip(!isRec,'data-bcs="live"',"● Live")+chip(isRec,'data-bcs="rec"',"📼")
     +'<span id="bcMuse" style="margin-left:auto;font:700 .72rem system-ui;color:'+(M.connected?"#5fe0a8":"#9BA1AC")+'">'+(M.connected?"Muse live":(isRec?"":"Muse off"))+'</span></div>'
    +'<div id="bcBot" style="position:absolute;left:0;right:0;bottom:0;padding:26px 10px 10px;background:linear-gradient(transparent,rgba(10,11,14,.6) 20%,rgba(10,11,14,.92));transition:opacity .35s;'+(isRec?"":"display:none")+'">'
@@ -10405,7 +10629,7 @@ function renderBrainCharts(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
      +[1,2,4,8].map(function(sp){return '<button class="rchip sm'+((BC.spd||1)===sp?" sel":"")+'" data-spd="'+sp+'">'+sp+'×</button>';}).join("")
      +'<button class="rchip sm" data-find="sync" style="color:var(--gold)">⏭ α</button><button class="rchip sm" data-find="co" style="color:#5fe0a8">⏭ ❤️</button></div>'
     +'<div id="bcLoad" class="site-note" style="margin:4px 0 0;font-size:.72rem">'+(BC.load||(BC.rec?BC.rec.label:"Pick a session:"))+'</div>'
-    +'<div class="rchips tight" data-nocz style="margin-top:4px">'+(recs.length?recs.map(function(e){return '<button class="rchip sm" data-bcr="'+e.at+'">'+esc((e.label||"Session").slice(0,24))+'</button>';}).join(""):'<span class="site-note" style="margin:0">No sessions with raw EEG yet — wear the Muse during any meditation.</span>')+'</div></div></div>';
+    +'<div class="rchips tight" data-nocz style="margin-top:4px">'+(recs.length?recs.map(function(e){return '<button class="rchip sm" data-bcr="'+e.at+'">'+((e.eegBlocks||0)>0?"🧠 ":"❤️ ")+esc((e.label||"Session").slice(0,24))+'</button>';}).join(""):'<span class="site-note" style="margin:0">No recorded sessions yet — do any meditation with the HeartMath or Muse connected.</span>')+'</div></div></div>';
   $("#eBack").onclick=goHome;
   var top=document.getElementById("bcTop"),bot=document.getElementById("bcBot");
   var dim=function(){var d=BC.playing&&isRec;if(top)top.style.opacity=d?0.15:1;if(bot)bot.style.opacity=d?0.25:1;};
@@ -10441,6 +10665,7 @@ function bcMarks(){var cv=document.getElementById("bcMk");if(!cv)return;var dpr=
 var SRW={lastOn:0};
 function srStageNow(){var ids=["#jPhase","#hsStage","#rmPhase"];for(var i=0;i<ids.length;i++){var el=view.querySelector(ids[i]);if(el&&el.textContent.trim())return el.textContent.trim().slice(0,40);}return "Session";}
 function srWatch(){try{if(PL.on)return;var now=Date.now(),medOn=!!MED.master&&!view.hidden,sensor=HR.connected||M.connected,tt=view.querySelector(".ttitle"),title=(tt?tt.textContent:"").replace(/^[^A-Za-z0-9]+/,"").trim()||"Meditation";
+  if(PLR&&PLR.on&&PLR.kind==="lucid")return; /* the Lucid engine owns its recording's lifecycle */
   if(PLR&&PLR.on&&PLR.kind!=="perception"){if(medOn&&title===PLR.title)SRW.lastOn=now;if(now-SRW.lastOn>15000){plrEnd();return;}var bh=null;try{if(MED.right&&MED.leftO)bh=MED.right.frequency.value-MED.leftO.frequency.value;}catch(e){}plrTick(now,srStageNow(),bh);return;}
   if(medOn&&sensor){var sub=window.SR_SUB&&title==="Brainwave Journey"?window.SR_SUB:null;plrStart(now,srKind(title),title,sub);SRW.lastOn=now;}}catch(e){}}
 setInterval(srWatch,1000);
@@ -10475,8 +10700,10 @@ function plReport(at){home.hidden=true;view.hidden=false;window.scrollTo(0,0);va
       '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font:700 .78rem system-ui" class="plTab"><tr style="color:var(--muted)"><td>Stage</td><td>min</td><td>HR</td><td>HRV (RMSSD)</td><td>Coherence %</td><td>Alpha %</td><td>Theta %</td></tr>'+rows+'</table></div>'+
       ['hr|Heart rate (bpm)|#ff8fa3','co|Coherence %|#7ff0d6','ra|Alpha % (relative)|#f4b740','rt|Theta % (relative)|#b49cff'].map(function(x){var p=x.split("|");return T[p[0]].some(function(v){return v!=null;})?'<div class="rlab" style="display:block;margin:10px 0 2px">'+p[1]+'</div><canvas class="plCh" data-k="'+p[0]+'" data-c="'+p[2]+'" style="width:100%;height:90px;background:rgba(255,255,255,.03);border-radius:8px"></canvas>':'';}).join("")+
       plHemiHTML(T)+
+      '<div class="actions" style="margin:10px 0 4px"><button class="btn" id="plWatch" style="width:100%">🎬 Watch this session as video</button></div>'+
       '<div class="actions" style="flex-wrap:wrap"><button class="btn ghost" data-x="hs">⬇ Hemisphere sync CSV</button><button class="btn ghost" data-x="cas">⬇ Cascades CSV</button><button class="btn ghost" data-x="tl">⬇ Second-by-second CSV</button><button class="btn ghost" data-x="rr">⬇ Heartbeat intervals CSV</button>'+(D.eegBlocks&&!D.fromServer?'<button class="btn ghost" data-x="eeg">⬇ Raw EEG CSV</button>':'')+(res.pending&&!res.rank&&res.ids?'<button class="btn" id="plJ2">Judge the photo target</button>':'')+'<button class="btn" id="plAll">'+(isPL?"All results":"All sessions")+'</button></div>';
     $("#plAll").onclick=isPL?plResults:renderSessions;if($("#plJ2"))$("#plJ2").onclick=function(){plJudge(res);};
+    if($("#plWatch"))$("#plWatch").onclick=function(){BC.src="rec";BC.playing=false;renderBrainCharts();bcLoadRec(at,ix.label||"Session");};
     var tMax=T.t[N-1]||1,cols=["rgba(255,255,255,.00)","rgba(127,240,214,.06)","rgba(180,156,255,.06)","rgba(244,183,64,.07)","rgba(255,143,163,.08)","rgba(255,255,255,.04)"];
     box.querySelectorAll(".plCh").forEach(function(cv){var r=cv.getBoundingClientRect();cv.width=r.width*2;cv.height=r.height*2;var g=cv.getContext("2d"),W=cv.width,H=cv.height,a=T[cv.dataset.k],v=a.filter(function(x){return x!=null;}),lo=Math.min.apply(null,v),hi=Math.max.apply(null,v);if(hi===lo){hi+=1;lo-=1;}
       for(var i=0;i<N;i++){g.fillStyle=cols[T.st[i]]||cols[0];g.fillRect(T.t[i]/tMax*W,0,Math.max(1,W/N+1),H);}
