@@ -10278,8 +10278,12 @@ function bcDraw(){var cv=document.getElementById("bcCv");if(!cv)return;var dpr=M
   else bcRidge(g,0,0,W,H,f);}
 function bcTick(){if(!BC.on)return;
   if(BC.src==="live"){bcPush(bcFrameLive());}
-  else if(BC.rec&&BC.playing){BC.ri=Math.min(BC.rec.frames.length-1,BC.ri+1);var sl=document.getElementById("bcSlide");if(sl)sl.value=BC.ri;if(BC.ri>=BC.rec.frames.length-1)BC.playing=false;var hb=document.getElementById("bcPlayB");if(hb)hb.textContent=BC.playing?"⏸":"▶";
-    if(BC.rec.frames[BC.ri])bcPush(BC.rec.frames[BC.ri]);}
+  else if(BC.rec&&BC.playing){var dt=BC.rec.frameDt||1,n=BC.rec.frames.length;
+    if(BC.pos==null)BC.pos=BC.ri;BC.pos+=(BC.dir||1)*(BC.spd||1)*0.5/dt;
+    if(BC.pos>=n-1){BC.pos=n-1;BC.playing=false;}if(BC.pos<=0){BC.pos=0;if((BC.dir||1)<0)BC.playing=false;}
+    BC.ri=Math.round(BC.pos);var sl=document.getElementById("bcSlide");if(sl)sl.value=BC.ri;
+    var hb=document.getElementById("bcPlayB");if(hb)hb.textContent=BC.playing?"⏸":"▶";
+    var fr=BC.rec.frames[BC.ri];if(fr){bcPush(fr);var st=document.getElementById("bcLoad");if(st){var tm=Math.round(fr.t),co=fr.co!=null?" · ❤️ "+Math.round(fr.co)+"%":"";st.textContent=Math.floor(tm/60)+":"+String(tm%60).padStart(2,"0")+co+((BC.dir||1)<0?" ◀":"")+((BC.spd||1)!==1?" · "+BC.spd+"×":"");}}}
   bcDraw();}
 /* load a recorded session's raw EEG into frames (one per second, strided to stay light) */
 function bcLoadRec(at,label){BC.rec=null;BC.ri=0;BC.playing=false;BC.load="Loading…";BC.hist=[];BC.fl=null;
@@ -10292,9 +10296,11 @@ function bcLoadRec(at,label){BC.rec=null;BC.ri=0;BC.playing=false;BC.load="Loadi
       for(var off=1024;off<=total;off+=stride){var sl=function(c){return ch[c].slice(Math.max(0,off-2048),off);};
         var L=bcPSD([sl(0),sl(1)]),R=bcPSD([sl(2),sl(3)]),C=bcCoh(sl(1),sl(2));
         frames.push({t:off/fs,L:L,R:R,pk:bcPeaksOf(C)});}
-      BC.rec={at:at,label:label,frames:frames,dur:total/fs};BC.load="";BC.ri=0;
+      var tl=(D.tl&&D.tl.t&&D.tl.t.length)?D.tl:null;
+      if(tl&&tl.co){var ti=0;frames.forEach(function(f){while(ti<tl.t.length-1&&tl.t[ti+1]<=f.t)ti++;f.co=tl.co[ti];});}
+      BC.rec={at:at,label:label,frames:frames,dur:total/fs,frameDt:stride/fs};BC.load="";BC.ri=0;BC.pos=0;
       var sl2=document.getElementById("bcSlide");if(sl2){sl2.max=frames.length-1;sl2.value=0;}var st2=document.getElementById("bcLoad");if(st2)st2.textContent=label+" · "+Math.round(total/fs/60)+" min loaded";
-      bcDraw();};
+      bcMarks();bcDraw();};
     step();});}
 function renderBrainCharts(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   BC.on=true;BC.hist=[];BC.fl=null;BC.lastFlow=null;teardown=function(){BC.on=false;if(BC.t)clearInterval(BC.t);BC.t=null;};
@@ -10302,17 +10308,46 @@ function renderBrainCharts(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
   view.innerHTML='<div class="play-top"><button class="back" id="eBack" aria-label="Back">←</button><span class="ttitle">🧠 Brain Charts</span><span id="bcMuse" style="margin-left:auto;font:700 .75rem system-ui;color:'+(M.connected?"#5fe0a8":"#9BA1AC")+'">'+(M.connected?"Muse live":"Muse not connected")+'</span></div>'+
   '<div class="rchips tight" data-nocz style="justify-content:center;margin:4px 0">'+[["mirror","🪞 Mirror"],["flow","🌊 Flow"],["ridge","⛰ Ridge"],["pair","◫ Pair"]].map(function(v){return '<button class="rchip sm'+(BC.view===v[0]?" sel":"")+'" data-bcv="'+v[0]+'">'+v[1]+'</button>';}).join("")+
   '<button class="rchip sm'+(BC.src==="live"?" sel":"")+'" data-bcs="live">● Live</button><button class="rchip sm'+(BC.src==="rec"?" sel":"")+'" data-bcs="rec">📼 Recorded</button></div>'+
-  '<canvas id="bcCv" style="display:block;width:100%;height:'+Math.max(320,window.innerHeight-(BC.src==="rec"?250:170))+'px;border-radius:14px;background:#0E0F13"></canvas>'+
+  '<canvas id="bcCv" style="display:block;width:100%;height:'+Math.max(300,window.innerHeight-(BC.src==="rec"?356:170))+'px;border-radius:14px;background:#0E0F13"></canvas>'+
   '<div id="bcRec" style="'+(BC.src==="rec"?"":"display:none")+'">'+
-    '<div style="display:flex;gap:8px;align-items:center;margin:8px 0"><button class="rchip sm" id="bcPlayB">▶</button><input type="range" id="bcSlide" min="0" max="'+(BC.rec?BC.rec.frames.length-1:0)+'" value="'+BC.ri+'" style="flex:1;accent-color:var(--gold)"><span id="bcLoad" class="site-note" style="margin:0;font-size:.74rem">'+(BC.load||(BC.rec?BC.rec.label:""))+'</span></div>'+
-    '<div class="rchips tight" data-nocz>'+(recs.length?recs.map(function(e){return '<button class="rchip sm" data-bcr="'+e.at+'">'+esc((e.label||"Session").slice(0,26))+'</button>';}).join(""):'<span class="site-note" style="margin:0">No sessions with raw EEG yet — wear the Muse during any meditation.</span>')+'</div></div>';
+    '<div style="display:flex;gap:5px;align-items:center;margin:8px 0 2px;flex-wrap:wrap">'+
+      '<button class="rchip sm" id="bcBk" aria-label="Back 30 seconds">⏪ 30s</button>'+
+      '<button class="rchip sm'+((BC.dir||1)<0?" sel":"")+'" id="bcRev" aria-label="Play backwards">◀ Rev</button>'+
+      '<button class="rchip sm" id="bcPlayB" style="min-width:44px;justify-content:center">'+(BC.playing?"⏸":"▶")+'</button>'+
+      '<button class="rchip sm" id="bcFw" aria-label="Forward 30 seconds">30s ⏩</button>'+
+      [1,2,4,8].map(function(s){return '<button class="rchip sm'+((BC.spd||1)===s?" sel":"")+'" data-spd="'+s+'">'+s+'×</button>';}).join("")+
+      '<button class="rchip sm" data-find="sync" style="color:var(--gold)">⏭ α sync</button>'+
+      '<button class="rchip sm" data-find="co" style="color:#5fe0a8">⏭ ❤️ high</button></div>'+
+    '<canvas id="bcMk" style="display:block;width:100%;height:16px;border-radius:4px;background:rgba(255,255,255,.04)"></canvas>'+
+    '<div style="display:flex;gap:8px;align-items:center;margin:2px 0 6px"><input type="range" id="bcSlide" min="0" max="'+(BC.rec?BC.rec.frames.length-1:0)+'" value="'+BC.ri+'" style="flex:1;accent-color:var(--gold)"><span id="bcLoad" class="site-note" style="margin:0;font-size:.74rem;white-space:nowrap">'+(BC.load||(BC.rec?BC.rec.label:""))+'</span></div>'+
+    '<div class="rchips tight" data-nocz>'+(recs.length?recs.map(function(e){return '<button class="rchip sm" data-bcr="'+e.at+'">'+esc((e.label||"Session").slice(0,26))+'</button>';}).join(""):'<span class="site-note" style="margin:0">No sessions with raw EEG yet — wear the Muse during any meditation.</span>')+'</div><div style="height:64px"></div></div>';
   $("#eBack").onclick=goHome;
   view.querySelectorAll("[data-bcv]").forEach(function(b){b.onclick=function(){BC.view=b.dataset.bcv;BC.fl=null;BC.lastFlow=null;renderBrainCharts();};});
   view.querySelectorAll("[data-bcs]").forEach(function(b){b.onclick=function(){BC.src=b.dataset.bcs;BC.fl=null;BC.lastFlow=null;renderBrainCharts();};});
   view.querySelectorAll("[data-bcr]").forEach(function(b){b.onclick=function(){var e=srIdx().find(function(x){return String(x.at)===b.dataset.bcr;});bcLoadRec(+b.dataset.bcr,(e&&e.label)||"Session");};});
   var pb=document.getElementById("bcPlayB");if(pb)pb.onclick=function(){BC.playing=!BC.playing;pb.textContent=BC.playing?"⏸":"▶";};
-  var sl=document.getElementById("bcSlide");if(sl)sl.oninput=function(){BC.ri=+sl.value;BC.playing=false;if(pb)pb.textContent="▶";BC.fl=null;if(BC.rec&&BC.rec.frames[BC.ri])bcPush(BC.rec.frames[BC.ri]);bcDraw();};
-  if(BC.t)clearInterval(BC.t);BC.t=setInterval(bcTick,500);bcDraw();}
+  var sl=document.getElementById("bcSlide");if(sl)sl.oninput=function(){BC.ri=+sl.value;BC.pos=BC.ri;BC.playing=false;if(pb)pb.textContent="▶";BC.fl=null;if(BC.rec&&BC.rec.frames[BC.ri])bcPush(BC.rec.frames[BC.ri]);bcDraw();};
+  var jump=function(i){if(!BC.rec)return;BC.ri=Math.max(0,Math.min(BC.rec.frames.length-1,i));BC.pos=BC.ri;if(sl)sl.value=BC.ri;BC.fl=null;bcPush(BC.rec.frames[BC.ri]);bcDraw();};
+  var bk=document.getElementById("bcBk");if(bk)bk.onclick=function(){if(BC.rec)jump(BC.ri-Math.round(30/(BC.rec.frameDt||1)));};
+  var fw=document.getElementById("bcFw");if(fw)fw.onclick=function(){if(BC.rec)jump(BC.ri+Math.round(30/(BC.rec.frameDt||1)));};
+  var rv=document.getElementById("bcRev");if(rv)rv.onclick=function(){BC.dir=(BC.dir||1)<0?1:-1;rv.classList.toggle("sel",BC.dir<0);if(BC.dir<0&&!BC.playing){BC.playing=true;if(pb)pb.textContent="⏸";}};
+  view.querySelectorAll("[data-spd]").forEach(function(b){b.onclick=function(){BC.spd=+b.dataset.spd;view.querySelectorAll("[data-spd]").forEach(function(x){x.classList.toggle("sel",x===b);});};});
+  view.querySelectorAll("[data-find]").forEach(function(b){b.onclick=function(){if(!BC.rec)return;var kind=b.dataset.find,fr=BC.rec.frames;
+    for(var i=BC.ri+1;i<fr.length;i++){var f=fr[i],hit=false;
+      if(kind==="sync")hit=(f.pk||[]).some(function(p){return p[1]>=0.6&&p[0]>=8&&p[0]<13;});
+      else hit=f.co!=null&&f.co>=60;
+      if(hit){jump(i);return;}}
+    var st=document.getElementById("bcLoad");if(st)st.textContent=kind==="sync"?"No more α sync ahead — scrub back to search earlier.":"No more high coherence ahead.";};});
+  if(BC.t)clearInterval(BC.t);BC.t=setInterval(bcTick,500);bcMarks();bcDraw();}
+/* marker strip above the slider: gold ticks = alpha hemi-sync, white = other sync, green curve = heart coherence */
+function bcMarks(){var cv=document.getElementById("bcMk");if(!cv)return;var dpr=Math.min(2,window.devicePixelRatio||1),W=cv.clientWidth||300,H=16;
+  cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);var g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+  if(!BC.rec||!BC.rec.frames.length)return;var fr=BC.rec.frames,n=fr.length;
+  g.strokeStyle="rgba(95,224,168,.8)";g.lineWidth=1.4;g.beginPath();var started=false;
+  for(var i=0;i<n;i++){if(fr[i].co==null)continue;var x=i/(n-1)*W,y=H-1-(Math.min(100,fr[i].co)/100)*(H-3);if(!started){g.moveTo(x,y);started=true;}else g.lineTo(x,y);}
+  if(started)g.stroke();
+  for(var j=0;j<n;j++){var pk=fr[j].pk||[],al=false,oth=false;pk.forEach(function(p){if(p[1]<0.6)return;if(p[0]>=8&&p[0]<13)al=true;else oth=true;});
+    if(al||oth){g.fillStyle=al?"#f4b740":"rgba(236,237,239,.45)";g.fillRect(j/(n-1)*W,0,1.5,al?H:H*0.5);}}}
 /* every other meditation: record automatically while its sound is running and a heart sensor or Muse is connected */
 var SRW={lastOn:0};
 function srStageNow(){var ids=["#jPhase","#hsStage","#rmPhase"];for(var i=0;i<ids.length;i++){var el=view.querySelector(ids[i]);if(el&&el.textContent.trim())return el.textContent.trim().slice(0,40);}return "Session";}
@@ -10330,10 +10365,11 @@ function renderSessions(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=t
       '<div class="site-note" style="margin:0 0 8px">'+(signed?(waiting?"Backing up "+waiting+" session"+(waiting>1?"s":"")+" to your account…":"All sessions are backed up to your account ✓"):"Not backed up yet — sign in to your account so every session is saved on the server.")+'</div>'+
       '<div class="rchips tight" style="margin-bottom:6px"><button class="rchip sm'+(filt==="all"?" sel":"")+'" data-f="all">All</button>'+Object.keys(kinds).map(function(k){return '<button class="rchip sm'+(filt===k?" sel":"")+'" data-f="'+k+'">'+esc(kinds[k])+'</button>';}).join("")+'</div>'+
       (shown.length?shown.map(function(r){return '<button class="srRow" data-at="'+r.at+'" style="display:flex;width:100%;text-align:left;gap:10px;align-items:center;padding:10px 4px;border:0;border-top:1px solid var(--line);background:none;color:inherit"><div style="flex:1;min-width:0"><b>'+esc(r.label)+'</b><div class="site-note" style="margin:0;font-size:.76rem">'+(r.mins?r.mins+" min · ":"")+(r.sens.hr?"❤️ heart ":"")+(r.sens.eeg?"🧠 brain ":"")+(r.backed?"· ☁︎ backed up":"· ⟳ waiting to back up")+'</div></div><span style="color:var(--muted)">›</span></button>';}).join(""):'<div class="site-note">No measured sessions yet. Any meditation you do with your heart sensor or Muse connected is recorded here automatically.</div>')+
-      (signed?'<div class="actions" style="margin-top:12px"><button class="btn ghost" id="srClaude">🔗 Link for Claude</button></div><div id="srClaudeBox"></div>':'')+'</div>';
+      '<div class="actions" style="margin-top:12px"><button class="btn ghost" id="srClaude">🔗 Link for Claude</button></div><div id="srClaudeBox"></div>'+
+      (signed?'':'<div class="site-note" style="margin:4px 0 0">Sessions back up (and the Claude link works) once you sign in — home screen → <b>Sign In &amp; sync</b>.</div>')+'</div>';
     $("#eBack").onclick=goHome;view.querySelectorAll("[data-f]").forEach(function(b){b.onclick=function(){SW.srF=b.dataset.f;filt=b.dataset.f;draw(server);};});
     view.querySelectorAll(".srRow").forEach(function(b){b.onclick=function(){plReport(+b.dataset.at);};});
-    if($("#srClaude"))$("#srClaude").onclick=function(){var box=$("#srClaudeBox");box.innerHTML='<div class="site-note">Making your link…</div>';_api("/api/claude-key",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"}).then(function(j){var u=MMU_API+"/api/claude/"+j.key;
+    if($("#srClaude"))$("#srClaude").onclick=function(){var box=$("#srClaudeBox");if(!signed){box.innerHTML='<div class="site-note"><b>Sign in first.</b> Go to the home screen → Sign In &amp; sync (top bar). That turns on session backup; then tap this again and your link appears.</div>';return;}box.innerHTML='<div class="site-note">Making your link…</div>';_api("/api/claude-key",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"}).then(function(j){var u=MMU_API+"/api/claude/"+j.key;
       box.innerHTML='<div class="site-note" style="margin:6px 0 4px">Give this link to Claude once. It opens your session reports as plain text, read-only. Anyone with the link can read them.</div><input readonly value="'+esc(u)+'" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:inherit;font:600 .8rem ui-monospace,monospace"><div class="actions"><button class="btn" id="srCopy">Copy link</button><button class="btn ghost" id="srRot">Make a new link</button></div>';
       $("#srCopy").onclick=function(){try{navigator.clipboard.writeText(u);$("#srCopy").textContent="Copied ✓";}catch(e){}};$("#srRot").onclick=function(){_api("/api/claude-key",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rotate:true})}).then(function(){$("#srClaude").click();});};}).catch(function(e){box.innerHTML='<div class="site-note">'+esc(e.message||"Could not make the link.")+'</div>';});};};
   draw(null);srSync().then(function(){if(syncOn()&&acctTok())_api("/api/sessions",{}).then(function(j){if($("#srClaude")||view.querySelector(".srRow")||true)draw(j.sessions||[]);}).catch(function(){draw(null);});});}
