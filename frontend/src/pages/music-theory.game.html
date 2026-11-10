@@ -972,7 +972,8 @@ function metUI(soft){var f=document.getElementById("metFab");if(f){f.classList.t
     '<div class="mrow"><span class="mlab">Sound</span><button class="mbtn'+(MET.snd==="click"?" sel":"")+'" data-ms="click">Click</button><button class="mbtn'+(MET.snd==="wood"?" sel":"")+'" data-ms="wood">Woodblock</button><button class="mbtn'+(MET.snd==="heart"?" sel":"")+'" data-ms="heart">Heartbeat</button></div>'+
     '<div class="mrow"><span class="mlab">🔊 Click vol <small style="opacity:.7">(all)</small></span><input type="range" class="gclick" id="metVol" min="0" max="100" value="'+Math.round(CLICK_VOL*100)+'" style="flex:1"><span style="min-width:38px;text-align:right;font-weight:800" id="metVolV">'+Math.round(CLICK_VOL*100)+'%</span></div>'+
     '<div class="mrow"><button class="mgo'+(MET.on?" on":"")+'" id="metGo">'+(MET.on?"⏹ Stop":"▶ Start")+'</button></div>'+
-    '<div style="font-size:.74rem;color:var(--muted,#9a93b8);text-align:center">Keeps playing while you move around the app. This volume is just for the click.</div>';
+    '<div class="mrow"><span class="mlab">No sound?</span><button class="mbtn" id="metTest">🔊 Test</button><button class="mbtn" id="metFix">♻️ Restart sound</button></div>'+
+    '<div style="font-size:.74rem;color:var(--muted,#9a93b8);text-align:center">Test plays a tone, then a click. Tone but no click → your click volume above is down. Neither → tap Restart sound.</div>';
   document.getElementById("metClose").onclick=function(){MET.open=false;metUI();};
   document.getElementById("metDn").onclick=function(){metSetBpm(MET.bpm-1);};document.getElementById("metUp").onclick=function(){metSetBpm(MET.bpm+1);};
   document.getElementById("metBpm").oninput=function(){metSetBpm(+this.value);};
@@ -984,7 +985,9 @@ function metUI(soft){var f=document.getElementById("metFab");if(f){f.classList.t
   p.querySelectorAll("[data-mm]").forEach(function(b){b.onclick=function(){MET.mult=+b.getAttribute("data-mm");save("mjk-met-mult",MET.mult);MET.bpmF=0;if(MET.src==="lock"){var hb=heartBpm();if(hb)MET.bpm=Math.max(30,Math.min(240,Math.round(hb*MET.mult)));}metUI();};});
   p.querySelectorAll("[data-ms]").forEach(function(b){b.onclick=function(){MET.snd=b.getAttribute("data-ms");save("mjk-met-snd",MET.snd);metUI();if(!MET.on){unlockAudio();metTick(ac().currentTime+0.02,true);}};});
   var mv=document.getElementById("metVol");mv.oninput=function(){setClickVol(mv.value/100);document.getElementById("metVolV").textContent=mv.value+"%";;};
-  document.getElementById("metGo").onclick=function(){if(MET.on)metStop();else metStart();};}
+  document.getElementById("metGo").onclick=function(){if(MET.on)metStop();else metStart();};
+  var mtst=document.getElementById("metTest");if(mtst)mtst.onclick=function(){unlockAudio();try{var a=ac(),t=a.currentTime+0.05,o=a.createOscillator(),g=a.createGain();o.frequency.value=660;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.45,t+0.015);g.gain.exponentialRampToValueAtTime(0.0001,t+0.5);o.connect(g);g.connect(pianoMaster(a));o.start(t);o.stop(t+0.55);click(t+0.75,"accent");click(t+1.0,"beat");}catch(e){}};
+  var mfx=document.getElementById("metFix");if(mfx)mfx.onclick=function(){audioHardReset();mfx.textContent="✓ Restarted";setTimeout(function(){if(mfx.isConnected)mfx.textContent="♻️ Restart sound";},2000);};}
 (function(){try{var f=document.createElement("button");f.id="metFab";f.type="button";f.setAttribute("aria-label","Metronome");document.body.appendChild(f);
   var p=document.createElement("div");p.id="metPanel";p.hidden=true;document.body.appendChild(p);
   f.onclick=function(){unlockAudio();MET.open=!MET.open;metUI();};metUI();}catch(e){}})();
@@ -1590,6 +1593,21 @@ function unlockAudio(){audioPlaybackCategory();const a=ac();try{a.resume();}catc
   try{sfLoadInst("piano");}catch(e){}}
 document.addEventListener("pointerdown",unlockAudio,true);
 document.addEventListener("touchend",unlockAudio,true);
+/* ---- sound-engine recovery: iOS can leave the audio context wedged (interruptions, lock screen, calls).
+   If it won't run after a resume, rebuild the whole engine so sound comes back without reloading. ---- */
+var _lastAudioFix=0;
+function audioHardReset(){var now=Date.now();if(now-_lastAudioFix<4000)return;_lastAudioFix=now;
+  try{if(typeof MET!=="undefined"&&MET.on)metStop();}catch(e){}
+  try{if(AC)AC.close();}catch(e){}
+  AC=null;PIANO_MASTER=null;PIANO_WAVE=null;CLICK_BUS=null;_audioUnlocked=false;
+  try{NOISE_BUF=null;}catch(e){}try{PIANO_ROOM=null;}catch(e){}try{MET.g=null;}catch(e){}
+  try{DRS.ready=false;DRS.loading=false;DRS.buf={};}catch(e){}
+  try{DJK.ready=false;DJK.loading=false;DJK.buf={};}catch(e){}
+  try{unlockAudio();}catch(e){}}
+function audioWatch(){if(!AC||!_audioUnlocked)return;try{AC.resume();}catch(e){}
+  setTimeout(function(){if(AC&&_audioUnlocked&&AC.state!=="running")audioHardReset();},600);}
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")setTimeout(audioWatch,250);});
+document.addEventListener("pointerdown",function(){if(AC&&_audioUnlocked&&AC.state!=="running")audioWatch();},true);
 function midiToFreq(m){return 440*Math.pow(2,(m-69)/12);}
 function pianoWave(a){
   if(PIANO_WAVE)return PIANO_WAVE;
@@ -2489,6 +2507,7 @@ async function renderRhythm(speak){
       <div class="rchips" id="rChips"></div>
       <div class="rrow2"><span class="rlab">Count-in</span><span class="rchips tight" id="rCountChips"></span></div>
       <div class="rrow2"><span class="rlab">Sound</span><span class="rchips tight" id="rSoundChips"></span></div>
+      ${clickVolRow("rClickV",CLICK_VOL)}
       ${speak?`<div class="rrow2"><span class="rlab">Precision</span><span class="rchips tight" id="rPrecChips"></span></div>`:""}
       <div class="actions"><button class="btn" id="rStart">▶ Start</button></div>
       ${speak?`<div class="rrow2"><span class="rlab">Mic</span><div class="rmeter"><div class="rmeter-f" id="rMeterF"></div></div></div>
@@ -2507,7 +2526,10 @@ async function renderRhythm(speak){
       let b=Math.round(60000/(sum/(R.taps.length-1)));b=Math.max(40,Math.min(160,b));
       R.bpm=b;bpm.value=b;bpmVal.textContent=b;}
   };
-  $("#rStart").onclick=()=>{if(R.running)rStop();else rStart();};
+  bindClickVol("rClickV",function(v){setClickVol(v);const w=document.getElementById("rMuteNote");if(w&&v>0)w.remove();});
+  $("#rStart").onclick=()=>{unlockAudio();
+    if(!R.running&&CLICK_VOL<=0.001){let w=document.getElementById("rMuteNote");if(!w){w=document.createElement("div");w.id="rMuteNote";w.className="site-note";const ac2=$("#rStart").parentElement;ac2.parentElement.insertBefore(w,ac2);}w.textContent="🔇 Click volume is off — slide the 🥁 Click row up to hear the beat.";}
+    if(R.running)rStop();else rStart();};
   beanChip();
 }
 function rRenderMini(){
@@ -4849,7 +4871,7 @@ const DJEMBE_PATTERNS=[
  {name:"Paradiddle-diddle (RLRRLL)",div:3,pat:"STTTTTSTTTTT",stick:"RLRRLLRLRRLL",dyn:"AnnnnnAnnnnn"}
 ];
 const DJ={bpm:100,patIdx:0,running:false,cur:0,nextTime:0,schID:null,raf:null,visQ:[],litCell:-1,barCount:0,
-  playPattern:true,metClick:true,scoring:false,countIn:1,t0:0,countEndTime:0,taps:[],hand:"R",lead:"R",stick:null,dyn:null,measures:4,playEndTime:1/0,endTime:1/0,refresh:null,
+  playPattern:true,metClick:true,scoring:false,countIn:1,loopBars:0,t0:0,countEndTime:0,taps:[],hand:"R",lead:"R",stick:null,dyn:null,measures:4,playEndTime:1/0,endTime:1/0,refresh:null,
   buf:null,floor:null,lastPeak:0,lastOnset:0,detected:[],expected:[],resolved:0,inPocket:0,matched:0,errAbs:0};
 function DJP(){return DJEMBE_PATTERNS[DJ.patIdx];}
 function djSteps(P){const s=P.pat.split("");while(s.length<4*P.div)s.push(".");return s;}
@@ -4864,7 +4886,7 @@ function djDyn(P){const st=djSteps(P),out=new Array(st.length).fill(null),D=P.dy
 function djScoreKey(){return mk("djscore",DJ.patIdx+"m"+DJ.measures);}
 function djScores(){return load(djScoreKey(),[]);}
 function djSaveScore(){if(!DJ.scoring||DJ.resolved<6)return;const acc=Math.round(100*DJ.inPocket/DJ.resolved),ms=DJ.matched?Math.round(1000*DJ.errAbs/DJ.matched):0;const arr=djScores();arr.push({t:Date.now(),bpm:DJ.bpm,acc,ms,bars:DJ.measures});while(arr.length>40)arr.shift();save(djScoreKey(),arr);DJ.resolved=0;if(activeId())addBeans(acc>=80?3:1);}
-function djStop(){if(DJ.running)djSaveScore();DJ.running=false;if(DJ.schID){clearInterval(DJ.schID);DJ.schID=null;}if(DJ.raf){cancelAnimationFrame(DJ.raf);DJ.raf=null;}const b=$("#djStart");if(b)b.textContent="▶ Start";}
+function djStop(){if(DJ.running)djSaveScore();DJ.running=false;if(DJ.schID){clearInterval(DJ.schID);DJ.schID=null;}if(DJ.raf){cancelAnimationFrame(DJ.raf);DJ.raf=null;}const b=$("#djStart");if(b)b.textContent="▶ Start";const s2=$("#djStatus");if(s2)s2.textContent="";}
 function djSchedule(){const a=ac(),ahead=0.12,P=DJP(),div=P.div,cells=4*div,cellDur=(60/DJ.bpm)/div,st=djSteps(P);
   while(DJ.nextTime<a.currentTime+ahead){if(DJ.nextTime>=DJ.playEndTime)break;const cell=DJ.cur,onBeat=cell%div===0,inCount=DJ.barCount<DJ.countIn,ch=st[cell];
     if(DJ.metClick&&onBeat)click(DJ.nextTime,cell===0?"accent":"beat");
@@ -4915,12 +4937,15 @@ function djMatch(now){const P=DJP(),cellDur=(60/DJ.bpm)/P.div,win=Math.min(0.2,c
 function djScoreUI(){const accEl=$("#djAcc"),feel=$("#djFeel");if(!accEl)return;const acc=DJ.resolved?Math.round(100*DJ.inPocket/DJ.resolved):0;accEl.textContent=DJ.resolved?acc+"%":"—";const ms=DJ.matched?Math.round(1000*DJ.errAbs/DJ.matched):0;if(feel)feel.textContent=!DJ.resolved?"Play along — hit on each cell":"±"+ms+" ms · "+(acc>=80?"locked in 🔥":acc>=55?"close — settle into the click":"listen to the click and lock in");}
 function djFrame(){const now=ac().currentTime;while(DJ.visQ.length&&DJ.visQ[0].t<=now){const e=DJ.visQ.shift();djLight(e.cell);if(e.hit)djHit(e.hit,DJ.stick?DJ.stick[e.cell]:undefined);}
   const inCount=now<DJ.countEndTime;const ban=$("#djBanner");if(ban){ban.hidden=!inCount;if(inCount)ban.textContent="Count-in…";}
+  const stl=$("#djStatus");if(stl&&DJ.running)stl.textContent=inCount?"":((!DJ.playPattern&&CLICK_VOL<=0.001)?"🔇 Pattern is off and click volume is off — turn one on to hear it":"Bar "+Math.max(1,DJ.barCount-DJ.countIn+1)+(DJ.scoring?" of "+DJ.measures:DJ.loopBars?" of "+DJ.loopBars:" · looping")+" · "+DJP().name);
   if(DJ.scoring){djDetect(now,!inCount);if(!inCount)djMatch(now);djScoreUI();}
-  if(DJ.running&&DJ.scoring&&now>=DJ.endTime){djStop();if(DJ.refresh)DJ.refresh();return;}
+  if(DJ.running&&now>=DJ.endTime){djStop();if(DJ.refresh)DJ.refresh();return;}
   DJ.raf=requestAnimationFrame(djFrame);}
 function djStart(){unlockAudio();if(DJ.running)return;const a=ac();DJ.stick=djStick(DJP(),DJ.lead);DJ.dyn=djDyn(DJP());DJ.running=true;DJ.cur=0;DJ.nextTime=a.currentTime+0.15;DJ.visQ=[];DJ.litCell=-1;DJ.barCount=0;
   DJ.t0=DJ.nextTime;const barDur=(60/DJ.bpm)*4;DJ.countEndTime=DJ.t0+DJ.countIn*barDur;DJ.expected=[];DJ.detected=[];DJ.resolved=0;DJ.inPocket=0;DJ.matched=0;DJ.errAbs=0;DJ.floor=null;DJ.lastPeak=0;
-  if(DJ.scoring){DJ.playEndTime=DJ.countEndTime+DJ.measures*barDur;DJ.endTime=DJ.playEndTime+0.4;}else{DJ.playEndTime=1/0;DJ.endTime=1/0;}
+  if(DJ.scoring){DJ.playEndTime=DJ.countEndTime+DJ.measures*barDur;DJ.endTime=DJ.playEndTime+0.4;}
+  else if(DJ.loopBars){DJ.playEndTime=DJ.countEndTime+DJ.loopBars*barDur;DJ.endTime=DJ.playEndTime+0.3;}
+  else{DJ.playEndTime=1/0;DJ.endTime=1/0;}
   DJ.schID=setInterval(djSchedule,25);DJ.raf=requestAnimationFrame(djFrame);const b=$("#djStart");if(b)b.textContent="⏸ Stop";}
 function djRenderCells(){const box=$("#djCells");if(!box)return;const P=DJP(),div=P.div,st=djSteps(P);DJ.stick=djStick(P,DJ.lead);DJ.dyn=djDyn(P);box.innerHTML="";
   for(let beat=0;beat<4;beat++){const grp=document.createElement("div");grp.className="rbeat";
@@ -5202,6 +5227,7 @@ async function renderDjembe(){
             <div class="rbanner" id="djBanner" hidden></div>
             <div class="rcells" id="djCells"></div>
             <div class="djGo"><button class="btn" id="djStart">${DJ.running?"⏸ Stop":"▶ Start"}</button><span class="djBpmTag" id="djBpmTag">${DJ.bpm} BPM</span></div>
+            <div class="site-note" id="djStatus" style="margin:2px 0 4px;min-height:14px"></div>
             ${DJ.scoring?`<div class="rrow2"><span class="rlab">Mic</span><div class="rmeter"><div class="rmeter-f" id="djMeterF"></div></div></div>
             <div class="rscore"><div class="racc" id="djAcc">—</div><div class="rfeel" id="djFeel">Start, then play along on every hit</div></div>
             <div class="djlegend" id="djHist" style="margin-top:8px"></div>`:""}
@@ -5216,16 +5242,24 @@ async function renderDjembe(){
         </div>
         <div class="rchips tight djMore"><button class="rchip sm" id="djStrike">🎯 Strike Check</button><button class="rchip sm" id="djCR">🔁 Call &amp; Response</button><button class="rchip sm" id="djDex">👐 Hand independence</button><button class="rchip sm" id="djBeat">🧩 Beat Maker</button></div>
         <div class="rrow2"><span class="rlab">Lead hand</span>${toggleChip("djLeadR","✋ Right",DJ.lead==="R")}${toggleChip("djLeadL","🤚 Left",DJ.lead==="L")}</div>
-        <div class="rrow"><span class="rlab">Tempo</span><input type="range" id="djBpm" min="50" max="180" value="${DJ.bpm}" style="flex:1"><span class="rbpm" id="djBpmV">${DJ.bpm}</span><button class="rtap" id="djTap">Tap</button></div>
+        <div class="rrow"><span class="rlab">Tempo</span><button class="rtap" id="djBpmDn">−</button><span class="rbpm" id="djBpmV">${DJ.bpm}</span><button class="rtap" id="djBpmUp">+</button><input type="range" id="djBpm" min="50" max="180" value="${DJ.bpm}" style="flex:1"><button class="rtap" id="djTap">Tap</button></div>
         <div class="rrow2"><span class="rlab">Play</span>${toggleChip("tgPat","🪘 Pattern",DJ.playPattern)}${toggleChip("tgClick","🥁 Click",DJ.metClick)}${toggleChip("tgScore","🎤 Score me",DJ.scoring)}</div>
-        ${DJ.scoring?`<div class="rrow2"><span class="rlab">Round</span><span class="rchips tight" id="djMeas"></span></div>`:""}
+        <div class="rrow2"><span class="rlab">Count-in</span><span class="rchips tight" id="djCnt"></span></div>
+        ${DJ.scoring?`<div class="rrow2"><span class="rlab">Round</span><span class="rchips tight" id="djMeas"></span></div>`
+          :`<div class="rrow2"><span class="rlab">Loop</span><span class="rchips tight" id="djLoop"></span></div>`}
+        ${clickVolRow("djClickV",CLICK_VOL)}
       </div>`;
-    document.body.classList.add("djOn");save(mk("dj","st"),{bpm:DJ.bpm,patIdx:DJ.patIdx,lead:DJ.lead,metClick:DJ.metClick,playPattern:DJ.playPattern,measures:DJ.measures});
+    document.body.classList.add("djOn");save(mk("dj","st"),{bpm:DJ.bpm,patIdx:DJ.patIdx,lead:DJ.lead,metClick:DJ.metClick,playPattern:DJ.playPattern,measures:DJ.measures,countIn:DJ.countIn,loopBars:DJ.loopBars});
     setTimeout(()=>{if(innerWidth>innerHeight&&innerHeight<520){const L=view.querySelector(".djLay");if(L)L.scrollIntoView({block:"start"});}},60);
     $("#eBack").onclick=()=>{document.body.classList.remove("djOn");goHome();};
     const ch=$("#djChips");DJEMBE_PATTERNS.forEach((p,i)=>{const b=document.createElement("button");b.className="rchip"+(i===DJ.patIdx?" sel":"");b.textContent=p.name;b.onclick=()=>{DJ.patIdx=i;if(DJ.running){DJ.cur=0;DJ.nextTime=ac().currentTime+0.1;DJ.visQ=[];DJ.barCount=0;}draw();};ch.appendChild(b);});
     djRenderCells();
     const bp=$("#djBpm");const bpTag=()=>{const t=$("#djBpmTag");if(t)t.textContent=DJ.bpm+" BPM";save(mk("dj","st"),Object.assign(load(mk("dj","st"),{}),{bpm:DJ.bpm}));};bp.oninput=()=>{DJ.bpm=+bp.value;$("#djBpmV").textContent=DJ.bpm;bpTag();save(mk("dj","st"),Object.assign(load(mk("dj","st"),{}),{bpm:DJ.bpm}));};
+    const djNudge=(d)=>{DJ.bpm=Math.max(50,Math.min(180,DJ.bpm+d));bp.value=DJ.bpm;$("#djBpmV").textContent=DJ.bpm;bpTag();};
+    $("#djBpmDn").onclick=()=>djNudge(-2);$("#djBpmUp").onclick=()=>djNudge(2);
+    const cnt=$("#djCnt");if(cnt){[0,1,2].forEach(n=>{const b=document.createElement("button");b.className="rchip sm"+(DJ.countIn===n?" sel":"");b.textContent=n===0?"none":n+(n===1?" bar":" bars");b.onclick=()=>{DJ.countIn=n;draw();};cnt.appendChild(b);});}
+    const lp=$("#djLoop");if(lp){[[0,"🔁 Keep looping"],[2,"2 bars"],[4,"4 bars"],[8,"8 bars"]].forEach(([n,lbl])=>{const b=document.createElement("button");b.className="rchip sm"+(DJ.loopBars===n?" sel":"");b.textContent=lbl;b.onclick=()=>{DJ.loopBars=n;draw();};lp.appendChild(b);});}
+    bindClickVol("djClickV",function(v){setClickVol(v);});
     $("#djTap").onclick=()=>{const now=performance.now();if(DJ.taps.length&&now-DJ.taps[DJ.taps.length-1]>2000)DJ.taps=[];DJ.taps.push(now);if(DJ.taps.length>5)DJ.taps.shift();if(DJ.taps.length>=2){let s=0;for(let i=1;i<DJ.taps.length;i++)s+=DJ.taps[i]-DJ.taps[i-1];let b=Math.round(60000/(s/(DJ.taps.length-1)));b=Math.max(50,Math.min(180,b));DJ.bpm=b;bp.value=b;$("#djBpmV").textContent=b;bpTag();}};
     const lr=$("#djLeadR"),ll=$("#djLeadL");if(lr)lr.onclick=()=>{DJ.lead="R";draw();};if(ll)ll.onclick=()=>{DJ.lead="L";draw();};
     $("#tgPat").onclick=()=>{DJ.playPattern=!DJ.playPattern;draw();};
