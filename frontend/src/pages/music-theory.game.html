@@ -1239,7 +1239,7 @@ function homeDoors(){var H=document.getElementById("home"),box=document.getEleme
   box.querySelectorAll(".door").forEach(function(b){b.onclick=function(){var d=b.getAttribute("data-d"),nx=(cur===d)?null:d;try{if(nx)sessionStorage.setItem("mjk-door",nx);else sessionStorage.removeItem("mjk-door");}catch(e){}homeDoors();var t=document.getElementById("doors");if(nx&&t)t.scrollIntoView({block:"start"});};});
   try{dayPlanDraw("homeDay");}catch(e){}
   var pg=document.getElementById("progressGrid");if(pg){pg.innerHTML="";[["🧭","The Path","Your guided journey, step by step",function(){var b=document.querySelector("#pathHero button");if(b)b.click();}],["📈","Sessions & insights","What helped you most, from your saved sessions",function(){renderInsights();}],["🎯","My Frequencies","Your resonant tone and how it changes",function(){renderMyFreq();}]].forEach(function(c){if(c[1]!=="The Path"&&!isAdv()&&!sensEver())return;var b=document.createElement("button");b.className="card";b.innerHTML='<span class="ic">'+c[0]+'</span><h3>'+c[1]+'</h3><span class="blurb">'+c[2]+'</span>';b.onclick=c[3];pg.appendChild(b);});}
-  var bg=document.getElementById("bioGrid");if(bg&&!bg.querySelector("[data-quick]")){var first=bg.firstChild;[["🌬️","Breathwork","Follow the circle to calm down or wake up",renderBreathwork],["💓","Heart Sync","Your heartbeat as a deep drum, with music tuned to it",renderHeartSync],["🌀","Brainwave Journey","Binaural journeys for calm, focus, creativity and sleep",renderJourney],["🎧","Soundscapes","Real ocean, rain, forest and more",renderNature],["👁️","Perception Lab","Heart coherence, a soft field and the edge of sleep",renderPerception],["🕯️","Meditation Session","A quiet timer with a soft ground tone and bells",renderMedSession],["🌀","Brainwave Binaural","Pick an intention and ride the matching brainwave",renderBrainwave],["🥁","Rhythm Mind","Hold the pulse inside you through growing silence",renderMindPulse],["🎯","My Frequencies","Find the tone that resonates most in your body",renderMyFreq],["🎙","Record a Voice Journey","Read a script line by line and record it in your voice",renderVoiceJourney],["📈","Session Reports","Every measured session: heart, brain and sync",renderSessions]].forEach(function(c){var b=document.createElement("button");b.className="card";b.setAttribute("data-quick","1");b.innerHTML='<span class="ic">'+c[0]+'</span><h3>'+c[1]+'</h3><span class="blurb">'+c[2]+'</span>';b.onclick=function(){c[3]();};bg.insertBefore(b,first);});
+  var bg=document.getElementById("bioGrid");if(bg&&!bg.querySelector("[data-quick]")){var first=bg.firstChild;[["🌬️","Breathwork","Follow the circle to calm down or wake up",renderBreathwork],["💓","Heart Sync","Your heartbeat as a deep drum, with music tuned to it",renderHeartSync],["🌀","Brainwave Journey","Binaural journeys for calm, focus, creativity and sleep",renderJourney],["🎧","Soundscapes","Real ocean, rain, forest and more",renderNature],["👁️","Perception Lab","Heart coherence, a soft field and the edge of sleep",renderPerception],["🕯️","Meditation Session","A quiet timer with a soft ground tone and bells",renderMedSession],["🌀","Brainwave Binaural","Pick an intention and ride the matching brainwave",renderBrainwave],["🥁","Rhythm Mind","Hold the pulse inside you through growing silence",renderMindPulse],["🎯","My Frequencies","Find the tone that resonates most in your body",renderMyFreq],["🎙","Record a Voice Journey","Read a script line by line and record it in your voice",renderVoiceJourney],["🧠","Brain Charts","Big-screen EEG: spectrum mirror, flow and hemi-sync",renderBrainCharts],["📈","Session Reports","Every measured session: heart, brain and sync",renderSessions]].forEach(function(c){var b=document.createElement("button");b.className="card";b.setAttribute("data-quick","1");b.innerHTML='<span class="ic">'+c[0]+'</span><h3>'+c[1]+'</h3><span class="blurb">'+c[2]+'</span>';b.onclick=function(){c[3]();};bg.insertBefore(b,first);});
     bg.querySelectorAll(".card").forEach(function(c){if(!c.hasAttribute("data-quick")&&/^\s*🧘/.test(c.textContent)){var h=c.querySelector("h3");if(h)h.textContent="All meditation";}});}
   /* one meditation list: the quick cards cover every module, so the old "All meditation" hub and Schumann are hidden */
   if(bg){bg.querySelectorAll(".card").forEach(function(c){if(!c.hasAttribute("data-quick"))c.style.display="none";});}
@@ -9097,9 +9097,10 @@ const BIO={log:[],t0:Date.now(),timer:null};
 function bioBT(){return !!(navigator.bluetooth&&navigator.bluetooth.requestDevice);}
 function bioMsg(t){const m=document.getElementById("bioMsg");if(m)m.innerHTML=t;}
 function bioHelp(){bioMsg("<b>This browser can’t use Bluetooth.</b> On iPhone, Safari blocks it — install the free <b>Bluefy – Web BLE Browser</b> app and open MMU in it. On Android or a computer, use Chrome.");}
-function bioHR(){if(HR.connected&&HR.bpm)return HR.bpm;if(M.connected&&M.hr)return M.hr;return null;}
-function bioHRV(){if(HR.connected&&HR.rr&&HR.rr.length>=6)return hrv();if(M.connected&&M.rmssd)return M.rmssd;return null;}
-function bioCoherence(){let rr=rrClean(HR.connected&&HR.rr&&HR.rr.length?HR.rr.slice():(M.connected&&M.ibis?M.ibis.map(x=>x.ibi):[]));if(rr.length<40)return null;
+function hrFresh(){return HR.connected&&performance.now()-(HR.updated||0)<8000;}
+function bioHR(){if(hrFresh()&&HR.bpm)return HR.bpm;if(M.connected&&M.hr)return M.hr;return null;}
+function bioHRV(){if(hrFresh()&&HR.rr&&HR.rr.length>=6)return hrv();if(M.connected&&M.rmssd)return M.rmssd;return null;}
+function bioCoherence(){let rr=rrClean(hrFresh()&&HR.rr&&HR.rr.length?HR.rr.slice():(M.connected&&M.ibis?M.ibis.map(x=>x.ibi):[]));if(rr.length<40)return null;
   let s=0,st=rr.length;while(st>0&&s<64000){st--;s+=rr[st];}rr=rr.slice(st);let t=0;const pts=rr.map(v=>{t+=v/1000;return [t,v];}),T=pts[pts.length-1][0];if(T<45)return null;
   const fs=2,n=Math.floor(T*fs),y=new Array(n);let k=0;for(let j=0;j<n;j++){const tt=j/fs;while(k<pts.length-2&&pts[k+1][0]<tt)k++;const a=pts[k],b=pts[k+1]||a,u=b[0]>a[0]?Math.min(1,Math.max(0,(tt-a[0])/(b[0]-a[0]))):0;y[j]=a[1]+(b[1]-a[1])*u;}
   const mean=y.reduce((p,q)=>p+q,0)/n,pw=[];for(let fi=1;fi/T<=0.4;fi++){const f=fi/T;let re=0,im=0;for(let j=0;j<n;j++){const w=0.5-0.5*Math.cos(2*Math.PI*j/(n-1)),v=(y[j]-mean)*w;re+=v*Math.cos(2*Math.PI*f*j/fs);im-=v*Math.sin(2*Math.PI*f*j/fs);}pw.push([f,re*re+im*im]);}
@@ -10175,6 +10176,124 @@ function srSyncOne(e){var v0=e.v||0;return idbGet("pl-"+e.at).then(function(D){i
 /* sessions recorded before the index existed (Perception Lab, Nov 9) join it once */
 function srBoot(){try{var have={};srIdx().forEach(function(e){have[e.at]=1;});plStore().forEach(function(s){if(have[s.at])return;idbGet("pl-"+s.at).then(function(D){if(D&&D.tl&&D.tl.t&&D.tl.t.length)srIdxPut({at:s.at,kind:"perception",label:"Perception Lab · "+srWhen(s.at),mins:s.mins,sens:D.sens,eegBlocks:D.eegBlocks||0,v:1});});});}catch(e){}setTimeout(srSync,4000);}
 setTimeout(srBoot,3000);setInterval(srSync,120000);
+/* ===== BRAIN CHARTS — full-screen EEG views: mirror spectrum, flow (waterfall), 3D ridge; live or recorded ===== */
+const BC={on:false,view:"mirror",src:"live",hist:[],t:null,win:null,norm:1,fl:null,rec:null,ri:0,playing:false,load:""};
+const BC_BANDS=[[1,4,"#ff8f8c","Delta"],[4,8,"#f4b740","Theta"],[8,13,"#5fe0a8","Alpha"],[13,30,"#5fc8e0","Beta"],[30,45,"#c9b3ff","Gamma"]];
+function bcCol(f){for(var i=0;i<BC_BANDS.length;i++)if(f<BC_BANDS[i][1])return BC_BANDS[i][2];return "#c9b3ff";}
+function bcWin(){if(!BC.win){var w=new Float64Array(512);for(var i=0;i<512;i++)w[i]=0.5-0.5*Math.cos(2*Math.PI*i/511);BC.win=w;}return BC.win;}
+/* Welch PSD (0.5 Hz bins) over an array of sample buffers; each buffer may end at a different length */
+function bcPSD(bufs){var N=512,H=256,K=256,win=bcWin(),acc=new Float64Array(K),used=0;
+  bufs.forEach(function(A){if(!A||A.length<N)return;var len=Math.min(A.length,1024),s0=A.length-len,segs=0,ps=new Float64Array(K),i,k;
+    for(var s=A.length-N;s>=s0;s-=H){var m=0;for(i=0;i<N;i++)m+=A[s+i];m/=N;var re=new Array(N),im=new Array(N).fill(0);for(i=0;i<N;i++)re[i]=(A[s+i]-m)*win[i];fft(re,im);
+      for(k=0;k<K;k++)ps[k]+=re[k]*re[k]+im[k]*im[k];segs++;}
+    if(!segs)return;for(k=0;k<K;k++)acc[k]+=ps[k]/segs;used++;});
+  if(!used)return null;var out=new Float32Array(K);for(var k2=0;k2<K;k2++)out[k2]=Math.log10(1+acc[k2]/used);return out;}
+/* magnitude-squared coherence between two buffers' tails (3+ segments) */
+function bcCoh(A,B){var N=512,H=256,K=256,win=bcWin();if(!A||!B)return null;var len=Math.min(A.length,B.length,2048);if(len<N+H)return null;
+  var a=A.slice(-len),b=B.slice(-len),sxx=new Float64Array(K),syy=new Float64Array(K),sr=new Float64Array(K),si=new Float64Array(K),segs=0,i,k;
+  for(var s=len-N;s>=0;s-=H){var ma=0,mb=0;for(i=0;i<N;i++){ma+=a[s+i];mb+=b[s+i];}ma/=N;mb/=N;
+    var ar=new Array(N),ai=new Array(N).fill(0),br=new Array(N),bi=new Array(N).fill(0);
+    for(i=0;i<N;i++){ar[i]=(a[s+i]-ma)*win[i];br[i]=(b[s+i]-mb)*win[i];}fft(ar,ai);fft(br,bi);
+    for(k=0;k<K;k++){sxx[k]+=ar[k]*ar[k]+ai[k]*ai[k];syy[k]+=br[k]*br[k]+bi[k]*bi[k];sr[k]+=ar[k]*br[k]+ai[k]*bi[k];si[k]+=ai[k]*br[k]-ar[k]*bi[k];}segs++;}
+  if(segs<3)return null;var C=new Float32Array(K);for(k=0;k<K;k++){var d=sxx[k]*syy[k];C[k]=d>0?(sr[k]*sr[k]+si[k]*si[k])/d:0;}return C;}
+function bcPeaksOf(C){if(!C)return [];var out=[];try{plHemiPeaks(C).forEach(function(p){out.push([p.f,p.c]);});}catch(e){}return out;}
+function bcFrameLive(){if(!M.connected)return null;var q=M.qual||[1,1,1,1];
+  var L=bcPSD([q[0]?M.eeg[0]:null,q[1]?M.eeg[1]:null]),R=bcPSD([q[2]?M.eeg[2]:null,q[3]?M.eeg[3]:null]);
+  if(!L&&!R)return null;var C=null;try{C=plHemiSpec();}catch(e){}
+  return {t:Date.now(),L:L,R:R,pk:bcPeaksOf(C)};}
+function bcPush(f){if(!f)return;BC.hist.push(f);if(BC.hist.length>720)BC.hist.splice(0,BC.hist.length-720);
+  var m=0,lo=1e9;for(var k=2;k<=90;k++){if(f.L){if(f.L[k]>m)m=f.L[k];if(f.L[k]<lo)lo=f.L[k];}if(f.R){if(f.R[k]>m)m=f.R[k];if(f.R[k]<lo)lo=f.R[k];}}
+  if(lo>1e8)return;BC.norm=(BC.norm||m)*0.9+m*0.1;BC.lo=(BC.lo==null?lo:BC.lo*0.9+lo*0.1);}
+function bcV(val){var lo=BC.lo||0,hi=BC.norm||1,v=(val-lo)/Math.max(0.15,hi-lo);return v<=0?0:v>=1?1:Math.pow(v,1.3);}
+function bcY(f,y,h){return y+h-(f-1)/(45-1)*h;}
+/* view 1: vertical mirror — left hemisphere grows left, right grows right, alpha sync glows across */
+function bcMirror(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);if(!f)return bcNoData(g,x,y,w,h);
+  var cx=x+w/2,half=w/2-44,nm=BC.norm||1;
+  [5,10,20,30,40].forEach(function(fz){var yy=bcY(fz,y,h);g.strokeStyle="rgba(255,255,255,.07)";g.beginPath();g.moveTo(x+36,yy);g.lineTo(x+w-8,yy);g.stroke();
+    g.fillStyle="#9BA1AC";g.font="700 10px system-ui";g.textAlign="left";g.fillText(fz+" Hz",x+4,yy+3);});
+  BC_BANDS.forEach(function(b){var y1=bcY(b[1],y,h),y0=bcY(b[0],y,h);g.fillStyle=b[2]+"14";g.fillRect(x+36,y1,w-44,y0-y1);});
+  for(var k=2;k<=90;k++){var fz=k/2,yy=bcY(fz,y,h),hh=Math.max(1.4,h/90),col=bcCol(fz);
+    if(f.L){var lv=bcV(f.L[k]);g.fillStyle=col;g.globalAlpha=0.25+0.65*lv;g.fillRect(cx-lv*half,yy-hh/2,lv*half,hh);}
+    if(f.R){var rv=bcV(f.R[k]);g.fillStyle=col;g.globalAlpha=0.25+0.65*rv;g.fillRect(cx,yy-hh/2,rv*half,hh);}}
+  g.globalAlpha=1;g.strokeStyle="rgba(255,255,255,.35)";g.beginPath();g.moveTo(cx,y+4);g.lineTo(cx,y+h-4);g.stroke();
+  g.fillStyle="#9BA1AC";g.font="800 11px system-ui";g.textAlign="center";g.fillText("LEFT",x+w*0.28,y+14);g.fillText("RIGHT",x+w*0.72,y+14);
+  (f.pk||[]).forEach(function(p){var fz=p[0],c=p[1];if(c<0.6)return;var yy=bcY(fz,y,h),al=fz>=8&&fz<13;
+    g.strokeStyle=al?"#f4b740":"rgba(255,255,255,.55)";g.lineWidth=al?2.5:1.2;g.shadowColor=al?"#f4b740":"transparent";g.shadowBlur=al?10:0;
+    g.beginPath();g.moveTo(x+36,yy);g.lineTo(x+w-8,yy);g.stroke();g.shadowBlur=0;g.lineWidth=1;
+    g.fillStyle=al?"#f4b740":"#ECEDEF";g.font="800 11px system-ui";g.textAlign="right";g.fillText((al?"α sync ":"sync ")+fz.toFixed(1)+" Hz · "+Math.round(c*100)+"%",x+w-10,yy-5);});}
+/* view 2: flow — time runs left→right, color is power, gold dots are sync peaks */
+function bcFlowCol(fg,f,x0,cw,hgt){for(var k=2;k<=90;k++){var fz=k/2,v=0,n=0;if(f.L){v+=f.L[k];n++;}if(f.R){v+=f.R[k];n++;}if(!n)continue;v=bcV(v/n);
+    var yy=bcY(fz,0,hgt),hh=Math.max(1.5,hgt/90);
+    var r,gg,b;if(v<0.45){var t=v/0.45;r=14+t*13;gg=15+t*155;b=19+t*131;}else{var t2=(v-0.45)/0.55;r=27+t2*217;gg=170+t2*13;b=150-t2*86;}
+    fg.fillStyle="rgb("+Math.round(r)+","+Math.round(gg)+","+Math.round(b)+")";fg.globalAlpha=0.25+0.75*v;fg.fillRect(x0,yy-hh/2,cw,hh);}
+  fg.globalAlpha=1;(f.pk||[]).forEach(function(p){if(p[1]<0.6)return;var yy=bcY(p[0],0,hgt);fg.fillStyle=p[0]>=8&&p[0]<13?"#f4b740":"#ECEDEF";fg.beginPath();fg.arc(x0+cw/2,yy,2.4,0,7);fg.fill();});}
+function bcFlow(g,x,y,w,h,f){var cw=4;
+  if(!BC.fl||BC.fl.width!==Math.round(w)||BC.fl.height!==Math.round(h)){BC.fl=document.createElement("canvas");BC.fl.width=Math.round(w);BC.fl.height=Math.round(h);var fg0=BC.fl.getContext("2d");fg0.fillStyle="#0E0F13";fg0.fillRect(0,0,w,h);
+    var srcH=(BC.src==="rec"&&BC.rec)?BC.rec.frames.slice(0,BC.ri+1):BC.hist;
+    var pre=srcH.slice(-Math.floor(w/cw));pre.forEach(function(fr,j){bcFlowCol(fg0,fr,BC.fl.width-(pre.length-j)*cw,cw,BC.fl.height);});BC.lastFlow=pre[pre.length-1]||null;}
+  var fl=BC.fl,fg=fl.getContext("2d");
+  if(f&&f!==BC.lastFlow){BC.lastFlow=f;fg.drawImage(fl,-cw,0);fg.fillStyle="#0E0F13";fg.fillRect(fl.width-cw,0,cw,fl.height);bcFlowCol(fg,f,fl.width-cw,cw,fl.height);}
+  g.drawImage(fl,x,y);
+  [5,10,20,30,40].forEach(function(fz){var yy=bcY(fz,y,h);g.fillStyle="rgba(255,255,255,.5)";g.font="700 10px system-ui";g.textAlign="right";g.fillText(fz+" Hz",x+w-6,yy+3);g.strokeStyle="rgba(255,255,255,.06)";g.beginPath();g.moveTo(x,yy);g.lineTo(x+w,yy);g.stroke();});
+  g.fillStyle="#9BA1AC";g.font="800 10px system-ui";g.textAlign="left";g.fillText("now →",x+w-52,y+h-6);g.fillText("gold dots = hemi-sync · gold band = alpha",x+6,y+h-6);}
+/* view 3: ridge — the last ~40 spectra as a mountain range receding into the distance */
+function bcRidge(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);var H2=BC.hist.slice(-40);if(!H2.length)return bcNoData(g,x,y,w,h);
+  var rows=H2.length;
+  for(var i=0;i<rows;i++){var fr=H2[i],depth=(i+1)/rows,yb=y+h*0.16+depth*(h*0.76),x0=x+20+(1-depth)*w*0.09,ww=(w-40)-(1-depth)*w*0.18,amp=h*0.42*(0.3+0.7*depth);
+    if(!fr.L&&!fr.R)continue;
+    var pts=[];for(var k=2;k<=90;k++){var v=0,n=0;if(fr.L){v+=fr.L[k];n++;}if(fr.R){v+=fr.R[k];n++;}v=n?bcV(v/n):0;pts.push([x0+(k-2)/88*ww,yb-v*amp]);}
+    g.beginPath();g.moveTo(x0,yb);pts.forEach(function(p){g.lineTo(p[0],p[1]);});g.lineTo(x0+ww,yb);g.closePath();
+    g.fillStyle="rgba(14,15,19,0.96)";g.fill();
+    g.beginPath();pts.forEach(function(p,j){j?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]);});
+    g.strokeStyle=i===rows-1?"#ECEDEF":"rgba(59,217,186,"+(0.1+0.55*depth)+")";g.lineWidth=i===rows-1?2:1;g.stroke();
+    if(i===rows-1&&fr.pk)fr.pk.forEach(function(p){if(p[1]<0.6)return;var px=x0+(p[0]*2-2)/88*ww;g.fillStyle=p[0]>=8&&p[0]<13?"#f4b740":"#ECEDEF";g.beginPath();g.arc(px,yb+8,3,0,7);g.fill();});}
+  BC_BANDS.forEach(function(b){var px=x+20+((b[0]+b[1])/2*2-2)/88*(w-40);g.fillStyle=b[2];g.font="800 11px system-ui";g.textAlign="center";g.fillText(b[3],px,y+h-6);});}
+function bcNoData(g,x,y,w,h){g.fillStyle="#9BA1AC";g.font="700 13px system-ui";g.textAlign="center";g.fillText(BC.src==="live"?(M.connected?"Listening… signal settling.":"Connect the Muse (any meditation → Sensors), or switch to 📼 Recorded."):(BC.load||"Pick a recorded session below."),x+w/2,y+h/2);}
+function bcDraw(){var cv=document.getElementById("bcCv");if(!cv)return;var dpr=Math.min(2,window.devicePixelRatio||1),W=cv.clientWidth,H=cv.clientHeight;
+  if(cv.width!==Math.round(W*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
+  var g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);
+  var f=BC.src==="live"?BC.hist[BC.hist.length-1]:(BC.rec&&BC.rec.frames[BC.ri]);
+  if(BC.view==="pair"){bcMirror(g,0,0,W,H*0.55-2,f);bcFlow(g,0,H*0.55+2,W,H*0.45-2,f);}
+  else if(BC.view==="mirror")bcMirror(g,0,0,W,H,f);
+  else if(BC.view==="flow")bcFlow(g,0,0,W,H,f);
+  else bcRidge(g,0,0,W,H,f);}
+function bcTick(){if(!BC.on)return;
+  if(BC.src==="live"){bcPush(bcFrameLive());}
+  else if(BC.rec&&BC.playing){BC.ri=Math.min(BC.rec.frames.length-1,BC.ri+1);var sl=document.getElementById("bcSlide");if(sl)sl.value=BC.ri;if(BC.ri>=BC.rec.frames.length-1)BC.playing=false;var hb=document.getElementById("bcPlayB");if(hb)hb.textContent=BC.playing?"⏸":"▶";
+    if(BC.rec.frames[BC.ri])bcPush(BC.rec.frames[BC.ri]);}
+  bcDraw();}
+/* load a recorded session's raw EEG into frames (one per second, strided to stay light) */
+function bcLoadRec(at,label){BC.rec=null;BC.ri=0;BC.playing=false;BC.load="Loading…";BC.hist=[];BC.fl=null;
+  idbGet("pl-"+at).then(function(D){if(!D||!D.eegBlocks){BC.load="That session has no raw EEG saved.";return;}
+    var nb=D.eegBlocks,frames=[],ch=[[],[],[],[]],fs=256,k=0;
+    var step=function(){if(k>=nb){finish();return;}BC.load="Loading minute "+(k+1)+" of "+nb+"…";var st=document.getElementById("bcLoad");if(st)st.textContent=BC.load;
+      idbGet("pl-"+at+"-e"+k).then(function(B){if(B&&B.ch)for(var c=0;c<4;c++){var a=B.ch[c];for(var i=0;i<a.length;i++)ch[c].push(a[i]*0.1);}k++;setTimeout(step,10);});};
+    var finish=function(){var total=Math.min.apply(null,ch.map(function(a){return a.length;}));if(!isFinite(total)||total<1024){BC.load="Not enough EEG in that session.";return;}
+      var stride=Math.max(fs,Math.floor(total/900));
+      for(var off=1024;off<=total;off+=stride){var sl=function(c){return ch[c].slice(Math.max(0,off-2048),off);};
+        var L=bcPSD([sl(0),sl(1)]),R=bcPSD([sl(2),sl(3)]),C=bcCoh(sl(1),sl(2));
+        frames.push({t:off/fs,L:L,R:R,pk:bcPeaksOf(C)});}
+      BC.rec={at:at,label:label,frames:frames,dur:total/fs};BC.load="";BC.ri=0;
+      var sl2=document.getElementById("bcSlide");if(sl2){sl2.max=frames.length-1;sl2.value=0;}var st2=document.getElementById("bcLoad");if(st2)st2.textContent=label+" · "+Math.round(total/fs/60)+" min loaded";
+      bcDraw();};
+    step();});}
+function renderBrainCharts(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  BC.on=true;BC.hist=[];BC.fl=null;BC.lastFlow=null;teardown=function(){BC.on=false;if(BC.t)clearInterval(BC.t);BC.t=null;};
+  var recs=srIdx().filter(function(e){return (e.eegBlocks||0)>0;}).sort(function(a,b){return b.at-a.at;}).slice(0,12);
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack" aria-label="Back">←</button><span class="ttitle">🧠 Brain Charts</span><span id="bcMuse" style="margin-left:auto;font:700 .75rem system-ui;color:'+(M.connected?"#5fe0a8":"#9BA1AC")+'">'+(M.connected?"Muse live":"Muse not connected")+'</span></div>'+
+  '<div class="rchips tight" data-nocz style="justify-content:center;margin:4px 0">'+[["mirror","🪞 Mirror"],["flow","🌊 Flow"],["ridge","⛰ Ridge"],["pair","◫ Pair"]].map(function(v){return '<button class="rchip sm'+(BC.view===v[0]?" sel":"")+'" data-bcv="'+v[0]+'">'+v[1]+'</button>';}).join("")+
+  '<button class="rchip sm'+(BC.src==="live"?" sel":"")+'" data-bcs="live">● Live</button><button class="rchip sm'+(BC.src==="rec"?" sel":"")+'" data-bcs="rec">📼 Recorded</button></div>'+
+  '<canvas id="bcCv" style="display:block;width:100%;height:'+Math.max(320,window.innerHeight-(BC.src==="rec"?250:170))+'px;border-radius:14px;background:#0E0F13"></canvas>'+
+  '<div id="bcRec" style="'+(BC.src==="rec"?"":"display:none")+'">'+
+    '<div style="display:flex;gap:8px;align-items:center;margin:8px 0"><button class="rchip sm" id="bcPlayB">▶</button><input type="range" id="bcSlide" min="0" max="'+(BC.rec?BC.rec.frames.length-1:0)+'" value="'+BC.ri+'" style="flex:1;accent-color:var(--gold)"><span id="bcLoad" class="site-note" style="margin:0;font-size:.74rem">'+(BC.load||(BC.rec?BC.rec.label:""))+'</span></div>'+
+    '<div class="rchips tight" data-nocz>'+(recs.length?recs.map(function(e){return '<button class="rchip sm" data-bcr="'+e.at+'">'+esc((e.label||"Session").slice(0,26))+'</button>';}).join(""):'<span class="site-note" style="margin:0">No sessions with raw EEG yet — wear the Muse during any meditation.</span>')+'</div></div>';
+  $("#eBack").onclick=goHome;
+  view.querySelectorAll("[data-bcv]").forEach(function(b){b.onclick=function(){BC.view=b.dataset.bcv;BC.fl=null;BC.lastFlow=null;renderBrainCharts();};});
+  view.querySelectorAll("[data-bcs]").forEach(function(b){b.onclick=function(){BC.src=b.dataset.bcs;BC.fl=null;BC.lastFlow=null;renderBrainCharts();};});
+  view.querySelectorAll("[data-bcr]").forEach(function(b){b.onclick=function(){var e=srIdx().find(function(x){return String(x.at)===b.dataset.bcr;});bcLoadRec(+b.dataset.bcr,(e&&e.label)||"Session");};});
+  var pb=document.getElementById("bcPlayB");if(pb)pb.onclick=function(){BC.playing=!BC.playing;pb.textContent=BC.playing?"⏸":"▶";};
+  var sl=document.getElementById("bcSlide");if(sl)sl.oninput=function(){BC.ri=+sl.value;BC.playing=false;if(pb)pb.textContent="▶";BC.fl=null;if(BC.rec&&BC.rec.frames[BC.ri])bcPush(BC.rec.frames[BC.ri]);bcDraw();};
+  if(BC.t)clearInterval(BC.t);BC.t=setInterval(bcTick,500);bcDraw();}
 /* every other meditation: record automatically while its sound is running and a heart sensor or Muse is connected */
 var SRW={lastOn:0};
 function srStageNow(){var ids=["#jPhase","#hsStage","#rmPhase"];for(var i=0;i<ids.length;i++){var el=view.querySelector(ids[i]);if(el&&el.textContent.trim())return el.textContent.trim().slice(0,40);}return "Session";}
@@ -11859,12 +11978,18 @@ function musePPG(){
   for(let i=1;i<win.length-1;i++){const s=win[i];
     if(s.v>thr&&s.v>win[i-1].v&&s.v>=win[i+1].v&&s.t-M.lastPeakT>0.33){
       const ibi=(s.t-M.lastPeakT)*1000;M.lastPeakT=s.t;
-      if(ibi>=300&&ibi<=2000){M.ibis.push({t:s.t,ibi});M.hr=Math.round(60000/ibi);
+      if(ibi>=300&&ibi<=2000){M.ibis.push({t:s.t,ibi});
         const dot=$("#bioPulse");if(dot){dot.classList.add("beat");setTimeout(()=>dot.classList.remove("beat"),120);}}
     }}
   const cut=(M.ibis.length?M.ibis[M.ibis.length-1].t:0)-60;
   M.ibis=M.ibis.filter(x=>x.t>=cut);
-  if(M.ibis.length>=4){let ss=0,n=0;for(let i=1;i<M.ibis.length;i++){const d=M.ibis[i].ibi-M.ibis[i-1].ibi;ss+=d*d;n++;}M.rmssd=Math.round(Math.sqrt(ss/n));}
+  /* missed or doubled pulses would wreck RMSSD, so clean the intervals the same way as the chest sensor's;
+     and when the forehead pulse hasn't been seen for 10 s, stop reporting stale numbers */
+  const nowT=M.ppgN/64,lastT=M.ibis.length?M.ibis[M.ibis.length-1].t:0;
+  if(nowT-lastT>10){M.hr=0;M.rmssd=0;}
+  else{const arr=rrClean(M.ibis.map(x=>x.ibi));
+    if(arr.length>=4){let ss=0,n=0;for(let i=1;i<arr.length;i++){const d=arr[i]-arr[i-1];ss+=d*d;n++;}M.rmssd=Math.round(Math.sqrt(ss/n));}
+    const rec=arr.slice(-8).slice().sort((a,b)=>a-b);if(rec.length)M.hr=Math.round(60000/rec[rec.length>>1]);}
   if(buf.length>1200)buf.splice(0,buf.length-1200);
 }
 async function museWrite(s){try{await M.ctrl.writeValue(museCmd(s));}catch(e){try{await M.ctrl.writeValueWithoutResponse(museCmd(s));}catch(e2){}}}
