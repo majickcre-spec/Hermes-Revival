@@ -2817,7 +2817,7 @@ function swFromOld(){try{const o=load("mjk-llsong",null);if(!o||!Array.isArray(o
 function swFix(D){if(D.v===2)return D;(D.songs||[]).forEach(s=>{s.topic=s.topic||"";s.mel=s.mel||{};s.sung=s.sung||{};if(s.setup==null)s.setup=true;(s.sections||[]).forEach(sec=>{sec.same=sec.same||null;sec.lines=(sec.lines||[]).map(l=>swLine(l&&l.t));});});D.bars=1;D.v=2;delete D.alt;return D;}
 function swData(){if(!SW.data)SW.data=load("mjk-sw",null);let D=SW.data;if(D&&D.click==null)D.click=true;if(!D||!D.songs||!D.songs.length){const old=swFromOld();D=SW.data={v:2,songs:[old||swNewSong("")],cur:null,voice:"piano",bars:1,syl:true,click:true};D.cur=D.songs[0].id;swSave();}else swFix(D);return D;}
 function swSong(){const D=swData();let s=D.songs.find(x=>x.id===D.cur);if(!s){s=D.songs[0];D.cur=s.id;}return s;}
-function swSave(){try{save("mjk-sw",SW.data);}catch(e){}}
+function swSave(){try{var D=SW.data;if(D&&D.songs){var s=D.songs.find(x=>x.id===D.cur);if(s)s.at=Date.now();}save("mjk-sw",SW.data);}catch(e){}}
 function swEsc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");}
 function swTarget(song,sec){if(!sec.same)return null;const t=song.sections.find(x=>x.id===sec.same&&!x.same);if(!t){sec.same=null;return null;}return t;}
 function swLinesOf(song,sec){const t=swTarget(song,sec);return t?t.lines:sec.lines;}
@@ -2855,7 +2855,7 @@ function swCand(song,tag,i){const hs=swCands(song,tag);if(hs&&i===0){const m=son
 function swPlayNotes(ns,off){const s16=swS16(),v=swData().voice||"piano";(ns||[]).forEach(n=>melNote(n.midi,off+n.step*s16,Math.max(0.12,n.len*s16*0.92),v));}
 function swStopPlay(){if(SW.stopT){clearTimeout(SW.stopT);SW.stopT=null;}SW.tm.forEach(clearTimeout);SW.tm=[];view.querySelectorAll(".sw-line.pl").forEach(x=>x.classList.remove("pl"));const b=$("#swPlay");if(b)b.textContent="▶ Play song";}
 function swRecStop(){if(SW.rec){SW.rec.stopped=true;try{SW.rec.sr&&SW.rec.sr.stop();}catch(e){}if(SW.rec.raf)cancelAnimationFrame(SW.rec.raf);SW.rec=null;try{stopMic();}catch(e){}}}
-function renderIdeaLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);SW.ideas=null;SW.mp=null;teardown=()=>{swStopPlay();swRecStop();};swDraw();}
+function renderIdeaLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);SW.ideas=null;SW.mp=null;teardown=()=>{swStopPlay();swRecStop();};SW.lib=swData().songs.some(s=>s.setup);swDraw();}
 const SW_CSS=`<style>
  .sw-title{width:100%;box-sizing:border-box;background:transparent;border:0;border-bottom:1px solid rgba(255,255,255,.15);color:inherit;font:900 1.3rem system-ui;padding:6px 2px 8px;margin-bottom:4px}
  .sw-sub{font:700 .78rem system-ui;color:var(--muted,#a79fc4);margin:0 2px 6px}
@@ -2884,6 +2884,27 @@ const SW_CSS=`<style>
  .sw-tempo{display:flex;align-items:center;justify-content:center;gap:8px;margin:8px 0 2px;font:900 .95rem system-ui}.sw-tempo button{background:rgba(255,255,255,.07);color:inherit;border:1px solid rgba(255,255,255,.12);border-radius:9px;padding:6px 12px;font:800 .85rem system-ui}.sw-tempo button.sel{border-color:#7ff0d6;color:#7ff0d6}.sw-tempo span{min-width:5.5em;text-align:center}
  .sw-in{width:100%;box-sizing:border-box;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:10px;color:inherit;padding:10px;font:600 1rem system-ui;margin:4px 0 10px}
 </style>`;
+/* ---- song library: every song lives here; tap to open, songs save themselves ---- */
+function swWhen(t){if(!t)return"";var d=new Date(t),n=new Date();if(n.toDateString()===d.toDateString())return"Today";if(new Date(n-864e5).toDateString()===d.toDateString())return"Yesterday";return d.toLocaleDateString(undefined,{month:"short",day:"numeric"});}
+function swLibDraw(){const D=swData();const songs=D.songs.filter(s=>s.setup||s.title||s.sections.length).slice().sort((a,b)=>(b.at||0)-(a.at||0));
+  view.innerHTML=SW_CSS+`<div class="play-top"><button class="back" id="eBack" aria-label="Back">←</button><span class="ttitle">✍️ Lyric Lab</span></div>
+  <div class="panel">
+   <div style="font:900 1.15rem system-ui">My songs</div>
+   <div class="sw-sub">Songs save themselves as you write.</div>
+   <div class="actions" style="margin:10px 0 4px"><button class="btn" id="swLibNew">＋ New song</button></div>
+   <div id="swLibList">${songs.map(s=>{const n=s.sections.length,mel=Object.keys(s.mel||{}).length;
+     return '<div class="sw-sec" data-open="'+s.id+'" role="button" tabindex="0" style="cursor:pointer;display:flex;align-items:center;gap:10px">'
+     +'<div style="flex:1;min-width:0"><div style="font:900 1.02rem system-ui;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+swEsc(s.title||"Untitled song")+'</div>'
+     +'<div class="sw-sub" style="margin:2px 0 0">'+(n?n+" section"+(n>1?"s":""):"Not started")+' · '+(s.bpm||90)+' BPM'+(mel?' · 🎵 melody':'')+(s.at?' · '+swWhen(s.at):'')+'</div></div>'
+     +(s.id===D.cur?'<span class="sw-name" style="flex:none;font-size:.78rem">▶ Continue</span>':'')
+     +'<button data-del="'+s.id+'" aria-label="Delete song" style="flex:none;background:rgba(255,255,255,.07);color:inherit;border:1px solid rgba(255,255,255,.12);border-radius:9px;padding:8px 11px;font:800 .8rem system-ui">✕</button></div>';}).join("")||'<div class="sw-sub" style="margin-top:8px">No songs yet — tap ＋ New song.</div>'}
+   </div></div>`;
+  $("#eBack").onclick=goHome;
+  $("#swLibNew").onclick=()=>{const s=swNewSong("");D.songs.push(s);D.cur=s.id;SW.lib=false;SW.active=null;SW.ideas=null;SW.mp=null;SW.form=null;swSave();swDraw();};
+  view.querySelectorAll("[data-open]").forEach(c=>{const open=()=>{D.cur=c.dataset.open;SW.lib=false;SW.active=null;SW.ideas=null;SW.mp=null;swSave();swDraw();};
+    c.onclick=e=>{if(e.target.closest("[data-del]"))return;open();};c.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();open();}};});
+  view.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Delete?";setTimeout(()=>{if(b.isConnected){b.dataset.sure="";b.textContent="✕";}},2500);return;}
+    D.songs=D.songs.filter(s=>s.id!==b.dataset.del);if(!D.songs.length)D.songs.push(swNewSong(""));if(!D.songs.find(s=>s.id===D.cur))D.cur=D.songs[0].id;swSave();swDraw();});}
 /* ---- song setup: name, topic, structure ---- */
 function swSetupDraw(){const D=swData(),song=swSong();SW.form=SW.form==null?0:SW.form;
   view.innerHTML=SW_CSS+`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">✍️ Lyric Lab</span></div>
@@ -2894,17 +2915,17 @@ function swSetupDraw(){const D=swData(),song=swSong();SW.form=SW.form==null?0:SW
    <div class="rrow" style="margin-top:8px"><span class="rlab">Tempo</span><input type="range" id="swSBpm" min="50" max="160" value="${song.bpm||90}" style="flex:1"><span class="rbpm" id="swSBpmV">${song.bpm||90} BPM</span></div>
    <div class="sw-sub" style="margin-top:6px">Each section starts with ${SW_LINES} lines, one bar each. Aim for ${SW_SYL_LO}–${SW_SYL_HI} syllables a line.</div>
    <div class="actions"><button class="btn" id="swStart">Start writing</button>${D.songs.length>1?'<button class="btn ghost" id="swCancel">Cancel</button>':""}</div></div>`;
-  $("#eBack").onclick=()=>goHome();
+  $("#eBack").onclick=()=>{const others=D.songs.filter(s=>s.id!==song.id);if(others.some(s=>s.setup)){if(!song.title&&!song.sections.length)D.songs=others;if(!D.songs.find(s=>s.id===D.cur))D.cur=D.songs[0].id;SW.lib=true;SW.form=null;swSave();swDraw();}else goHome();};
   view.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{SW.form=+b.dataset.f;view.querySelectorAll("[data-f]").forEach(x=>x.classList.toggle("sel",x===b));});
   const bp=$("#swSBpm");bp.oninput=()=>{$("#swSBpmV").textContent=bp.value+" BPM";};
-  if($("#swCancel"))$("#swCancel").onclick=()=>{D.songs=D.songs.filter(s=>s.id!==song.id);D.cur=D.songs[0].id;swSave();swDraw();};
+  if($("#swCancel"))$("#swCancel").onclick=()=>{D.songs=D.songs.filter(s=>s.id!==song.id);D.cur=D.songs[0].id;SW.lib=D.songs.some(s=>s.setup);SW.form=null;swSave();swDraw();};
   $("#swStart").onclick=()=>{song.title=$("#swSTitle").value.trim()||"Untitled song";song.topic=$("#swSTopic").value.trim();song.bpm=+bp.value;
     const first={};song.sections=SW_FORMS[SW.form].map(tag=>{const s=swSec(tag);if((tag==="Chorus"||tag==="Pre-Chorus")&&first[tag]){s.same=first[tag];s.lines=[];}else first[tag]=s.id;return s;});
     song.setup=true;SW.active={s:song.sections[0].id,l:0};SW.form=null;swSave();swDraw();swFocus();};
   setTimeout(()=>{const t=$("#swSTitle");if(t&&!t.value)t.focus();},50);}
 /* ---- main writer ---- */
 function swSylClass(n,mel){if(!n)return "";if(mel&&Math.abs(n-mel.n)>2)return "bad";return n<SW_SYL_LO?"lo":n>SW_SYL_HI?"hi":"ok";}
-function swDraw(){const D=swData(),song=swSong();if(!song.setup){swSetupDraw();return;}const act=SW.active;const setOpen=!!($("#swSet")&&$("#swSet").open);const seenTag={};
+function swDraw(){const D=swData(),song=swSong();if(SW.lib){swLibDraw();return;}if(!song.setup){swSetupDraw();return;}const act=SW.active;const setOpen=!!($("#swSet")&&$("#swSet").open);const seenTag={};
   const secHTML=song.sections.map((sec,si)=>{const tgt=swTarget(song,sec),mel=song.mel[sec.tag],firstOfTag=!seenTag[sec.tag];seenTag[sec.tag]=1;
     const hd='<div class="sw-hd"><select class="sw-tag" aria-label="Section type">'+SW_TAGS.map(t=>'<option'+(t===sec.tag?" selected":"")+'>'+t+'</option>').join("")+'</select>'+(swSecName(song,sec)!==sec.tag?'<span class="sw-name">'+swEsc(swSecName(song,sec).slice(sec.tag.length).trim())+'</span>':'')+'<span style="flex:1"></span><button data-sa="play" aria-label="Play section">▶</button><button data-sa="up" aria-label="Move up"'+(si?"":" disabled")+'>↑</button><button data-sa="down" aria-label="Move down"'+(si<song.sections.length-1?"":" disabled")+'>↓</button><button data-sa="del" aria-label="Delete section">✕</button></div>';
     let melRow="";if(firstOfTag&&!tgt){if(SW.mp===sec.tag){const i=SW.pi[sec.tag]||0,c=swCand(song,sec.tag,i);melRow='<div class="sw-mp"><div class="nav"><button data-m="prev" aria-label="Previous melody"'+(i?"":" disabled")+'>←</button><div>'+c.label+'<small>'+(c.src==="sung"?"from your voice":"built for "+c.n+" syllables a line")+'</small></div><button data-m="next" aria-label="Next melody">→</button></div><div class="row"><button data-m="listen">▶ Listen</button><button data-m="use" class="go">✓ Use for every '+sec.tag.toLowerCase()+'</button><button data-m="sing">🎤 Sing my own</button><button data-m="close">Close</button></div><div class="sw-msg" style="margin-left:0;text-align:center"></div></div>';}
@@ -2916,7 +2937,7 @@ function swDraw(){const D=swData(),song=swSong();if(!song.setup){swSetupDraw();r
       return '<div class="sw-line'+(on?" on":"")+'" data-s="'+sec.id+'" data-l="'+li+'"><div class="sw-row"><span class="sw-n">'+(li+1)+'</span><input class="sw-t" value="'+swEsc(ln.t)+'" placeholder="'+(li===0?"Write line 1…":"")+'" enterkeyhint="next" autocomplete="off">'+(D.syl?'<span class="sw-syl '+swSylClass(syl,mel)+'">'+(syl||"")+'</span>':'')+'</div>'+fit+
         '<div class="sw-tools"><button data-a="play"'+(mel&&syl?"":" disabled")+' aria-label="Play line with melody">▶</button><button data-a="ideas">💡 Next-line ideas</button><button data-a="del" aria-label="Delete line">✕</button></div><div class="sw-msg"></div><div class="sw-ideas" style="display:none"></div></div>';}).join("");
     return '<div class="sw-sec" data-sec="'+sec.id+'">'+hd+melRow+lines+'<button class="sw-addl" data-sa="addl">+ Line</button></div>';}).join("");
-  view.innerHTML=SW_CSS+`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">✍️ Lyric Lab</span></div>
+  view.innerHTML=SW_CSS+`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">✍️ Lyric Lab</span><button class="rchip sm" id="swLibBtn" style="margin-left:auto;flex:none">🎵 My songs</button></div>
   <div class="panel">
     <input class="sw-title" id="swTitle" value="${swEsc(song.title)}" aria-label="Song title" autocomplete="off">
     ${song.topic?'<div class="sw-sub">About: '+swEsc(song.topic)+'</div>':''}
@@ -2937,6 +2958,7 @@ function swDraw(){const D=swData(),song=swSong();if(!song.setup){swSetupDraw();r
   swWire(D,song);}
 function swWire(D,song){
   $("#eBack").onclick=()=>{swStopPlay();swRecStop();goHome();};
+  if($("#swLibBtn"))$("#swLibBtn").onclick=()=>{swStopPlay();swRecStop();SW.lib=true;swDraw();window.scrollTo(0,0);};
   const T=$("#swTitle");T.oninput=()=>{song.title=T.value;swSave();};
   view.querySelectorAll(".sw-sec").forEach(el=>{const sec=song.sections.find(x=>x.id===el.dataset.sec);
     el.querySelector(".sw-tag").onchange=e=>{sec.tag=e.target.value;sec.same=null;if(!sec.lines.length)sec.lines=Array.from({length:SW_LINES},()=>swLine());swSave();swDraw();};
