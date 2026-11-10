@@ -7326,24 +7326,34 @@ document.head.appendChild(s);}catch(e){}})();
 function strumPatById(id){for(var i=0;i<STRUM_PATS.length;i++)if(STRUM_PATS[i].id===id)return STRUM_PATS[i];return STRUM_PATS[0];}
 function renderStrumming(inst){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  var SM={inst:inst,mode:"along",patId:"dduudu",chord:(STRUM_CHORDS[inst]||STRUM_CHORDS.guitar)[0],bpm:90,metro:true,on:false,idx:0,next:0,raf:null,phase:"",cr:false,crRaf:null,onsets:[],listenStart:0,timers:[]};
+  var st0=load(mk("strum","st"),{})||{};
+  var SM={inst:inst,mode:"along",patId:st0.patId||"dduudu",chord:st0.chord||(STRUM_CHORDS[inst]||STRUM_CHORDS.guitar)[0],bpm:st0.bpm||90,metro:st0.metro!==false,cin:st0.cin!==false,loop:st0.loop!==false,progI:st0.progI!=null?st0.progI:-1,on:false,idx:0,next:0,raf:null,phase:"",cr:false,crRaf:null,onsets:[],listenStart:0,timers:[]};
+  function saveSt(){try{save(mk("strum","st"),{patId:SM.patId,chord:SM.chord,bpm:SM.bpm,metro:SM.metro,cin:SM.cin,loop:SM.loop,progI:SM.progI});}catch(e){}}
   var beatLbl=["1","&","2","&","3","&","4","&"];
   function pat(){return strumPatById(SM.patId);}
-  function frets(){var c=CHORDS[SM.inst]&&CHORDS[SM.inst][SM.chord];if(c)return c;return CHORDS.guitar[SM.chord]||CHORDS.guitar.G;}
+  function have(nm){return !!(CHORDS[SM.inst]&&CHORDS[SM.inst][nm]);}
+  function progList(){return [["I–IV–V","G","C","D","G"],["Pop","C","G","Am","F"],["Minor","Am","F","C","G"],["Blues","E","A","B7","E"]].filter(function(p){return p.slice(1).every(have);});}
+  function progNow(){return SM.progI>=0?progList()[SM.progI]:null;}
+  function chordAt(bar){var p=progNow();if(!p)return SM.chord;var seq=p.slice(1);return seq[bar%seq.length];}
+  function frets(nm){nm=nm||SM.chord;var c=CHORDS[SM.inst]&&CHORDS[SM.inst][nm];if(c)return c;return CHORDS.guitar[nm]||CHORDS.guitar.G;}
   function eighth(){return 60/SM.bpm/2;}
   function clearTimers(){SM.timers.forEach(function(t){clearTimeout(t);});SM.timers=[];}
   function click(t,accent){try{var a0=ac();proClick(a0,clickBus(a0),t,accent?"accent":"beat",1,soundDef().id);return;}catch(e0){}try{var a=ac(),o=a.createOscillator(),gn=a.createGain();o.frequency.value=accent?1700:1150;o.connect(gn);gn.connect(a.destination);gn.gain.setValueAtTime(0.0001,t);gn.gain.exponentialRampToValueAtTime(accent?0.22:0.12,t+0.001);gn.gain.exponentialRampToValueAtTime(0.0001,t+0.05);o.start(t);o.stop(t+0.07);}catch(e){}}
-  function strokeAt(slot,t){if(slot==="D")strum(SM.inst,frets(),t,true);else if(slot==="U")strum(SM.inst,frets(),t,false);}
+  function strokeAt(slot,t,nm){if(slot==="D")strum(SM.inst,frets(nm),t,true);else if(slot==="U")strum(SM.inst,frets(nm),t,false);}
   function hiSlot(i){var cells=view.querySelectorAll("#smGrid .smcell");cells.forEach(function(c,k){c.classList.toggle("hi",k===i);});}
   function hiClear(){var cells=view.querySelectorAll("#smGrid .smcell");cells.forEach(function(c){c.classList.remove("hi");});}
   /* ---- play-along loop ---- */
-  function schedule(){if(!SM.on)return;var a=ac();while(SM.next<a.currentTime+0.18){var i=SM.idx%8,g=pat().grid[i],t=SM.next;
+  function schedule(){if(!SM.on)return;var a=ac();while(SM.next<a.currentTime+0.18){var i=SM.idx%8,bar=Math.floor(SM.idx/8),g=pat().grid[i],t=SM.next,nm=chordAt(bar);
+      if(!SM.loop&&bar>=4&&i===0){stopAlong();var s0=$("#smStatus");if(s0)s0.innerHTML="Done — 4 bars. 🔁 Loop keeps it going.";return;}
       if(SM.metro&&i%2===0)click(t,i===0);
-      strokeAt(g,t);
-      (function(ii,delay){var tm=setTimeout(function(){hiSlot(ii);},Math.max(0,delay));SM.timers.push(tm);})(i,(t-a.currentTime)*1000);
+      strokeAt(g,t,nm);
+      (function(ii,delay,cn,b2){var tm=setTimeout(function(){hiSlot(ii);if(ii===0){var s=$("#smStatus");if(s&&SM.on)s.innerHTML="Bar "+(b2%4+1)+(progNow()?" · <b style=\"color:var(--gold)\">"+cn+"</b>":"");}},Math.max(0,delay));SM.timers.push(tm);})(i,(t-a.currentTime)*1000,nm,bar);
       SM.next+=eighth();SM.idx++;}
     SM.raf=requestAnimationFrame(schedule);}
-  function startAlong(){unlockAudio();SM.on=true;SM.idx=0;SM.next=ac().currentTime+0.12;schedule();drawControls();}
+  function startAlong(){unlockAudio();SM.on=true;SM.idx=0;var a=ac(),q=eighth()*2,t0=a.currentTime+0.12;
+    if(SM.cin){for(var k=0;k<4;k++)click(t0+k*q,k===0);SM.next=t0+4*q;var s=$("#smStatus");if(s)s.innerHTML="Count-in… 1 · 2 · 3 · 4";}
+    else SM.next=t0;
+    schedule();drawControls();}
   function stopAlong(){SM.on=false;if(SM.raf)cancelAnimationFrame(SM.raf);clearTimers();hiClear();drawControls();}
   /* ---- call & response ---- */
   function expTimes(){var g=pat().grid,e=[],ei=eighth();for(var i=0;i<8;i++)if(g[i])e.push({i:i,t:i*ei});return e;}
@@ -7397,18 +7407,25 @@ function renderStrumming(inst){
       '<div id="smGrid">'+gridHTML()+'</div>'+
       '<div class="idea-fb"><div style="margin-bottom:5px"><b>Great for:</b> '+p.great+'</div><div><b>Why it works:</b> '+p.why+'</div></div>'+
       '<div class="rrow2" style="margin-top:10px"><span class="rlab">Chord</span><span class="rchips tight" id="smChords"></span></div>'+
-      '<div class="rrow"><span class="rlab">Tempo</span><input type="range" id="smBpm" min="50" max="140" value="'+SM.bpm+'" style="flex:1"><span class="rbpm" id="smBpmV">'+SM.bpm+'</span></div>'+
-      '<div class="actions" style="margin-top:4px"><span id="smMain"></span><button class="rchip sm'+(SM.metro?" sel":"")+'" id="smMetro">🎵 Click</button></div>'+
+      '<div class="rrow2"><span class="rlab">Progression</span><span class="rchips tight" id="smProg"></span></div>'+
+      '<div class="rrow"><span class="rlab">Tempo</span><button class="rchip sm" id="smTm" aria-label="Slower" style="min-width:38px;justify-content:center;font-weight:900">−</button><span class="rbpm" id="smBpmV" style="min-width:64px;text-align:center">'+SM.bpm+' BPM</span><button class="rchip sm" id="smTp" aria-label="Faster" style="min-width:38px;justify-content:center;font-weight:900">+</button><input type="range" id="smBpm" min="50" max="140" value="'+SM.bpm+'" style="flex:1"></div>'+
+      '<div class="actions" style="margin-top:4px;flex-wrap:wrap"><span id="smMain"></span><button class="rchip sm'+(SM.metro?" sel":"")+'" id="smMetro">🎵 Click</button><button class="rchip sm'+(SM.cin?" sel":"")+'" id="smCin">1·2·3·4 Count-in</button><button class="rchip sm'+(SM.loop?" sel":"")+'" id="smLoop">🔁 Loop</button></div>'+
       '<div class="feedback" id="smStatus" style="min-height:40px">'+(SM.mode==="cr"?"I’ll play the pattern, then you play it back — I’ll grade your timing and tell you how to improve.":"Pick a pattern and a chord, hit Start, and strum along. The highlighted square is where you are in the bar.")+'</div>'+
       '<div class="site-note">Tip: keep your strumming hand moving down-up in steady eighths the whole time. On the empty squares you just miss the strings — the motion never stops. That’s the secret to clean, even strumming.</div>'+
       '</div>';
     $("#eBack").onclick=function(){SM.on=false;crStop();goHome();};
     $("#smAlong").onclick=function(){SM.on=false;crStop();SM.mode="along";draw();};
     $("#smCR").onclick=function(){SM.on=false;crStop();SM.mode="cr";draw();};
-    var pc=$("#smPats");STRUM_PATS.forEach(function(P){var b=document.createElement("button");b.className="rchip sm"+(P.id===SM.patId?" sel":"");b.textContent=P.name;b.onclick=function(){SM.on=false;crStop();SM.patId=P.id;SM.bpm=P.bpm;draw();};pc.appendChild(b);});
-    var cc=$("#smChords");chords.forEach(function(nm){var b=document.createElement("button");b.className="rchip sm"+(nm===SM.chord?" sel":"");b.textContent=nm;b.onclick=function(){SM.chord=nm;if(SM.mode==="along"&&!SM.on){unlockAudio();strum(SM.inst,frets(),ac().currentTime+0.02,true);}var all=cc.querySelectorAll(".rchip");all.forEach(function(x){x.classList.remove("sel");});b.classList.add("sel");};cc.appendChild(b);});
-    var bp=$("#smBpm");if(bp)bp.oninput=function(){SM.bpm=+bp.value;$("#smBpmV").textContent=SM.bpm;};
-    $("#smMetro").onclick=function(){SM.metro=!SM.metro;$("#smMetro").classList.toggle("sel",SM.metro);};
+    var pc=$("#smPats");STRUM_PATS.forEach(function(P){var b=document.createElement("button");b.className="rchip sm"+(P.id===SM.patId?" sel":"");b.textContent=P.name;b.onclick=function(){SM.on=false;crStop();SM.patId=P.id;SM.bpm=P.bpm;saveSt();draw();};pc.appendChild(b);});
+    var cc=$("#smChords");chords.forEach(function(nm){var b=document.createElement("button");b.className="rchip sm"+(nm===SM.chord&&SM.progI<0?" sel":"");b.textContent=nm;b.onclick=function(){SM.chord=nm;if(SM.progI>=0){SM.progI=-1;draw();}else{var all=cc.querySelectorAll(".rchip");all.forEach(function(x){x.classList.remove("sel");});b.classList.add("sel");}if(SM.mode==="along"&&!SM.on){unlockAudio();strum(SM.inst,frets(nm),ac().currentTime+0.02,true);}saveSt();};cc.appendChild(b);});
+    var pg=$("#smProg");if(pg){var off=document.createElement("button");off.className="rchip sm"+(SM.progI<0?" sel":"");off.textContent="One chord";off.onclick=function(){SM.progI=-1;saveSt();draw();};pg.appendChild(off);
+      progList().forEach(function(p,i){var b=document.createElement("button");b.className="rchip sm"+(SM.progI===i?" sel":"");b.textContent=p[0]+" · "+p.slice(1).join("–");b.onclick=function(){SM.progI=i;saveSt();draw();};pg.appendChild(b);});}
+    var bset=function(v){SM.bpm=Math.max(50,Math.min(140,v));$("#smBpmV").textContent=SM.bpm+" BPM";var r=$("#smBpm");if(r)r.value=SM.bpm;saveSt();};
+    var bp=$("#smBpm");if(bp)bp.oninput=function(){bset(+bp.value);};
+    $("#smTm").onclick=function(){bset(SM.bpm-2);};$("#smTp").onclick=function(){bset(SM.bpm+2);};
+    $("#smMetro").onclick=function(){SM.metro=!SM.metro;$("#smMetro").classList.toggle("sel",SM.metro);saveSt();};
+    $("#smCin").onclick=function(){SM.cin=!SM.cin;$("#smCin").classList.toggle("sel",SM.cin);saveSt();};
+    $("#smLoop").onclick=function(){SM.loop=!SM.loop;$("#smLoop").classList.toggle("sel",SM.loop);saveSt();};
     drawControls();
   }
   function drawControls(){var m=$("#smMain");if(!m)return;m.innerHTML="";
