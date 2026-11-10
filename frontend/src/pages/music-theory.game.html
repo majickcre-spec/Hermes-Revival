@@ -10360,7 +10360,8 @@ function renderLucid(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true
   view.querySelectorAll("[data-lv]").forEach(function(b){b.onclick=function(){idbGet(b.dataset.lv).then(function(bl){if(!bl)return;var u=URL.createObjectURL(bl),au=new Audio(u);au.onended=function(){URL.revokeObjectURL(u);};au.play();});};});}
 /* ===== BRAIN CHARTS — full-screen EEG views: mirror spectrum, flow (waterfall), 3D ridge; live or recorded ===== */
 const BC={on:false,view:"mirror",src:"live",hist:[],t:null,win:null,norm:1,fl:null,rec:null,ri:0,playing:false,load:""};
-const BC_BANDS=[[1,4,"#ff8f8c","Delta"],[4,8,"#f4b740","Theta"],[8,13,"#5fe0a8","Alpha"],[13,30,"#5fc8e0","Beta"],[30,45,"#c9b3ff","Gamma"]];
+/* one palette for brainwaves everywhere: slow=deep blues → fast=hot. Gold stays reserved for sync/coherence, red for the heart. */
+const BC_BANDS=[[1,4,"#8f9dff","Delta","δ","deep sleep"],[4,8,"#5fc8e0","Theta","θ","dreaming"],[8,13,"#5fe0a8","Alpha","α","calm flow"],[13,30,"#ff9349","Beta","β","busy mind"],[30,45,"#c9b3ff","Gamma","γ","insight"]];
 function bcCol(f){for(var i=0;i<BC_BANDS.length;i++)if(f<BC_BANDS[i][1])return BC_BANDS[i][2];return "#c9b3ff";}
 function bcWin(){if(!BC.win){var w=new Float64Array(512);for(var i=0;i<512;i++)w[i]=0.5-0.5*Math.cos(2*Math.PI*i/511);BC.win=w;}return BC.win;}
 /* Welch PSD (0.5 Hz bins) over an array of sample buffers; each buffer may end at a different length */
@@ -10382,7 +10383,7 @@ function bcPeaksOf(C){if(!C)return [];var out=[];try{plHemiPeaks(C).forEach(func
 function bcFrameLive(){if(!M.connected)return null;var q=M.qual||[1,1,1,1];
   var L=bcPSD([q[0]?M.eeg[0]:null,q[1]?M.eeg[1]:null]),R=bcPSD([q[2]?M.eeg[2]:null,q[3]?M.eeg[3]:null]);
   if(!L&&!R)return null;var C=null;try{C=plHemiSpec();}catch(e){}
-  return {t:Date.now(),L:L,R:R,pk:bcPeaksOf(C)};}
+  return {t:Date.now(),L:L,R:R,pk:bcPeaksOf(C),cb:bcBandCoh(C),S:[q[0]?bcPSD([M.eeg[0]]):null,q[1]?bcPSD([M.eeg[1]]):null,q[2]?bcPSD([M.eeg[2]]):null,q[3]?bcPSD([M.eeg[3]]):null]};}
 function bcPush(f){if(!f)return;BC.hist.push(f);if(BC.hist.length>720)BC.hist.splice(0,BC.hist.length-720);
   var m=0,lo=1e9;for(var k=2;k<=90;k++){if(f.L){if(f.L[k]>m)m=f.L[k];if(f.L[k]<lo)lo=f.L[k];}if(f.R){if(f.R[k]>m)m=f.R[k];if(f.R[k]<lo)lo=f.R[k];}}
   if(lo>1e8)return;BC.norm=(BC.norm||m)*0.9+m*0.1;BC.lo=(BC.lo==null?lo:BC.lo*0.9+lo*0.1);}
@@ -10393,7 +10394,8 @@ function bcMirror(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);if(!f)r
   var cx=x+w/2,half=w/2-44,nm=BC.norm||1;
   [5,10,20,30,40].forEach(function(fz){var yy=bcY(fz,y,h);g.strokeStyle="rgba(255,255,255,.07)";g.beginPath();g.moveTo(x+36,yy);g.lineTo(x+w-8,yy);g.stroke();
     g.fillStyle="#9BA1AC";g.font="700 10px system-ui";g.textAlign="left";g.fillText(fz+" Hz",x+4,yy+3);});
-  BC_BANDS.forEach(function(b){var y1=bcY(b[1],y,h),y0=bcY(b[0],y,h);g.fillStyle=b[2]+"14";g.fillRect(x+36,y1,w-44,y0-y1);});
+  BC_BANDS.forEach(function(b){var y1=bcY(b[1],y,h),y0=bcY(b[0],y,h);g.fillStyle=b[2]+"14";g.fillRect(x+36,y1,w-44,y0-y1);
+    g.fillStyle=b[2];g.font="800 9px system-ui";g.textAlign="right";g.globalAlpha=0.9;g.fillText(b[4]+" "+b[3].toUpperCase(),x+w-10,y1+11);g.globalAlpha=1;});
   for(var k=2;k<=90;k++){var fz=k/2,yy=bcY(fz,y,h),hh=Math.max(1.4,h/90),col=bcCol(fz);
     if(f.L){var lv=bcV(f.L[k]);g.fillStyle=col;g.globalAlpha=0.25+0.65*lv;g.fillRect(cx-lv*half,yy-hh/2,lv*half,hh);}
     if(f.R){var rv=bcV(f.R[k]);g.fillStyle=col;g.globalAlpha=0.25+0.65*rv;g.fillRect(cx,yy-hh/2,rv*half,hh);}}
@@ -10462,7 +10464,7 @@ function bcVitals(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);var D=b
     if(co!=null){g.strokeStyle="#f4b740";g.beginPath();g.arc(cx,cy,r,Math.PI*0.75,Math.PI*(0.75+1.5*Math.min(100,co)/100));g.stroke();}
     g.fillStyle="#ECEDEF";g.font="900 22px system-ui";g.textAlign="center";g.fillText(co!=null?Math.round(co)+"%":"—",cx,cy+7);
     g.fillStyle="#9BA1AC";g.font="800 10px system-ui";g.fillText("coherence",cx,cy+22);});
-  tile(2,function(tw,thh){var bars=[["α",al,"#5fe0a8"],["θ",th,"#f4b740"],["β",be,"#5fc8e0"]],bw=Math.min(34,tw/4),x0=tw/2-bw*1.5-6;
+  tile(2,function(tw,thh){var bars=[["α",al,"#5fe0a8"],["θ",th,"#5fc8e0"],["β",be,"#ff9349"]],bw=Math.min(34,tw/4),x0=tw/2-bw*1.5-6;
     g.font="800 11px system-ui";g.textAlign="center";
     bars.forEach(function(b,i){var v=b[1]!=null?Math.min(100,b[1]):null,bx=x0+i*(bw+6),bhh=v!=null?(thh-30)*v/100:0;
       g.fillStyle="rgba(255,255,255,.08)";g.fillRect(bx,8,bw,thh-30);
@@ -10470,6 +10472,54 @@ function bcVitals(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);var D=b
       g.fillStyle="#9BA1AC";g.fillText(b[0]+(v!=null?" "+Math.round(v):""),bx+bw/2,thh-6);});
     if(al==null&&th==null&&be==null){g.fillStyle="#9BA1AC";g.fillText("no EEG",tw/2,thh/2);}});}
 function bcNoData(g,x,y,w,h,msg){g.fillStyle="#9BA1AC";g.font="700 13px system-ui";g.textAlign="center";g.fillText(msg||(BC.src==="live"?(M.connected?"Listening… signal settling.":"Connect the Muse (any meditation → Sensors), or switch to 📼 Recorded."):(BC.load||"Pick a recorded session below.")),x+w/2,y+h/2);}
+/* ---- head view: overhead brain, both hemispheres, color = the loudest wave at each sensor ---- */
+function bcBandCoh(C){if(!C)return null;var out=[];BC_BANDS.forEach(function(b){var s=0,n=0;for(var k=Math.max(2,Math.round(b[0]*2));k<Math.round(b[1]*2)&&k<C.length;k++){s+=C[k];n++;}out.push(n?s/n:0);});return out;}
+function bcPows(P){if(!P)return null;var out=[],tot=0;
+  BC_BANDS.forEach(function(b){var s=0,n=0;for(var k=Math.max(2,b[0]*2);k<b[1]*2&&k<=90;k++){s+=Math.pow(10,P[k])-1;n++;}s=n?s/n:0;out.push(s);tot+=s;});
+  if(tot<=0)return null;return out.map(function(v){return v/tot;});}
+function bcHead(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);if(!f)return bcNoData(g,x,y,w,h);
+  var h2=bcResv(h),land=w>h2*1.5,cx=land?x+w*0.3:x+w/2,cy=y+h2*(land?0.52:0.44),R=Math.min(w*(land?0.2:0.34),h2*(land?0.34:0.3)),ry=R*1.18;
+  /* head: outline, nose, ears, midline */
+  g.strokeStyle="rgba(236,237,239,.35)";g.lineWidth=2;
+  g.beginPath();g.ellipse(cx,cy,R,ry,0,0,7);g.stroke();
+  g.beginPath();g.moveTo(cx-10,cy-ry+2);g.lineTo(cx,cy-ry-12);g.lineTo(cx+10,cy-ry+2);g.stroke();
+  g.beginPath();g.ellipse(cx-R-5,cy,6,16,0,0,7);g.stroke();g.beginPath();g.ellipse(cx+R+5,cy,6,16,0,0,7);g.stroke();
+  g.setLineDash([3,6]);g.strokeStyle="rgba(255,255,255,.14)";g.beginPath();g.moveTo(cx,cy-ry+6);g.lineTo(cx,cy+ry-6);g.stroke();g.setLineDash([]);
+  g.fillStyle="#9BA1AC";g.font="800 10px system-ui";g.textAlign="center";g.fillText("L",cx-R*0.82,cy-ry*0.02);g.fillText("R",cx+R*0.82,cy-ry*0.02);
+  /* the four Muse sensors, overhead positions */
+  var sites=[{i:1,dx:-0.44,dy:-0.5,lab:"front · L"},{i:2,dx:0.44,dy:-0.5,lab:"front · R"},{i:0,dx:-0.6,dy:0.46,lab:"back · L"},{i:3,dx:0.6,dy:0.46,lab:"back · R"}];
+  sites.forEach(function(s){var sx=cx+s.dx*R,sy=cy+s.dy*ry,P=(f.S&&f.S[s.i])||(s.dx<0?f.L:f.R),sh=bcPows(P),r0=R*0.34;
+    if(!sh){g.strokeStyle="rgba(155,161,172,.4)";g.lineWidth=1.5;g.beginPath();g.arc(sx,sy,r0*0.5,0,7);g.stroke();
+      g.fillStyle="#9BA1AC";g.font="700 9px system-ui";g.fillText("no signal",sx,sy+3);g.fillText(s.lab,sx,sy+r0*0.5+13);return;}
+    var dom=0;for(var i=1;i<5;i++)if(sh[i]>sh[dom])dom=i;
+    var col=BC_BANDS[dom][2],inten=Math.max(0.25,Math.min(1,(sh[dom]-0.2)/0.5)),rr=r0*(0.72+0.38*inten);
+    var gr=g.createRadialGradient(sx,sy,2,sx,sy,rr);gr.addColorStop(0,col+"E6");gr.addColorStop(0.55,col+"77");gr.addColorStop(1,col+"00");
+    g.fillStyle=gr;g.beginPath();g.arc(sx,sy,rr,0,7);g.fill();
+    g.fillStyle="#0E0F13";g.font="900 17px system-ui";g.textAlign="center";g.fillText(BC_BANDS[dom][4],sx,sy+2);
+    g.fillStyle="#ECEDEF";g.font="800 10px system-ui";g.fillText(Math.round(sh[dom]*100)+"%",sx,sy+16);
+    g.fillStyle="#9BA1AC";g.font="700 9px system-ui";g.fillText(s.lab,sx,sy+rr+11);});
+  /* gold bridge when the hemispheres sync in alpha */
+  var aC=f.cb?f.cb[2]:null;
+  if(aC!=null&&aC>=0.45){var bw=Math.min(1,(aC-0.45)/0.45);
+    g.strokeStyle="#f4b740";g.lineWidth=2+3*bw;g.globalAlpha=0.35+0.6*bw;g.shadowColor="#f4b740";g.shadowBlur=14*bw;
+    g.beginPath();g.moveTo(cx-R*0.44,cy-ry*0.5);g.quadraticCurveTo(cx,cy-ry*0.86,cx+R*0.44,cy-ry*0.5);g.stroke();
+    g.globalAlpha=1;g.shadowBlur=0;
+    g.fillStyle="#f4b740";g.font="900 13px system-ui";g.textAlign="center";g.fillText("α sync "+Math.round(aC*100)+"%",cx,cy-ry*0.72);}
+  /* how every wave is correlating across hemispheres */
+  if(land){var lx=x+w*0.56,ly=y+30,rstep=(h2-54)/5,bx0=lx+118,bx1=x+w-64;
+    g.textAlign="left";g.fillStyle="#9BA1AC";g.font="800 10px system-ui";g.fillText("HEMISPHERES IN SYNC, WAVE BY WAVE",lx,ly);
+    BC_BANDS.forEach(function(b,i){var yy=ly+26+i*rstep,v=f.cb?f.cb[i]:null;
+      g.textAlign="left";g.fillStyle=b[2];g.font="900 13px system-ui";g.fillText(b[4]+" "+b[3],lx,yy);
+      g.fillStyle="rgba(155,161,172,.75)";g.font="600 9px system-ui";g.fillText(b[5],lx,yy+12);
+      if(v!=null&&bx1>bx0+30){g.fillStyle="rgba(255,255,255,.08)";g.fillRect(bx0,yy-8,bx1-bx0,6);g.fillStyle=b[2];g.fillRect(bx0,yy-8,(bx1-bx0)*Math.min(1,v),6);}
+      g.textAlign="right";g.fillStyle=v!=null?"#ECEDEF":"#9BA1AC";g.font="800 13px system-ui";g.fillText(v!=null?Math.round(v*100)+"%":"—",x+w-18,yy);});
+    g.textAlign="center";g.fillStyle="rgba(155,161,172,.65)";g.font="700 9px system-ui";g.fillText("glow = loudest wave per sensor",cx,cy+ry+16);}
+  else{var by=y+h2-68;g.textAlign="center";g.fillStyle="#9BA1AC";g.font="800 10px system-ui";g.fillText("HEMISPHERES IN SYNC, WAVE BY WAVE",cx,by-26);
+    BC_BANDS.forEach(function(b,i){var bx=x+w*(0.1+0.2*i),v=f.cb?f.cb[i]:null;
+      g.fillStyle=b[2];g.font="900 15px system-ui";g.fillText(b[4],bx,by-6);
+      g.fillStyle=v!=null?"#ECEDEF":"#9BA1AC";g.font="800 12px system-ui";g.fillText(v!=null?Math.round(v*100)+"%":"—",bx,by+10);
+      g.fillStyle="#9BA1AC";g.font="700 8px system-ui";g.fillText(b[3],bx,by+22);g.fillStyle="rgba(155,161,172,.7)";g.font="600 8px system-ui";g.fillText(b[5],bx,by+32);});
+    g.fillStyle="rgba(155,161,172,.65)";g.font="700 9px system-ui";g.fillText("glow color = the loudest wave at each sensor",cx,cy+ry+34);}}
 /* ---- heart views: waves monitor, LF/HF crossover, beat-by-beat rhythm ---- */
 function bcResv(h){return h-(BC.src==="rec"?160:52);}
 /* LF/HF over the whole recording, computed once from the saved beats and cached */
@@ -10563,11 +10613,12 @@ function bcDraw(){var cv=document.getElementById("bcCv");if(!cv)return;var dpr=M
   if(cv.width!==Math.round(W*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
   var g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);
   var f=BC.src==="live"?BC.hist[BC.hist.length-1]:(BC.rec&&BC.rec.frames[BC.ri]);
-  if(BC.src==="rec"&&BC.rec&&!BC.rec.hasEEG&&["mirror","flow","ridge","pair"].indexOf(BC.view)>=0){g.fillStyle="#0E0F13";g.fillRect(0,0,W,H);return bcNoData(g,0,0,W,H,"No EEG in this session — try ❤️ Waves, LF·HF or Rhythm.");}
+  if(BC.src==="rec"&&BC.rec&&!BC.rec.hasEEG&&["mirror","flow","ridge","head","pair"].indexOf(BC.view)>=0){g.fillStyle="#0E0F13";g.fillRect(0,0,W,H);return bcNoData(g,0,0,W,H,"No EEG in this session — try ❤️ Waves, LF·HF or Rhythm.");}
   if(BC.view==="pair"){bcMirror(g,0,0,W,H*0.55-2,f);bcFlow(g,0,H*0.55+2,W,H*0.45-2,f);}
   else if(BC.view==="mirror")bcMirror(g,0,0,W,H,f);
   else if(BC.view==="flow")bcFlow(g,0,0,W,H,f);
   else if(BC.view==="vitals")bcVitals(g,0,0,W,H,f);
+  else if(BC.view==="head")bcHead(g,0,0,W,H,f);
   else if(BC.view==="waves")bcWaves(g,0,0,W,H);
   else if(BC.view==="xo")bcXoV(g,0,0,W,H);
   else if(BC.view==="beat")bcBeat(g,0,0,W,H);
@@ -10607,11 +10658,11 @@ function bcLoadRec(at,label){BC.rec=null;BC.ri=0;BC.playing=false;BC.load="Loadi
       var stride=Math.max(fs,Math.floor(total/900));
       for(var off=1024;off<=total;off+=stride){var sl=function(c){return ch[c].slice(Math.max(0,off-2048),off);};
         var L=bcPSD([sl(0),sl(1)]),R=bcPSD([sl(2),sl(3)]),C=bcCoh(sl(1),sl(2));
-        frames.push({t:off/fs,L:L,R:R,pk:bcPeaksOf(C)});}
+        frames.push({t:off/fs,L:L,R:R,pk:bcPeaksOf(C),cb:bcBandCoh(C),S:[bcPSD([sl(0)]),bcPSD([sl(1)]),bcPSD([sl(2)]),bcPSD([sl(3)])]});}
       fin(frames,total/fs,stride/fs,true);};
     step();});}
 function renderBrainCharts(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  try{bioStart();}catch(e){}BC.on=true;BC.hist=BC.src==="live"?[]:BC.hist;BC.fl=null;BC.lastFlow=null;teardown=function(){BC.on=false;if(BC.t)clearInterval(BC.t);BC.t=null;};
+  try{bioStart();}catch(e){}if(!BC._vload){BC._vload=1;try{BC.view=load(mk("bc","view"),BC.view);}catch(e){}}BC.on=true;BC.hist=BC.src==="live"?[]:BC.hist;BC.fl=null;BC.lastFlow=null;teardown=function(){BC.on=false;if(BC.t)clearInterval(BC.t);BC.t=null;};
   var recs=srIdx().filter(function(e){return (e.eegBlocks||0)>0||(e.sens&&e.sens.hr);}).sort(function(a,b){return b.at-a.at;}).slice(0,12);
   var isRec=BC.src==="rec",H=Math.max(420,window.innerHeight-64);
   var chip=function(sel,attr,txt){return '<button class="rchip sm'+(sel?" sel":"")+'" '+attr+' style="backdrop-filter:blur(6px)">'+txt+'</button>';};
@@ -10619,7 +10670,7 @@ function renderBrainCharts(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
    +'<canvas id="bcCv" style="position:absolute;inset:0;width:100%;height:100%;display:block"></canvas>'
    +'<div id="bcTop" style="position:absolute;left:0;right:0;top:0;padding:8px 8px 18px;display:flex;gap:5px;align-items:center;flex-wrap:wrap;background:linear-gradient(rgba(10,11,14,.88),rgba(10,11,14,.5) 60%,transparent);transition:opacity .35s">'
     +'<button class="rchip sm" id="eBack" aria-label="Back">←</button>'
-    +[["mirror","🪞 Mirror"],["flow","🌊 Flow"],["ridge","⛰ Ridge"],["vitals","💓 Vitals"],["pair","◫ Pair"],["waves","❤️ Waves"],["xo","🔀 LF·HF"],["beat","📈 Rhythm"]].map(function(v){return chip(BC.view===v[0],'data-bcv="'+v[0]+'"',v[1]);}).join("")
+    +[["head","🧠 Head"],["mirror","🪞 Mirror"],["flow","🌊 Flow"],["ridge","⛰ Ridge"],["pair","◫ Pair"],["vitals","💓 Vitals"],["waves","❤️ Waves"],["xo","🔀 LF·HF"],["beat","📈 Rhythm"]].map(function(v){return chip(BC.view===v[0],'data-bcv="'+v[0]+'"',v[1]);}).join("")
     +chip(!isRec,'data-bcs="live"',"● Live")+chip(isRec,'data-bcs="rec"',"📼")
     +'<span id="bcMuse" style="margin-left:auto;font:700 .72rem system-ui;color:'+(M.connected?"#5fe0a8":"#9BA1AC")+'">'+(M.connected?"Muse live":(isRec?"":"Muse off"))+'</span></div>'
    +'<div id="bcBot" style="position:absolute;left:0;right:0;bottom:0;padding:26px 10px 10px;background:linear-gradient(transparent,rgba(10,11,14,.6) 20%,rgba(10,11,14,.92));transition:opacity .35s;'+(isRec?"":"display:none")+'">'
@@ -10636,7 +10687,7 @@ function renderBrainCharts(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
   $("#eBack").onclick=goHome;
   var top=document.getElementById("bcTop"),bot=document.getElementById("bcBot");
   var dim=function(){var d=BC.playing&&isRec;if(top)top.style.opacity=d?0.15:1;if(bot)bot.style.opacity=d?0.25:1;};
-  view.querySelectorAll("[data-bcv]").forEach(function(b){b.onclick=function(){BC.view=b.dataset.bcv;BC.fl=null;BC.lastFlow=null;renderBrainCharts();};});
+  view.querySelectorAll("[data-bcv]").forEach(function(b){b.onclick=function(){BC.view=b.dataset.bcv;BC.fl=null;BC.lastFlow=null;try{save(mk("bc","view"),BC.view);}catch(e){}renderBrainCharts();};});
   view.querySelectorAll("[data-bcs]").forEach(function(b){b.onclick=function(){BC.src=b.dataset.bcs;BC.playing=false;BC.fl=null;BC.lastFlow=null;renderBrainCharts();};});
   view.querySelectorAll("[data-bcr]").forEach(function(b){b.onclick=function(){var e=srIdx().find(function(x){return String(x.at)===b.dataset.bcr;});bcLoadRec(+b.dataset.bcr,(e&&e.label)||"Session");};});
   var pb=document.getElementById("bcPlayB");var setPlay=function(v){BC.playing=v;if(pb)pb.textContent=v?"⏸":"▶";dim();};
@@ -10701,7 +10752,7 @@ function plReport(at){home.hidden=true;view.hidden=false;window.scrollTo(0,0);va
       return '<tr><td>'+stN(si)+'</td><td>'+Math.round((t1-t0)/6)/10+'</td><td>'+(av(T.hr,idx)??"–")+'</td><td>'+(plRmssd(rr)??"–")+'</td><td>'+(av(T.co,idx)??"–")+'</td><td>'+(av(T.ra,idx)??"–")+'</td><td>'+(av(T.rt,idx)??"–")+'</td></tr>';}).join("");
     var sens=D.sens||{};box.innerHTML=head+'<div class="site-note" style="margin:0 0 8px">Heart: '+(sens.hr?esc(String(sens.hr))+' · '+D.rr.length+' beats recorded':'no heart sensor connected')+' · Brain: '+(sens.eeg?'Muse · raw EEG '+D.eegBlocks+' min':'no headband connected')+'</div>'+
       '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font:700 .78rem system-ui" class="plTab"><tr style="color:var(--muted)"><td>Stage</td><td>min</td><td>HR</td><td>HRV (RMSSD)</td><td>Coherence %</td><td>Alpha %</td><td>Theta %</td></tr>'+rows+'</table></div>'+
-      ['hr|Heart rate (bpm)|#ff8fa3','co|Coherence %|#7ff0d6','ra|Alpha % (relative)|#f4b740','rt|Theta % (relative)|#b49cff'].map(function(x){var p=x.split("|");return T[p[0]].some(function(v){return v!=null;})?'<div class="rlab" style="display:block;margin:10px 0 2px">'+p[1]+'</div><canvas class="plCh" data-k="'+p[0]+'" data-c="'+p[2]+'" style="width:100%;height:90px;background:rgba(255,255,255,.03);border-radius:8px"></canvas>':'';}).join("")+
+      ['hr|Heart rate (bpm)|#ff8fa3','co|Coherence %|#7ff0d6','ra|Alpha % (relative)|#5fe0a8','rt|Theta % (relative)|#5fc8e0'].map(function(x){var p=x.split("|");return T[p[0]].some(function(v){return v!=null;})?'<div class="rlab" style="display:block;margin:10px 0 2px">'+p[1]+'</div><canvas class="plCh" data-k="'+p[0]+'" data-c="'+p[2]+'" style="width:100%;height:90px;background:rgba(255,255,255,.03);border-radius:8px"></canvas>':'';}).join("")+
       plHemiHTML(T)+
       '<div class="actions" style="margin:10px 0 4px"><button class="btn" id="plWatch" style="width:100%">🎬 Watch this session as video</button></div>'+
       '<div class="actions" style="flex-wrap:wrap"><button class="btn ghost" data-x="hs">⬇ Hemisphere sync CSV</button><button class="btn ghost" data-x="cas">⬇ Cascades CSV</button><button class="btn ghost" data-x="tl">⬇ Second-by-second CSV</button><button class="btn ghost" data-x="rr">⬇ Heartbeat intervals CSV</button>'+(D.eegBlocks&&!D.fromServer?'<button class="btn ghost" data-x="eeg">⬇ Raw EEG CSV</button>':'')+(res.pending&&!res.rank&&res.ids?'<button class="btn" id="plJ2">Judge the photo target</button>':'')+'<button class="btn" id="plAll">'+(isPL?"All results":"All sessions")+'</button></div>';
