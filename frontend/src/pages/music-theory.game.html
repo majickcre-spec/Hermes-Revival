@@ -10588,6 +10588,9 @@ function bcLoadRec(at,label){BC.rec=null;BC.ri=0;BC.playing=false;BC.load="Loadi
     var fin=function(frames,dur,fdt,hasEEG){if(!frames.length){BC.load="Nothing playable in that session.";var s1=document.getElementById("bcLoad");if(s1)s1.textContent=BC.load;return;}
       if(tl&&tl.co){var ti=0;frames.forEach(function(f){while(ti<tl.t.length-1&&tl.t[ti+1]<=f.t)ti++;f.co=tl.co[ti];});}
       BC.rec={at:at,label:label,frames:frames,dur:dur,frameDt:fdt,hasEEG:!!hasEEG,rr:D.rr||[],rrT:D.rrT||[],lh:null,tl:tl?{t:tl.t,hr:tl.hr||[],hrv:tl.hrv||[],co:tl.co||[],al:tl.al||[],th:tl.th||[],be:tl.be||[]}:null};BC.load="";BC.ri=0;BC.pos=0;
+      if(hasEEG){/* prime the color scale from the whole recording so scrubbing is readable before play */
+        var plo=1e9,phi=0;frames.forEach(function(f,fi){if(!f.L||fi%3)return;for(var k2=2;k2<=90;k2++){var a2=f.L[k2],b3=f.R?f.R[k2]:a2;if(a2<plo)plo=a2;if(b3<plo)plo=b3;if(a2>phi)phi=a2;if(b3>phi)phi=b3;}});
+        if(phi>0&&plo<1e8){BC.lo=plo;BC.norm=phi;}}
       if(!hasEEG&&["mirror","flow","ridge","pair"].indexOf(BC.view)>=0)BC.view="waves";
       document.querySelectorAll("[data-bcv]").forEach(function(b){b.classList.toggle("sel",b.dataset.bcv===BC.view);});
       var sl2=document.getElementById("bcSlide");if(sl2){sl2.max=frames.length-1;sl2.value=0;}var st2=document.getElementById("bcLoad");if(st2)st2.textContent=label+" · "+Math.round(dur/60)+" min loaded"+(hasEEG?"":" · ❤️ heart session");
