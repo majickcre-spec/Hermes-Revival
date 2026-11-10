@@ -970,7 +970,8 @@ function metUI(soft){var f=document.getElementById("metFab");if(f){f.classList.t
       '<div style="font-size:.74rem;color:var(--muted,#9a93b8);margin:-2px 0 6px">'+(MET.src==="live"?"Clicks on your heartbeat and moves with it.":"Reads your heart rate once and holds it steady, easier to play to. Tap Lock again to re-read.")+'</div>':'')+
     '<div class="mrow"><span class="mlab">Beats</span>'+[1,2,3,4,6].map(function(n){return '<button class="mbtn'+(MET.beats===n?" sel":"")+'" data-mb="'+n+'">'+n+'</button>';}).join("")+'</div>'+
     '<div class="mrow"><span class="mlab">Sound</span><button class="mbtn'+(MET.snd==="click"?" sel":"")+'" data-ms="click">Click</button><button class="mbtn'+(MET.snd==="wood"?" sel":"")+'" data-ms="wood">Woodblock</button><button class="mbtn'+(MET.snd==="heart"?" sel":"")+'" data-ms="heart">Heartbeat</button></div>'+
-    '<div class="mrow"><span class="mlab">🔊 Click vol <small style="opacity:.7">(all)</small></span><input type="range" class="gclick" id="metVol" min="0" max="100" value="'+Math.round(CLICK_VOL*100)+'" style="flex:1"><span style="min-width:38px;text-align:right;font-weight:800" id="metVolV">'+Math.round(CLICK_VOL*100)+'%</span></div>'+
+    '<div class="mrow"><span class="mlab">🔊 Click vol <small style="opacity:.7">(all)</small></span><input type="range" class="gclick" id="metVol" min="0" max="100" value="'+Math.round(CLICK_VOL*100)+'" style="flex:1"><span style="min-width:38px;text-align:right;font-weight:800" id="metVolV">'+(CLICK_VOL>0.001?Math.round(CLICK_VOL*100)+"%":"🔇 0%")+'</span></div>'+
+    '<div class="mrow"><span class="mlab">🔊 App vol <small style="opacity:.7">(all)</small></span><input type="range" id="metAppVol" min="0" max="100" value="'+Math.round(APPVOL*100)+'" style="flex:1"><span style="min-width:38px;text-align:right;font-weight:800" id="metAppVolV">'+(APPVOL>0.02?Math.round(APPVOL*100)+"%":"🔇 0%")+'</span></div>'+
     '<div class="mrow"><button class="mgo'+(MET.on?" on":"")+'" id="metGo">'+(MET.on?"⏹ Stop":"▶ Start")+'</button></div>'+
     '<div class="mrow"><span class="mlab">No sound?</span><button class="mbtn" id="metTest">🔊 Test</button><button class="mbtn" id="metFix">♻️ Restart sound</button></div>'+
     '<div style="font-size:.74rem;color:var(--muted,#9a93b8);text-align:center">Test plays a tone, then a click. Tone but no click → your click volume above is down. Neither → tap Restart sound.</div>';
@@ -986,7 +987,10 @@ function metUI(soft){var f=document.getElementById("metFab");if(f){f.classList.t
   p.querySelectorAll("[data-ms]").forEach(function(b){b.onclick=function(){MET.snd=b.getAttribute("data-ms");save("mjk-met-snd",MET.snd);metUI();if(!MET.on){unlockAudio();metTick(ac().currentTime+0.02,true);}};});
   var mv=document.getElementById("metVol");mv.oninput=function(){setClickVol(mv.value/100);document.getElementById("metVolV").textContent=mv.value+"%";;};
   document.getElementById("metGo").onclick=function(){if(MET.on)metStop();else metStart();};
-  var mtst=document.getElementById("metTest");if(mtst)mtst.onclick=function(){unlockAudio();try{var a=ac(),t=a.currentTime+0.05,o=a.createOscillator(),g=a.createGain();o.frequency.value=660;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.45,t+0.015);g.gain.exponentialRampToValueAtTime(0.0001,t+0.5);o.connect(g);g.connect(pianoMaster(a));o.start(t);o.stop(t+0.55);click(t+0.75,"accent");click(t+1.0,"beat");}catch(e){}};
+  var mav=document.getElementById("metAppVol");if(mav)mav.oninput=function(){setAppVol(mav.value/100);var l=document.getElementById("metAppVolV");if(l)l.textContent=mav.value+"%";};
+  var mtst=document.getElementById("metTest");if(mtst)mtst.onclick=function(){unlockAudio();
+    if(APPVOL<=0.05){setAppVol(0.7);var av=document.getElementById("metAppVol");if(av){av.value=70;var avv=document.getElementById("metAppVolV");if(avv)avv.textContent="70%";}}
+    try{var a=ac(),t=a.currentTime+0.05,o=a.createOscillator(),g=a.createGain();o.frequency.value=660;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.45,t+0.015);g.gain.exponentialRampToValueAtTime(0.0001,t+0.5);o.connect(g);g.connect(pianoMaster(a));o.start(t);o.stop(t+0.55);click(t+0.75,"accent");click(t+1.0,"beat");}catch(e){}};
   var mfx=document.getElementById("metFix");if(mfx)mfx.onclick=function(){audioHardReset();mfx.textContent="✓ Restarted";setTimeout(function(){if(mfx.isConnected)mfx.textContent="♻️ Restart sound";},2000);};}
 (function(){try{var f=document.createElement("button");f.id="metFab";f.type="button";f.setAttribute("aria-label","Metronome");document.body.appendChild(f);
   var p=document.createElement("div");p.id="metPanel";p.hidden=true;document.body.appendChild(p);
@@ -2528,7 +2532,7 @@ async function renderRhythm(speak){
   };
   bindClickVol("rClickV",function(v){setClickVol(v);const w=document.getElementById("rMuteNote");if(w&&v>0)w.remove();});
   $("#rStart").onclick=()=>{unlockAudio();
-    if(!R.running&&CLICK_VOL<=0.001){let w=document.getElementById("rMuteNote");if(!w){w=document.createElement("div");w.id="rMuteNote";w.className="site-note";const ac2=$("#rStart").parentElement;ac2.parentElement.insertBefore(w,ac2);}w.textContent="🔇 Click volume is off — slide the 🥁 Click row up to hear the beat.";}
+    if(!R.running&&(CLICK_VOL<=0.001||APPVOL<=0.02)){let w=document.getElementById("rMuteNote");if(!w){w=document.createElement("div");w.id="rMuteNote";w.className="site-note";const ac2=$("#rStart").parentElement;ac2.parentElement.insertBefore(w,ac2);}w.textContent=APPVOL<=0.02?"🔇 The app volume is at 0 — open the ♩ pill (bottom-left) and raise App vol.":"🔇 Click volume is off — slide the 🥁 Click row up to hear the beat.";}
     if(R.running)rStop();else rStart();};
   beanChip();
 }
@@ -4937,7 +4941,7 @@ function djMatch(now){const P=DJP(),cellDur=(60/DJ.bpm)/P.div,win=Math.min(0.2,c
 function djScoreUI(){const accEl=$("#djAcc"),feel=$("#djFeel");if(!accEl)return;const acc=DJ.resolved?Math.round(100*DJ.inPocket/DJ.resolved):0;accEl.textContent=DJ.resolved?acc+"%":"—";const ms=DJ.matched?Math.round(1000*DJ.errAbs/DJ.matched):0;if(feel)feel.textContent=!DJ.resolved?"Play along — hit on each cell":"±"+ms+" ms · "+(acc>=80?"locked in 🔥":acc>=55?"close — settle into the click":"listen to the click and lock in");}
 function djFrame(){const now=ac().currentTime;while(DJ.visQ.length&&DJ.visQ[0].t<=now){const e=DJ.visQ.shift();djLight(e.cell);if(e.hit)djHit(e.hit,DJ.stick?DJ.stick[e.cell]:undefined);}
   const inCount=now<DJ.countEndTime;const ban=$("#djBanner");if(ban){ban.hidden=!inCount;if(inCount)ban.textContent="Count-in…";}
-  const stl=$("#djStatus");if(stl&&DJ.running)stl.textContent=inCount?"":((!DJ.playPattern&&CLICK_VOL<=0.001)?"🔇 Pattern is off and click volume is off — turn one on to hear it":"Bar "+Math.max(1,DJ.barCount-DJ.countIn+1)+(DJ.scoring?" of "+DJ.measures:DJ.loopBars?" of "+DJ.loopBars:" · looping")+" · "+DJP().name);
+  const stl=$("#djStatus");if(stl&&DJ.running)stl.textContent=inCount?"":(APPVOL<=0.02?"🔇 App volume is at 0 — raise it in the ♩ pill (bottom-left)":(!DJ.playPattern&&CLICK_VOL<=0.001)?"🔇 Pattern is off and click volume is off — turn one on to hear it":"Bar "+Math.max(1,DJ.barCount-DJ.countIn+1)+(DJ.scoring?" of "+DJ.measures:DJ.loopBars?" of "+DJ.loopBars:" · looping")+" · "+DJP().name);
   if(DJ.scoring){djDetect(now,!inCount);if(!inCount)djMatch(now);djScoreUI();}
   if(DJ.running&&now>=DJ.endTime){djStop();if(DJ.refresh)DJ.refresh();return;}
   DJ.raf=requestAnimationFrame(djFrame);}
@@ -10288,7 +10292,7 @@ function lucCueAt(a,t){var g=LUC.g,st=lucCfg().style;
 function lucWindowAt(a,t){var ns=[];[0,150,300].forEach(function(off){ns=ns.concat(lucCueAt(a,t+off));});return ns;}
 function lucCancel(ns){(ns||[]).forEach(function(n){try{n.stop(0);}catch(e){}try{n.disconnect();}catch(e){}});}
 function lucPlan(){var c=lucCfg(),ws=[c.first,c.first+1.5,c.first+3,c.first+4.25].filter(function(h){return h<c.hours-0.4;});return ws;}
-function lucStart(){unlockAudio();var a=ac(),c=lucCfg();LUC.on=true;LUC.at=Date.now();LUC.state="descent";LUC.windows=[];LUC.base=[];LUC.shifts={};
+function lucStart(){unlockAudio();if(APPVOL<0.3)setAppVol(0.7);/* a silent night defeats the cues — restore master volume */var a=ac(),c=lucCfg();LUC.on=true;LUC.at=Date.now();LUC.state="descent";LUC.windows=[];LUC.base=[];LUC.shifts={};
   LUC.g=a.createGain();LUC.g.gain.value=c.vol;LUC.g.connect(a.destination);
   /* inaudible keepalive holds the audio session (and its clock) open all night */
   LUC.keep=a.createOscillator();var kg=a.createGain();kg.gain.value=0.0004;LUC.keep.frequency.value=37;LUC.keep.connect(kg);kg.connect(a.destination);LUC.keep.start();
@@ -11861,7 +11865,7 @@ function renderRhythmMind(fromRhythm){if(toneRAF)cancelAnimationFrame(toneRAF);m
   }
   function light(i){const cs=view.querySelectorAll("[data-rmc]");if(lit>=0&&cs[lit])cs[lit].classList.remove("on");if(i>=0&&cs[i])cs[i].classList.add("on");lit=i;}
   function tap(){if(!running||phase!=="silent")return;taps.push(ac().currentTime);const fl=$("#rmTap");if(fl){fl.classList.add("hit");setTimeout(()=>fl.classList.remove("hit"),80);}}
-  function startR(){unlockAudio();const p=P();if(CLICK_VOL<=0.001){const el=$("#rmScore");if(el)el.innerHTML="🔇 Click volume is off — slide the 🥁 Click row up so you can hear the rhythm.";return;}
+  function startR(){unlockAudio();const p=P();if(CLICK_VOL<=0.001||APPVOL<=0.02){const el=$("#rmScore");if(el)el.innerHTML=APPVOL<=0.02?"🔇 The app volume is at 0 — open the ♩ pill (bottom-left) and raise App vol.":"🔇 Click volume is off — slide the 🥁 Click row up so you can hear the rhythm.";return;}
     running=true;cell=0;taps=[];expect=[];results=[];visQ=[];phase="count";nextT=ac().currentTime+0.3;t0=nextT;$("#rmStart").textContent="■ Stop";
     schID=setInterval(sched,25);raf=requestAnimationFrame(frameR);}
   function stopR(){running=false;if(schID){clearInterval(schID);schID=null;}if(raf)cancelAnimationFrame(raf);light(-1);const b=$("#rmStart");if(b)b.textContent="▶ Start";}
