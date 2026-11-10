@@ -10299,6 +10299,45 @@ function bcRidge(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);var H2=B
     g.strokeStyle=i===rows-1?"#ECEDEF":"rgba(59,217,186,"+(0.1+0.55*depth)+")";g.lineWidth=i===rows-1?2:1;g.stroke();
     if(i===rows-1&&fr.pk)fr.pk.forEach(function(p){if(p[1]<0.6)return;var px=x0+(p[0]*2-2)/88*ww;g.fillStyle=p[0]>=8&&p[0]<13?"#f4b740":"#ECEDEF";g.beginPath();g.arc(px,yb+8,3,0,7);g.fill();});}
   BC_BANDS.forEach(function(b){var px=x+20+((b[0]+b[1])/2*2-2)/88*(w-40);g.fillStyle=b[2];g.font="800 11px system-ui";g.textAlign="center";g.fillText(b[3],px,y+h-6);});}
+function bcT(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
+function bcSeries(){if(BC.src==="rec"){var R=BC.rec;if(!R||!R.tl||!R.tl.t||!R.tl.t.length)return null;var f=R.frames[BC.ri];return {S:R.tl,cur:f?f.t:0,coPct:true};}
+  var L=BIO.log;if(L.length<2)return null;var t0=L[0].t;
+  return {S:{t:L.map(function(p){return (p.t-t0)/1000;}),hr:L.map(function(p){return p.hr;}),hrv:L.map(function(p){return p.hrv;}),co:L.map(function(p){return p.co!=null?Math.round(p.co/(1+p.co)*100):null;}),al:L.map(function(p){return p.al;}),th:L.map(function(p){return p.th;}),be:L.map(function(p){return p.be;})},cur:(L[L.length-1].t-t0)/1000,coPct:true};}
+/* view 4: vitals — the heart-and-brain story moving past a center playhead */
+function bcVitals(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);var D=bcSeries();if(!D)return bcNoData(g,x,y,w,h);h=h-(BC.src==="rec"?160:52);
+  var S=D.S,tc=D.cur,win=60,cx0=x+14,cw=w-28,cy0=y+46,ch=h*0.46;
+  var tX=function(t){return cx0+(t-(tc-win))/(2*win)*cw;};
+  g.strokeStyle="rgba(255,255,255,.06)";for(var gt=Math.ceil((tc-win)/30)*30;gt<=tc+win;gt+=30){g.beginPath();g.moveTo(tX(gt),cy0);g.lineTo(tX(gt),cy0+ch);g.stroke();}
+  var near=function(key){var best=null,bd=1e9;for(var i=0;i<S.t.length;i++){var d=Math.abs(S.t[i]-tc);if(d<bd&&S[key][i]!=null&&isFinite(S[key][i])){bd=d;best=S[key][i];}if(S.t[i]>tc+5)break;}return bd<=6?best:null;};
+  var plot=function(key,col,lo,hi){g.strokeStyle=col;g.lineWidth=2;g.beginPath();var st=false;
+    for(var i=0;i<S.t.length;i++){var t=S.t[i];if(t<tc-win)continue;if(t>tc+win)break;var v=S[key][i];if(v==null||!isFinite(v)){st=false;continue;}
+      var yy=cy0+ch-(Math.max(lo,Math.min(hi,v))-lo)/(hi-lo)*ch;if(!st){g.moveTo(tX(t),yy);st=true;}else g.lineTo(tX(t),yy);}g.stroke();};
+  plot("hr","#ff8f8c",40,110);plot("hrv","#5fe0a8",0,120);plot("co","#f4b740",0,100);
+  g.font="800 10px system-ui";g.textAlign="right";var lx=cx0+cw-4;
+  [["coherence","#f4b740"],["HRV","#5fe0a8"],["heart rate","#ff8f8c"]].forEach(function(L2){g.fillStyle=L2[1];g.fillText("— "+L2[0],lx,cy0+14);lx-=g.measureText("— "+L2[0]).width+14;});
+  g.strokeStyle="#f4b740";g.lineWidth=2;g.shadowColor="#f4b740";g.shadowBlur=8;g.beginPath();g.moveTo(tX(tc),cy0-6);g.lineTo(tX(tc),cy0+ch+6);g.stroke();g.shadowBlur=0;
+  g.fillStyle="#9BA1AC";g.font="700 10px system-ui";g.textAlign="center";g.fillText("−1 min",cx0+cw*0.02+14,cy0+ch+14);g.fillText("now "+bcT(tc),tX(tc),cy0+ch+14);g.fillText("+1 min",cx0+cw-20,cy0+ch+14);
+  /* bottom: live tiles */
+  var by=cy0+ch+28,bh=Math.min(170,h-(by-y)-10),t3=cw/3;if(bh<70){by=cy0+ch+16;bh=Math.max(60,h-(by-y)-6);}
+  var hr=near("hr"),hv=near("hrv"),co=near("co"),al=near("al"),th=near("th"),be=near("be");
+  var tile=function(ix,draw){var tx=cx0+ix*t3;g.save();g.translate(tx,by);draw(t3-14,bh);g.restore();};
+  tile(0,function(tw,thh){var r=Math.min(tw,thh)/2-8,cx=tw/2,cy=thh/2-6;
+    var ph=hr?(Date.now()/1000*hr/60)%1:0,rr=r*(0.86+((BC.playing||BC.src==="live")?0.14*Math.abs(Math.sin(ph*Math.PI)):0));
+    g.strokeStyle="rgba(255,143,140,.5)";g.lineWidth=3;g.beginPath();g.arc(cx,cy,rr,0,7);g.stroke();
+    g.fillStyle="#ECEDEF";g.font="900 26px system-ui";g.textAlign="center";g.fillText(hr!=null?Math.round(hr):"—",cx,cy+9);
+    g.fillStyle="#9BA1AC";g.font="800 10px system-ui";g.fillText("BPM",cx,cy+24);g.fillText("HRV "+(hv!=null?Math.round(hv)+" ms":"—"),cx,thh-2);});
+  tile(1,function(tw,thh){var cx=tw/2,cy=thh/2+8,r=Math.min(tw,thh)/2-6;
+    g.strokeStyle="rgba(255,255,255,.12)";g.lineWidth=7;g.beginPath();g.arc(cx,cy,r,Math.PI*0.75,Math.PI*2.25);g.stroke();
+    if(co!=null){g.strokeStyle="#f4b740";g.beginPath();g.arc(cx,cy,r,Math.PI*0.75,Math.PI*(0.75+1.5*Math.min(100,co)/100));g.stroke();}
+    g.fillStyle="#ECEDEF";g.font="900 22px system-ui";g.textAlign="center";g.fillText(co!=null?Math.round(co)+"%":"—",cx,cy+7);
+    g.fillStyle="#9BA1AC";g.font="800 10px system-ui";g.fillText("coherence",cx,cy+22);});
+  tile(2,function(tw,thh){var bars=[["α",al,"#5fe0a8"],["θ",th,"#f4b740"],["β",be,"#5fc8e0"]],bw=Math.min(34,tw/4),x0=tw/2-bw*1.5-6;
+    g.font="800 11px system-ui";g.textAlign="center";
+    bars.forEach(function(b,i){var v=b[1]!=null?Math.min(100,b[1]):null,bx=x0+i*(bw+6),bhh=v!=null?(thh-30)*v/100:0;
+      g.fillStyle="rgba(255,255,255,.08)";g.fillRect(bx,8,bw,thh-30);
+      if(v!=null){g.fillStyle=b[2];g.fillRect(bx,8+(thh-30)-bhh,bw,bhh);}
+      g.fillStyle="#9BA1AC";g.fillText(b[0]+(v!=null?" "+Math.round(v):""),bx+bw/2,thh-6);});
+    if(al==null&&th==null&&be==null){g.fillStyle="#9BA1AC";g.fillText("no EEG",tw/2,thh/2);}});}
 function bcNoData(g,x,y,w,h){g.fillStyle="#9BA1AC";g.font="700 13px system-ui";g.textAlign="center";g.fillText(BC.src==="live"?(M.connected?"Listening… signal settling.":"Connect the Muse (any meditation → Sensors), or switch to 📼 Recorded."):(BC.load||"Pick a recorded session below."),x+w/2,y+h/2);}
 function bcDraw(){var cv=document.getElementById("bcCv");if(!cv)return;var dpr=Math.min(2,window.devicePixelRatio||1),W=cv.clientWidth,H=cv.clientHeight;
   if(cv.width!==Math.round(W*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
@@ -10307,6 +10346,7 @@ function bcDraw(){var cv=document.getElementById("bcCv");if(!cv)return;var dpr=M
   if(BC.view==="pair"){bcMirror(g,0,0,W,H*0.55-2,f);bcFlow(g,0,H*0.55+2,W,H*0.45-2,f);}
   else if(BC.view==="mirror")bcMirror(g,0,0,W,H,f);
   else if(BC.view==="flow")bcFlow(g,0,0,W,H,f);
+  else if(BC.view==="vitals")bcVitals(g,0,0,W,H,f);
   else bcRidge(g,0,0,W,H,f);}
 function bcTick(){if(!BC.on)return;
   if(BC.src==="live"){bcPush(bcFrameLive());}
@@ -10315,7 +10355,7 @@ function bcTick(){if(!BC.on)return;
     if(BC.pos>=n-1){BC.pos=n-1;BC.playing=false;}if(BC.pos<=0){BC.pos=0;if((BC.dir||1)<0)BC.playing=false;}
     BC.ri=Math.round(BC.pos);var sl=document.getElementById("bcSlide");if(sl)sl.value=BC.ri;
     var hb=document.getElementById("bcPlayB");if(hb)hb.textContent=BC.playing?"⏸":"▶";
-    var fr=BC.rec.frames[BC.ri];if(fr){bcPush(fr);var st=document.getElementById("bcLoad");if(st){var tm=Math.round(fr.t),co=fr.co!=null?" · ❤️ "+Math.round(fr.co)+"%":"";st.textContent=Math.floor(tm/60)+":"+String(tm%60).padStart(2,"0")+co+((BC.dir||1)<0?" ◀":"")+((BC.spd||1)!==1?" · "+BC.spd+"×":"");}}}
+    var fr=BC.rec.frames[BC.ri];if(fr){bcPush(fr);var tEl=document.getElementById("bcTime");if(tEl)tEl.textContent=bcT(fr.t)+" / "+bcT(BC.rec.dur)+((BC.dir||1)<0?" ◀":"")+((BC.spd||1)!==1?" "+BC.spd+"×":"");}}
   bcDraw();}
 /* load a recorded session's raw EEG into frames (one per second, strided to stay light) */
 function bcLoadRec(at,label){BC.rec=null;BC.ri=0;BC.playing=false;BC.load="Loading…";BC.hist=[];BC.fl=null;
@@ -10330,47 +10370,55 @@ function bcLoadRec(at,label){BC.rec=null;BC.ri=0;BC.playing=false;BC.load="Loadi
         frames.push({t:off/fs,L:L,R:R,pk:bcPeaksOf(C)});}
       var tl=(D.tl&&D.tl.t&&D.tl.t.length)?D.tl:null;
       if(tl&&tl.co){var ti=0;frames.forEach(function(f){while(ti<tl.t.length-1&&tl.t[ti+1]<=f.t)ti++;f.co=tl.co[ti];});}
-      BC.rec={at:at,label:label,frames:frames,dur:total/fs,frameDt:stride/fs};BC.load="";BC.ri=0;BC.pos=0;
+      BC.rec={at:at,label:label,frames:frames,dur:total/fs,frameDt:stride/fs,tl:tl?{t:tl.t,hr:tl.hr||[],hrv:tl.hrv||[],co:tl.co||[],al:tl.al||[],th:tl.th||[],be:tl.be||[]}:null};BC.load="";BC.ri=0;BC.pos=0;
       var sl2=document.getElementById("bcSlide");if(sl2){sl2.max=frames.length-1;sl2.value=0;}var st2=document.getElementById("bcLoad");if(st2)st2.textContent=label+" · "+Math.round(total/fs/60)+" min loaded";
       bcMarks();bcDraw();};
     step();});}
 function renderBrainCharts(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  BC.on=true;BC.hist=[];BC.fl=null;BC.lastFlow=null;teardown=function(){BC.on=false;if(BC.t)clearInterval(BC.t);BC.t=null;};
+  BC.on=true;BC.hist=BC.src==="live"?[]:BC.hist;BC.fl=null;BC.lastFlow=null;teardown=function(){BC.on=false;if(BC.t)clearInterval(BC.t);BC.t=null;};
   var recs=srIdx().filter(function(e){return (e.eegBlocks||0)>0;}).sort(function(a,b){return b.at-a.at;}).slice(0,12);
-  view.innerHTML='<div class="play-top"><button class="back" id="eBack" aria-label="Back">←</button><span class="ttitle">🧠 Brain Charts</span><span id="bcMuse" style="margin-left:auto;font:700 .75rem system-ui;color:'+(M.connected?"#5fe0a8":"#9BA1AC")+'">'+(M.connected?"Muse live":"Muse not connected")+'</span></div>'+
-  '<div class="rchips tight" data-nocz style="justify-content:center;margin:4px 0">'+[["mirror","🪞 Mirror"],["flow","🌊 Flow"],["ridge","⛰ Ridge"],["pair","◫ Pair"]].map(function(v){return '<button class="rchip sm'+(BC.view===v[0]?" sel":"")+'" data-bcv="'+v[0]+'">'+v[1]+'</button>';}).join("")+
-  '<button class="rchip sm'+(BC.src==="live"?" sel":"")+'" data-bcs="live">● Live</button><button class="rchip sm'+(BC.src==="rec"?" sel":"")+'" data-bcs="rec">📼 Recorded</button></div>'+
-  '<canvas id="bcCv" style="display:block;width:100%;height:'+Math.max(300,window.innerHeight-(BC.src==="rec"?356:170))+'px;border-radius:14px;background:#0E0F13"></canvas>'+
-  '<div id="bcRec" style="'+(BC.src==="rec"?"":"display:none")+'">'+
-    '<div style="display:flex;gap:5px;align-items:center;margin:8px 0 2px;flex-wrap:wrap">'+
-      '<button class="rchip sm" id="bcBk" aria-label="Back 30 seconds">⏪ 30s</button>'+
-      '<button class="rchip sm'+((BC.dir||1)<0?" sel":"")+'" id="bcRev" aria-label="Play backwards">◀ Rev</button>'+
-      '<button class="rchip sm" id="bcPlayB" style="min-width:44px;justify-content:center">'+(BC.playing?"⏸":"▶")+'</button>'+
-      '<button class="rchip sm" id="bcFw" aria-label="Forward 30 seconds">30s ⏩</button>'+
-      [1,2,4,8].map(function(s){return '<button class="rchip sm'+((BC.spd||1)===s?" sel":"")+'" data-spd="'+s+'">'+s+'×</button>';}).join("")+
-      '<button class="rchip sm" data-find="sync" style="color:var(--gold)">⏭ α sync</button>'+
-      '<button class="rchip sm" data-find="co" style="color:#5fe0a8">⏭ ❤️ high</button></div>'+
-    '<canvas id="bcMk" style="display:block;width:100%;height:16px;border-radius:4px;background:rgba(255,255,255,.04)"></canvas>'+
-    '<div style="display:flex;gap:8px;align-items:center;margin:2px 0 6px"><input type="range" id="bcSlide" min="0" max="'+(BC.rec?BC.rec.frames.length-1:0)+'" value="'+BC.ri+'" style="flex:1;accent-color:var(--gold)"><span id="bcLoad" class="site-note" style="margin:0;font-size:.74rem;white-space:nowrap">'+(BC.load||(BC.rec?BC.rec.label:""))+'</span></div>'+
-    '<div class="rchips tight" data-nocz>'+(recs.length?recs.map(function(e){return '<button class="rchip sm" data-bcr="'+e.at+'">'+esc((e.label||"Session").slice(0,26))+'</button>';}).join(""):'<span class="site-note" style="margin:0">No sessions with raw EEG yet — wear the Muse during any meditation.</span>')+'</div><div style="height:64px"></div></div>';
+  var isRec=BC.src==="rec",H=Math.max(420,window.innerHeight-64);
+  var chip=function(sel,attr,txt){return '<button class="rchip sm'+(sel?" sel":"")+'" '+attr+' style="backdrop-filter:blur(6px)">'+txt+'</button>';};
+  view.innerHTML='<div id="bcWrap" style="position:relative;height:'+H+'px;border-radius:14px;overflow:hidden;background:#0E0F13">'
+   +'<canvas id="bcCv" style="position:absolute;inset:0;width:100%;height:100%;display:block"></canvas>'
+   +'<div id="bcTop" style="position:absolute;left:0;right:0;top:0;padding:8px 8px 18px;display:flex;gap:5px;align-items:center;flex-wrap:wrap;background:linear-gradient(rgba(10,11,14,.88),rgba(10,11,14,.5) 60%,transparent);transition:opacity .35s">'
+    +'<button class="rchip sm" id="eBack" aria-label="Back">←</button>'
+    +[["mirror","🪞 Mirror"],["flow","🌊 Flow"],["ridge","⛰ Ridge"],["vitals","💓 Vitals"],["pair","◫ Pair"]].map(function(v){return chip(BC.view===v[0],'data-bcv="'+v[0]+'"',v[1]);}).join("")
+    +chip(!isRec,'data-bcs="live"',"● Live")+chip(isRec,'data-bcs="rec"',"📼")
+    +'<span id="bcMuse" style="margin-left:auto;font:700 .72rem system-ui;color:'+(M.connected?"#5fe0a8":"#9BA1AC")+'">'+(M.connected?"Muse live":(isRec?"":"Muse off"))+'</span></div>'
+   +'<div id="bcBot" style="position:absolute;left:0;right:0;bottom:0;padding:26px 10px 10px;background:linear-gradient(transparent,rgba(10,11,14,.6) 20%,rgba(10,11,14,.92));transition:opacity .35s;'+(isRec?"":"display:none")+'">'
+    +'<canvas id="bcMk" style="display:block;width:100%;height:14px;border-radius:4px;background:rgba(255,255,255,.05)"></canvas>'
+    +'<div style="display:flex;gap:8px;align-items:center;margin:4px 0"><input type="range" id="bcSlide" min="0" max="'+(BC.rec?BC.rec.frames.length-1:0)+'" value="'+BC.ri+'" style="flex:1;accent-color:var(--gold)"><span id="bcTime" style="font:800 .74rem ui-monospace,monospace;color:#ECEDEF;white-space:nowrap">'+(BC.rec?bcT(BC.rec.frames[BC.ri]?BC.rec.frames[BC.ri].t:0)+" / "+bcT(BC.rec.dur):"–:–")+'</span></div>'
+    +'<div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">'
+     +'<button class="rchip sm" id="bcBk">⏪ 30s</button><button class="rchip sm'+((BC.dir||1)<0?" sel":"")+'" id="bcRev">◀</button>'
+     +'<button class="rchip sm" id="bcPlayB" style="min-width:52px;justify-content:center;font-size:1rem">'+(BC.playing?"⏸":"▶")+'</button>'
+     +'<button class="rchip sm" id="bcFw">30s ⏩</button>'
+     +[1,2,4,8].map(function(sp){return '<button class="rchip sm'+((BC.spd||1)===sp?" sel":"")+'" data-spd="'+sp+'">'+sp+'×</button>';}).join("")
+     +'<button class="rchip sm" data-find="sync" style="color:var(--gold)">⏭ α</button><button class="rchip sm" data-find="co" style="color:#5fe0a8">⏭ ❤️</button></div>'
+    +'<div id="bcLoad" class="site-note" style="margin:4px 0 0;font-size:.72rem">'+(BC.load||(BC.rec?BC.rec.label:"Pick a session:"))+'</div>'
+    +'<div class="rchips tight" data-nocz style="margin-top:4px">'+(recs.length?recs.map(function(e){return '<button class="rchip sm" data-bcr="'+e.at+'">'+esc((e.label||"Session").slice(0,24))+'</button>';}).join(""):'<span class="site-note" style="margin:0">No sessions with raw EEG yet — wear the Muse during any meditation.</span>')+'</div></div></div>';
   $("#eBack").onclick=goHome;
+  var top=document.getElementById("bcTop"),bot=document.getElementById("bcBot");
+  var dim=function(){var d=BC.playing&&isRec;if(top)top.style.opacity=d?0.15:1;if(bot)bot.style.opacity=d?0.25:1;};
   view.querySelectorAll("[data-bcv]").forEach(function(b){b.onclick=function(){BC.view=b.dataset.bcv;BC.fl=null;BC.lastFlow=null;renderBrainCharts();};});
-  view.querySelectorAll("[data-bcs]").forEach(function(b){b.onclick=function(){BC.src=b.dataset.bcs;BC.fl=null;BC.lastFlow=null;renderBrainCharts();};});
+  view.querySelectorAll("[data-bcs]").forEach(function(b){b.onclick=function(){BC.src=b.dataset.bcs;BC.playing=false;BC.fl=null;BC.lastFlow=null;renderBrainCharts();};});
   view.querySelectorAll("[data-bcr]").forEach(function(b){b.onclick=function(){var e=srIdx().find(function(x){return String(x.at)===b.dataset.bcr;});bcLoadRec(+b.dataset.bcr,(e&&e.label)||"Session");};});
-  var pb=document.getElementById("bcPlayB");if(pb)pb.onclick=function(){BC.playing=!BC.playing;pb.textContent=BC.playing?"⏸":"▶";};
-  var sl=document.getElementById("bcSlide");if(sl)sl.oninput=function(){BC.ri=+sl.value;BC.pos=BC.ri;BC.playing=false;if(pb)pb.textContent="▶";BC.fl=null;if(BC.rec&&BC.rec.frames[BC.ri])bcPush(BC.rec.frames[BC.ri]);bcDraw();};
+  var pb=document.getElementById("bcPlayB");var setPlay=function(v){BC.playing=v;if(pb)pb.textContent=v?"⏸":"▶";dim();};
+  if(pb)pb.onclick=function(){setPlay(!BC.playing);};
+  document.getElementById("bcCv").onclick=function(){if(isRec&&BC.rec)setPlay(!BC.playing);else dim();};
+  var sl=document.getElementById("bcSlide");if(sl)sl.oninput=function(){BC.ri=+sl.value;BC.pos=BC.ri;setPlay(false);BC.fl=null;if(BC.rec&&BC.rec.frames[BC.ri])bcPush(BC.rec.frames[BC.ri]);bcDraw();};
   var jump=function(i){if(!BC.rec)return;BC.ri=Math.max(0,Math.min(BC.rec.frames.length-1,i));BC.pos=BC.ri;if(sl)sl.value=BC.ri;BC.fl=null;bcPush(BC.rec.frames[BC.ri]);bcDraw();};
   var bk=document.getElementById("bcBk");if(bk)bk.onclick=function(){if(BC.rec)jump(BC.ri-Math.round(30/(BC.rec.frameDt||1)));};
   var fw=document.getElementById("bcFw");if(fw)fw.onclick=function(){if(BC.rec)jump(BC.ri+Math.round(30/(BC.rec.frameDt||1)));};
-  var rv=document.getElementById("bcRev");if(rv)rv.onclick=function(){BC.dir=(BC.dir||1)<0?1:-1;rv.classList.toggle("sel",BC.dir<0);if(BC.dir<0&&!BC.playing){BC.playing=true;if(pb)pb.textContent="⏸";}};
+  var rv=document.getElementById("bcRev");if(rv)rv.onclick=function(){BC.dir=(BC.dir||1)<0?1:-1;rv.classList.toggle("sel",BC.dir<0);if(BC.dir<0&&!BC.playing)setPlay(true);};
   view.querySelectorAll("[data-spd]").forEach(function(b){b.onclick=function(){BC.spd=+b.dataset.spd;view.querySelectorAll("[data-spd]").forEach(function(x){x.classList.toggle("sel",x===b);});};});
   view.querySelectorAll("[data-find]").forEach(function(b){b.onclick=function(){if(!BC.rec)return;var kind=b.dataset.find,fr=BC.rec.frames;
-    for(var i=BC.ri+1;i<fr.length;i++){var f=fr[i],hit=false;
-      if(kind==="sync")hit=(f.pk||[]).some(function(p){return p[1]>=0.6&&p[0]>=8&&p[0]<13;});
-      else hit=f.co!=null&&f.co>=60;
+    for(var i=BC.ri+1;i<fr.length;i++){var f2=fr[i],hit=false;
+      if(kind==="sync")hit=(f2.pk||[]).some(function(p){return p[1]>=0.6&&p[0]>=8&&p[0]<13;});
+      else hit=f2.co!=null&&f2.co>=60;
       if(hit){jump(i);return;}}
     var st=document.getElementById("bcLoad");if(st)st.textContent=kind==="sync"?"No more α sync ahead — scrub back to search earlier.":"No more high coherence ahead.";};});
-  if(BC.t)clearInterval(BC.t);BC.t=setInterval(bcTick,500);bcMarks();bcDraw();}
+  dim();if(BC.t)clearInterval(BC.t);BC.t=setInterval(bcTick,500);bcMarks();bcDraw();}
 /* marker strip above the slider: gold ticks = alpha hemi-sync, white = other sync, green curve = heart coherence */
 function bcMarks(){var cv=document.getElementById("bcMk");if(!cv)return;var dpr=Math.min(2,window.devicePixelRatio||1),W=cv.clientWidth||300,H=16;
   cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);var g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
