@@ -9219,7 +9219,7 @@ function bioSummary(){const L=BIO.log.filter(p=>p.t>=BIO.t0);if(L.length<20)retu
   const parts=[hr!=null?"avg HR <b>"+Math.round(hr)+"</b>":"",hv!=null?"HRV <b>"+Math.round(hv)+" ms</b>":"",al!=null?"alpha <b>"+Math.round(al)+"%</b>":"",th!=null?"theta <b>"+Math.round(th)+"%</b>":""].filter(Boolean);return (parts.length?'<div class="site-note" style="margin-top:6px">📊 This session: '+parts.join(" · ")+'</div>':"")+ansSummary();}
 function bioPanelHTML(){return '<details id="bioSet" style="margin:6px 0"'+(HR.connected||M.connected?" open":"")+'><summary style="cursor:pointer;list-style:none;padding:8px 2px;font:800 .9rem system-ui;color:var(--muted)">🫀 Sensors · <span id="bioSum" style="font-weight:600">'+bioStatus()+'</span> ▾</summary>'+fullPageNote()+
   '<div class="actions" style="flex-wrap:wrap"><button class="btn ghost" id="bioHRb" style="flex:1 1 45%">'+(HR.connected?"❤️ Connected · Disconnect":"❤️ Heart rate / HRV")+'</button><button class="btn ghost" id="bioMuseb" style="flex:1 1 45%">'+(M.connected?"🧠 Connected · Disconnect":"🧠 Muse headband")+'</button></div>'+
-  '<div class="site-note" style="margin:2px 0">Heart sensor not in the list? <a href="#" id="bioHRall">Show every Bluetooth device</a></div>'+
+  '<div class="site-note" style="margin:2px 0">Device not in the list? <a href="#" id="bioHRall">Show all (heart)</a> · <a href="#" id="bioMuseAll">Show all (Muse)</a></div>'+
   '<div id="bioMsg" class="feedback" style="min-height:18px"></div><div id="bioLive"></div>'+
   '<details style="margin-top:4px"><summary style="cursor:pointer;font-size:.8rem;color:var(--muted);list-style:none">ℹ️ How to connect each device ▾</summary><div class="site-note" style="font-size:.8rem">'+
   '<b>iPhone:</b> Safari can’t use Bluetooth. Install the free <b>Bluefy – Web BLE Browser</b> app and open MMU in it.<br>'+
@@ -9231,8 +9231,13 @@ function bioPanelBind(){const a=document.getElementById("bioHRb"),b=document.get
   const aa=document.getElementById("bioHRall");if(aa&&a)aa.onclick=e=>{e.preventDefault();HR_ALL=true;a.click();};
   if(a)a.onclick=async()=>{if(HR.connected){hrDisconnect();a.textContent="❤️ Heart rate / HRV";bioMsg("Heart sensor disconnected.");return;}if(!bioBT()){bioHelp();return;}bioMsg("Pick your heart sensor in the list…");const ok=await hrConnect(e=>{if(e&&e.name==="NotFoundError")bioMsg("No sensor picked. Apple Watch needs a broadcaster app running first (see tips).");});
     if(!ok&&HR_ERR)bioMsg(HR_ERR);if(ok){bioMsg("❤️ Connected"+(HR.dev&&HR.dev.name?" to <b>"+esc(HR.dev.name)+"</b>":"")+". HRV needs about a minute of beats.");a.textContent="❤️ Connected · Disconnect";bioStart();try{if(typeof startHRLoop==="function")startHRLoop();}catch(e){}}};
-  if(b)b.onclick=async()=>{if(M.connected){museDisconnect();b.textContent="🧠 Muse headband";bioMsg("Muse disconnected.");return;}if(!bioBT()){bioHelp();return;}const st=document.getElementById("bioMsg");try{await museConnect(st);bioMsg("🧠 Muse streaming — sit still a few seconds while the signal settles.");b.textContent="🧠 Connected · Disconnect";bioStart();}
-    catch(e){bioMsg(e&&e.name==="NotFoundError"?"No Muse picked — make sure it’s on and closed in the Muse app.":"Couldn’t connect: "+esc(String(e&&e.message||e)));}};
+  const museGo=async all=>{if(M.connected){museDisconnect();b.textContent="🧠 Muse headband";bioMsg("Muse disconnected.");return;}if(!bioBT()){bioHelp();return;}const st=document.getElementById("bioMsg");try{await museConnect(st,all);bioMsg("🧠 Muse streaming — sit still a few seconds while the signal settles.");b.textContent="🧠 Connected · Disconnect";bioStart();}
+    catch(e){try{museDisconnect();}catch(_){}
+      if(e&&e.name==="NotFoundError")bioMsg("No Muse in the list. Checklist: ① hold its button until the lights sweep (awake), ② fully close the official Muse app, ③ iPhone Settings → Bluetooth: if Muse shows as paired, tap ⓘ → Forget, ④ then tap <a href=\"#\" id=\"bioMuseAll2\">Show all (Muse)</a> to list every device.");
+      else bioMsg("Muse — "+esc(String(e&&e.message||e))+". Turn the headband off and on, wait 5 seconds, try again. If it keeps failing at the same step, tell me the step number.");
+      const l2=document.getElementById("bioMuseAll2");if(l2)l2.onclick=ev=>{ev.preventDefault();museGo(true);};}};
+  if(b)b.onclick=()=>museGo(false);
+  const ma=document.getElementById("bioMuseAll");if(ma&&b)ma.onclick=e=>{e.preventDefault();museGo(true);};
   if(HR.connected||M.connected)bioStart();bioPaint();}
 
 const BRAINWAVES=[
@@ -11791,7 +11796,7 @@ function renderInstructor(){
     if(blob&&blob.size<22*1024*1024){ver.hasAudio=true;idbPut("mmu-"+vid,blob).then(finish).catch(finish);}else finish();};}
  draw();
 }
-const MUSE_SVC=0xfe8d, MUSE_CTRL="273e0001-4c4d-454d-96be-f03bac821358",
+const MUSE_SVC="0000fe8d-0000-1000-8000-00805f9b34fb", MUSE_CTRL="273e0001-4c4d-454d-96be-f03bac821358",
   MUSE_TELE="273e000b-4c4d-454d-96be-f03bac821358",
   MUSE_EEG=["273e0003-4c4d-454d-96be-f03bac821358","273e0004-4c4d-454d-96be-f03bac821358","273e0005-4c4d-454d-96be-f03bac821358","273e0006-4c4d-454d-96be-f03bac821358"],
   MUSE_PPG=["273e000f-4c4d-454d-96be-f03bac821358","273e0010-4c4d-454d-96be-f03bac821358","273e0011-4c4d-454d-96be-f03bac821358"];
@@ -11852,7 +11857,7 @@ async function museWrite(s){try{await M.ctrl.writeValue(museCmd(s));}catch(e){tr
 async function museConnect(statusEl,all){
   if(!navigator.bluetooth)throw new Error("no-bt");
   statusEl.textContent="Opening Bluetooth…";
-  M.dev=await navigator.bluetooth.requestDevice(all?{acceptAllDevices:true,optionalServices:[MUSE_SVC]}:{filters:[{services:[MUSE_SVC]}],optionalServices:[MUSE_SVC]});
+  M.dev=await navigator.bluetooth.requestDevice(all?{acceptAllDevices:true,optionalServices:[MUSE_SVC]}:{filters:[{services:[MUSE_SVC]},{namePrefix:"Muse"}],optionalServices:[MUSE_SVC]});
   /* every step reports where it failed; some browsers (Bluefy) throw bare numeric codes */
   const TO=(pr,ms,step)=>Promise.race([Promise.resolve(pr).catch(e=>{const m=(e&&(e.message||e.name))||String(e);throw new Error(step+": "+(/^\d+$/.test(String(m))?"Bluetooth error "+m:m));}),new Promise((_,rj)=>setTimeout(()=>rj(new Error(step+": timed out")),ms))]);
   statusEl.textContent="Connecting to "+(M.dev.name||"Muse")+"… (step 1 of 4)";
