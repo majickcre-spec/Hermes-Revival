@@ -9112,7 +9112,7 @@ function medPulse(on){try{if(MED.pulseG){const a=ac();MED.pulseG.gain.cancelSche
 const MEDSPK={on:load("mjk-medspk",false)};
 function medSpeaker(on){MEDSPK.on=on;save("mjk-medspk",on);try{const a=ac();(MED.pans||[]).forEach(([pn,orig])=>{pn.pan.cancelScheduledValues(a.currentTime);pn.pan.setTargetAtTime(on?0:orig,a.currentTime,0.3);});if(MED.pulseG){MED.pulseG.gain.cancelScheduledValues(a.currentTime);MED.pulseG.gain.setTargetAtTime(on?0.07:0.03,a.currentTime,0.4);}if(MED.pulseBase){MED.pulseBase.gain.cancelScheduledValues(a.currentTime);MED.pulseBase.gain.setTargetAtTime(on?0.07:0.03,a.currentTime,0.4);}}catch(e){}}
 /* ===== SENSORS PANEL for journeys — reuses the app's heart-rate (HR) and Muse (M) Bluetooth engines ===== */
-const BIO={log:[],t0:Date.now(),timer:null};
+const BIO={log:[],lh:[],t0:Date.now(),timer:null};
 function bioBT(){return !!(navigator.bluetooth&&navigator.bluetooth.requestDevice);}
 function bioMsg(t){const m=document.getElementById("bioMsg");if(m)m.innerHTML=t;}
 function bioHelp(){bioMsg("<b>This browser can’t use Bluetooth.</b> On iPhone, Safari blocks it — install the free <b>Bluefy – Web BLE Browser</b> app and open MMU in it. On Android or a computer, use Chrome.");}
@@ -9124,7 +9124,9 @@ function bioCoherence(){let rr=rrClean(hrFresh()&&HR.rr&&HR.rr.length?HR.rr.slic
   const fs=2,n=Math.floor(T*fs),y=new Array(n);let k=0;for(let j=0;j<n;j++){const tt=j/fs;while(k<pts.length-2&&pts[k+1][0]<tt)k++;const a=pts[k],b=pts[k+1]||a,u=b[0]>a[0]?Math.min(1,Math.max(0,(tt-a[0])/(b[0]-a[0]))):0;y[j]=a[1]+(b[1]-a[1])*u;}
   const mean=y.reduce((p,q)=>p+q,0)/n,pw=[];for(let fi=1;fi/T<=0.4;fi++){const f=fi/T;let re=0,im=0;for(let j=0;j<n;j++){const w=0.5-0.5*Math.cos(2*Math.PI*j/(n-1)),v=(y[j]-mean)*w;re+=v*Math.cos(2*Math.PI*f*j/fs);im-=v*Math.sin(2*Math.PI*f*j/fs);}pw.push([f,re*re+im*im]);}
   let pk=null;pw.forEach(p=>{if(p[0]>=0.04&&p[0]<=0.26&&(!pk||p[1]>pk[1]))pk=p;});if(!pk)return null;let peak=0,tot=0;pw.forEach(p=>{tot+=p[1];if(Math.abs(p[0]-pk[0])<=0.03)peak+=p[1];});return {score:peak/Math.max(1e-9,tot-peak),freq:pk[0]};}
-function bioStart(){try{sensEnsureTimer();}catch(e){}if(BIO.timer)return;BIO.timer=setInterval(()=>{if(!HR.connected&&!M.connected)return;BIO.log.push({t:Date.now(),hr:bioHR(),hrv:bioHRV(),co:(bioCoherence()||{}).score,al:M.connected?M.alpha:null,th:M.connected?M.theta:null,be:M.connected?M.beta:null});if(BIO.log.length>7200)BIO.log.shift();bioPaint();},1000);}
+function bioStart(){try{sensEnsureTimer();}catch(e){}if(BIO.timer)return;BIO.timer=setInterval(()=>{if(!HR.connected&&!M.connected)return;BIO.log.push({t:Date.now(),hr:bioHR(),hrv:bioHRV(),co:(bioCoherence()||{}).score,al:M.connected?M.alpha:null,th:M.connected?M.theta:null,be:M.connected?M.beta:null});if(BIO.log.length>7200)BIO.log.shift();
+  if(!BIO.lhT||Date.now()-BIO.lhT>10000){BIO.lhT=Date.now();try{var sp=hrvSpec();if(sp&&sp.lf!=null&&sp.hf!=null){(BIO.lh=BIO.lh||[]).push({t:Date.now(),lf:sp.lf,hf:sp.hf});if(BIO.lh.length>720)BIO.lh.shift();}}catch(e){}}
+  bioPaint();},1000);}
 function bioStatus(){const a=[];const h=bioHR();if(HR.connected||h)a.push("❤️ "+(h||"…"));if(M.connected)a.push("🧠 Muse");return a.length?a.join(" · "):"not connected";}
 function bioSpark(key,col){const pts=BIO.log.slice(-120).map(p=>p[key]),v=pts.filter(x=>x!=null);if(v.length<2)return "";const W=120,H=24,mx=Math.max.apply(null,v),mn=Math.min.apply(null,v);
   return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:24px"><polyline fill="none" stroke="'+col+'" stroke-width="2" points="'+pts.map((x,i)=>x==null?"":(i*W/Math.max(1,pts.length-1)).toFixed(1)+","+(H-2-(x-mn)/Math.max(1e-6,mx-mn)*(H-4)).toFixed(1)).filter(Boolean).join(" ")+'"/></svg>';}
@@ -9220,7 +9222,7 @@ function ansPaint(id){const el=document.getElementById(id);if(!el)return;const A
   const FZ=!!window.MJK_FOCUS,pos=50+A.v/2,word=FZ?(A.v>40?"Drifting toward sleep \u2014 sit up, eyes open":A.v>=0?"In the focus zone":A.v>-20?"A little tense \u2014 breathe low and slow":"Stress rising"):(A.v>=40?"Deep rest":A.v>=15?"Shifting to rest":A.v>-15?"Steady":A.v>-40?"Slightly activated":"Activated");
   el.innerHTML='<div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:4px"><b>Nervous system</b><span><b style="color:'+(FZ?(A.v>=0&&A.v<=40?'#7ff0d6':'#e9c46a'):(A.v>=0?'#5fd38d':'#ef6262'))+'">'+(A.v>0?"+":"")+A.v+'</b> · '+word+'</span></div>'+
    '<div style="position:relative;height:14px;border-radius:7px;background:linear-gradient(90deg,rgba(239,98,98,.55),rgba(233,196,106,.45) 50%,rgba(95,211,141,.6))"><div style="position:absolute;left:calc(50% - 1px);top:-3px;width:2px;height:20px;background:rgba(255,255,255,.55)"></div>'+(FZ?'<div title="focus zone" style="position:absolute;left:50%;width:20%;top:-2px;height:18px;border-radius:5px;background:rgba(127,240,214,.28);box-shadow:inset 0 0 0 1px rgba(127,240,214,.7)"></div>':'')+(function(){try{if(FZ)return '';var G=tgtGoal();return '<div title="your target" style="position:absolute;left:calc('+(50+G.ns/2)+'% - 2px);top:-5px;width:4px;height:24px;border-radius:2px;background:#e9c46a"></div>';}catch(e){return '';}})()+'<div style="position:absolute;top:-3px;left:calc('+pos+'% - 10px);width:20px;height:20px;border-radius:50%;background:#fff;border:3px solid '+(A.v>=0?'#5fd38d':'#ef6262')+';transition:left .8s"></div></div>'+
-   '<div style="display:flex;justify-content:space-between;font-size:.68rem;opacity:.75;margin-top:4px"><span>Fight or flight</span>'+(FZ?'<span style="color:#7ff0d6">\u258c focus zone</span><span>Rest and restore</span>':'<span>start</span><span><span style="color:#e9c46a">\u258c target</span> \u00b7 Rest and restore</span>')+'</div>'+
+   '<div style="display:flex;justify-content:space-between;font-size:.68rem;opacity:.75;margin-top:4px"><span>Mobilized \u00b7 stress \u2192 effort \u2192 focus</span>'+(FZ?'<span style="color:#7ff0d6">\u258c focus zone</span><span>Restorative \u00b7 rest \u2192 repair</span>':'<span>start</span><span><span style="color:#e9c46a">\u258c target</span> \u00b7 Restorative \u00b7 rest \u2192 repair</span>')+'</div>'+
    '<canvas id="'+id+'Cv" style="width:100%;height:70px;display:block;margin-top:8px;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.2)"></canvas>'+
    '<div class="site-note" style="font-size:.74rem;margin-top:4px">Heart rate '+Math.round(A.hb)+' → '+Math.round(A.hn)+' bpm · HRV '+Math.round(A.vb)+' → '+Math.round(A.vn)+' ms, since you started.</div>';
   const cv=document.getElementById(id+"Cv");if(!cv)return;const W=cv.clientWidth||300,H=70,dpr=window.devicePixelRatio||1;cv.width=W*dpr;cv.height=H*dpr;const g=cv.getContext("2d");g.scale(dpr,dpr);
@@ -9240,6 +9242,32 @@ function hrvSpec(){let rr=rrClean(HR.connected&&HR.rr&&HR.rr.length?HR.rr.slice(
   let pk=null;P.forEach(p=>{if(p[0]>=0.04&&p[0]<0.15&&(!pk||p[1]>pk[1]))pk=p;});let hp=null;P.forEach(p=>{if(p[0]>=0.15&&p[0]<0.4&&(!hp||p[1]>hp[1]))hp=p;});
   return {T:T,vlf:vlf==null?null:vlf/tot,lf:lf/tot,hf:hf/tot,lfPk:pk?pk[0]:null,hfPk:hp?hp[0]:null,ratio:hf?lf/hf:null};}
 function hrvWavesHTML(id){return '<div id="'+id+'" style="margin:10px 0"></div>';}
+/* the body has more gears than fight-or-flight vs rest-and-digest: name the blend honestly */
+function ansMode(){try{var S=hrvSpec(),A=ansCalc();if(!S&&!A)return null;
+  var lf=S?S.lf:null,hf=S?S.hf:null,mayer=S&&S.lfPk!=null&&S.lf>0.45&&Math.abs(S.lfPk-0.1)<0.03;
+  var co=null;try{var c=bioCoherence();co=c?c.score:null;}catch(e){}
+  var eeg=M.connected&&(M.alpha||M.beta||M.theta)?{a:M.alpha||0,t:M.theta||0,b:M.beta||0}:null;
+  if(mayer||(co!=null&&co>=1.5))return {n:"Coherent flow",d:"Heart and breath locked near 0.1 Hz — calm and engaged at once. Neither fight nor sleep: the trained middle gear."};
+  if(A&&A.v>=40)return {n:"Deep restore",d:"Strongly rest-led — digestion, repair, recovery running."};
+  if(A&&A.v>=15)return {n:"Unwinding",d:"Sliding toward rest — HRV rising, heart easing off."};
+  if(eeg&&eeg.b>eeg.a&&eeg.b>eeg.t&&A&&A.v>-25)return {n:"Focused work",d:"Beta-led mind over a steady heart — problem-solving and producing, not stress."};
+  if(eeg&&(eeg.a>=eeg.b||eeg.t>=eeg.b)&&hf!=null&&lf!=null&&hf>=lf)return {n:"Contemplation",d:"Alpha/theta-led with the breathing wave in charge — open, reflective attention."};
+  if(A&&A.v<=-40)return {n:"High activation",d:"Strong mobilization — fight-or-flight territory. Long slow exhales bring it down."};
+  if(lf!=null&&hf!=null&&lf>hf)return {n:"Mobilized focus",d:"Blood-pressure wave leads over a steady heart — engaged effort, the everyday working gear."};
+  return {n:"Steady",d:"Balanced between mobilized and restorative."};}catch(e){return null;}}
+/* LF↔HF crossover history: watch what pushes you into the rest-led (parasympathetic) side */
+function hrvXoPaint(id){var cv=document.getElementById(id+"Xo");if(!cv)return;var L=(BIO.lh||[]).filter(function(p){return p.t>=BIO.t0;});
+  var W=cv.clientWidth||300,H=64,dpr=Math.min(2,window.devicePixelRatio||1);cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);var g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+  var nEl=document.getElementById(id+"XoN");
+  if(L.length<3){g.fillStyle="rgba(255,255,255,.45)";g.font="700 11px system-ui";g.textAlign="center";g.fillText("Crossover chart builds after a couple of minutes…",W/2,H/2);if(nEl)nEl.textContent="";return;}
+  var t0=L[0].t,T=Math.max(60000,L[L.length-1].t-t0),X=function(t){return (t-t0)/T*W;},Y=function(v){return H-4-Math.min(1,v)* (H-10);};
+  var xo=0,restMs=0;
+  for(var i=1;i<L.length;i++){var a=L[i-1],b=L[i],restLed=b.hf>b.lf;g.fillStyle=restLed?"rgba(95,200,224,.12)":"rgba(233,196,106,.08)";g.fillRect(X(a.t),0,Math.max(1,X(b.t)-X(a.t)),H);
+    if(restLed)restMs+=b.t-a.t;if((a.hf>a.lf)!==restLed)xo++;}
+  var line=function(key,col){g.strokeStyle=col;g.lineWidth=2;g.beginPath();L.forEach(function(p,i){var x=X(p.t),y=Y(p[key]);i?g.lineTo(x,y):g.moveTo(x,y);});g.stroke();};
+  line("lf","#e9c46a");line("hf","#5fc8e0");
+  for(var j=1;j<L.length;j++){if((L[j-1].hf>L[j-1].lf)!==(L[j].hf>L[j].lf)){g.fillStyle="#ECEDEF";g.beginPath();g.arc(X(L[j].t),Y((L[j].lf+L[j].hf)/2),2.6,0,7);g.fill();}}
+  if(nEl)nEl.textContent=Math.round(restMs/60000)+" min rest-led · "+xo+" crossover"+(xo===1?"":"s");}
 function hrvWavesPaint(id){const el=document.getElementById(id);if(!el)return;if(!(HR.connected||M.connected)){el.innerHTML="";return;}const S=hrvSpec();
   if(!S){el.innerHTML='<div class="site-note" style="font-size:.78rem">〰 Heart rhythm waves: gathering at least a minute of beats\u2026</div>';return;}
   const row=(lab,sub,v,col)=>'<div style="margin:6px 0"><div style="display:flex;justify-content:space-between;font-size:.8rem"><span><b>'+lab+'</b> <span style="opacity:.6;font-size:.72rem">'+sub+'</span></span><b>'+(v==null?'<span style="opacity:.5;font-weight:400">needs 5 min</span>':Math.round(v*100)+'%')+'</b></div><div style="height:8px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:3px"><div style="height:100%;width:'+Math.round((v||0)*100)+'%;background:'+col+'"></div></div></div>';
@@ -9248,7 +9276,11 @@ function hrvWavesPaint(id){const el=document.getElementById(id);if(!el)return;if
    row("Blood-pressure wave","LF \u00b7 Mayer / baroreflex"+(S.lfPk?" \u00b7 peak "+S.lfPk.toFixed(2)+" Hz ("+(S.lfPk*60).toFixed(1)+"/min)":""),S.lf,"#e9c46a")+
    row("Breathing wave","HF"+(S.hfPk?" \u00b7 peak "+(S.hfPk*60).toFixed(1)+"/min":""),S.hf,"#5fc8e0")+
    row("Slow wave","VLF \u00b7 temperature, hormones",S.vlf,"#9d8cff")+
-   '<div class="site-note" style="font-size:.74rem;margin-top:4px">'+(mayer?'\u2713 Your heart and blood-pressure rhythms are locked together near 0.1 Hz (about 6 breaths a minute). That\u2019s the resonance state coherence training aims for.':S.lf>S.hf?'The blood-pressure wave is leading. Slow, even breathing near 6 a minute pulls it into a strong 0.1 Hz peak.':'The breathing wave is leading. Slowing your breath toward 6 a minute shifts power into the blood-pressure wave.')+'</div>';}
+   '<div class="site-note" style="font-size:.74rem;margin-top:4px">'+(mayer?'\u2713 Your heart and blood-pressure rhythms are locked together near 0.1 Hz (about 6 breaths a minute). That\u2019s the resonance state coherence training aims for.':S.lf>S.hf?'The blood-pressure wave is leading. Slow, even breathing near 6 a minute pulls it into a strong 0.1 Hz peak.':'The breathing wave is leading. Slowing your breath toward 6 a minute shifts power into the blood-pressure wave.')+'</div>'+
+   '<canvas id="'+id+'Xo" style="width:100%;height:64px;display:block;margin-top:8px;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.2)"></canvas>'+
+   '<div style="display:flex;justify-content:space-between;gap:6px;font-size:.68rem;opacity:.85;margin-top:2px"><span style="color:#e9c46a">\u2014 LF mobilizing</span><span id="'+id+'XoN" style="color:var(--muted)"></span><span style="color:#5fc8e0">\u2014 HF breathing/vagal</span></div>'+
+   (function(){var md=ansMode();return md?'<div class="site-note" style="font-size:.76rem;margin-top:6px">\ud83e\udded <b>'+md.n+'</b> \u2014 '+md.d+'</div>':'';})();
+  hrvXoPaint(id);}
 function bioSummary(){const L=BIO.log.filter(p=>p.t>=BIO.t0);if(L.length<20)return "";const avg=k=>{const v=L.map(p=>p[k]).filter(x=>x!=null&&x>0);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;};const hr=avg("hr"),hv=avg("hrv"),al=avg("al"),th=avg("th");
   const parts=[hr!=null?"avg HR <b>"+Math.round(hr)+"</b>":"",hv!=null?"HRV <b>"+Math.round(hv)+" ms</b>":"",al!=null?"alpha <b>"+Math.round(al)+"%</b>":"",th!=null?"theta <b>"+Math.round(th)+"%</b>":""].filter(Boolean);return (parts.length?'<div class="site-note" style="margin-top:6px">📊 This session: '+parts.join(" · ")+'</div>':"")+ansSummary();}
 function bioPanelHTML(){return '<details id="bioSet" style="margin:6px 0"'+(HR.connected||M.connected?" open":"")+'><summary style="cursor:pointer;list-style:none;padding:8px 2px;font:800 .9rem system-ui;color:var(--muted)">🫀 Sensors · <span id="bioSum" style="font-weight:600">'+bioStatus()+'</span> ▾</summary>'+fullPageNote()+
