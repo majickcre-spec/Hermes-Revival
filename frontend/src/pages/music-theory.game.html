@@ -9795,7 +9795,7 @@ function dayPlanDraw(bid){bid=bid||"dayPlan";var box=document.getElementById(bid
     if(compact)b.innerHTML='<span class="dic" style="font-size:1.5rem">'+p.ic+'</span><b style="font-size:.9rem">'+p.when+'</b><span style="font-size:.72rem;opacity:.75">'+(done?"\u2713 done":cur?"now \u00b7 "+p.len:p.len)+'</span>';else b.innerHTML='<span class="dic" style="font-size:1.6rem">'+p.ic+'</span><span style="flex:1"><b>'+p.when+'</b>'+(cur?' <span style="font-size:.72rem;color:var(--gold);font-weight:700">\u00b7 NOW</span>':'')+'<br><span style="font-size:.85rem;opacity:.85">'+p.what+'</span><br><span style="font-size:.75rem;opacity:.6">'+p.len+(p.k==="n"?" \u00b7 2 steps, flows on its own":"")+'</span></span><span style="font-size:1.3rem">'+(done?'\u2713':'\u25b6')+'</span>';
     b.onclick=function(){p.go(function(){dayMark(p.k);});};rows.appendChild(b);});}
 /* ===== HEART SYNC — your heartbeat, outside you: a bass-drum pulse locked to your heart, music tuned to it, then gently guiding it down ===== */
-const HSX={mode:load("mjk-hsmode","guide"),goal:load("mjk-hsgoal","calm"),mins:load("mjk-hsmins",20),ocean:load("mjk-hsocean",true),chimes:load("mjk-hschimes",true),breath:load("mjk-hsbreath",true),drum:load("mjk-hsdrum",0.8),music:load("mjk-hsmusic",0.6),bpat:load("mjk-hsbpat","heart"),carrier:load("mjk-hscar",528),lat:load("mjk-hslat",0),mel:load("mjk-hsmel","hchime"),gong:load("mjk-hsgong",true)};
+const HSX={mode:load("mjk-hsmode","guide"),goal:load("mjk-hsgoal","calm"),mins:load("mjk-hsmins",20),ocean:load("mjk-hsocean",true),chimes:load("mjk-hschimes",true),breath:load("mjk-hsbreath",true),drum:load("mjk-hsdrum",0.8),music:load("mjk-hsmusic",0.6),bpat:load("mjk-hsbpat","heart"),carrier:load("mjk-hscar",528),lat:load("mjk-hslat",0),mel:load("mjk-hsmel","hchime"),gong:load("mjk-hsgong",true),fix:load("mjk-hsfix",0)};
 const HS_MEL=[["off","Off"],["hchime","Hand chimes"],["kalimba","Kalimba"],["tbell","Temple bells"],["glass","Crystal glass"]];
 /* a sampled note tuned to an exact frequency (pure ratios to the session tone, not equal temperament) */
 function hsSamp(a,dest,set,f,t,v,len,pan){const I=INSTS[set];if(!I)return;let file,rate;if(I.notes){const m=69+12*Math.log2(f/440);file=I.notes.reduce(function(b,x){return Math.abs(x-m)<Math.abs(b-m)?x:b;},I.notes[0]);rate=f/(440*Math.pow(2,(file-69)/12));}else{file=f;rate=v.rate||1;v=v.v;}
@@ -9902,6 +9902,8 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     S.vq.push({t:tt+lat,b:bp2});S.bIdx++;}
   /* follow (and later lead) the heart: tempo eases toward your heart period, phase is pulled onto your real beats */
   function nextBeat(t){let P=S.P||S.tapP||S.Pm,target=P,w=0.3;
+    /* fixed tempo: ignore the sensor entirely and glide onto a steady grid — the escape hatch when readings go wild */
+    if(HSX.fix>0){S.Pm+=(60/HSX.fix-S.Pm)*0.2;return t+S.Pm;}
     if(fresh()){const T=el();
       if(S.stage==="match"&&T>60&&(S.syncN>=10&&S.sync>=0.55||T>150)){S.stage=HSX.mode==="mirror"?"mirror":"guide";S.stageT=T;if(S.base==null)S.base=60/P;S.floor=HSX.mode==="sleep"?Math.max(45,S.base-22):Math.max(48,S.base-18);}
       if(S.stage==="guide"){target=Math.min(P*(HSX.mode==="sleep"?1.03:1.02),60/S.floor);w=0.06;}
@@ -9982,6 +9984,8 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
       '<div class="rrow2"><span class="rlab">Extras</span><span class="rchips tight">'+chip("hsGong","🪘 Gong",HSX.gong)+chip("hsOc","🌊 Ocean",HSX.ocean)+chip("hsCh","🔔 Chimes",HSX.chimes)+chip("hsLay","✨ Layers: "+({off:"Off",phi:"Golden φ",oct:"Octaves"})[MEDLAYER.mode],MEDLAYER.mode!=="off")+'</span></div>'+
       '<div class="rrow"><span class="rlab">Heartbeat</span><input type="range" id="hsDv" min="0" max="100" value="'+Math.round(HSX.drum*100)+'" style="flex:1"></div>'+
       '<div class="rrow"><span class="rlab">Music</span><input type="range" id="hsMv" min="0" max="100" value="'+Math.round(HSX.music*100)+'" style="flex:1"></div>'+
+      '<div class="czSec">Tempo</div><div class="rrow2"><span class="rlab">Beat follows</span><span class="rchips tight"><button class="rchip sm'+(HSX.fix>0?"":" sel")+'" id="hsFixOff">💓 My heart</button><button class="rchip sm'+(HSX.fix>0?" sel":"")+'" id="hsFixOn">Fixed</button></span></div>'+
+      '<div class="rrow" id="hsFixRow" style="'+(HSX.fix>0?"":"opacity:.45")+'"><span class="rlab">Fixed BPM</span><input type="range" id="hsFixR" min="40" max="140" step="2" value="'+(HSX.fix||120)+'" style="flex:1"><span class="rbpm" id="hsFixV" style="min-width:56px">'+(HSX.fix||120)+'</span></div>'+
       (adv?'<div class="czSec">Timing</div><div class="rrow"><span class="rlab">Drum timing</span><input type="range" id="hsLat" min="-300" max="300" step="10" value="'+HSX.lat+'" style="flex:1"><span class="rbpm" id="hsLatV" style="min-width:64px">'+(HSX.lat>0?"+":"")+HSX.lat+' ms</span></div>'+
       '<div class="site-note" style="margin:-4px 0 8px;font-size:.76rem">Drum early or late against the beat you feel? '+(S.run&&HR.connected?'<button class="rchip sm" id="hsCal">Tap where you feel your heartbeat</button> (8 taps) or slide it.':'Use “Tap your heartbeat to start”, or slide it.')+' Bluetooth headphones and ear sensors usually need a few hundred ms.</div>':'');
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">💓 Heart Sync</span></div><div class="panel">'+
@@ -10041,6 +10045,11 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     HS_MEL.forEach(function(m){tog("#hsM_"+m[0],function(){HSX.mel=m[0];save("mjk-hsmel",m[0]);const I=INSTS[m[0]];if(I)I.notes.forEach(function(n){instBuf(m[0],n);});draw();});});
     tog("#hsGong",function(){HSX.gong=!HSX.gong;save("mjk-hsgong",HSX.gong);if(HSX.gong){instBuf("gong",0);instBuf("gong",1);}draw();});
     const lt=$("#hsLat");if(lt)lt.oninput=function(){HSX.lat=+lt.value;save("mjk-hslat",HSX.lat);$("#hsLatV").textContent=(HSX.lat>0?"+":"")+HSX.lat+" ms";};
+    const fOn=$("#hsFixOn"),fOff=$("#hsFixOff"),fR=$("#hsFixR"),fRow=$("#hsFixRow");
+    const fSet=function(v){HSX.fix=v;save("mjk-hsfix",v);if(fOn)fOn.classList.toggle("sel",v>0);if(fOff)fOff.classList.toggle("sel",!v);if(fRow)fRow.style.opacity=v>0?"1":".45";if(v>0&&$("#hsFixV"))$("#hsFixV").textContent=v;};
+    if(fOn)fOn.onclick=function(){fSet(+(fR?fR.value:120)||120);};
+    if(fOff)fOff.onclick=function(){fSet(0);};
+    if(fR)fR.oninput=function(){$("#hsFixV").textContent=fR.value;if(HSX.fix>0)fSet(+fR.value);};
     tog("#hsCal",function(){const b=$("#hsCal"),a=ac();S.cal=S.cal||[];S.cal.push(performance.now()/1000+off(a));b.textContent="Tap · "+S.cal.length+"/8";
       if(S.cal.length>=8){const taps=S.cal.slice();S.cal=[];b.textContent="Measuring…";setTimeout(function(){const hb=S.beats.map(function(x){return S.O+x.c;}),d=[];taps.forEach(function(t){let best=null;hb.forEach(function(h){if(best==null||Math.abs(t-h)<Math.abs(best))best=t-h;});if(best!=null&&Math.abs(best)<0.45)d.push(best);});
         if(d.length<5){b.textContent="Couldn’t read that — try again";return;}d.sort(function(x,y){return x-y;});HSX.lat=Math.max(-300,Math.min(300,Math.round(d[d.length>>1]*100)*10));save("mjk-hslat",HSX.lat);draw();const s2=$("#hsStage");if(s2)s2.textContent="Drum timing set to "+(HSX.lat>0?"+":"")+HSX.lat+" ms.";},2600);}});
