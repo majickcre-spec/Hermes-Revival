@@ -7405,13 +7405,15 @@ function renderStrumming(inst){
       '<div class="rrow2"><span class="rchips tight"><button class="rchip sm'+(SM.mode==="along"?" sel":"")+'" id="smAlong">▶ Play along</button><button class="rchip sm'+(SM.mode==="cr"?" sel":"")+'" id="smCR">🎤 Call &amp; response</button></span></div>'+
       '<div class="rrow2" style="margin-top:6px"><span class="rlab">Pattern</span><span class="rchips tight" id="smPats"></span></div>'+
       '<div id="smGrid">'+gridHTML()+'</div>'+
-      '<div class="idea-fb"><div style="margin-bottom:5px"><b>Great for:</b> '+p.great+'</div><div><b>Why it works:</b> '+p.why+'</div></div>'+
-      '<div class="rrow2" style="margin-top:10px"><span class="rlab">Chord</span><span class="rchips tight" id="smChords"></span></div>'+
-      '<div class="rrow2"><span class="rlab">Progression</span><span class="rchips tight" id="smProg"></span></div>'+
+      '<div class="actions" style="margin-top:8px;flex-wrap:wrap"><span id="smMain"></span><button class="rchip sm'+(SM.metro?" sel":"")+'" id="smMetro">🎵 Click</button><button class="rchip sm'+(SM.cin?" sel":"")+'" id="smCin">1·2·3·4</button><button class="rchip sm'+(SM.loop?" sel":"")+'" id="smLoop">🔁 Loop</button></div>'+
+      '<div class="feedback" id="smStatus" style="min-height:22px;margin:4px 0">'+(SM.mode==="cr"?"I’ll play the pattern, then you play it back — I’ll grade your timing.":"Hit Start and strum along — the lit square is where you are in the bar.")+'</div>'+
       '<div class="rrow"><span class="rlab">Tempo</span><button class="rchip sm" id="smTm" aria-label="Slower" style="min-width:38px;justify-content:center;font-weight:900">−</button><span class="rbpm" id="smBpmV" style="min-width:64px;text-align:center">'+SM.bpm+' BPM</span><button class="rchip sm" id="smTp" aria-label="Faster" style="min-width:38px;justify-content:center;font-weight:900">+</button><input type="range" id="smBpm" min="50" max="140" value="'+SM.bpm+'" style="flex:1"></div>'+
-      '<div class="actions" style="margin-top:4px;flex-wrap:wrap"><span id="smMain"></span><button class="rchip sm'+(SM.metro?" sel":"")+'" id="smMetro">🎵 Click</button><button class="rchip sm'+(SM.cin?" sel":"")+'" id="smCin">1·2·3·4 Count-in</button><button class="rchip sm'+(SM.loop?" sel":"")+'" id="smLoop">🔁 Loop</button></div>'+
-      '<div class="feedback" id="smStatus" style="min-height:40px">'+(SM.mode==="cr"?"I’ll play the pattern, then you play it back — I’ll grade your timing and tell you how to improve.":"Pick a pattern and a chord, hit Start, and strum along. The highlighted square is where you are in the bar.")+'</div>'+
-      '<div class="site-note">Tip: keep your strumming hand moving down-up in steady eighths the whole time. On the empty squares you just miss the strings — the motion never stops. That’s the secret to clean, even strumming.</div>'+
+      '<div class="rrow2"><span class="rlab">Chord</span><span class="rchips tight" id="smChords"></span></div>'+
+      '<div class="rrow2"><span class="rlab">Progression</span><span class="rchips tight" id="smProg"></span></div>'+
+      '<details style="margin-top:6px"><summary style="cursor:pointer;list-style:none;padding:6px 2px;font:800 .85rem system-ui;color:var(--muted)">ℹ️ About this pattern ▾</summary>'+
+      '<div class="idea-fb"><div style="margin-bottom:5px"><b>Great for:</b> '+p.great+'</div><div><b>Why it works:</b> '+p.why+'</div></div>'+
+      '<div class="site-note">Tip: keep your strumming hand moving down-up in steady eighths the whole time. On the empty squares you just miss the strings — the motion never stops. That’s the secret to clean, even strumming.</div></details>'+
+      '<div style="height:72px"></div>'+
       '</div>';
     $("#eBack").onclick=function(){SM.on=false;crStop();goHome();};
     $("#smAlong").onclick=function(){SM.on=false;crStop();SM.mode="along";draw();};
