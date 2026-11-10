@@ -9882,7 +9882,8 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
         else{S.cum+=r;S.beats.push({c:S.cum,r:r});}
         S.rawCum[startRaw+j+1]=S.cum;}
       S.myN=HR.n;while(S.beats.length>400)S.beats.shift();}
-    const pk=HR.pk||[],o=off(a);for(const p of pk){if(p.i<=S.pkN)continue;S.pkN=p.i;const c=S.rawCum[p.n];if(c==null||!S.beats.length)continue;const tn=p.t/1000+o,rl=S.beats[S.beats.length-1].r;S.pk.push({hi:tn-c,lo:tn-c-rl*1.05});}
+    const pk=HR.pk||[],o=off(a),_hold2=S._hold&&a.currentTime<S._hold-2;/* right after a wake, even "new" packets are queue stragglers — count them but don't anchor on them */
+    for(const p of pk){if(p.i<=S.pkN)continue;S.pkN=p.i;if(_hold2)continue;const c=S.rawCum[p.n];if(c==null||!S.beats.length)continue;const tn=p.t/1000+o,rl=S.beats[S.beats.length-1].r;S.pk.push({hi:tn-c,lo:tn-c-rl*1.05});}
     while(S.pk.length>24)S.pk.shift();if(!S.pk.length)return;
     let hi=1/0,lo=-1/0;for(let i=S.pk.length-1;i>=0;i--){const nh=Math.min(hi,S.pk[i].hi),nl=Math.max(lo,S.pk[i].lo);if(nl>nh+0.04){if(i<S.pk.length-3){S.pk=S.pk.slice(i+1);}break;}hi=nh;lo=nl;}
     if(isFinite(hi))S.O=isFinite(lo)&&lo<hi?(hi*0.85+lo*0.15):hi;
@@ -9957,8 +9958,14 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     if(S.tapP){S.Pm+=(S.tapP-S.Pm)*(S.glide?0.15:0.25);if(S.tapAt){const g=S.tapAt+Math.round((t+S.Pm-S.tapAt)/S.tapP)*S.tapP;let e=g-(t+S.Pm);if(e>S.tapP/2)e-=S.tapP;if(e<-S.tapP/2)e+=S.tapP;const cor=Math.max(-0.08*S.Pm,Math.min(0.08*S.Pm,0.3*e));if(Math.abs(e)<0.01&&Math.abs(S.tapP-S.Pm)<0.005)S.glide=false;return t+S.Pm+cor;}}return t+S.Pm;}
   function nextMusic(t){const tgt=S.Pm||S.musP,step=Math.max(-0.002*S.musP,Math.min(0.002*S.musP,(tgt-S.musP)*0.03));S.musP+=step;return t+S.musP;}
   function sched(){if(!S.run)return;const a=ac();
-    /* coming back from the background: drop stale phase anchors and hold the tempo steady for 3 s while fresh beats land */
-    const _n=performance.now();if(S._ls&&_n-S._ls>2500){S.pk=[];S._hold=a.currentTime+3;}S._ls=_n;
+    /* screen-off/screen-on and background returns: queued sensor packets flush with wrong arrival times the moment
+       the display comes back, which used to yank the beat phase (an instant 10-20 BPM surge). On ANY return to view —
+       even one the scheduler never noticed — throw the phase anchors away and hold the tempo steady while fresh,
+       honestly-timed beats rebuild them. The beat lengths themselves (R-R) are kept: only arrival timing is suspect. */
+    const _n=performance.now();
+    if(document.visibilityState==="hidden")S._bg=1;
+    else if(S._bg){S._bg=0;S.pk=[];S._hold=a.currentTime+4;}
+    if(S._ls&&_n-S._ls>2500){S.pk=[];S._hold=a.currentTime+4;}S._ls=_n;
     ingest(a);try{rereadCheck(a);}catch(e){}while(S.nb<a.currentTime+0.3){if(S.nb<a.currentTime-0.2)S.nb=a.currentTime+0.05;schedBeat(a,S.nb);S.nb=nextBeat(S.nb);}
     if(S.mn==null){S.mn=S.nb;S.musP=S.musP||S.Pm;}while(S.mn<a.currentTime+0.3){if(S.mn<a.currentTime-0.2)S.mn=a.currentTime+0.05;schedMusic(a,S.mn);S.mn=nextMusic(S.mn);}
     const T=el(),now=performance.now();
