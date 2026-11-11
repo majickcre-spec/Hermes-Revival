@@ -10861,13 +10861,14 @@ var SRW={lastOn:0};
 function srStageNow(){var ids=["#jPhase","#hsStage","#rmPhase"];for(var i=0;i<ids.length;i++){var el=view.querySelector(ids[i]);if(el&&el.textContent.trim())return el.textContent.trim().slice(0,40);}return "Session";}
 function srWatch(){try{if(PL.on)return;var now=Date.now(),medOn=!!MED.master&&!view.hidden,sensor=HR.connected||M.connected,tt=view.querySelector(".ttitle"),title=(tt?tt.textContent:"").replace(/^[^A-Za-z0-9]+/,"").trim()||"Meditation";
   if(PLR&&PLR.on&&PLR.kind==="lucid")return; /* the Lucid engine owns its recording's lifecycle */
-  if(PLR&&PLR.on&&PLR.kind!=="perception"){if(medOn&&title===PLR.title)SRW.lastOn=now;if(now-SRW.lastOn>15000){plrEnd();return;}var bh=null;try{if(MED.right&&MED.leftO)bh=MED.right.frequency.value-MED.leftO.frequency.value;}catch(e){}plrTick(now,srStageNow(),bh);return;}
+  if(PLR&&PLR.on&&PLR.kind!=="perception"){if(MED.master||(medOn&&title===PLR.title))SRW.lastOn=now;/* keep recording while the session's audio plays, whatever screen is open */if(now-SRW.lastOn>15000){plrEnd();return;}var bh=null;try{if(MED.right&&MED.leftO)bh=MED.right.frequency.value-MED.leftO.frequency.value;}catch(e){}plrTick(now,srStageNow(),bh);return;}
   if(medOn&&sensor){var sub=window.SR_SUB&&title==="Brainwave Journey"?window.SR_SUB:null;plrStart(now,srKind(title),title,sub);SRW.lastOn=now;}}catch(e){}}
 setInterval(srWatch,1000);
 /* ---- Session reports page ---- */
 function renderSessions(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);var filt=SW.srF||"all";
   var draw=function(server){var loc=srIdx(),seen={},rows=[];loc.forEach(function(e){seen[e.at]=1;rows.push({at:e.at,label:e.label,kind:e.kind,mins:e.mins,sens:e.sens||{},local:true,backed:(e.sentV||0)>=(e.v||0)&&(e.eegSent||0)>=(e.eegBlocks||0)&&!!e.syncedAt});});
     (server||[]).forEach(function(s){var at=+s.id;if(seen[at])return;rows.push({at:at,label:s.label,kind:s.kind,mins:s.mins,sens:(s.report&&s.report.sensors)||{},local:false,backed:true});});
+    rows=rows.filter(function(r){return (r.mins||0)>=1;});/* hide sub-minute stubs from interrupted connects */
     rows.sort(function(a,b){return b.at-a.at;});var kinds={};rows.forEach(function(r){kinds[r.kind]=r.label.split(" · ")[0];});var shown=rows.filter(function(r){return filt==="all"||r.kind===filt;});
     var signed=syncOn()&&acctTok(),waiting=rows.filter(function(r){return r.local&&!r.backed;}).length;
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">📈 Session reports</span></div><div class="panel">'+
@@ -12832,7 +12833,7 @@ function renderInsights(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=t
        '<div class="rlab" style="display:block;margin:16px 0 6px">Your tags</div>'+(tagRows.length?tagRows.map(function(r){var d=r.sh!=null&&r.sh0!=null?r.sh-r.sh0:null;return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:.85rem;margin:6px 0;padding:8px 10px;border:1px solid var(--line);border-radius:10px"><span><b>'+esc(r.t)+'</b> <span style="opacity:.6;font-size:.72rem">'+r.n+' session'+(r.n>1?'s':'')+'</span></span><span>'+(d==null||r.nw<1?'<span style="opacity:.6">needs sessions with and without it</span>':'calm shift <b style="color:'+(d>=0?'#5fd38d':'#ef6262')+'">'+(d>=0?"+":"")+Math.round(d)+'</b> vs without')+'</span></div>';}).join(""):'<div class="site-note">Tag sessions in the 🫀 panel (coffee, sleep, a practice, anything) and they’ll be compared here.</div>');
       P.querySelectorAll("[data-g]").forEach(function(b){b.onclick=function(){goal=b.dataset.g;save("mjk-insgoal",goal);paint();};});};
     paint();});}
-function renderSensSessions(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{};const L=sensList();
+function renderSensSessions(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{};const L=sensList().filter(s=>(s.dur||0)>=45);/* hide blips from brief sensor connects */
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">📊 Sensor sessions</span></div><div class="panel">'+
     '<div class="intro">Everything your heart sensor and Muse recorded, with what you were doing at the time. Tap a session for the timeline and analysis.</div><div class="actions"><button class="btn" id="sensInsB">📈 What works for you</button></div>'+
     (SENS.rec?'<div class="site-note">● A session is recording right now — it shows here as it saves (every 30 s).</div>':'')+
