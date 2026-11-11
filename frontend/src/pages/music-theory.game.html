@@ -12732,6 +12732,27 @@ function rpxMake(src){var tl=src.tl,log=[];for(var i=0;i<tl.t.length;i++)log.pus
       this.hr=near(this.tl.hr);this.hrv=near(this.tl.hrv);var cp=near(this.tl.co);
       this.co=(cp!=null&&cp>=0&&cp<100)?{score:cp/(100-cp),freq:null}:null;},
     rrNow:function(){var out=[];for(var j2=0;j2<this.rr.length;j2++){if(this.rrT[j2]>this.tc)break;out.push(this.rr[j2]);}return out;}};}
+/* the whole journey on one time axis: stages, heart, brain — one playhead, tap to scrub */
+function rpJorPaint(R2,tc){var cv=document.getElementById("rpJor");if(!cv)return;var tl=R2.tl,W=cv.clientWidth||330,dpr=Math.min(2,window.devicePixelRatio||1);
+  var hasBrain=(tl.ra||[]).some(function(v){return v!=null;})||(tl.rt||[]).some(function(v){return v!=null;});
+  var H=hasBrain?210:150;cv.style.height=H+"px";cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);var g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);
+  g.fillStyle="#0E0F13";g.fillRect(0,0,W,H);var T=Math.max(1,R2.dur),X=function(t){return 4+(t/T)*(W-8);};
+  /* stage strip — what the journey was doing */
+  var stg=tl.stages||[],st=tl.st||[],pal=["#7c5cff","#2fb8a8","#e0a030","#e05d8c","#5aa8ff","#8bd45a","#c07cff","#ff8f5c"];
+  var y0=4,sh=14;if(st.length){var s0=0;for(var i=1;i<=st.length;i++){if(i===st.length||st[i]!==st[s0]){g.fillStyle=pal[(st[s0]||0)%pal.length];g.globalAlpha=0.85;g.fillRect(X(tl.t[s0]),y0,Math.max(1,X(tl.t[i-1])-X(tl.t[s0])+1),sh);g.globalAlpha=1;s0=i;}}}
+  /* lanes */
+  var lane=function(y,h,specs,lab){g.strokeStyle="rgba(255,255,255,.07)";g.strokeRect(4,y,W-8,h);
+    specs.forEach(function(sp){var arr=tl[sp.k];if(!arr)return;var lo=1e9,hi=-1e9;arr.forEach(function(v){if(v!=null&&isFinite(v)){if(v<lo)lo=v;if(v>hi)hi=v;}});if(hi<=lo)return;
+      g.strokeStyle=sp.c;g.lineWidth=1.6;g.lineJoin="round";g.beginPath();var pen=false;
+      for(var i2=0;i2<tl.t.length;i2++){var v=arr[i2];if(v==null||!isFinite(v)){pen=false;continue;}var x=X(tl.t[i2]),yy=y+h-3-(v-lo)/(hi-lo)*(h-6);if(!pen){g.moveTo(x,yy);pen=true;}else g.lineTo(x,yy);}g.stroke();});
+    g.fillStyle="rgba(155,161,172,.8)";g.font="700 8px system-ui";g.textAlign="left";g.fillText(lab,8,y+10);};
+  var y=y0+sh+6;lane(y,76,[{k:"hr",c:"#ff5d6c"},{k:"hrv",c:"#f3c14a"},{k:"co",c:"#7ff0d6"}],"HEART · rate / HRV / coherence");y+=82;
+  if(hasBrain){lane(y,54,[{k:"ra",c:"#5fe0a8"},{k:"rt",c:"#5fc8e0"}],"BRAIN · α green · θ cyan");y+=60;}
+  /* playhead + current stage */
+  g.strokeStyle="#f4b740";g.lineWidth=2;g.shadowColor="#f4b740";g.shadowBlur=6;g.beginPath();g.moveTo(X(tc),2);g.lineTo(X(tc),y-4);g.stroke();g.shadowBlur=0;
+  var ix=0;while(ix<tl.t.length-1&&tl.t[ix+1]<=tc)ix++;var sn=stg[st[ix]||0]||"";
+  g.fillStyle="#ECEDEF";g.font="800 10px system-ui";g.textAlign="left";g.fillText(sn?("▸ "+sn):"",8,y+12);
+  g.fillStyle="rgba(155,161,172,.6)";g.font="700 8px system-ui";g.textAlign="right";g.fillText("tap anywhere to jump",W-8,y+12);}
 function renderHrvReplay(src,label,backFn){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   var R2=rpxMake(src);RPX=R2;var st={t:0,playing:true,spd:2},timer=null;
   teardown=function(){RPX=null;if(timer)clearInterval(timer);timer=null;};
@@ -12750,6 +12771,8 @@ function renderHrvReplay(src,label,backFn){if(toneRAF)cancelAnimationFrame(toneR
      for(var k=1;k<R2.lh.length;k++){var a2=R2.lh[k-1],b2=R2.lh[k],rb=b2.hf>=b2.lf;if((a2.hf>=a2.lf)!==rb){var ts=(b2.t-R2.startMs)/1000;marks.push({t:ts,txt:"🔀 "+sensFmt(ts)+(rb?" → rest":" → effort")});}}
      marks.sort(function(x,y){return x.t-y.t;});R2.marks=marks;
      return '<div class="site-note" style="margin:2px 0 2px;font-size:.72rem">Moments — tap to jump</div><div class="rchips tight" data-nocz style="flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 0 8px;padding-bottom:2px">'+(marks.length?marks.slice(0,40).map(function(m,i2){return '<button class="rchip sm" data-rpm="'+i2+'" style="flex:none">'+m.txt+'</button>';}).join(""):'<span class="site-note" style="margin:0;white-space:nowrap">none found — no coherence peaks or crossovers in this session</span>')+'</div>';})()
+   +'<div class="site-note" style="margin:2px 0 2px;font-size:.72rem">The whole journey — stages · heart · brain</div>'
+   +'<canvas id="rpJor" style="width:100%;display:block;border:1px solid var(--line);border-radius:12px;background:#0E0F13"></canvas>'
    +'<div id="bioLive"></div>'
    +'<div class="site-note" style="margin:8px 0 2px;font-size:.78rem"><b>Heart rhythm</b> · last minute</div>'
    +'<canvas id="sensWv" style="width:100%;height:80px;display:block;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.25)"></canvas>'
@@ -12759,7 +12782,8 @@ function renderHrvReplay(src,label,backFn){if(toneRAF)cancelAnimationFrame(toneR
    +'</div>';
   $("#eBack").onclick=function(){if(timer)clearInterval(timer);timer=null;RPX=null;teardown=function(){};(backFn||goHome)();};
   var paint=function(){R2.set(st.t);var sl=$("#rpSlide");if(sl&&document.activeElement!==sl)sl.value=Math.round(st.t);var tm=$("#rpTime");if(tm)tm.textContent=sensFmt(st.t)+" / "+sensFmt(R2.dur);
-    try{bioPaint();sensWave();hrvWavesPaint("rpW");}catch(e){}};
+    try{rpJorPaint(R2,st.t);bioPaint();sensWave();hrvWavesPaint("rpW");}catch(e){}};
+  var jc=document.getElementById("rpJor");if(jc)jc.onclick=function(ev){var r=jc.getBoundingClientRect();st.t=Math.max(0,Math.min(R2.dur,(ev.clientX-r.left-4)/Math.max(1,r.width-8)*R2.dur));paint();};
   $("#rpPlay").onclick=function(){st.playing=!st.playing;$("#rpPlay").textContent=st.playing?"⏸":"▶";};
   view.querySelectorAll("[data-rps]").forEach(function(b){b.onclick=function(){st.spd=+b.dataset.rps;view.querySelectorAll("[data-rps]").forEach(function(x){x.classList.toggle("sel",x===b);});};});
   $("#rpBk").onclick=function(){st.t=Math.max(0,st.t-60);paint();};
