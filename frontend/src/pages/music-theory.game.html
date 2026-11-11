@@ -10328,7 +10328,7 @@ function lucCueAt(a,t){var g=LUC.g,st=lucCfg().style;
 function lucWindowAt(a,t){var ns=[];[0,150,300].forEach(function(off){ns=ns.concat(lucCueAt(a,t+off));});return ns;}
 function lucCancel(ns){(ns||[]).forEach(function(n){try{n.stop(0);}catch(e){}try{n.disconnect();}catch(e){}});}
 function lucPlan(){var c=lucCfg(),ws=[c.first,c.first+1.5,c.first+3,c.first+4.25].filter(function(h){return h<c.hours-0.4;});return ws;}
-function lucStart(){unlockAudio();if(APPVOL<0.3)setAppVol(0.7);/* a silent night defeats the cues — restore master volume */var a=ac(),c=lucCfg();LUC.on=true;LUC.at=Date.now();LUC.state="descent";LUC.windows=[];LUC.base=[];LUC.shifts={};
+function lucStart(){unlockAudio();if(APPVOL<0.3)setAppVol(0.7);/* a silent night defeats the cues — restore master volume */var a=ac(),c=lucCfg();try{bgKeep(true,"Lucid Dream Journey");if(c.gate&&HR.connected)medWake(true);}catch(e){}LUC.on=true;LUC.at=Date.now();LUC.state="descent";LUC.windows=[];LUC.base=[];LUC.shifts={};
   LUC.g=a.createGain();LUC.g.gain.value=c.vol;LUC.g.connect(a.destination);
   /* inaudible keepalive holds the audio session (and its clock) open all night */
   LUC.keep=a.createOscillator();var kg=a.createGain();kg.gain.value=0.0004;LUC.keep.frequency.value=37;LUC.keep.connect(kg);kg.connect(a.destination);LUC.keep.start();
@@ -10340,7 +10340,7 @@ function lucStart(){unlockAudio();if(APPVOL<0.3)setAppVol(0.7);/* a silent night
     try{plrStart(LUC.at,"lucid","Lucid Dream Journey");}catch(e){}
     if(LUC.t)clearInterval(LUC.t);LUC.t=setInterval(lucTick,1000);LUC.view="night";renderLucid();};
   Promise.all([lucPadLoad("wind-down"),lucPadLoad("cue")]).then(function(r){LUC.pads.wind=r[0];LUC.pads.cue=r[1];begin();}).catch(begin);}
-function lucEnd(){LUC.on=false;if(LUC.t)clearInterval(LUC.t);LUC.t=null;
+function lucEnd(){LUC.on=false;LUC.lastAt=LUC.at;try{bgKeep(false);medWake(false);}catch(e){}if(LUC.t)clearInterval(LUC.t);LUC.t=null;
   LUC.windows.forEach(function(w){lucCancel(w.nodes);});LUC.windows=[];
   try{if(LUC.keep){LUC.keep.stop();LUC.keep=null;}}catch(e){}
   try{if(LUC.g){LUC.g.disconnect();LUC.g=null;}}catch(e){}
@@ -10373,65 +10373,124 @@ function lucStars(cv){var g=cv.getContext("2d"),W=cv.clientWidth,H=cv.clientHeig
       g.strokeStyle="rgba(255,255,255,.18)";g.lineWidth=2;g.beginPath();g.moveTo(16,y0);g.lineTo(W-16,y0);g.stroke();
       LUC.windows.forEach(function(w){var fx=16+Math.max(0,Math.min(1,((w.t-(a.currentTime-e2))/tot)))*(W-32);g.fillStyle="#f4b740";g.fillRect(fx-1.5,y0-7,3,14);});
       var px=16+Math.max(0,Math.min(1,e2/tot))*(W-32);g.fillStyle="#ECEDEF";g.beginPath();g.arc(px,y0,5,0,7);g.fill();}
-    LUC.starsRaf=requestAnimationFrame(draw);};
-  if(LUC.starsRaf)cancelAnimationFrame(LUC.starsRaf);draw();}
-function lucSaveLog(txt,signs,voiceKey){var L=lucLogs();L.unshift({at:Date.now(),txt:txt||"",signs:signs||[],voice:voiceKey||null});save(mk("lucid","logs"),L.slice(0,60));}
+    if(LUC.on&&LUC.view==="night")LUC.starsRaf=setTimeout(draw,130);else LUC.starsRaf=requestAnimationFrame(draw);};
+  if(LUC.starsRaf){cancelAnimationFrame(LUC.starsRaf);clearTimeout(LUC.starsRaf);}draw();}
+function lucSaveLog(txt,signs,voiceKey,lucid){var L=lucLogs();L.unshift({at:Date.now(),txt:txt||"",signs:signs||[],voice:voiceKey||null,lucid:!!lucid,night:LUC.lastAt||null});save(mk("lucid","logs"),L.slice(0,60));}
+var LUC_SIGNS=["Flying","Hands looked odd","Text kept changing","Lights / glow","Familiar people","Falling","Déjà vu"];
+function lucLastNight(){try{return srIdx().filter(function(e){return e.kind==="lucid"&&(e.mins||0)>=1;}).sort(function(a,b){return b.at-a.at;})[0]||null;}catch(e){return null;}}
 function renderLucid(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);var c=lucCfg();
-  teardown=function(){if(LUC.starsRaf)cancelAnimationFrame(LUC.starsRaf);if(LUC.recMr){try{LUC.recMr.stop();}catch(e){}LUC.recMr=null;}};
+  teardown=function(){if(LUC.starsRaf){cancelAnimationFrame(LUC.starsRaf);clearTimeout(LUC.starsRaf);LUC.starsRaf=null;}if(LUC.dimT){clearTimeout(LUC.dimT);LUC.dimT=null;}if(LUC.recMr){try{LUC.recMr.stop();}catch(e){}LUC.recMr=null;}};
   if(LUC.on)LUC.view="night";
+  /* ---- NIGHT: the whole phone is a bedside clock ---- */
   if(LUC.view==="night"){
-    view.innerHTML='<div style="position:relative;height:'+Math.max(330,window.innerHeight-70)+'px;border-radius:14px;overflow:hidden;background:#0A0C11">'
+    view.innerHTML='<div id="lucNight" style="position:relative;height:'+Math.max(300,window.innerHeight-(window.innerWidth>window.innerHeight?130:70))+'px;border-radius:14px;overflow:hidden;background:#0A0C11;transition:opacity 1.4s">'
      +'<canvas id="lucCv" style="position:absolute;inset:0;width:100%;height:100%"></canvas>'
      +'<div style="position:absolute;left:0;right:0;top:0;padding:10px;display:flex;align-items:center"><button class="rchip sm" id="eBack">←</button><span style="margin-left:auto" class="rchip sm" id="lucHr"></span></div>'
-     +'<div style="position:absolute;left:0;right:0;top:26%;text-align:center"><div id="lucClock" style="font:200 64px system-ui;letter-spacing:2px;color:#ECEDEF">'+(new Date().getHours()%12||12)+':'+String(new Date().getMinutes()).padStart(2,"0")+'</div>'
-     +'<div id="lucPhase" style="font:700 13px system-ui;color:#9BA1AC;margin-top:6px;padding:0 20px">Silent descent</div></div>'
-     +'<div style="position:absolute;left:0;right:0;bottom:40px;display:flex;gap:8px;justify-content:center"><button class="rchip sm" id="lucTest">🔔 Test cue</button><button class="rchip sm" id="lucEndB">■ End night</button></div></div>';
+     +'<div style="position:absolute;left:0;right:0;top:24%;text-align:center"><div id="lucClock" style="font:200 64px system-ui;letter-spacing:2px;color:#ECEDEF">'+(new Date().getHours()%12||12)+':'+String(new Date().getMinutes()).padStart(2,"0")+'</div>'
+     +'<div id="lucPhase" style="font:700 13px system-ui;color:#9BA1AC;margin-top:6px;padding:0 20px">Silent descent</div>'
+     +'<div class="site-note" style="margin:8px 0 0;font-size:.72rem;color:#6d7380">'+LUC.windows.length+' cue windows tonight · '+(c.gate?(HR.connected?"REM-smart timing on":"no heart sensor — cues on schedule"):"cues on schedule")+'</div></div>'
+     +'<div style="position:absolute;left:0;right:0;bottom:18px;display:flex;gap:8px;justify-content:center"><button class="rchip sm" id="lucTest">🔔 Test cue</button><button class="rchip sm" id="lucEndB">■ End night</button></div></div>';
     $("#eBack").onclick=goHome;lucStars(document.getElementById("lucCv"));
+    /* dim to a bedside glow after a minute untouched; any touch brings it back */
+    var nv=document.getElementById("lucNight"),wake=function(){if(!nv)return;nv.style.opacity="1";clearTimeout(LUC.dimT);LUC.dimT=setTimeout(function(){if(nv.isConnected&&LUC.on)nv.style.opacity="0.4";},60000);};
+    nv.addEventListener("pointerdown",wake);wake();
     $("#lucTest").onclick=function(){unlockAudio();lucCueAt(ac(),ac().currentTime+0.1);};
     var endB=$("#lucEndB");endB.onclick=function(){if(endB.dataset.sure!=="1"){endB.dataset.sure="1";endB.textContent="Tap again to end";setTimeout(function(){if(endB.isConnected){endB.dataset.sure="";endB.textContent="■ End night";}},3000);return;}lucEnd();renderLucid();};
     return;}
+  /* ---- TONIGHT'S INTENTION: say it, pick what to watch for, lights out ---- */
+  if(LUC.view==="intent"){var foc=load(mk("lucid","focus"),null);
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌙 Tonight’s intention</span></div>'
+     +'<div class="panel">'
+     +'<div style="font:800 1.3rem system-ui;line-height:1.5;margin:6px 0 4px">“Next time I’m dreaming,<br>I notice I’m dreaming.”</div>'
+     +'<div class="sw-sub">Say it slowly a few times as you settle in. Mean it — then let it go.</div>'
+     +'<div class="rlab" style="display:block;margin:14px 0 4px">Tonight I watch for</div>'
+     +'<div class="rchips tight" id="lucFoc">'+LUC_SIGNS.map(function(s2){return '<button class="rchip sm'+(foc===s2?" sel":"")+'" data-fo="'+esc(s2)+'">'+s2+'</button>';}).join("")+'</div>'
+     +'<div class="site-note" style="margin-top:10px">Phone plugged in · volume about half · Bluefy in front. When the cue reaches your dream: <b>look at your hands.</b></div>'
+     +'<div class="actions" style="margin-top:12px"><button class="btn" id="lucGo2" style="width:100%;padding:14px">🌙 Lights out — begin</button></div></div>';
+    $("#eBack").onclick=function(){LUC.view="home";renderLucid();};
+    view.querySelectorAll("[data-fo]").forEach(function(b){b.onclick=function(){var v=b.dataset.fo===load(mk("lucid","focus"),null)?null:b.dataset.fo;save(mk("lucid","focus"),v);LUC.view="intent";renderLucid();};});
+    $("#lucGo2").onclick=function(){lucStart();};
+    return;}
+  /* ---- TRAIN THE CUE: three rounds of sound → reality check ---- */
+  if(LUC.view==="train"){var rd=LUC.trainN||0;
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔔 Train the cue</span></div>'
+     +'<div class="panel"><div class="sw-sub">Pair the sound with a reality check, three times. Tonight, when the cue drifts into your dream, the check comes with it.</div>'
+     +'<div style="font:800 2rem system-ui;text-align:center;margin:16px 0 4px">'+(rd>=3?"Done ✓":"Round "+(rd+1)+" of 3")+'</div>'
+     +'<div id="lucTrTx" class="site-note" style="text-align:center;min-height:46px;font-size:.85rem">'+(rd>=3?"Tonight, that sound means: check your hands.":(rd?"":"Close your eyes and tap play."))+'</div>'
+     +'<div class="actions"><button class="btn" id="lucTrGo" style="width:100%;padding:14px">'+(rd>=3?"Back to setup":"🔔 Play the cue")+'</button></div></div>';
+    $("#eBack").onclick=function(){LUC.trainN=0;LUC.view="home";renderLucid();};
+    $("#lucTrGo").onclick=function(){
+      if(LUC.trainN>=3){LUC.trainN=0;LUC.view="home";renderLucid();return;}
+      unlockAudio();var a=ac();if(!LUC.g){LUC.g=a.createGain();LUC.g.gain.value=c.vol;LUC.g.connect(a.destination);}LUC.g.gain.value=c.vol;
+      var go=function(){lucCueAt(a,a.currentTime+0.05);var tx=$("#lucTrTx");if(tx)tx.innerHTML="Now: <b>look at your hands. Count your fingers.</b><br>Ask out loud — am I dreaming?";
+        setTimeout(function(){LUC.trainN=(LUC.trainN||0)+1;if(LUC.view==="train")renderLucid();},6000);};
+      if(c.style==="pad"&&!LUC.pads.cue)lucPadLoad("cue").then(function(r){LUC.pads.cue=r;go();});else go();};
+    return;}
+  /* ---- MORNING RECALL ---- */
   if(LUC.view==="morning"){
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌅 Morning recall</span></div>'
      +'<div class="panel"><div class="sw-sub">Before it fades — say it or type it. Fragments count.</div>'
      +'<div class="actions" style="margin:8px 0"><button class="btn ghost" id="lucVo">🎙 Record what you remember</button></div><div id="lucVoSt" class="site-note" style="margin:0 0 6px"></div>'
-     +'<textarea id="lucTxt" placeholder="The dream, in any order…" style="width:100%;box-sizing:border-box;min-height:110px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;color:inherit;padding:10px;font:600 1rem system-ui"></textarea>'
-     +'<div class="sw-sub" style="margin-top:10px">Dream signs you noticed</div><div class="rchips tight" id="lucSigns">'+["Flying","Hands looked odd","Text kept changing","Lights / glow","Familiar people","Knew I was dreaming"].map(function(s2){return '<button class="rchip sm" data-sg="'+esc(s2)+'">'+s2+'</button>';}).join("")+'</div>'
+     +'<textarea id="lucTxt" placeholder="The dream, in any order…" style="width:100%;box-sizing:border-box;min-height:110px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;color:inherit;padding:10px;font:600 1rem system-ui">'+esc(LUC.draft||"")+'</textarea>'
+     +'<div class="actions" style="margin:10px 0 0"><button class="rchip'+(LUC.mLucid?" sel":"")+'" id="lucYes" style="width:100%;justify-content:center;padding:12px;font-weight:800">🌟 I knew I was dreaming</button></div>'
+     +'<div class="sw-sub" style="margin-top:10px">Dream signs you noticed</div><div class="rchips tight" id="lucSigns">'+LUC_SIGNS.map(function(s2){return '<button class="rchip sm'+((LUC.mSigns||[]).indexOf(s2)>=0?" sel":"")+'" data-sg="'+esc(s2)+'">'+s2+'</button>';}).join("")+'</div>'
      +'<div class="actions" style="margin-top:12px"><button class="btn" id="lucSave">Save & finish</button></div></div>';
-    $("#eBack").onclick=function(){LUC.view="home";renderLucid();};
-    var signs=[];view.querySelectorAll("[data-sg]").forEach(function(b){b.onclick=function(){b.classList.toggle("sel");var s2=b.dataset.sg;var i=signs.indexOf(s2);if(i<0)signs.push(s2);else signs.splice(i,1);};});
-    var vKey=null,vb=$("#lucVo"),vSt=$("#lucVoSt");
+    $("#eBack").onclick=function(){var t=$("#lucTxt");if(t)LUC.draft=t.value;/* nothing is lost — the draft waits here */LUC.view="home";renderLucid();};
+    LUC.mSigns=LUC.mSigns||[];
+    $("#lucTxt").oninput=function(){LUC.draft=this.value;};
+    $("#lucYes").onclick=function(){LUC.mLucid=!LUC.mLucid;$("#lucYes").classList.toggle("sel",LUC.mLucid);};
+    view.querySelectorAll("[data-sg]").forEach(function(b){b.onclick=function(){b.classList.toggle("sel");var s2=b.dataset.sg,i=LUC.mSigns.indexOf(s2);if(i<0)LUC.mSigns.push(s2);else LUC.mSigns.splice(i,1);};});
+    var vKey=LUC.mVoice||null,vb=$("#lucVo"),vSt=$("#lucVoSt");if(vKey)vSt.textContent="Voice note saved ✓";
     vb.onclick=function(){if(LUC.recMr){try{LUC.recMr.stop();}catch(e){}return;}
       ensureMic().then(function(ok){if(!ok){vSt.textContent="Mic blocked — in Bluefy: aA → Website Settings → Microphone → Allow.";return;}
         try{var mt=MediaRecorder.isTypeSupported("audio/mp4")?"audio/mp4":"audio/webm";var mr=new MediaRecorder(micStream,{mimeType:mt}),ch=[];LUC.recMr=mr;
           mr.ondataavailable=function(e){if(e.data&&e.data.size)ch.push(e.data);};
-          mr.onstop=function(){LUC.recMr=null;try{stopMic();}catch(e){}var bl=new Blob(ch,{type:mt});if(bl.size>2000){vKey="lucidlog:"+Date.now();idbPut(vKey,bl);vSt.textContent="Voice note saved ✓";}vb.textContent="🎙 Record what you remember";};
-          mr.start(500);vb.textContent="■ Stop recording";vSt.textContent="Recording — speak freely…";}catch(e){vSt.textContent="Recording isn't available in this browser.";}});};
-    $("#lucSave").onclick=function(){lucSaveLog($("#lucTxt").value.trim(),signs,vKey);LUC.view="home";renderLucid();};
+          mr.onstop=function(){LUC.recMr=null;try{stopMic();}catch(e){}var bl=new Blob(ch,{type:mt});if(bl.size>2000){vKey="lucidlog:"+Date.now();LUC.mVoice=vKey;idbPut(vKey,bl);vSt.textContent="Voice note saved ✓";}vb.textContent="🎙 Record what you remember";};
+          mr.start(500);vb.textContent="■ Stop recording";vSt.textContent="Recording — speak freely…";}catch(e){vSt.textContent="Recording isn’t available in this browser.";}});};
+    $("#lucSave").onclick=function(){lucSaveLog($("#lucTxt").value.trim(),LUC.mSigns.slice(),vKey,LUC.mLucid);LUC.draft=null;LUC.mSigns=[];LUC.mLucid=false;LUC.mVoice=null;LUC.view="home";renderLucid();};
     return;}
-  /* home */
-  var logs=lucLogs();
+  /* ---- HOME: setup, progress, last night, dream log ---- */
+  var logs=lucLogs(),nights=logs.length;
+  var isLuc=function(l){return l.lucid||((l.signs||[]).indexOf("Knew I was dreaming")>=0);};
+  var lucN=logs.filter(isLuc).length,recN=logs.filter(function(l){return (l.txt&&l.txt.length)||l.voice||((l.signs||[]).length);}).length;
+  var ln=lucLastNight();
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌙 Lucid Dream Journey</span></div>'
    +'<div style="position:relative;height:120px;border-radius:14px;overflow:hidden;margin-bottom:10px"><canvas id="lucCv" style="position:absolute;inset:0;width:100%;height:100%"></canvas><div style="position:absolute;left:14px;bottom:10px;font:700 .8rem system-ui;color:#9BA1AC">Sleep normally. Soft cues visit your REM windows and whisper: notice you’re dreaming.</div></div>'
    +'<div class="panel">'
+   +(nights?'<div class="rchips tight" style="margin:0 0 8px"><span class="rchip sm" style="pointer-events:none">🌙 '+nights+' night'+(nights>1?"s":"")+'</span><span class="rchip sm" style="pointer-events:none">📝 '+recN+' recalled</span><span class="rchip sm" style="pointer-events:none;'+(lucN?'border-color:#f4b740;color:#f4b740':'')+'">🌟 '+lucN+' lucid</span></div>':'')
+   +(ln?'<div class="rrow" style="border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:0 0 10px"><div style="flex:1;min-width:0"><b style="font-size:.85rem">Last night</b><div class="site-note" style="margin:0;font-size:.74rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(ln.label||"Lucid Dream Journey")+(ln.mins?" · "+ln.mins+" min":"")+'</div></div><button class="rchip sm" id="lucWatch" style="flex:none">▶ Watch</button><button class="rchip sm" id="lucRepB" style="flex:none">📈</button></div>':'')
    +'<div class="rrow2"><span class="rlab">Sleep</span><span class="rchips tight">'+[6,7,8,9].map(function(h){return '<button class="rchip sm'+(c.hours===h?" sel":"")+'" data-lh="'+h+'">'+h+' h</button>';}).join("")+'</span></div>'
    +'<div class="rrow2"><span class="rlab">First cues after</span><span class="rchips tight">'+[3,4.5,6].map(function(h){return '<button class="rchip sm'+(c.first===h?" sel":"")+'" data-lf="'+h+'">'+h+' h</button>';}).join("")+'</span></div>'
    +'<div class="rrow2"><span class="rlab">Cue sound</span><span class="rchips tight"><button class="rchip sm'+(c.style==="chime"?" sel":"")+'" data-ls="chime">Chimes</button><button class="rchip sm'+(c.style==="pulse"?" sel":"")+'" data-ls="pulse">Theta pulse</button><button class="rchip sm'+(c.style==="pad"?" sel":"")+'" data-ls="pad">Your pad</button></span></div>'
-   +'<div class="rrow"><span class="rlab">Cue volume</span><input type="range" id="lucVol" min="10" max="100" value="'+Math.round(c.vol*100)+'" style="flex:1"><button class="rchip sm" id="lucTry">🔔 Try</button></div>'
+   +'<div class="rrow"><span class="rlab">Cue volume</span><input type="range" id="lucVol" min="10" max="100" value="'+Math.round(c.vol*100)+'" style="flex:1"><button class="rchip sm" id="lucTry">🔔 Try</button><button class="rchip sm" id="lucTrainB">🎓 Train</button></div>'
    +'<div class="rrow2"><span class="rlab">Smart timing</span><span class="rchips tight"><button class="rchip sm'+(c.gate?" sel":"")+'" id="lucGate">❤️ Wait for REM signs</button><button class="rchip sm'+(c.wind?" sel":"")+'" id="lucWind">🌊 10-min wind-down</button></span></div>'
    +'<div class="site-note" style="font-size:.76rem">Phone plugged in, volume at half, Bluefy in front. Cues fire on schedule even if the screen locks; REM-smart timing needs the HeartMath on and the screen awake (dim is fine).</div>'
    +'<div class="actions" style="margin-top:10px"><button class="btn" id="lucGo" style="width:100%;padding:14px">🌙 Begin the night</button></div>'
-   +(logs.length?'<div class="rlab" style="display:block;margin:14px 0 4px">Dream log</div>'+logs.slice(0,7).map(function(l,i){return '<div style="display:flex;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line)"><div style="flex:1;min-width:0"><b style="font-size:.85rem">'+new Date(l.at).toLocaleDateString([],{month:"short",day:"numeric"})+'</b>'+(l.signs&&l.signs.length?' <span class="site-note" style="margin:0;font-size:.72rem">'+esc(l.signs.join(" · "))+'</span>':'')+(l.txt?'<div class="site-note" style="margin:0;font-size:.76rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(l.txt)+'</div>':'')+'</div>'+(l.voice?'<button class="rchip sm" data-lv="'+l.voice+'">▶</button>':'')+'</div>';}).join(""):'')
+   +(logs.length?'<div class="rlab" style="display:block;margin:14px 0 4px">Dream log</div>'+logs.slice(0,10).map(function(l,i){var open=LUC.logOpen===i;
+      return '<div style="border-top:1px solid var(--line)"><button data-li="'+i+'" style="display:flex;width:100%;gap:8px;align-items:center;padding:9px 0;border:0;background:none;color:inherit;text-align:left">'
+       +'<b style="font-size:.85rem;flex:none">'+new Date(l.at).toLocaleDateString([],{month:"short",day:"numeric"})+'</b>'
+       +(isLuc(l)?'<span style="flex:none">🌟</span>':'')
+       +'<span class="site-note" style="margin:0;font-size:.76rem;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(l.txt||((l.signs||[]).join(" · "))||(l.voice?"voice note":"—"))+'</span>'
+       +(l.voice?'<span style="flex:none;font-size:.8rem">🎙</span>':'')+'<span style="color:var(--muted)">'+(open?"▾":"›")+'</span></button>'
+       +(open?'<div style="padding:0 2px 10px">'+(l.txt?'<div style="font-size:.9rem;white-space:pre-wrap">'+esc(l.txt)+'</div>':'')
+         +((l.signs||[]).length?'<div class="site-note" style="margin:4px 0 0;font-size:.74rem">'+esc((l.signs||[]).join(" · "))+'</div>':'')
+         +'<div class="rchips tight" style="margin-top:6px">'+(l.voice?'<button class="rchip sm" data-lv="'+l.voice+'">▶ Voice note</button>':'')+'<button class="rchip sm" data-ld="'+i+'">🗑 Delete</button></div></div>':'')+'</div>';}).join(""):'')
    +'</div>';
   $("#eBack").onclick=goHome;lucStars(document.getElementById("lucCv"));
+  if(ln){var wb=$("#lucWatch");if(wb)wb.onclick=function(){rpOpenPl(ln.at,ln.label||"Lucid Dream Journey",renderLucid);};var rb=$("#lucRepB");if(rb)rb.onclick=function(){plReport(ln.at);};}
   view.querySelectorAll("[data-lh]").forEach(function(b){b.onclick=function(){c.hours=+b.dataset.lh;lucSaveCfg();renderLucid();};});
   view.querySelectorAll("[data-lf]").forEach(function(b){b.onclick=function(){c.first=+b.dataset.lf;lucSaveCfg();renderLucid();};});
   view.querySelectorAll("[data-ls]").forEach(function(b){b.onclick=function(){c.style=b.dataset.ls;lucSaveCfg();renderLucid();if(c.style==="pad")lucPadLoad("cue").then(function(r){if(!r){var n=view.querySelector(".site-note");if(n)n.innerHTML="<b>No pad uploaded yet</b> — drop cue.mp3 into /sounds/lucid/ and it takes over. Chimes play until then.";}});};});
   var lv=$("#lucVol");if(lv)lv.oninput=function(){c.vol=+lv.value/100;lucSaveCfg();if(LUC.g)LUC.g.gain.setTargetAtTime(c.vol,ac().currentTime,0.1);};
   $("#lucTry").onclick=function(){unlockAudio();var a=ac();if(!LUC.g){LUC.g=a.createGain();LUC.g.gain.value=c.vol;LUC.g.connect(a.destination);}LUC.g.gain.value=c.vol;if(c.style==="pad"&&!LUC.pads.cue){lucPadLoad("cue").then(function(r){LUC.pads.cue=r;lucCueAt(a,a.currentTime+0.05);});}else lucCueAt(a,a.currentTime+0.05);};
+  $("#lucTrainB").onclick=function(){LUC.trainN=0;LUC.view="train";renderLucid();};
   $("#lucGate").onclick=function(){c.gate=!c.gate;lucSaveCfg();renderLucid();};
   $("#lucWind").onclick=function(){c.wind=!c.wind;lucSaveCfg();renderLucid();};
-  $("#lucGo").onclick=function(){lucStart();};
-  view.querySelectorAll("[data-lv]").forEach(function(b){b.onclick=function(){idbGet(b.dataset.lv).then(function(bl){if(!bl)return;var u=URL.createObjectURL(bl),au=new Audio(u);au.onended=function(){URL.revokeObjectURL(u);};au.play();});};});}
+  $("#lucGo").onclick=function(){LUC.view="intent";renderLucid();};
+  view.querySelectorAll("[data-li]").forEach(function(b){b.onclick=function(){var i=+b.dataset.li;LUC.logOpen=LUC.logOpen===i?null:i;renderLucid();};});
+  view.querySelectorAll("[data-lv]").forEach(function(b){b.onclick=function(ev){ev.stopPropagation();idbGet(b.dataset.lv).then(function(bl){if(!bl)return;var u=URL.createObjectURL(bl),au=new Audio(u);au.onended=function(){URL.revokeObjectURL(u);};au.play();});};});
+  view.querySelectorAll("[data-ld]").forEach(function(b){b.onclick=function(){if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Tap again to delete";return;}
+    var L=lucLogs(),i=+b.dataset.ld;if(L[i]&&L[i].voice)try{idbDel(L[i].voice);}catch(e){}L.splice(i,1);save(mk("lucid","logs"),L);LUC.logOpen=null;renderLucid();};});}
 /* ===== BRAIN CHARTS — full-screen EEG views: mirror spectrum, flow (waterfall), 3D ridge; live or recorded ===== */
 const BC={on:false,view:"mirror",src:"live",hist:[],t:null,win:null,norm:1,fl:null,rec:null,ri:0,playing:false,load:""};
 /* one palette for brainwaves everywhere: slow=deep blues → fast=hot. Gold stays reserved for sync/coherence, red for the heart. */
