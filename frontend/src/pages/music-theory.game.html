@@ -9329,7 +9329,7 @@ function hrvXoPaint(id){var cv=document.getElementById(id+"Xo");if(!cv)return;va
   for(var j=1;j<L.length;j++){if((L[j-1].hf>L[j-1].lf)!==(L[j].hf>L[j].lf)){g.fillStyle="#ECEDEF";g.beginPath();g.arc(X(L[j].t),Y((L[j].lf+L[j].hf)/2),2.6,0,7);g.fill();}}
   if(nEl){var ago=Math.round((Date.now()-tN)/1000);nEl.textContent=(winOn?"last 30 min · ":"")+Math.round(restMs/60000)+" min rest-led · "+xo+" crossover"+(xo===1?"":"s")+" · "+(RPX?"📼 replay":(ago<=15?"● live":ago<120?ago+"s ago — check the sensor":"⚠ no fresh readings for "+Math.round(ago/60)+" min"));}}
 function hrvWavesPaint(id){const el=document.getElementById(id);if(!el)return;if(!(HR.connected||M.connected||RPX)){el.innerHTML="";return;}const S=hrvSpec();
-  if(!S){el.innerHTML='<div class="site-note" style="font-size:.78rem">〰 Heart rhythm waves: gathering at least a minute of beats\u2026</div>';return;}
+  if(!S){el.innerHTML='<div class="site-note" style="font-size:.78rem">'+(RPX&&(!RPX.rr||!RPX.rr.length)?"〰 Heart rhythm waves: this recording has no beat-by-beat data (older or sensor-log session). New sessions record it automatically.":RPX?"〰 Heart rhythm waves: appear once the replay is a minute in — press play or scrub forward.":"〰 Heart rhythm waves: gathering at least a minute of beats\u2026")+'</div>';return;}
   const row=(lab,sub,v,col)=>'<div style="margin:6px 0"><div style="display:flex;justify-content:space-between;font-size:.8rem"><span><b>'+lab+'</b> <span style="opacity:.6;font-size:.72rem">'+sub+'</span></span><b>'+(v==null?'<span style="opacity:.5;font-weight:400">needs 5 min</span>':Math.round(v*100)+'%')+'</b></div><div style="height:8px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:3px"><div style="height:100%;width:'+Math.round((v||0)*100)+'%;background:'+col+'"></div></div></div>';
   const mayer=S.lfPk!=null&&S.lf>0.45&&Math.abs(S.lfPk-0.1)<0.03;
   el.innerHTML='<div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:2px"><b>Heart rhythm waves</b><span style="opacity:.7;font-size:.72rem">last '+Math.round(S.T/60*10)/10+' min</span></div>'+
@@ -10789,7 +10789,7 @@ function bcLoadRec(at,label){BC.rec=null;BC.ri=0;BC.playing=false;BC.load="Loadi
       document.querySelectorAll("[data-bcv]").forEach(function(b){b.classList.toggle("sel",b.dataset.bcv===BC.view);});
       BC.playing=true;BC.dir=1;var pb3=document.getElementById("bcPlayB");if(pb3)pb3.textContent="⏸"; /* start rolling on load — no hunting for a play button */
       var sl2=document.getElementById("bcSlide");if(sl2){sl2.max=frames.length-1;sl2.value=0;}var st2=document.getElementById("bcLoad");if(st2)st2.textContent=label+" · "+Math.round(dur/60)+" min"+(hasEEG?"":" · ❤️")+" · tap here to switch session";
-      var rl2=document.getElementById("bcRecs");if(rl2)rl2.style.display="none";
+      var rl2=document.getElementById("bcRecs");if(rl2)rl2.style.display="none";var fm2=document.getElementById("bcFullMon");if(fm2)fm2.style.display="";
       bcMarks();bcDraw();};
     if(!D.eegBlocks){/* heart-only session: frames straight from the 1 s timeline */
       if(!tl){BC.load="No detailed data in that session.";var s2=document.getElementById("bcLoad");if(s2)s2.textContent=BC.load;return;}
@@ -10827,7 +10827,7 @@ function renderBrainCharts(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
      +'<button class="rchip sm" id="bcFw">30s ⏩</button>'
      +[1,2,4,8].map(function(sp){return '<button class="rchip sm'+((BC.spd||1)===sp?" sel":"")+'" data-spd="'+sp+'">'+sp+'×</button>';}).join("")
      +'<button class="rchip sm" data-find="sync" style="color:var(--gold)">⏭ α</button><button class="rchip sm" data-find="co" style="color:#5fe0a8">⏭ ❤️</button></div>'
-    +'<div id="bcLoad" class="site-note" style="margin:4px 0 0;font-size:.72rem">'+(BC.load||(BC.rec?BC.rec.label:"Pick a session:"))+'</div>'
+    +'<div style="display:flex;gap:8px;align-items:center;margin:4px 0 0"><div id="bcLoad" class="site-note" style="margin:0;font-size:.72rem;flex:1">'+(BC.load||(BC.rec?BC.rec.label:"Pick a session:"))+'</div><button class="rchip sm" id="bcFullMon" style="flex:none'+(BC.rec?'':';display:none')+'">🫀 Full monitor</button></div>'
     +'<div id="bcRecs" class="rchips tight" data-nocz style="margin-top:4px;display:flex;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px">'+(recs.length?recs.map(function(e){return '<button class="rchip sm" data-bcr="'+e.at+'" style="flex:none">'+((e.eegBlocks||0)>0?"🧠 ":"❤️ ")+esc((e.label||"Session").slice(0,24))+'</button>';}).join(""):'<span class="site-note" style="margin:0;white-space:nowrap">No recorded sessions yet — do any meditation with the HeartMath or Muse connected.</span>')+'</div></div></div>';
   $("#eBack").onclick=goHome;
   var top=document.getElementById("bcTop"),bot=document.getElementById("bcBot");
@@ -10836,6 +10836,8 @@ function renderBrainCharts(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
   view.querySelectorAll("[data-bcs]").forEach(function(b){b.onclick=function(){BC.src=b.dataset.bcs;BC.playing=false;BC.fl=null;BC.lastFlow=null;renderBrainCharts();};});
   view.querySelectorAll("[data-bcr]").forEach(function(b){b.onclick=function(){var e=srIdx().find(function(x){return String(x.at)===b.dataset.bcr;});bcLoadRec(+b.dataset.bcr,(e&&e.label)||"Session");};});
   var ld0=document.getElementById("bcLoad");if(ld0)ld0.onclick=function(){var rl=document.getElementById("bcRecs");if(rl)rl.style.display=rl.style.display==="none"?"flex":"none";};
+  var fm=document.getElementById("bcFullMon");if(fm)fm.onclick=function(){if(!BC.rec)return;var e=srIdx().find(function(x){return x.at===BC.rec.at;}),lb=(e&&e.label)||BC.rec.label||"Session";
+    idbGet("pl-"+BC.rec.at).then(function(D){if(D&&D.tl&&D.tl.t&&D.tl.t.length)rpOpenPl(BC.rec.at,lb,renderBrainCharts);else rpOpenSens(String(BC.rec.at),renderBrainCharts);});};
   var pb=document.getElementById("bcPlayB");var setPlay=function(v){BC.playing=v;if(pb)pb.textContent=v?"⏸":"▶";dim();};
   if(pb)pb.onclick=function(){setPlay(!BC.playing);};
   document.getElementById("bcCv").onclick=function(){if(isRec&&BC.rec)setPlay(!BC.playing);else dim();};
