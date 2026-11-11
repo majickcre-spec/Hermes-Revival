@@ -12736,6 +12736,15 @@ function renderHrvReplay(src,label,backFn){if(toneRAF)cancelAnimationFrame(toneR
    +'<div class="site-note" style="margin:0 0 4px">'+esc(label||"Session")+' · the live monitor, exactly as it read</div>'
    +'<div class="rrow" style="margin:4px 0"><button class="rchip sm" id="rpPlay" style="min-width:48px;justify-content:center;font-size:1rem">⏸</button><input type="range" id="rpSlide" min="0" max="'+Math.max(1,Math.round(R2.dur))+'" value="0" style="flex:1;accent-color:var(--gold)"><span id="rpTime" style="font:800 .74rem ui-monospace,monospace;white-space:nowrap">0:00 / '+sensFmt(R2.dur)+'</span></div>'
    +'<div class="rchips tight" data-nocz style="margin:0 0 8px">'+[1,2,4,8,16].map(function(s2){return '<button class="rchip sm'+(st.spd===s2?" sel":"")+'" data-rps="'+s2+'">'+s2+'×</button>';}).join("")+'<button class="rchip sm" id="rpBk">⏪ 1m</button><button class="rchip sm" id="rpFw">1m ⏩</button></div>'
+   +(function(){/* the session's moments: coherence peaks and effort↔rest crossovers, tap to jump */
+     var marks=[],co=R2.tl.co||[],t=R2.tl.t,mx=0;co.forEach(function(v){if(v!=null&&v>mx)mx=v;});
+     var thr=Math.max(55,mx*0.85),last=-180;
+     for(var i=1;i<t.length-1;i++){var v=co[i];if(v==null||v<thr)continue;if(t[i]-last<180)continue;
+       var ok=true;for(var j=Math.max(0,i-30);j<Math.min(t.length,i+30);j++){if(co[j]!=null&&co[j]>v){ok=false;break;}}
+       if(ok){marks.push({t:t[i],txt:"⭐ "+sensFmt(t[i])+" · coherence "+Math.round(v)+"%"});last=t[i];}}
+     for(var k=1;k<R2.lh.length;k++){var a2=R2.lh[k-1],b2=R2.lh[k],rb=b2.hf>=b2.lf;if((a2.hf>=a2.lf)!==rb){var ts=(b2.t-R2.startMs)/1000;marks.push({t:ts,txt:"🔀 "+sensFmt(ts)+(rb?" → rest":" → effort")});}}
+     marks.sort(function(x,y){return x.t-y.t;});R2.marks=marks;
+     return marks.length?'<div class="site-note" style="margin:2px 0 2px;font-size:.72rem">Moments — tap to jump</div><div class="rchips tight" data-nocz style="flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 0 8px;padding-bottom:2px">'+marks.slice(0,40).map(function(m,i2){return '<button class="rchip sm" data-rpm="'+i2+'" style="flex:none">'+m.txt+'</button>';}).join("")+'</div>':'';})()
    +'<div id="bioLive"></div>'
    +'<div class="site-note" style="margin:8px 0 2px;font-size:.78rem"><b>Heart rhythm</b> · last minute</div>'
    +'<canvas id="sensWv" style="width:100%;height:80px;display:block;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.25)"></canvas>'
@@ -12747,6 +12756,7 @@ function renderHrvReplay(src,label,backFn){if(toneRAF)cancelAnimationFrame(toneR
   view.querySelectorAll("[data-rps]").forEach(function(b){b.onclick=function(){st.spd=+b.dataset.rps;view.querySelectorAll("[data-rps]").forEach(function(x){x.classList.toggle("sel",x===b);});};});
   $("#rpBk").onclick=function(){st.t=Math.max(0,st.t-60);paint();};
   $("#rpFw").onclick=function(){st.t=Math.min(R2.dur,st.t+60);paint();};
+  view.querySelectorAll("[data-rpm]").forEach(function(b){b.onclick=function(){var m=R2.marks[+b.dataset.rpm];if(m){st.t=Math.max(0,m.t-5);paint();}};});
   $("#rpSlide").oninput=function(){st.t=+this.value;paint();};
   timer=setInterval(function(){if(!RPX||!st.playing)return;st.t+=st.spd;if(st.t>=R2.dur){st.t=R2.dur;st.playing=false;var p=$("#rpPlay");if(p)p.textContent="▶";}paint();},1000);
   paint();}
