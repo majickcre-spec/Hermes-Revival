@@ -9162,10 +9162,13 @@ function bioBT(){return !!(navigator.bluetooth&&navigator.bluetooth.requestDevic
 function bioMsg(t){const m=document.getElementById("bioMsg");if(m)m.innerHTML=t;}
 function bioHelp(){bioMsg("<b>This browser can’t use Bluetooth.</b> On iPhone, Safari blocks it — install the free <b>Bluefy – Web BLE Browser</b> app and open MMU in it. On Android or a computer, use Chrome.");}
 function hrFresh(){return HR.connected&&performance.now()-(HR.updated||0)<8000;}
-function bioHR(){if(hrFresh()){if(HR.rr&&HR.rr.length>=4){var arr=rrClean(HR.rr.slice(-12));if(arr.length>=4){var s=arr.slice(-8).slice().sort(function(a,b){return a-b;});return Math.round(60000/s[s.length>>1]);}}if(HR.bpm)return HR.bpm;}if(M.connected&&M.hr)return M.hr;return null;}
-function bioHRSrc(){if(hrFresh())return HR.src==="camera"?"camera pulse":"heart sensor";if(M.connected&&M.hr)return "Muse pulse (optical — less reliable)";return null;}
-function bioHRV(){if(hrFresh()&&HR.rr&&HR.rr.length>=6)return hrv();if(M.connected&&M.rmssd)return M.rmssd;return null;}
-function bioCoherence(){let rr=rrClean(hrFresh()&&HR.rr&&HR.rr.length?HR.rr.slice():(M.connected&&M.ibis?M.ibis.map(x=>x.ibi):[]));if(rr.length<40)return null;
+/* MONITOR REPLAY: when RPX is set, the live monitor's own functions read a recording instead of the sensors —
+   the playback screen IS the live screen, same code, same readouts. */
+var RPX=null;
+function bioHR(){if(RPX)return RPX.hr;if(hrFresh()){if(HR.rr&&HR.rr.length>=4){var arr=rrClean(HR.rr.slice(-12));if(arr.length>=4){var s=arr.slice(-8).slice().sort(function(a,b){return a-b;});return Math.round(60000/s[s.length>>1]);}}if(HR.bpm)return HR.bpm;}if(M.connected&&M.hr)return M.hr;return null;}
+function bioHRSrc(){if(RPX)return "the recording";if(hrFresh())return HR.src==="camera"?"camera pulse":"heart sensor";if(M.connected&&M.hr)return "Muse pulse (optical — less reliable)";return null;}
+function bioHRV(){if(RPX)return RPX.hrv;if(hrFresh()&&HR.rr&&HR.rr.length>=6)return hrv();if(M.connected&&M.rmssd)return M.rmssd;return null;}
+function bioCoherence(){if(RPX)return RPX.co;let rr=rrClean(hrFresh()&&HR.rr&&HR.rr.length?HR.rr.slice():(M.connected&&M.ibis?M.ibis.map(x=>x.ibi):[]));if(rr.length<40)return null;
   let s=0,st=rr.length;while(st>0&&s<64000){st--;s+=rr[st];}rr=rr.slice(st);let t=0;const pts=rr.map(v=>{t+=v/1000;return [t,v];}),T=pts[pts.length-1][0];if(T<45)return null;
   const fs=2,n=Math.floor(T*fs),y=new Array(n);let k=0;for(let j=0;j<n;j++){const tt=j/fs;while(k<pts.length-2&&pts[k+1][0]<tt)k++;const a=pts[k],b=pts[k+1]||a,u=b[0]>a[0]?Math.min(1,Math.max(0,(tt-a[0])/(b[0]-a[0]))):0;y[j]=a[1]+(b[1]-a[1])*u;}
   const mean=y.reduce((p,q)=>p+q,0)/n,pw=[];for(let fi=1;fi/T<=0.4;fi++){const f=fi/T;let re=0,im=0;for(let j=0;j<n;j++){const w=0.5-0.5*Math.cos(2*Math.PI*j/(n-1)),v=(y[j]-mean)*w;re+=v*Math.cos(2*Math.PI*f*j/fs);im-=v*Math.sin(2*Math.PI*f*j/fs);}pw.push([f,re*re+im*im]);}
@@ -9173,14 +9176,14 @@ function bioCoherence(){let rr=rrClean(hrFresh()&&HR.rr&&HR.rr.length?HR.rr.slic
 function bioStart(){try{sensEnsureTimer();}catch(e){}if(BIO.timer)return;BIO.timer=setInterval(()=>{if(!HR.connected&&!M.connected)return;BIO.log.push({t:Date.now(),hr:bioHR(),hrv:bioHRV(),co:(bioCoherence()||{}).score,al:M.connected?M.alpha:null,th:M.connected?M.theta:null,be:M.connected?M.beta:null});if(BIO.log.length>7200)BIO.log.shift();
   if(!BIO.lhT||Date.now()-BIO.lhT>10000){BIO.lhT=Date.now();try{if(hrFresh()||(M.connected&&M.hr)){var sp=hrvSpec();if(sp&&sp.lf!=null&&sp.hf!=null){(BIO.lh=BIO.lh||[]).push({t:Date.now(),lf:sp.lf,hf:sp.hf});if(BIO.lh.length>720)BIO.lh.shift();}}}catch(e){}}
   bioPaint();},1000);}
-function bioStatus(){const a=[];const h=bioHR();if(HR.connected||h)a.push("❤️ "+(h||"…"));if(M.connected)a.push("🧠 Muse");return a.length?a.join(" · "):"not connected";}
-function bioSpark(key,col){const pts=BIO.log.slice(-120).map(p=>p[key]),v=pts.filter(x=>x!=null);if(v.length<2)return "";const W=120,H=24,mx=Math.max.apply(null,v),mn=Math.min.apply(null,v);
+function bioStatus(){if(RPX)return "📼 replay";const a=[];const h=bioHR();if(HR.connected||h)a.push("❤️ "+(h||"…"));if(M.connected)a.push("🧠 Muse");return a.length?a.join(" · "):"not connected";}
+function bioSpark(key,col){const pts=(RPX?RPX.log.filter(p=>p.t<=RPX.nowMs).slice(-120):BIO.log.slice(-120)).map(p=>p[key]),v=pts.filter(x=>x!=null);if(v.length<2)return "";const W=120,H=24,mx=Math.max.apply(null,v),mn=Math.min.apply(null,v);
   return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:24px"><polyline fill="none" stroke="'+col+'" stroke-width="2" points="'+pts.map((x,i)=>x==null?"":(i*W/Math.max(1,pts.length-1)).toFixed(1)+","+(H-2-(x-mn)/Math.max(1e-6,mx-mn)*(H-4)).toFixed(1)).filter(Boolean).join(" ")+'"/></svg>';}
 function bioPaint(){const el=document.getElementById("bioLive");if(!el)return;const sm=document.getElementById("bioSum");if(sm)sm.textContent=bioStatus();
   const tile=(lab,val,sub,sp)=>'<div style="background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px;text-align:center"><div style="font-size:.72rem;color:var(--muted);font-weight:800">'+lab+'</div><div style="font:900 1.25rem system-ui">'+val+'</div><div style="font-size:.68rem;color:var(--muted)">'+(sub||"")+'</div>'+(sp||"")+'</div>';
   let h="";const hr=bioHR(),hv=bioHRV(),co=bioCoherence();
-  if(HR.connected||M.connected){h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:6px 0">'+tile("Heart rate",hr?hr+'<span style="font-size:.7rem"> bpm</span>':"—",hr?("via "+(bioHRSrc()||"")):"",bioSpark("hr","#ff5d6c"))+tile("HRV (RMSSD)",hv!=null?hv+'<span style="font-size:.7rem"> ms</span>':"—",hv==null?(HR.connected&&(!HR.rr||!HR.rr.length)?"no beat timing from this sensor":"gathering beats…"):"higher = more relaxed",bioSpark("hrv","#4fe08a"))+tile("Coherence",co?(co.score<0.5?"Low":co.score<1.5?"Medium":"High"):"—",co?("rhythm "+(co.freq*60).toFixed(1)+"/min"):"needs ~1 min",bioSpark("co","#f4b740"))+'</div>';}
-  if(M.connected){const B={theta:M.theta||0,alpha:M.alpha||0,beta:M.beta||0},cols={theta:"#4aa8ff",alpha:"#4fe08a",beta:"#ffc94a"},dom=Object.keys(B).sort((a,b)=>B[b]-B[a])[0];
+  if(HR.connected||M.connected||RPX){h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:6px 0">'+tile("Heart rate",hr?hr+'<span style="font-size:.7rem"> bpm</span>':"—",hr?("via "+(bioHRSrc()||"")):"",bioSpark("hr","#ff5d6c"))+tile("HRV (RMSSD)",hv!=null?hv+'<span style="font-size:.7rem"> ms</span>':"—",hv==null?(HR.connected&&(!HR.rr||!HR.rr.length)?"no beat timing from this sensor":"gathering beats…"):"higher = more relaxed",bioSpark("hrv","#4fe08a"))+tile("Coherence",co?(co.score<0.5?"Low":co.score<1.5?"Medium":"High"):"—",co&&co.freq?("rhythm "+(co.freq*60).toFixed(1)+"/min"):co?"":"needs ~1 min",bioSpark("co","#f4b740"))+'</div>';}
+  if(M.connected&&!RPX){const B={theta:M.theta||0,alpha:M.alpha||0,beta:M.beta||0},cols={theta:"#4aa8ff",alpha:"#4fe08a",beta:"#ffc94a"},dom=Object.keys(B).sort((a,b)=>B[b]-B[a])[0];
     h+='<div style="margin:6px 0">'+Object.keys(B).map(k=>'<div style="display:flex;align-items:center;gap:6px;margin:2px 0"><span style="width:46px;font-size:.75rem;font-weight:800;text-transform:capitalize">'+k+'</span><div style="flex:1;height:10px;border-radius:5px;background:rgba(255,255,255,.07);overflow:hidden"><div style="height:100%;width:'+Math.round(B[k])+'%;background:'+cols[k]+'"></div></div><span style="width:34px;text-align:right;font-size:.75rem">'+Math.round(B[k])+'%</span></div>').join("")+'</div><div class="site-note" style="font-size:.8rem">Strongest right now: <b style="text-transform:capitalize">'+dom+'</b>'+(M.battery!=null?' · Muse battery '+Math.round(M.battery)+'%':'')+'</div>';}
   el.innerHTML=h+tgtHTML("tgtBio")+ansHTML("ansBio");tgtPaint("tgtBio");ansPaint("ansBio");}
 /* ---- Ideal right now: targets set automatically from time of day, your age, and your own history ---- */
@@ -9188,7 +9191,7 @@ var TGT={sec:0,inSec:0,last:0};
 function tgtProf(){return load("mjk-bioprof",{});}
 function tgtAgeHRV(age){if(!age)return 35;var T=[[20,45],[30,38],[40,31],[50,26],[60,22],[70,19],[80,17]];for(var i=T.length-1;i>=0;i--)if(age>=T[i][0])return T[i][1];return 48;}
 function tgtBand(h){h=h==null?new Date().getHours():h;return h>=5&&h<11?"m":h>=11&&h<17?"d":h>=17&&h<21?"e":"n";}
-function tgtGoal(){var b=tgtBand(),P=tgtProf(),norm=tgtAgeHRV(P.age),L=sensList().filter(function(s){return s.hrv&&tgtBand(new Date(s.start).getHours())===b;}).map(function(s){return s.hrv;}).sort(function(a,c){return a-c;});
+function tgtGoal(){var b=tgtBand(RPX?RPX.hour:null),P=tgtProf(),norm=tgtAgeHRV(P.age),L=sensList().filter(function(s){return s.hrv&&tgtBand(new Date(s.start).getHours())===b;}).map(function(s){return s.hrv;}).sort(function(a,c){return a-c;});
   var mine=L.length>=3?L[Math.floor(L.length*0.75)]:null,hrv=Math.round(mine?Math.max(mine,norm*0.9):norm);
   var G={m:{name:"Morning",what:"Calm and alert: steady heart, clear head.",coh:60,ns:15,hrv:hrv,hrDrop:0},d:{name:"Daytime",what:"Reset: drop the stress, keep your focus.",coh:70,ns:20,hrv:hrv,hrDrop:3},e:{name:"Evening",what:"Unwind: let the day go.",coh:70,ns:35,hrv:Math.round(hrv*1.1),hrDrop:5},n:{name:"Night",what:"Deep rest, ready for sleep.",coh:65,ns:45,hrv:Math.round(hrv*1.15),hrDrop:8}}[b];
   if(window.MJK_FOCUS){G={name:"Focus",what:"Calm and focused: stress down, attention up \u2014 not drowsy.",coh:60,ns:15,hrv:hrv,hrDrop:0};}
@@ -9198,7 +9201,7 @@ function tgtNow(){var G=tgtGoal(),A=typeof ansCalc==="function"?ansCalc():null,c
   r.items.push({k:"Nervous system",cur:A?(A.v>0?"+":"")+A.v:null,tgt:"+"+G.ns,ok:!!A&&A.v>=G.ns,p:A?Math.max(0,Math.min(1,A.v/G.ns)):0});
   r.items.push({k:"HRV",cur:hv!=null?hv+" ms":null,tgt:G.hrv+" ms",ok:hv!=null&&hv>=G.hrv,p:hv!=null?Math.min(1,hv/G.hrv):0});
   if(G.hrDrop&&A)r.items.push({k:"Heart rate",cur:Math.round(A.hn)+" bpm",tgt:"≤ "+Math.round(A.hb-G.hrDrop),ok:A.hn<=A.hb-G.hrDrop,p:Math.max(0,Math.min(1,(A.hb-A.hn)/G.hrDrop))});
-  if(M.connected){var al=M.alpha||0,th=M.theta||0,be=M.beta||0,b=tgtBand(),ok=b==="n"?th>=al*0.9:b==="m"?al>=be*0.8:al>=be;r.items.push({k:"Brain",cur:b==="n"?"θ "+Math.round(th)+"%":"α "+Math.round(al)+"%",tgt:b==="n"?"theta rising":b==="m"?"alpha ≈ beta":"alpha > beta",ok:ok,p:ok?1:0.5});}
+  if(M.connected&&!RPX){var al=M.alpha||0,th=M.theta||0,be=M.beta||0,b=tgtBand(),ok=b==="n"?th>=al*0.9:b==="m"?al>=be*0.8:al>=be;r.items.push({k:"Brain",cur:b==="n"?"θ "+Math.round(th)+"%":"α "+Math.round(al)+"%",tgt:b==="n"?"theta rising":b==="m"?"alpha ≈ beta":"alpha > beta",ok:ok,p:ok?1:0.5});}
   var known=r.items.filter(function(x){return x.cur!=null;});r.all=known.length>=2&&known.every(function(x){return x.ok;});r.score=known.length?known.reduce(function(a,x){return a+x.p;},0)/known.length:0;return r;}
 function tgtTick(){var now=Date.now();if(!(HR.connected||M.connected)){TGT.last=0;return;}if(TGT.last&&now-TGT.last<5000){var d=(now-TGT.last)/1000;TGT.sec+=d;if(tgtNow().all)TGT.inSec+=d;}TGT.last=now;}
 function tgtReset(){TGT.sec=0;TGT.inSec=0;TGT.last=0;}
@@ -9208,11 +9211,11 @@ function tgtAgeRow(id){var el=document.getElementById(id+"AgeRow");if(!el||el.da
   el.innerHTML='<div style="display:flex;gap:8px;align-items:center;font-size:.8rem"><span>Your age</span><input id="'+id+'AgeI" type="number" inputmode="numeric" pattern="[0-9]*" min="10" max="100" placeholder="e.g. 46" value="'+(P.age||"")+'" style="width:84px;padding:8px 10px;border-radius:10px;border:1px solid #e9c46a;background:#fff;color:#111;font:700 1rem system-ui"><button class="btn" id="'+id+'AgeS" style="flex:none;padding:8px 14px;font-size:.85rem;margin:0">Save</button><span id="'+id+'AgeM" class="site-note" style="margin:0;font-size:.74rem"></span></div>';
   var i=document.getElementById(id+"AgeI"),sv=function(){var v=parseInt(i.value,10);if(v>=10&&v<=100){var p=tgtProf();p.age=v;save("mjk-bioprof",p);draw(false);tgtPaint(id);}else document.getElementById(id+"AgeM").textContent="Enter 10\u2013100";};
   document.getElementById(id+"AgeS").onclick=sv;i.onkeydown=function(e){if(e.key==="Enter")sv();};};draw(false);}
-function tgtPaint(id){var el=document.getElementById(id);if(!el)return;tgtAgeRow(id);if(!(HR.connected||M.connected)){el.innerHTML="";return;}var R=tgtNow(),G=R.G,P=tgtProf(),f=function(s){s=Math.round(s);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");};
+function tgtPaint(id){var el=document.getElementById(id);if(!el)return;tgtAgeRow(id);if(!(HR.connected||M.connected||RPX)){el.innerHTML="";return;}var R=tgtNow(),G=R.G,P=tgtProf(),f=function(s){s=Math.round(s);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");};
   el.innerHTML='<div style="border:1px solid '+(R.all?'#5fd38d':'rgba(233,196,106,.6)')+';border-radius:14px;padding:10px 12px;'+(R.all?'box-shadow:0 0 18px rgba(95,211,141,.35)':'')+'">'+
    '<div style="display:flex;justify-content:space-between;align-items:baseline"><b>Ideal right now · '+G.name+'</b><span style="font-size:.78rem;color:'+(R.all?'#5fd38d':'var(--gold)')+';font-weight:800">'+(R.all?"✓ You’re there":Math.round(R.score*100)+"% of the way")+'</span></div>'+
    '<div class="site-note" style="margin:2px 0 6px;font-size:.76rem">'+G.what+' Targets from '+G.src+'.</div>'+
-   '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin:4px 0 8px;font-size:.7rem;text-align:center">'+[["m","Morning","5\u201311am",60],["d","Daytime","11am\u20135pm",70],["e","Evening","5\u20139pm",70],["n","Night","9pm\u20135am",65]].map(function(z){var on=z[0]===tgtBand();return '<div style="border-radius:8px;padding:4px 2px;border:1px solid '+(on?'#e9c46a':'rgba(255,255,255,.12)')+';'+(on?'background:rgba(233,196,106,.15)':'opacity:.65')+'"><b>'+z[1]+'</b><br>'+z[2]+'<br>coherence '+z[3]+'%</div>';}).join("")+'</div>'+
+   '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin:4px 0 8px;font-size:.7rem;text-align:center">'+[["m","Morning","5\u201311am",60],["d","Daytime","11am\u20135pm",70],["e","Evening","5\u20139pm",70],["n","Night","9pm\u20135am",65]].map(function(z){var on=z[0]===tgtBand(RPX?RPX.hour:null);return '<div style="border-radius:8px;padding:4px 2px;border:1px solid '+(on?'#e9c46a':'rgba(255,255,255,.12)')+';'+(on?'background:rgba(233,196,106,.15)':'opacity:.65')+'"><b>'+z[1]+'</b><br>'+z[2]+'<br>coherence '+z[3]+'%</div>';}).join("")+'</div>'+
    R.items.map(function(x){return '<div style="display:flex;align-items:center;gap:8px;margin:5px 0;font-size:.8rem"><span style="width:96px">'+x.k+'</span><span style="flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden"><span style="display:block;height:100%;width:'+Math.round(x.p*100)+'%;background:'+(x.ok?'#5fd38d':'#e9c46a')+'"></span></span><span style="width:104px;text-align:right">'+(x.cur==null?'<span style="opacity:.5">measuring</span>':'<b>'+x.cur+'</b>')+' <span style="opacity:.6">/ '+x.tgt+'</span>'+(x.ok?' ✓':'')+'</span></div>';}).join("")+
    (TGT.sec>30?'<div class="site-note" style="font-size:.76rem;margin-top:4px">In your ideal zone '+f(TGT.inSec)+' of '+f(TGT.sec)+'.</div>':'')+
    ''+'</div>';
@@ -9257,7 +9260,7 @@ function fsPaint(id){var el=document.getElementById(id);if(!el)return;var now=Da
 function fsSummary(){if(!FS.total)return "";var pct=Math.round(100*FS.inZone/FS.total);try{var all=load("mjk-fshist",[]);all.push({m:FS.mode,at:Date.now(),pct:pct,best:Math.round(FS.best/60),mins:Math.round(FS.total/60)});save("mjk-fshist",all.slice(-60));}catch(e){}
   return '<div class="site-note" style="margin-top:6px">'+(FS.mode==="create"?"Creative zone":"Focus zone")+': <b>'+pct+'%</b> of '+Math.round(FS.total/60)+' min · best stretch <b>'+Math.round(FS.best/60)+' min</b></div>';}
 /* ---- Nervous-system journey: shift from fight-or-flight toward rest-and-restore, relative to the start of the session (HR + RMSSD) ---- */
-function ansCalc(){const L=BIO.log.filter(p=>p.t>=BIO.t0&&p.hr>0&&p.hrv>0);if(L.length<45)return null;const med=a=>{const b=a.slice().sort((x,y)=>x-y);return b[b.length>>1];};
+function ansCalc(){const L=(RPX?RPX.log.filter(p=>p.t<=RPX.nowMs):BIO.log.filter(p=>p.t>=BIO.t0)).filter(p=>p.hr>0&&p.hrv>0);if(L.length<45)return null;const med=a=>{const b=a.slice().sort((x,y)=>x-y);return b[b.length>>1];};
   const base=L.slice(0,Math.min(60,Math.floor(L.length/2))),hb=med(base.map(p=>p.hr)),vb=med(base.map(p=>p.hrv));
   const sc=(hr,hv)=>Math.max(-100,Math.min(100,Math.round(50*Math.log(hv/vb)/0.7+50*(hb-hr)/15)));
   const ser=[];for(let i=0;i<L.length;i+=10){const w=L.slice(Math.max(0,i-15),i+15);ser.push({t:(L[i].t-L[0].t)/1000,v:sc(med(w.map(p=>p.hr)),med(w.map(p=>p.hrv)))});}
@@ -9279,7 +9282,7 @@ function ansPaint(id){const el=document.getElementById(id);if(!el)return;const A
   g.fillStyle="rgba(255,255,255,.45)";g.font="10px system-ui";g.fillText("rest ↑",4,11);g.fillText("activation ↓",4,H-4);}
 function ansSummary(){const A=ansCalc();if(!A)return "";return '<div class="site-note" style="margin-top:6px">🫀 Nervous system: <b>'+(A.v>0?"+":"")+A.v+'</b> '+(A.v>=0?"toward rest and restore":"toward activation")+' (heart '+Math.round(A.hb)+'→'+Math.round(A.hn)+' bpm, HRV '+Math.round(A.vb)+'→'+Math.round(A.vn)+' ms).</div>';}
 /* ---- Heart rhythm waves: the slow rhythms inside heart rate (HRV spectrum). LF holds the ~0.1 Hz blood-pressure (Mayer / baroreflex) wave, HF the breathing wave ---- */
-function hrvSpec(){let rr=rrClean(HR.connected&&HR.rr&&HR.rr.length?HR.rr.slice():(M.connected&&M.ibis?M.ibis.map(x=>x.ibi):[]));let s=0,st=rr.length;while(st>0&&s<300000){st--;s+=rr[st];}rr=rr.slice(st);
+function hrvSpec(list){let rr=rrClean(list||(RPX?RPX.rrNow():(HR.connected&&HR.rr&&HR.rr.length?HR.rr.slice():(M.connected&&M.ibis?M.ibis.map(x=>x.ibi):[]))));let s=0,st=rr.length;while(st>0&&s<300000){st--;s+=rr[st];}rr=rr.slice(st);
   let t=0;const pts=rr.map(v=>{t+=v/1000;return [t,v];});if(pts.length<40)return null;const T=pts[pts.length-1][0]-pts[0][0];if(T<60)return null;
   const fs=4,n=Math.floor(T*fs),y=new Array(n);let k=0;for(let j=0;j<n;j++){const tt=pts[0][0]+j/fs;while(k<pts.length-2&&pts[k+1][0]<tt)k++;const a=pts[k],b=pts[k+1]||a,u=b[0]>a[0]?Math.min(1,Math.max(0,(tt-a[0])/(b[0]-a[0]))):0;y[j]=a[1]+(b[1]-a[1])*u;}
   let sx=0,sy=0,sxx=0,sxy=0;for(let j=0;j<n;j++){sx+=j;sy+=y[j];sxx+=j*j;sxy+=j*y[j];}const sl=(n*sxy-sx*sy)/(n*sxx-sx*sx||1),ic=(sy-sl*sx)/n;
@@ -9292,7 +9295,7 @@ function hrvWavesHTML(id){return '<div id="'+id+'" style="margin:10px 0"></div>'
 function ansMode(){try{var S=hrvSpec(),A=ansCalc();if(!S&&!A)return null;
   var lf=S?S.lf:null,hf=S?S.hf:null,mayer=S&&S.lfPk!=null&&S.lf>0.45&&Math.abs(S.lfPk-0.1)<0.03;
   var co=null;try{var c=bioCoherence();co=c?c.score:null;}catch(e){}
-  var eeg=M.connected&&(M.alpha||M.beta||M.theta)?{a:M.alpha||0,t:M.theta||0,b:M.beta||0}:null;
+  var eeg=M.connected&&!RPX&&(M.alpha||M.beta||M.theta)?{a:M.alpha||0,t:M.theta||0,b:M.beta||0}:null;
   if(mayer||(co!=null&&co>=1.5))return {n:"Coherent flow",d:"Heart and breath locked near 0.1 Hz — calm and engaged at once. Neither fight nor sleep: the trained middle gear."};
   if(A&&A.v>=40)return {n:"Deep restore",d:"Strongly rest-led — digestion, repair, recovery running."};
   if(A&&A.v>=15)return {n:"Unwinding",d:"Sliding toward rest — HRV rising, heart easing off."};
@@ -9302,7 +9305,7 @@ function ansMode(){try{var S=hrvSpec(),A=ansCalc();if(!S&&!A)return null;
   if(lf!=null&&hf!=null&&lf>hf)return {n:"Mobilized focus",d:"Blood-pressure wave leads over a steady heart — engaged effort, the everyday working gear."};
   return {n:"Steady",d:"Balanced between mobilized and restorative."};}catch(e){return null;}}
 /* LF↔HF crossover history: watch what pushes you into the rest-led (parasympathetic) side */
-function hrvXoPaint(id){var cv=document.getElementById(id+"Xo");if(!cv)return;var L=(BIO.lh||[]).filter(function(p){return p.t>=BIO.t0;});
+function hrvXoPaint(id){var cv=document.getElementById(id+"Xo");if(!cv)return;var L=RPX?RPX.lh.filter(function(p){return p.t<=RPX.nowMs;}):(BIO.lh||[]).filter(function(p){return p.t>=BIO.t0;});
   var W=cv.clientWidth||300,H=64,dpr=Math.min(2,window.devicePixelRatio||1);cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);var g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
   var nEl=document.getElementById(id+"XoN");
   /* sliding window: a long session compresses to sub-pixel steps and looks frozen, so show the most recent half hour */
@@ -9315,8 +9318,8 @@ function hrvXoPaint(id){var cv=document.getElementById(id+"Xo");if(!cv)return;va
   var line=function(key,col){g.strokeStyle=col;g.lineWidth=2;g.beginPath();L.forEach(function(p,i){var x=X(p.t),y=Y(p[key]);i?g.lineTo(x,y):g.moveTo(x,y);});g.stroke();};
   line("lf","#e9c46a");line("hf","#5fc8e0");
   for(var j=1;j<L.length;j++){if((L[j-1].hf>L[j-1].lf)!==(L[j].hf>L[j].lf)){g.fillStyle="#ECEDEF";g.beginPath();g.arc(X(L[j].t),Y((L[j].lf+L[j].hf)/2),2.6,0,7);g.fill();}}
-  if(nEl){var ago=Math.round((Date.now()-tN)/1000);nEl.textContent=(winOn?"last 30 min · ":"")+Math.round(restMs/60000)+" min rest-led · "+xo+" crossover"+(xo===1?"":"s")+" · "+(ago<=15?"● live":ago<120?ago+"s ago — check the sensor":"⚠ no fresh readings for "+Math.round(ago/60)+" min");}}
-function hrvWavesPaint(id){const el=document.getElementById(id);if(!el)return;if(!(HR.connected||M.connected)){el.innerHTML="";return;}const S=hrvSpec();
+  if(nEl){var ago=Math.round((Date.now()-tN)/1000);nEl.textContent=(winOn?"last 30 min · ":"")+Math.round(restMs/60000)+" min rest-led · "+xo+" crossover"+(xo===1?"":"s")+" · "+(RPX?"📼 replay":(ago<=15?"● live":ago<120?ago+"s ago — check the sensor":"⚠ no fresh readings for "+Math.round(ago/60)+" min"));}}
+function hrvWavesPaint(id){const el=document.getElementById(id);if(!el)return;if(!(HR.connected||M.connected||RPX)){el.innerHTML="";return;}const S=hrvSpec();
   if(!S){el.innerHTML='<div class="site-note" style="font-size:.78rem">〰 Heart rhythm waves: gathering at least a minute of beats\u2026</div>';return;}
   const row=(lab,sub,v,col)=>'<div style="margin:6px 0"><div style="display:flex;justify-content:space-between;font-size:.8rem"><span><b>'+lab+'</b> <span style="opacity:.6;font-size:.72rem">'+sub+'</span></span><b>'+(v==null?'<span style="opacity:.5;font-weight:400">needs 5 min</span>':Math.round(v*100)+'%')+'</b></div><div style="height:8px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:3px"><div style="height:100%;width:'+Math.round((v||0)*100)+'%;background:'+col+'"></div></div></div>';
   const mayer=S.lfPk!=null&&S.lf>0.45&&Math.abs(S.lfPk-0.1)<0.03;
@@ -10892,7 +10895,9 @@ function plReport(at){home.hidden=true;view.hidden=false;window.scrollTo(0,0);va
       '<div class="actions" style="margin:10px 0 4px"><button class="btn" id="plWatch" style="width:100%">🎬 Watch this session as video</button></div>'+
       '<div class="actions" style="flex-wrap:wrap"><button class="btn ghost" data-x="hs">⬇ Hemisphere sync CSV</button><button class="btn ghost" data-x="cas">⬇ Cascades CSV</button><button class="btn ghost" data-x="tl">⬇ Second-by-second CSV</button><button class="btn ghost" data-x="rr">⬇ Heartbeat intervals CSV</button>'+(D.eegBlocks&&!D.fromServer?'<button class="btn ghost" data-x="eeg">⬇ Raw EEG CSV</button>':'')+(res.pending&&!res.rank&&res.ids?'<button class="btn" id="plJ2">Judge the photo target</button>':'')+'<button class="btn" id="plAll">'+(isPL?"All results":"All sessions")+'</button></div>';
     $("#plAll").onclick=isPL?plResults:renderSessions;if($("#plJ2"))$("#plJ2").onclick=function(){plJudge(res);};
-    if($("#plWatch"))$("#plWatch").onclick=function(){BC.src="rec";BC.playing=false;renderBrainCharts();bcLoadRec(at,ix.label||"Session");};
+    if($("#plWatch"))$("#plWatch").onclick=function(){
+      if((ix.eegBlocks||0)>0){BC.src="rec";BC.playing=false;renderBrainCharts();bcLoadRec(at,ix.label||"Session");}
+      else rpOpenPl(at,ix.label||"Session",function(){plReport(at);});};
     var tMax=T.t[N-1]||1,cols=["rgba(255,255,255,.00)","rgba(127,240,214,.06)","rgba(180,156,255,.06)","rgba(244,183,64,.07)","rgba(255,143,163,.08)","rgba(255,255,255,.04)"];
     box.querySelectorAll(".plCh").forEach(function(cv){var r=cv.getBoundingClientRect();cv.width=r.width*2;cv.height=r.height*2;var g=cv.getContext("2d"),W=cv.width,H=cv.height,a=T[cv.dataset.k],v=a.filter(function(x){return x!=null;}),lo=Math.min.apply(null,v),hi=Math.max.apply(null,v);if(hi===lo){hi+=1;lo-=1;}
       for(var i=0;i<N;i++){g.fillStyle=cols[T.st[i]]||cols[0];g.fillRect(T.t[i]/tMax*W,0,Math.max(1,W/N+1),H);}
@@ -12673,7 +12678,10 @@ function sensUI(){const f=document.getElementById("sensFab");if(f){const on=HR.c
   const hb=document.getElementById("sensHRb");if(hb)hb.textContent=HR.connected?(HR.src==="camera"?"☝️ Camera ✓ · Stop":"❤️ Heart ✓ · Disconnect"):"❤️ Connect heart";const mb=document.getElementById("sensMb");if(mb)mb.textContent=M.connected?"🧠 Muse ✓ · Disconnect":"🧠 Connect Muse";
   const rb=document.getElementById("sensRec");if(rb)rb.textContent=SENS.rec?"■ Stop and save this session":"● Start recording";}
 function sensWave(){const cv=document.getElementById("sensWv");if(!cv)return;const W=cv.clientWidth||300,H=80,dpr=window.devicePixelRatio||1;cv.width=W*dpr;cv.height=H*dpr;const g=cv.getContext("2d");g.scale(dpr,dpr);
-  let B=[];if(HR.connected&&HR.rr&&HR.rr.length){let t=HR.updated||performance.now();for(let i=HR.rr.length-1;i>=0;i--){B.unshift({t:t,b:60000/HR.rr[i]});t-=HR.rr[i];}}else if(M.connected&&M.ibis&&M.ibis.length){const now=M.ibis[M.ibis.length-1].t*1000;M.ibis.forEach(x=>B.push({t:performance.now()-(now-x.t*1000),b:60000/x.ibi}));}
+  let B=[];if(RPX){const pn=performance.now();
+    if(RPX.rr&&RPX.rr.length){for(let i=0;i<RPX.rr.length;i++){const bt=RPX.rrT[i];if(bt>RPX.tc)break;if(bt>RPX.tc-60)B.push({t:pn-(RPX.tc-bt)*1000,b:60000/RPX.rr[i]});}}
+    else{RPX.tl.t.forEach((bt,i)=>{if(bt<=RPX.tc&&bt>RPX.tc-60&&RPX.tl.hr[i]!=null)B.push({t:pn-(RPX.tc-bt)*1000,b:RPX.tl.hr[i]});});}}
+  else if(HR.connected&&HR.rr&&HR.rr.length){let t=HR.updated||performance.now();for(let i=HR.rr.length-1;i>=0;i--){B.unshift({t:t,b:60000/HR.rr[i]});t-=HR.rr[i];}}else if(M.connected&&M.ibis&&M.ibis.length){const now=M.ibis[M.ibis.length-1].t*1000;M.ibis.forEach(x=>B.push({t:performance.now()-(now-x.t*1000),b:60000/x.ibi}));}
   const now=performance.now();B=B.filter(o=>o.t>now-60000&&o.b>35&&o.b<200);if(B.length<3){g.fillStyle="rgba(255,255,255,.5)";g.font="11px system-ui";g.fillText("Waiting for heartbeats\u2026",10,H/2);return;}
   const bs=B.map(o=>o.b),lo=Math.min.apply(null,bs)-2,hi=Math.max(Math.max.apply(null,bs)+2,lo+10),X=t=>(t-(now-60000))/60000*W,Y=v=>H-6-(v-lo)/(hi-lo)*(H-12);
   g.strokeStyle="#e9c46a";g.lineWidth=2.2;g.lineJoin="round";g.beginPath();B.forEach((o,i)=>{const x=X(o.t),y=Y(o.b);if(!i)g.moveTo(x,y);else{const p=B[i-1],px=X(p.t),py=Y(p.b);g.quadraticCurveTo(px,py,(px+x)/2,(py+y)/2);}});g.stroke();
@@ -12708,6 +12716,45 @@ function sensPanelOpen(o){SENS.open=o;const p=document.getElementById("sensPanel
   const f=document.createElement("button");f.id="sensFab";f.type="button";f.setAttribute("aria-label","Sensors");document.body.appendChild(f);f.onclick=()=>{unlockAudio();sensPanelOpen(!SENS.open);};
   const p=document.createElement("div");p.id="sensPanel";p.hidden=true;document.body.appendChild(p);sensUI();window.addEventListener("pagehide",()=>{if(SENS.rec)sensSave(false);});}catch(e){}})();
 
+/* ===== MONITOR REPLAY — the live HRV monitor, replayed through its own code: same screen, same readouts, plus a transport ===== */
+function rpxMake(src){var tl=src.tl,log=[];for(var i=0;i<tl.t.length;i++)log.push({t:src.startMs+tl.t[i]*1000,hr:tl.hr&&tl.hr[i]!=null?tl.hr[i]:null,hrv:tl.hrv&&tl.hrv[i]!=null?tl.hrv[i]:null,co:tl.co?tl.co[i]:null});
+  var lh=[],rr=src.rr||[],rt=src.rrT||[];
+  if(rr.length>=40){var end=rt[rt.length-1]||0;
+    for(var T2=130;T2<=end;T2+=10){var xs=[];for(var j=0;j<rr.length;j++){if(rt[j]>T2)break;if(rt[j]>T2-120)xs.push(rr[j]);}
+      if(xs.length>=40){var sp=null;try{sp=hrvSpec(xs);}catch(e){}if(sp&&sp.lf!=null&&sp.hf!=null)lh.push({t:src.startMs+T2*1000,lf:sp.lf,hf:sp.hf});}}}
+  return {startMs:src.startMs,hour:new Date(src.startMs).getHours(),tl:tl,rr:rr,rrT:rt,log:log,lh:lh,dur:tl.t.length?tl.t[tl.t.length-1]:0,tc:0,nowMs:src.startMs,hr:null,hrv:null,co:null,
+    set:function(tc){this.tc=tc;this.nowMs=this.startMs+tc*1000;var t=this.tl.t,ix=0;while(ix<t.length-1&&t[ix+1]<=tc)ix++;
+      var near=function(arr){if(!arr)return null;for(var k=ix;k>=0&&k>ix-8;k--){if(arr[k]!=null&&isFinite(arr[k]))return arr[k];}return null;};
+      this.hr=near(this.tl.hr);this.hrv=near(this.tl.hrv);var cp=near(this.tl.co);
+      this.co=(cp!=null&&cp>=0&&cp<100)?{score:cp/(100-cp),freq:null}:null;},
+    rrNow:function(){var out=[];for(var j2=0;j2<this.rr.length;j2++){if(this.rrT[j2]>this.tc)break;out.push(this.rr[j2]);}return out;}};}
+function renderHrvReplay(src,label,backFn){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  var R2=rpxMake(src);RPX=R2;var st={t:0,playing:true,spd:2},timer=null;
+  teardown=function(){RPX=null;if(timer)clearInterval(timer);timer=null;};
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">📼 Monitor Replay</span></div>'
+   +'<div class="panel" style="padding-top:8px">'
+   +'<div class="site-note" style="margin:0 0 4px">'+esc(label||"Session")+' · the live monitor, exactly as it read</div>'
+   +'<div class="rrow" style="margin:4px 0"><button class="rchip sm" id="rpPlay" style="min-width:48px;justify-content:center;font-size:1rem">⏸</button><input type="range" id="rpSlide" min="0" max="'+Math.max(1,Math.round(R2.dur))+'" value="0" style="flex:1;accent-color:var(--gold)"><span id="rpTime" style="font:800 .74rem ui-monospace,monospace;white-space:nowrap">0:00 / '+sensFmt(R2.dur)+'</span></div>'
+   +'<div class="rchips tight" data-nocz style="margin:0 0 8px">'+[1,2,4,8,16].map(function(s2){return '<button class="rchip sm'+(st.spd===s2?" sel":"")+'" data-rps="'+s2+'">'+s2+'×</button>';}).join("")+'<button class="rchip sm" id="rpBk">⏪ 1m</button><button class="rchip sm" id="rpFw">1m ⏩</button></div>'
+   +'<div id="bioLive"></div>'
+   +'<div class="site-note" style="margin:8px 0 2px;font-size:.78rem"><b>Heart rhythm</b> · last minute</div>'
+   +'<canvas id="sensWv" style="width:100%;height:80px;display:block;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.25)"></canvas>'
+   +hrvWavesHTML("rpW")+'</div>';
+  $("#eBack").onclick=function(){if(timer)clearInterval(timer);timer=null;RPX=null;teardown=function(){};(backFn||goHome)();};
+  var paint=function(){R2.set(st.t);var sl=$("#rpSlide");if(sl&&document.activeElement!==sl)sl.value=Math.round(st.t);var tm=$("#rpTime");if(tm)tm.textContent=sensFmt(st.t)+" / "+sensFmt(R2.dur);
+    try{bioPaint();sensWave();hrvWavesPaint("rpW");}catch(e){}};
+  $("#rpPlay").onclick=function(){st.playing=!st.playing;$("#rpPlay").textContent=st.playing?"⏸":"▶";};
+  view.querySelectorAll("[data-rps]").forEach(function(b){b.onclick=function(){st.spd=+b.dataset.rps;view.querySelectorAll("[data-rps]").forEach(function(x){x.classList.toggle("sel",x===b);});};});
+  $("#rpBk").onclick=function(){st.t=Math.max(0,st.t-60);paint();};
+  $("#rpFw").onclick=function(){st.t=Math.min(R2.dur,st.t+60);paint();};
+  $("#rpSlide").oninput=function(){st.t=+this.value;paint();};
+  timer=setInterval(function(){if(!RPX||!st.playing)return;st.t+=st.spd;if(st.t>=R2.dur){st.t=R2.dur;st.playing=false;var p=$("#rpPlay");if(p)p.textContent="▶";}paint();},1000);
+  paint();}
+function rpOpenPl(at,label,backFn){idbGet("pl-"+at).then(function(D){if(!D||!D.tl||!D.tl.t||!D.tl.t.length)return;
+  renderHrvReplay({startMs:at,tl:D.tl,rr:D.rr||[],rrT:D.rrT||[]},label,backFn);});}
+function rpOpenSens(id,backFn){idbGet("sens-"+id).then(function(S2){if(!S2||!S2.data||!S2.data.length)return;
+  var d=S2.data,tl={t:[],hr:[],hrv:[],co:[]};d.forEach(function(p){tl.t.push(p.t);tl.hr.push(p.hr!=null?p.hr:null);tl.hrv.push(p.hrv!=null?p.hrv:null);tl.co.push(p.co!=null?Math.round(p.co/(1+p.co)*100):null);});
+  renderHrvReplay({startMs:S2.start,tl:tl,rr:[],rrT:[]},"Session · "+new Date(S2.start).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}),backFn);});}
 /* ===== SENSOR SESSIONS — history, timeline, per-activity analysis, CSV ===== */
 /* ---- Insights: what works best for you, across every recorded session (by activity, and by the tags you add) ---- */
 var SENS_TAGS=["Coffee","Slept well","Slept poorly","Exercised","Just ate","Stressed","Calm day"];
@@ -12774,12 +12821,11 @@ function renderSensDetail(id){if(SENS.rec&&SENS.sid===id)sensSave(false);view.in
     c.fillStyle="rgba(255,255,255,.5)";c.font="10px system-ui";c.fillText("0:00",8,H-2);c.fillText(sensFmt(T),W-34,H-2);
     document.getElementById("sensCsv").onclick=()=>{const head="seconds,activity,playing,heart_rate,hrv_rmssd_ms,coherence,alpha_pct,theta_pct,beta_pct\n",body=D.map(p=>[p.t,'"'+String(p.act||"").replace(/"/g,"'")+'"',p.pl||0,p.hr??"",p.hrv??"",p.co??"",p.al??"",p.th??"",p.be??""].join(",")).join("\n");
       const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([head+body],{type:"text/csv"}));a.download="mmu-sensors-"+new Date(S.start).toISOString().slice(0,16).replace(/[:T]/g,"-")+".csv";document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),500);};
-    document.getElementById("sensWatch").onclick=()=>{const end=S.start+T*1000;
+    document.getElementById("sensWatch").onclick=()=>{const end=S.start+T*1000,back=()=>renderSensDetail(id);
       /* a parallel full recording (with every beat) usually exists from the meditation itself — prefer it */
       const pl=srIdx().filter(e=>e.at>=S.start-60000&&e.at<=end).sort((a,b)=>(b.mins||0)-(a.mins||0))[0];
-      BC.src="rec";renderBrainCharts();
-      if(pl)bcLoadRec(pl.at,pl.label||"Session");
-      else bcLoadSens(id,"Session · "+new Date(S.start).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}));};
+      if(pl)rpOpenPl(pl.at,pl.label||"Session",back);
+      else rpOpenSens(id,back);};
     const del=document.getElementById("sensDel");del.onclick=()=>{if(!del.dataset.sure){del.dataset.sure=1;del.textContent="Tap again to delete";return;}idbDel("sens-"+id);save("mjk-sens-list",sensList().filter(x=>x.id!==id));renderSensSessions();};
   });}
 function bioBar(id,label,val,color){
