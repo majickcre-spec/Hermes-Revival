@@ -12744,7 +12744,7 @@ function renderHrvReplay(src,label,backFn){if(toneRAF)cancelAnimationFrame(toneR
        if(ok){marks.push({t:t[i],txt:"⭐ "+sensFmt(t[i])+" · coherence "+Math.round(v)+"%"});last=t[i];}}
      for(var k=1;k<R2.lh.length;k++){var a2=R2.lh[k-1],b2=R2.lh[k],rb=b2.hf>=b2.lf;if((a2.hf>=a2.lf)!==rb){var ts=(b2.t-R2.startMs)/1000;marks.push({t:ts,txt:"🔀 "+sensFmt(ts)+(rb?" → rest":" → effort")});}}
      marks.sort(function(x,y){return x.t-y.t;});R2.marks=marks;
-     return marks.length?'<div class="site-note" style="margin:2px 0 2px;font-size:.72rem">Moments — tap to jump</div><div class="rchips tight" data-nocz style="flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 0 8px;padding-bottom:2px">'+marks.slice(0,40).map(function(m,i2){return '<button class="rchip sm" data-rpm="'+i2+'" style="flex:none">'+m.txt+'</button>';}).join("")+'</div>':'';})()
+     return '<div class="site-note" style="margin:2px 0 2px;font-size:.72rem">Moments — tap to jump</div><div class="rchips tight" data-nocz style="flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 0 8px;padding-bottom:2px">'+(marks.length?marks.slice(0,40).map(function(m,i2){return '<button class="rchip sm" data-rpm="'+i2+'" style="flex:none">'+m.txt+'</button>';}).join(""):'<span class="site-note" style="margin:0;white-space:nowrap">none found — no coherence peaks or crossovers in this session</span>')+'</div>';})()
    +'<div id="bioLive"></div>'
    +'<div class="site-note" style="margin:8px 0 2px;font-size:.78rem"><b>Heart rhythm</b> · last minute</div>'
    +'<canvas id="sensWv" style="width:100%;height:80px;display:block;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.25)"></canvas>'
