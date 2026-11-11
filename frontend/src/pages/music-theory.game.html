@@ -12738,6 +12738,7 @@ function renderHrvReplay(src,label,backFn){if(toneRAF)cancelAnimationFrame(toneR
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">📼 Monitor Replay</span></div>'
    +'<div class="panel" style="padding-top:8px">'
    +'<div class="site-note" style="margin:0 0 4px">'+esc(label||"Session")+' · the live monitor, exactly as it read</div>'
+   +(R2.dur<90?'<div class="rbanner" style="margin:0 0 6px">⚠️ Only '+Math.round(R2.dur)+' seconds were recorded here — the gauges need at least a minute of data. Pick a longer session.</div>':'')
    +'<div class="rrow" style="margin:4px 0"><button class="rchip sm" id="rpPlay" style="min-width:48px;justify-content:center;font-size:1rem">⏸</button><input type="range" id="rpSlide" min="0" max="'+Math.max(1,Math.round(R2.dur))+'" value="0" style="flex:1;accent-color:var(--gold)"><span id="rpTime" style="font:800 .74rem ui-monospace,monospace;white-space:nowrap">0:00 / '+sensFmt(R2.dur)+'</span></div>'
    +'<div class="rchips tight" data-nocz style="margin:0 0 8px">'+[1,2,4,8,16].map(function(s2){return '<button class="rchip sm'+(st.spd===s2?" sel":"")+'" data-rps="'+s2+'">'+s2+'×</button>';}).join("")+'<button class="rchip sm" id="rpBk">⏪ 1m</button><button class="rchip sm" id="rpFw">1m ⏩</button></div>'
    +(function(){/* the session's moments: coherence peaks and effort↔rest crossovers, tap to jump */
