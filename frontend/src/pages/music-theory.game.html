@@ -9104,7 +9104,7 @@ function renderMelodyLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=
 }
 /* ===== MEDITATION — binaural brainwaves, breathwork + HRV, rhythm mind, sessions ===== */
 let MED={master:null,oscs:[],timer:null};
-function medStop(){window.MJK_FOCUS=false;MED.sess=null;if(MED.timer){clearInterval(MED.timer);MED.timer=null;}try{if(MED.nat){MED.nat.stop();MED.nat=null;}}catch(e){}MED.layers=[];try{if(MED.ocean){if(MED.ocean.nat)MED.ocean.nat.stop();MED.ocean=null;}}catch(e){}MED.hum=null;clearTimeout(MED.doneT);medWake(false);if(!MED.master)return;const a=ac(),m=MED.master,os=MED.oscs,now=a.currentTime;MED.master=null;MED.oscs=[];try{if(MED.body){MED.body.stop(now);MED.body=null;}if(MED.bodyDepth){MED.bodyDepth.disconnect();MED.bodyDepth=null;}}catch(e){}try{m.gain.cancelScheduledValues(now);m.gain.setValueAtTime(Math.max(0,m.gain.value),now);m.gain.linearRampToValueAtTime(0,now+0.6);}catch(e){}os.forEach(o=>{try{o.stop(now+0.65);}catch(e){}});}
+function medStop(){window.MJK_FOCUS=false;MED.sess=null;BRPH=null;if(MED.timer){clearInterval(MED.timer);MED.timer=null;}try{if(MED.nat){MED.nat.stop();MED.nat=null;}}catch(e){}MED.layers=[];try{if(MED.ocean){if(MED.ocean.nat)MED.ocean.nat.stop();MED.ocean=null;}}catch(e){}MED.hum=null;clearTimeout(MED.doneT);medWake(false);if(!MED.master)return;const a=ac(),m=MED.master,os=MED.oscs,now=a.currentTime;MED.master=null;MED.oscs=[];try{if(MED.body){MED.body.stop(now);MED.body=null;}if(MED.bodyDepth){MED.bodyDepth.disconnect();MED.bodyDepth=null;}}catch(e){}try{m.gain.cancelScheduledValues(now);m.gain.setValueAtTime(Math.max(0,m.gain.value),now);m.gain.linearRampToValueAtTime(0,now+0.6);}catch(e){}os.forEach(o=>{try{o.stop(now+0.65);}catch(e){}});}
 var MED_WL=null;function medWake(on){try{if(on){if(!MED_WL&&navigator.wakeLock)navigator.wakeLock.request("screen").then(function(l){MED_WL=l;l.addEventListener&&l.addEventListener("release",function(){MED_WL=null;});}).catch(function(){});}else if(MED_WL){MED_WL.release();MED_WL=null;}}catch(e){}}
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&MED.master&&!MED_WL)medWake(true);});
 function medRetune(beatHz,carrier){if(!MED.master||!MED.leftO||!MED.right)return false;const a=ac(),t=a.currentTime;MED.leftO.frequency.setTargetAtTime(carrier,t,0.08);MED.right.frequency.setTargetAtTime(carrier+beatHz,t,0.08);if(MED.lfo)MED.lfo.frequency.setTargetAtTime(beatHz,t,0.08);if(MED.pulseO)MED.pulseO.frequency.setTargetAtTime(carrier,t,0.08);(MED.drones||[]).forEach(([o,n])=>o.frequency.setTargetAtTime(carrier*Math.pow(2,n/12)/2,t,0.2));return true;}
@@ -9169,6 +9169,7 @@ function hrFresh(){return HR.connected&&performance.now()-(HR.updated||0)<8000;}
 /* MONITOR REPLAY: when RPX is set, the live monitor's own functions read a recording instead of the sensors —
    the playback screen IS the live screen, same code, same readouts. */
 var RPX=null;
+var BRPH=null; /* live breath-pacer phase {n,d,at} — recorded into sessions, cleared on medStop */
 function bioHR(){if(RPX)return RPX.hr;if(hrFresh()){if(HR.rr&&HR.rr.length>=4){var arr=rrClean(HR.rr.slice(-12));if(arr.length>=4){var s=arr.slice(-8).slice().sort(function(a,b){return a-b;});return Math.round(60000/s[s.length>>1]);}}if(HR.bpm)return HR.bpm;}if(M.connected&&M.hr)return M.hr;return null;}
 function bioHRSrc(){if(RPX)return "the recording";if(hrFresh())return HR.src==="camera"?"camera pulse":"heart sensor";if(M.connected&&M.hr)return "Muse pulse (optical — less reliable)";return null;}
 function bioHRV(){if(RPX)return RPX.hrv;if(hrFresh()&&HR.rr&&HR.rr.length>=6)return hrv();if(M.connected&&M.rmssd)return M.rmssd;return null;}
@@ -10252,12 +10253,12 @@ function plCascadeEvents(T){var ev=[],open=[];(T.cas||[]).forEach(function(cs,i)
   return ev.concat(open).map(function(o){return {f:o.f,rel:o.rel,start:o.start,dur:Math.round((o.last-o.start+1)*10)/10,gamma:o.f[o.f.length-1]>=30,st:o.st};});}
 
 var PLR=null;const PLR_ST=["base","opener","desc","edge","target","ret"];
-function plrStart(at,kind,title,sub){if(PLR&&PLR.on)plrEnd();kind=kind||"perception";title=title||"Perception Lab";srIdxPut({at:at,kind:kind,label:title+(sub?" · "+sub:"")+" · "+srWhen(at),v:0});PLR={at:at,on:true,kind:kind,title:title,tl:{stages:[],t:[],st:[],hr:[],hrv:[],co:[],de:[],th:[],al:[],be:[],ga:[],ra:[],rt:[],q:[],bh:[],hp:[],cas:[]},rr:[],rrT:[],lastN:HR.n||0,lastIbiT:(M.ibis&&M.ibis.length?M.ibis[M.ibis.length-1].t:0),eb:[0,1,2,3].map(function(){return {cur:new Int16Array(256*90),n:0};}),ec:0,saveT:0,flushT:Date.now(),sens:{hr:false,eeg:false}};}
+function plrStart(at,kind,title,sub){if(PLR&&PLR.on)plrEnd();kind=kind||"perception";title=title||"Perception Lab";srIdxPut({at:at,kind:kind,label:title+(sub?" · "+sub:"")+" · "+srWhen(at),v:0});PLR={at:at,on:true,kind:kind,title:title,tl:{stages:[],t:[],st:[],hr:[],hrv:[],co:[],de:[],th:[],al:[],be:[],ga:[],ra:[],rt:[],q:[],bh:[],hp:[],cas:[],br:[]},rr:[],rrT:[],lastN:HR.n||0,lastIbiT:(M.ibis&&M.ibis.length?M.ibis[M.ibis.length-1].t:0),eb:[0,1,2,3].map(function(){return {cur:new Int16Array(256*90),n:0};}),ec:0,saveT:0,flushT:Date.now(),sens:{hr:false,eeg:false}};}
 function plrEEG(ch,s){var P=PLR;if(!P||!P.on)return;var b=P.eb[ch];for(var i=0;i<s.length;i++){if(b.n===b.cur.length){var g=new Int16Array(b.cur.length*2);g.set(b.cur);b.cur=g;}var v=Math.round(s[i]*10);b.cur[b.n++]=v>32767?32767:v<-32768?-32768:v;}}
 function plrFlush(){var P=PLR;if(!P)return;var ch=P.eb.map(function(b){var a=b.cur.slice(0,b.n);b.n=0;return a;});if(ch.every(function(a){return !a.length;}))return;var i=P.ec++;try{idbPut("pl-"+P.at+"-e"+i,{i:i,t:Date.now(),ch:ch});}catch(e){}}
 function plrWrite(){var P=PLR;if(!P)return;try{idbPut("pl-"+P.at,{at:P.at,kind:P.kind,title:P.title,tl:P.tl,rr:P.rr,rrT:P.rrT,eegBlocks:P.ec,fs:256,eegScale:0.1,sens:P.sens}).then(function(){setTimeout(srSync,200);});}catch(e){}var n=P.tl.t.length,e=srIdx().find(function(x){return x.at===P.at;})||{};srIdxPut({at:P.at,mins:n?Math.round(P.tl.t[n-1]/6)/10:0,sens:P.sens,eegBlocks:P.ec,v:(e.v||0)+1});}
 function plrTick(now,stage,beat){var P=PLR;if(!P||!P.on)return;var T=P.tl,r1=function(x){return x==null||!isFinite(x)?null:Math.round(x*10)/10;};
-  T.t.push(Math.round((now-P.at)/100)/10);T.st.push(srStIdx(T,stage));T.bh.push(r1(beat));
+  T.t.push(Math.round((now-P.at)/100)/10);T.st.push(srStIdx(T,stage));T.bh.push(r1(beat));T.br.push(BRPH&&now-BRPH.at<BRPH.d*1000+2500?[BRPH.n,Math.max(0,Math.ceil(BRPH.d-(now-BRPH.at)/1000)),BRPH.d]:null);
   T.hr.push(r1(bioHR()));T.hrv.push(r1(bioHRV()));var co=null;try{var c=bioCoherence();if(c)co=Math.round(c.score/(1+c.score)*100);}catch(e){}T.co.push(co);
   var sp=null;try{sp=plSpectrum();}catch(e){}var band=function(lo,hi){if(!sp)return null;var s=0;for(var k=Math.round(lo*2);k<Math.round(hi*2)&&k<sp.length;k++)s+=sp[k];return s>0?Math.round(Math.log10(s)*100)/100:null;};
   T.de.push(band(1,4));T.th.push(band(4,8));T.al.push(band(8,13));T.be.push(band(13,30));T.ga.push(band(30,44));
@@ -11840,7 +11841,7 @@ function renderBreathwork(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if
         if(running&&now-(hrSess&&hrSess.ap||0)>3000){if(hrSess)hrSess.ap=now;ansPaint("ansBr");tgtPaint("tgtBr");hrvWavesPaint("wvBr");}
         else if(co&&v!=null)co.textContent="Breathe slow and even. Coherence needs about 45 seconds of beats.";}}
     hrRAF=requestAnimationFrame(loop);})();}
-  function onPhase(ph){const cue=$("#brCue"),pt=$("#brPhT");if(cue)cue.textContent=ph[0];const a=ac();
+  function onPhase(ph){BRPH={n:ph[0],d:ph[1],at:Date.now()};const cue=$("#brCue"),pt=$("#brPhT");if(cue)cue.textContent=ph[0];const a=ac();
     }
   function start(){unlockAudio();medStop();medWake(true);MED.sess="Breathwork";const a=ac();running=true;startT=a.currentTime;phaseIdx=-1;hrSP=performance.now();hrSess={z:[0,0,0],sp:[],sy:[]};hrSync=null;BIO.t0=Date.now();tgtReset();try{bioStart();sensEnsureTimer();}catch(e){}
     if(toneOn){const master=a.createGain();master.gain.value=2.87;master.connect(a.destination);const o=a.createOscillator();o.type="sine";o.frequency.value=174;breathGain=a.createGain();breathGain.gain.value=0.012;o.connect(breathGain);breathGain.connect(master);const o2=a.createOscillator();o2.type="sine";o2.frequency.value=261;const g2=a.createGain();g2.gain.value=0.5;o2.connect(g2);g2.connect(breathGain);o.start();o2.start();MED.master=master;MED.oscs=[o,o2];
@@ -12735,11 +12736,11 @@ function rpxMake(src){var tl=src.tl,log=[];for(var i=0;i<tl.t.length;i++)log.pus
   if(rr.length>=40){var end=rt[rt.length-1]||0;
     for(var T2=130;T2<=end;T2+=10){var xs=[];for(var j=0;j<rr.length;j++){if(rt[j]>T2)break;if(rt[j]>T2-120)xs.push(rr[j]);}
       if(xs.length>=40){var sp=null;try{sp=hrvSpec(xs);}catch(e){}if(sp&&sp.lf!=null&&sp.hf!=null)lh.push({t:src.startMs+T2*1000,lf:sp.lf,hf:sp.hf});}}}
-  return {startMs:src.startMs,hour:new Date(src.startMs).getHours(),tl:tl,rr:rr,rrT:rt,log:log,lh:lh,dur:tl.t.length?tl.t[tl.t.length-1]:0,tc:0,nowMs:src.startMs,hr:null,hrv:null,co:null,
+  return {startMs:src.startMs,hour:new Date(src.startMs).getHours(),tl:tl,rr:rr,rrT:rt,log:log,lh:lh,dur:tl.t.length?tl.t[tl.t.length-1]:0,tc:0,nowMs:src.startMs,hr:null,hrv:null,co:null,br:null,
     set:function(tc){this.tc=tc;this.nowMs=this.startMs+tc*1000;var t=this.tl.t,ix=0;while(ix<t.length-1&&t[ix+1]<=tc)ix++;
       var near=function(arr){if(!arr)return null;for(var k=ix;k>=0&&k>ix-8;k--){if(arr[k]!=null&&isFinite(arr[k]))return arr[k];}return null;};
-      this.hr=near(this.tl.hr);this.hrv=near(this.tl.hrv);var cp=near(this.tl.co);
-      this.co=(cp!=null&&cp>=0&&cp<100)?{score:cp/(100-cp),freq:null}:null;},
+      var h2=near(this.tl.hr),v2=near(this.tl.hrv);this.hr=h2!=null?Math.round(h2):null;this.hrv=v2!=null?Math.round(v2):null;var cp=near(this.tl.co);
+      this.co=(cp!=null&&cp>=0&&cp<100)?{score:cp/(100-cp),freq:null}:null;this.br=(this.tl.br&&this.tl.br[ix])?this.tl.br[ix]:null;},
     rrNow:function(){var out=[];for(var j2=0;j2<this.rr.length;j2++){if(this.rrT[j2]>this.tc)break;out.push(this.rr[j2]);}return out;}};}
 /* the whole journey on one time axis: stages, heart, brain — one playhead, tap to scrub */
 function rpJorPaint(R2,tc){var cv=document.getElementById("rpJor");if(!cv)return;var tl=R2.tl,W=cv.clientWidth||330,dpr=Math.min(2,window.devicePixelRatio||1);
@@ -12771,6 +12772,15 @@ function renderHrvReplay(src,label,backFn){if(toneRAF)cancelAnimationFrame(toneR
    +(R2.dur<90?'<div class="rbanner" style="margin:0 0 6px">⚠️ Only '+Math.round(R2.dur)+' seconds were recorded here — the gauges need at least a minute of data. Pick a longer session.</div>':'')
    +'<div class="rrow" style="margin:4px 0"><button class="rchip sm" id="rpPlay" style="min-width:48px;justify-content:center;font-size:1rem">⏸</button><input type="range" id="rpSlide" min="0" max="'+Math.max(1,Math.round(R2.dur))+'" value="0" style="flex:1;accent-color:var(--gold)"><span id="rpTime" style="font:800 .74rem ui-monospace,monospace;white-space:nowrap">0:00 / '+sensFmt(R2.dur)+'</span></div>'
    +'<div class="rchips tight" data-nocz style="margin:0 0 8px">'+[1,2,4,8,16].map(function(s2){return '<button class="rchip sm'+(st.spd===s2?" sel":"")+'" data-rps="'+s2+'">'+s2+'×</button>';}).join("")+'<button class="rchip sm" id="rpBk">⏪ 1m</button><button class="rchip sm" id="rpFw">1m ⏩</button></div>'
+   +(function(){/* breath guide — the pacer exactly as the live screen showed it */
+     var br=R2.tl.br||[];if(!br.some(function(v){return v;}))return "";
+     return '<div id="rpBrWrap" style="display:flex;align-items:center;gap:14px;margin:4px 0 10px">'
+      +'<div style="position:relative;width:88px;height:88px;flex:none">'
+      +'<div style="position:absolute;inset:0;border-radius:50%;border:2px solid rgba(127,240,214,.35)"></div>'
+      +'<div id="rpBrDisc" style="position:absolute;inset:3px;border-radius:50%;background:radial-gradient(circle,rgba(127,240,214,.32),rgba(127,240,214,.07) 72%);transform:scale(.55);transition:transform 1s linear"></div>'
+      +'<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none">'
+      +'<div id="rpBrN" style="font:800 .98rem system-ui;color:#CFF8EC">—</div><div id="rpBrC" style="font:700 .86rem ui-monospace,monospace;color:#9ba1ac"></div></div></div>'
+      +'<div class="site-note" style="margin:0;flex:1">Breath guide · what the pacer showed at this moment</div></div>';})()
    +(function(){/* the session's moments: coherence peaks and effort↔rest crossovers, tap to jump */
      var marks=[],co=R2.tl.co||[],t=R2.tl.t,mx=0;co.forEach(function(v){if(v!=null&&v>mx)mx=v;});
      var thr=Math.max(55,mx*0.85),last=-180;
@@ -12791,7 +12801,13 @@ function renderHrvReplay(src,label,backFn){if(toneRAF)cancelAnimationFrame(toneR
    +'</div>';
   $("#eBack").onclick=function(){if(timer)clearInterval(timer);timer=null;RPX=null;teardown=function(){};(backFn||goHome)();};
   var paint=function(){R2.set(st.t);var sl=$("#rpSlide");if(sl&&document.activeElement!==sl)sl.value=Math.round(st.t);var tm=$("#rpTime");if(tm)tm.textContent=sensFmt(st.t)+" / "+sensFmt(R2.dur);
-    try{rpJorPaint(R2,st.t);bioPaint();sensWave();hrvWavesPaint("rpW");}catch(e){}};
+    try{rpJorPaint(R2,st.t);bioPaint();sensWave();hrvWavesPaint("rpW");}catch(e){}
+    var bn=$("#rpBrN");if(bn){var bc=$("#rpBrC"),bd=$("#rpBrDisc"),b=R2.br;
+      if(b){bn.textContent=b[0];if(bc)bc.textContent=b[1]+"";
+        var d3=b[2]||1,pr=Math.max(0,Math.min(1,1-b[1]/d3));
+        if(bd){if(b[0]==="In")bd.style.transform="scale("+(0.55+0.45*pr).toFixed(3)+")";
+          else if(b[0]==="Out")bd.style.transform="scale("+(1-0.45*pr).toFixed(3)+")";}}
+      else{bn.textContent="—";if(bc)bc.textContent="";if(bd)bd.style.transform="scale(.55)";}}};
   var jc=document.getElementById("rpJor");if(jc)jc.onclick=function(ev){var r=jc.getBoundingClientRect();st.t=Math.max(0,Math.min(R2.dur,(ev.clientX-r.left-4)/Math.max(1,r.width-8)*R2.dur));paint();};
   $("#rpPlay").onclick=function(){st.playing=!st.playing;$("#rpPlay").textContent=st.playing?"⏸":"▶";};
   view.querySelectorAll("[data-rps]").forEach(function(b){b.onclick=function(){st.spd=+b.dataset.rps;view.querySelectorAll("[data-rps]").forEach(function(x){x.classList.toggle("sel",x===b);});};});
