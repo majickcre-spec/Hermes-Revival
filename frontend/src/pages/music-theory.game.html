@@ -12742,6 +12742,7 @@ function sensState(){if(!M.connected)return "";const t=M.theta||0,a=M.alpha||0,b
 function sensFmt(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
 function sensUI(){const f=document.getElementById("sensFab");if(f){const on=HR.connected||M.connected,hr=bioHR(),hv=bioHRV();f.classList.toggle("on",on);f.classList.toggle("rec",SENS.rec);
     f.innerHTML=on?"🫀 "+(hr?hr:"…")+(hv!=null?" · "+hv+"ms":"")+(M.connected?" · "+(sensState()||"🧠"):"")+(SENS.rec?' <span class="sdot"></span>':""):"🫀";}
+  const bf2=document.getElementById("brainFab");if(bf2){bf2.classList.toggle("on",M.connected);bf2.innerHTML=M.connected?"🧠 α "+Math.round(M.alpha)+"%":"🧠";}
   const p=document.getElementById("sensPanel");if(!p||p.hidden)return;const L=document.getElementById("sensLive");if(L){const hr=bioHR(),hv=bioHRV(),co=bioCoherence();
     const tile=(l,v)=>'<div class="stile"><div class="sl">'+l+'</div><div class="sv">'+v+'</div></div>';
     L.innerHTML='<div class="sgrid">'+tile("Heart rate",hr?hr+" bpm":"—")+tile("HRV",hv!=null?hv+" ms":"—")+tile("Coherence",co?Math.round(co.score/(1+co.score)*100)+"%":"—")+(M.connected?tile("Alpha",Math.round(M.alpha)+"%")+tile("Theta",Math.round(M.theta)+"%")+tile("Beta",Math.round(M.beta)+"%"):"")+'</div>'+
@@ -12785,8 +12786,14 @@ function sensPanelOpen(o){SENS.open=o;const p=document.getElementById("sensPanel
 "#sensPanel{position:fixed;right:12px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:2147482500;width:min(360px,calc(100vw - 24px));max-height:70vh;overflow:auto;background:var(--card,#1a1430);border:1px solid var(--line,#3a3160);border-radius:16px;padding:12px;color:var(--cream,#f4ead2);box-shadow:0 10px 30px rgba(0,0,0,.5)}"+
 "#sensPanel .mbtn{flex:1;border:1px solid var(--line,#3a3160);background:var(--card2,#241c42);color:inherit;border-radius:10px;padding:9px 10px;font:800 .85rem system-ui;cursor:pointer}#sensPanel .srow{display:flex;gap:8px;margin:8px 0}"+
 "#sensPanel .snote{font-size:.78rem;color:var(--muted,#9a93b8);margin:6px 0}#sensPanel .sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:6px 0}#sensPanel .stile{background:var(--bg,#0f0b1e);border:1px solid var(--line,#3a3160);border-radius:10px;padding:6px;text-align:center}#sensPanel .sl{font-size:.68rem;color:var(--muted,#9a93b8);font-weight:800}#sensPanel .sv{font:900 1.05rem system-ui}"+
-".pkWide #sensFab{display:none!important}";document.head.appendChild(s);
+".pkWide #sensFab{display:none!important}"+
+"#metFab{display:none!important}"+ /* replaced by the brain button, per Travis */
+"#brainFab{position:fixed;left:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:2147482500;padding:9px 14px;border-radius:999px;border:1px solid rgba(95,224,168,.55);background:rgba(20,14,40,.92);color:#aef0d6;font:800 .9rem system-ui;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.35)}"+
+"#brainFab.on{background:#0f2a22;color:#fff;border-color:#5fe0a8}"+
+".pkWide #brainFab,body.gated #brainFab,body.djOn #brainFab{display:none!important}";document.head.appendChild(s);
   const f=document.createElement("button");f.id="sensFab";f.type="button";f.setAttribute("aria-label","Sensors");document.body.appendChild(f);f.onclick=()=>{unlockAudio();sensPanelOpen(!SENS.open);};
+  const bf=document.createElement("button");bf.id="brainFab";bf.type="button";bf.setAttribute("aria-label","Brain Charts");bf.textContent="🧠";document.body.appendChild(bf);
+  bf.onclick=()=>{unlockAudio();try{if(typeof teardown==="function")teardown();}catch(e){}teardown=null;sensPanelOpen(false);renderBrainCharts();};
   const p=document.createElement("div");p.id="sensPanel";p.hidden=true;document.body.appendChild(p);sensUI();window.addEventListener("pagehide",()=>{if(SENS.rec)sensSave(false);});}catch(e){}})();
 
 /* ===== MONITOR REPLAY — the live HRV monitor, replayed through its own code: same screen, same readouts, plus a transport ===== */
