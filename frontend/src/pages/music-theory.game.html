@@ -12818,7 +12818,13 @@ function renderHrvReplay(src,label,backFn){if(toneRAF)cancelAnimationFrame(toneR
   $("#rpSlide").oninput=function(){st.t=+this.value;paint();};
   timer=setInterval(function(){if(!RPX||!st.playing)return;st.t+=st.spd;if(st.t>=R2.dur){st.t=R2.dur;st.playing=false;var p=$("#rpPlay");if(p)p.textContent="▶";}paint();},1000);
   paint();}
-function rpOpenPl(at,label,backFn){idbGet("pl-"+at).then(function(D){if(!D||!D.tl||!D.tl.t||!D.tl.t.length)return;
+function rpOpenPl(at,label,backFn){idbGet("pl-"+at).then(function(D){
+  if(D&&D.tl&&D.tl.t&&D.tl.t.length)return D; /* recorded on this device */
+  if(!syncOn()||!acctTok())return null;
+  /* not here — pull the full recording from the account backup */
+  return _api("/api/sessions/"+at,{}).then(function(x){return {tl:x.timeline||{},rr:(x.rr&&x.rr.rr)||[],rrT:(x.rr&&x.rr.rrT)||[]};}).catch(function(){return null;});
+}).then(function(D){
+  if(!D||!D.tl||!D.tl.t||!D.tl.t.length){try{msg(syncOn()&&acctTok()?"Couldn’t load that session’s full recording — check your connection and try again.":"That session’s full recording isn’t on this device. <b>Sign in</b> (home screen → Sign In &amp; sync) and it plays from your account.");}catch(e){}return;}
   renderHrvReplay({startMs:at,tl:D.tl,rr:D.rr||[],rrT:D.rrT||[]},label,backFn);});}
 function rpOpenSens(id,backFn){idbGet("sens-"+id).then(function(S2){if(!S2||!S2.data||!S2.data.length)return;
   var d=S2.data,tl={t:[],hr:[],hrv:[],co:[]};d.forEach(function(p){tl.t.push(p.t);tl.hr.push(p.hr!=null?p.hr:null);tl.hrv.push(p.hrv!=null?p.hrv:null);tl.co.push(p.co!=null?Math.round(p.co/(1+p.co)*100):null);});
