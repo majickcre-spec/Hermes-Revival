@@ -10537,7 +10537,8 @@ function bcMirror(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);if(!f)r
   (f.pk||[]).forEach(function(p){var fz=p[0],c=p[1];if(c<0.6)return;var yy=bcY(fz,y,h),al=fz>=8&&fz<13;
     g.strokeStyle=al?"#f4b740":"rgba(255,255,255,.55)";g.lineWidth=al?2.5:1.2;g.shadowColor=al?"#f4b740":"transparent";g.shadowBlur=al?10:0;
     g.beginPath();g.moveTo(x+36,yy);g.lineTo(x+w-8,yy);g.stroke();g.shadowBlur=0;g.lineWidth=1;
-    g.fillStyle=al?"#f4b740":"#ECEDEF";g.font="800 11px system-ui";g.textAlign="right";g.fillText((al?"α sync ":"sync ")+fz.toFixed(1)+" Hz · "+Math.round(c*100)+"%",x+w-10,yy-5);});}
+    g.fillStyle=al?"#f4b740":"#ECEDEF";g.font="800 11px system-ui";g.textAlign="right";g.fillText((al?"α sync ":"sync ")+fz.toFixed(1)+" Hz · "+Math.round(c*100)+"%",x+w-10,yy-5);});
+  g.fillStyle="rgba(155,161,172,.5)";g.font="700 8.5px ui-monospace,monospace";g.textAlign="left";g.fillText("fs 256 Hz · Δf 0.5 Hz · bar = relative power (auto-ranged)",x+40,y+h-6);}
 /* view 2: flow — time runs left→right, color is power, gold dots are sync peaks */
 function bcFlowCol(fg,f,x0,cw,hgt){for(var k=2;k<=90;k++){var fz=k/2,v=0,n=0;if(f.L){v+=f.L[k];n++;}if(f.R){v+=f.R[k];n++;}if(!n)continue;v=bcV(v/n);
     var yy=bcY(fz,0,hgt),hh=Math.max(1.5,hgt/90);
@@ -10604,7 +10605,33 @@ function bcVitals(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);var D=b
       if(v!=null){g.fillStyle=b[2];g.fillRect(bx,8+(thh-30)-bhh,bw,bhh);}
       g.fillStyle="#9BA1AC";g.fillText(b[0]+(v!=null?" "+Math.round(v):""),bx+bw/2,thh-6);});
     if(al==null&&th==null&&be==null){g.fillStyle="#9BA1AC";g.fillText("no EEG",tw/2,thh/2);}});}
-function bcNoData(g,x,y,w,h,msg){g.fillStyle="#9BA1AC";g.font="700 13px system-ui";g.textAlign="center";g.fillText(msg||(BC.src==="live"?(M.connected?"Listening… signal settling.":"Connect the Muse (any meditation → Sensors), or switch to 📼 Recorded."):(BC.load||"Pick a recorded session below.")),x+w/2,y+h/2);}
+function bcWrapTxt(g,txt,x,y,maxW,lh){var words=String(txt).split(" "),line="",yy=y;g.textAlign="center";
+  for(var i=0;i<words.length;i++){var t=line?line+" "+words[i]:words[i];if(g.measureText(t).width>maxW&&line){g.fillText(line,x,yy);yy+=lh;line=words[i];}else line=t;}
+  if(line)g.fillText(line,x,yy);return yy;}
+/* the scale frame: Hz grid + band regions, drawn whether or not a signal is present */
+function bcGridFrame(g,x,y,w,h,dim){var a=dim?0.55:1;
+  [5,10,15,20,25,30,35,40].forEach(function(fz){var yy=bcY(fz,y,h),maj=fz%10===0||fz===5;g.strokeStyle="rgba(255,255,255,"+(maj?0.07:0.035)*a+")";g.beginPath();g.moveTo(x+36,yy);g.lineTo(x+w-8,yy);g.stroke();
+    if(maj){g.fillStyle="rgba(155,161,172,"+0.9*a+")";g.font="700 10px ui-monospace,monospace";g.textAlign="left";g.fillText(fz+" Hz",x+4,yy+3);}});
+  BC_BANDS.forEach(function(b){var y1=bcY(b[1],y,h),y0=bcY(b[0],y,h);g.fillStyle=b[2]+(dim?"0C":"14");g.fillRect(x+36,y1,w-44,y0-y1);
+    g.fillStyle=b[2];g.font="800 9px system-ui";g.textAlign="right";g.globalAlpha=0.9*a;g.fillText(b[4]+" "+b[3].toUpperCase()+" "+b[0]+"–"+b[1]+" Hz",x+w-10,y1+11);g.globalAlpha=1;});}
+/* standby: the instrument stays powered — scale, montage schematic, status — even with no input */
+function bcNoData(g,x,y,w,h,msg){var h2=Math.max(240,bcResv(h));
+  bcGridFrame(g,x,y,w,h2,true);
+  var cx=x+w/2,cy=y+h2*0.42,R=Math.min(w*0.22,h2*0.2),ry=R*1.18;
+  g.strokeStyle="rgba(236,237,239,.26)";g.lineWidth=2;
+  g.beginPath();g.ellipse(cx,cy,R,ry,0,0,7);g.stroke();
+  g.beginPath();g.moveTo(cx-9,cy-ry+2);g.lineTo(cx,cy-ry-11);g.lineTo(cx+9,cy-ry+2);g.stroke();
+  g.beginPath();g.ellipse(cx-R-5,cy,5,14,0,0,7);g.stroke();g.beginPath();g.ellipse(cx+R+5,cy,5,14,0,0,7);g.stroke();
+  g.setLineDash([3,6]);g.strokeStyle="rgba(255,255,255,.12)";g.beginPath();g.moveTo(cx,cy-ry+6);g.lineTo(cx,cy+ry-6);g.stroke();g.setLineDash([]);
+  g.fillStyle="rgba(155,161,172,.8)";g.font="800 10px system-ui";g.textAlign="center";g.fillText("L",cx-R*0.82,cy),g.fillText("R",cx+R*0.82,cy);
+  [["AF7",-0.44,-0.5],["AF8",0.44,-0.5],["TP9",-0.6,0.46],["TP10",0.6,0.46]].forEach(function(e){var sx=cx+e[1]*R,sy=cy+e[2]*ry;
+    g.setLineDash([2,3]);g.strokeStyle="rgba(155,161,172,.55)";g.lineWidth=1.5;g.beginPath();g.arc(sx,sy,R*0.17,0,7);g.stroke();g.setLineDash([]);
+    g.fillStyle="rgba(155,161,172,.85)";g.font="700 9px ui-monospace,monospace";g.fillText(e[0],sx,sy+R*0.17+11);});
+  g.fillStyle="#f4b740";g.font="800 12px ui-monospace,monospace";g.textAlign="center";g.fillText("— NO SIGNAL —",cx,cy+ry+30);
+  g.fillStyle="#9BA1AC";g.font="600 11.5px system-ui";
+  var m=msg||(BC.src==="live"?(M.connected?"Listening… signal settling (a few seconds).":"Connect the Muse: 🫀 button → Connect Muse. Or load a recorded session: tap 📼."):(BC.load||"Pick a recorded session below."));
+  bcWrapTxt(g,m,cx,cy+ry+50,Math.min(w-48,340),16);
+  g.fillStyle="rgba(155,161,172,.55)";g.font="700 9px ui-monospace,monospace";g.fillText("MUSE 4-CH · TP9 AF7 AF8 TP10 · fs 256 Hz · WELCH 512 · Δf 0.5 Hz",cx,y+h2-8);}
 /* a Sensor Session (1 s samples, no raw beats) played in the same video player */
 function bcLoadSens(id,label){BC.rec=null;BC.ri=0;BC.playing=false;BC.load="Loading…";BC.hist=[];BC.fl=null;
   idbGet("sens-"+id).then(function(S2){var s0=document.getElementById("bcLoad");
@@ -10689,7 +10716,7 @@ function bcHead(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);if(!f)ret
   g.setLineDash([3,6]);g.strokeStyle="rgba(255,255,255,.14)";g.beginPath();g.moveTo(cx,cy-ry+6);g.lineTo(cx,cy+ry-6);g.stroke();g.setLineDash([]);
   g.fillStyle="#9BA1AC";g.font="800 10px system-ui";g.textAlign="center";g.fillText("L",cx-R*0.82,cy-ry*0.02);g.fillText("R",cx+R*0.82,cy-ry*0.02);
   /* the four Muse sensors, overhead positions */
-  var sites=[{i:1,dx:-0.44,dy:-0.5,lab:"front · L"},{i:2,dx:0.44,dy:-0.5,lab:"front · R"},{i:0,dx:-0.6,dy:0.46,lab:"back · L"},{i:3,dx:0.6,dy:0.46,lab:"back · R"}];
+  var sites=[{i:1,dx:-0.44,dy:-0.5,lab:"AF7 · front L"},{i:2,dx:0.44,dy:-0.5,lab:"AF8 · front R"},{i:0,dx:-0.6,dy:0.46,lab:"TP9 · back L"},{i:3,dx:0.6,dy:0.46,lab:"TP10 · back R"}];
   sites.forEach(function(s){var sx=cx+s.dx*R,sy=cy+s.dy*ry,P=(f.S&&f.S[s.i])||(s.dx<0?f.L:f.R),sh=bcPows(P),r0=R*0.34;
     if(!sh){g.strokeStyle="rgba(155,161,172,.4)";g.lineWidth=1.5;g.beginPath();g.arc(sx,sy,r0*0.5,0,7);g.stroke();
       g.fillStyle="#9BA1AC";g.font="700 9px system-ui";g.fillText("no signal",sx,sy+3);g.fillText(s.lab,sx,sy+r0*0.5+13);return;}
