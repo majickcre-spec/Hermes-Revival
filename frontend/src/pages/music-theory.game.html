@@ -2381,8 +2381,8 @@ const R={bpm:72,patIdx:0,running:false,cur:0,nextTime:0,schID:null,raf:null,spea
   visQ:[],expected:[],detected:[],resolved:0,matched:0,inPocket:0,errSum:0,errAbsSum:0,lastPeak:0,lastOnset:0,barCount:0,litCell:-1,beaned:false,buf:null};
 const POCKET={loose:0.14,normal:0.09,tight:0.055}; // ± seconds counted as "in the pocket"
 function rLat(){const a=ac();return a.outputLatency||a.baseLatency||0;} // speaker output latency to compensate
-function rCustom(){if(!R.custom)R.custom=load(mk("rhythm","custom"),{div:4,on:[0,4,8,12,16,22,24,28]});return R.custom;}
-function rPat(){if(R.patIdx===-1){var c=rCustom();return {id:"custom",name:"✏️ Custom",div:c.div,bars:2,active:c.on,say:"your two bars — tap steps on or off, even while it plays"};}return RHYTHM_PATTERNS[R.patIdx];}
+function rCustom(){if(!R.custom)R.custom=load(mk("rhythm","custom"),{div:4,bars:2,on:[0,4,8,12,16,22,24,28]});if(!R.custom.bars)R.custom.bars=2;return R.custom;}
+function rPat(){if(R.patIdx===-1){var c=rCustom();return {id:"custom",name:"✏️ Custom",div:c.div,bars:c.bars,active:c.on,say:"your own rhythm — tap steps on or off, even while it plays"};}return RHYTHM_PATTERNS[R.patIdx];}
 function rCells(){return 4*rPat().div;}
 function rCellDur(){return (60/R.bpm)/rPat().div;}
 function click(time,kind,vol){
@@ -2472,6 +2472,10 @@ function rStart(){
 }
 function rRenderCells(){
   const box=$("#rCells");if(!box)return;const pat=rPat(),div=pat.div,syl=sylFor(div),bars=pat.bars||1;box.innerHTML="";
+  if(pat.id==="custom"){const bw=document.createElement("div");bw.className="rchips tight";bw.style.cssText="width:100%;margin:0 0 4px";
+    [1,2].forEach(n=>{const b=document.createElement("button");b.className="rchip sm"+(rCustom().bars===n?" sel":"");b.textContent=n+(n===1?" bar":" bars");
+      b.onclick=()=>{rCustom().bars=n;save(mk("rhythm","custom"),R.custom);rRenderCells();};bw.appendChild(b);});
+    box.appendChild(bw);}
   for(let bar=0;bar<bars;bar++){
     if(bars>1){const bl=document.createElement("div");bl.className="site-note";bl.style.cssText="margin:"+(bar?"8px":"0")+" 0 2px;font-size:.7rem;width:100%";bl.textContent="Bar "+(bar+1);box.appendChild(bl);}
     for(let beat=0;beat<4;beat++){const grp=document.createElement("div");grp.className="rbeat";
@@ -2486,7 +2490,7 @@ function rRenderCells(){
 }
 function rRenderChips(){
   const box=$("#rChips");if(!box)return;box.innerHTML="";
-  RHYTHM_PATTERNS.concat([{name:"✏️ Custom",_custom:true}]).forEach((p,i)=>{const idx=p._custom?-1:i;const c=document.createElement("button");
+  [{name:"✏️ Custom",_custom:true}].concat(RHYTHM_PATTERNS).forEach((p)=>{const idx=p._custom?-1:RHYTHM_PATTERNS.indexOf(p);const c=document.createElement("button");
     c.className="rchip"+(idx===R.patIdx?" sel":"");c.textContent=p.name;
     c.onclick=()=>{R.patIdx=idx;R.beaned=false;R.resolved=0;R.matched=0;R.inPocket=0;R.errSum=0;R.errAbsSum=0;R.barCount=0;
       if(R.running){R.cur=0;R.nextTime=ac().currentTime+0.12;R.visQ=[];R.expected=[];R.countEndTime=R.nextTime+R.countIn*(60/R.bpm)*4;}
