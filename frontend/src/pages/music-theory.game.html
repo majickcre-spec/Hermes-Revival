@@ -10526,6 +10526,47 @@ function bcVitals(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);var D=b
       g.fillStyle="#9BA1AC";g.fillText(b[0]+(v!=null?" "+Math.round(v):""),bx+bw/2,thh-6);});
     if(al==null&&th==null&&be==null){g.fillStyle="#9BA1AC";g.fillText("no EEG",tw/2,thh/2);}});}
 function bcNoData(g,x,y,w,h,msg){g.fillStyle="#9BA1AC";g.font="700 13px system-ui";g.textAlign="center";g.fillText(msg||(BC.src==="live"?(M.connected?"Listening… signal settling.":"Connect the Muse (any meditation → Sensors), or switch to 📼 Recorded."):(BC.load||"Pick a recorded session below.")),x+w/2,y+h/2);}
+/* ---- monitor replay: the whole live HRV monitor screen, reconstructed at the playhead ---- */
+function bcMonitor(g,x,y,w,h){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);
+  if(BC.src!=="rec"||!BC.rec)return bcNoData(g,x,y,w,h,"Pick a recorded session below — this replays the whole monitor screen.");
+  var R=BC.rec,tl=R.tl;if(!tl||!tl.t||!tl.t.length)return bcNoData(g,x,y,w,h,"No monitor data saved in this session.");
+  var h2=bcResv(h),land=w>h2*1.5,tc=R.frames[BC.ri]?R.frames[BC.ri].t:0;
+  var near=function(key){var arr=tl[key];if(!arr||!arr.length)return null;var best=null,bd=1e9;for(var i=0;i<tl.t.length;i++){var d=Math.abs(tl.t[i]-tc);if(d<bd&&arr[i]!=null&&isFinite(arr[i])){bd=d;best=arr[i];}if(tl.t[i]>tc+5)break;}return bd<=6?best:null;};
+  var hr=near("hr"),hv=near("hrv"),co=near("co"),pad=12;
+  /* tiles — same three the live monitor leads with */
+  var ty=y+(land?8:140),th=land?48:72,tw=(w-pad*4)/3;
+  var tile=function(ix,lab,val,sub,col){var tx=x+pad+(tw+pad)*ix;g.fillStyle="rgba(255,255,255,.05)";g.fillRect(tx,ty,tw,th);g.strokeStyle="rgba(255,255,255,.09)";g.strokeRect(tx,ty,tw,th);
+    g.fillStyle="#9BA1AC";g.font="800 "+(land?8:10)+"px system-ui";g.textAlign="center";g.fillText(lab,tx+tw/2,ty+(land?11:16));
+    g.fillStyle=col;g.font="900 "+(land?18:26)+"px system-ui";g.fillText(String(val),tx+tw/2,ty+(land?30:46));
+    g.fillStyle="#9BA1AC";g.font="700 9px system-ui";g.fillText(sub,tx+tw/2,ty+th-7);};
+  var coW=co==null?"":co<35?"low":co<65?"medium":"high";
+  tile(0,"HEART RATE",hr!=null?Math.round(hr):"—",hr!=null?"bpm":"","#ff8f8c");
+  tile(1,"HRV (RMSSD)",hv!=null?Math.round(hv):"—",hv!=null?"ms":"","#5fe0a8");
+  tile(2,"COHERENCE",co!=null?Math.round(co)+"%":"—",coW,"#f4b740");
+  /* heart rhythm — the last minute of beats, exactly like the live strip */
+  var sy=ty+th+(land?16:24),avail=y+h2-sy-26,hs1=Math.max(56,avail*0.46),hs2=Math.max(40,avail*0.34);
+  g.fillStyle="#9BA1AC";g.font="800 9px system-ui";g.textAlign="left";g.fillText("HEART RHYTHM · last minute",x+pad,sy-6);
+  var rr=R.rr||[],rt=R.rrT||[],B=[];for(var i2=0;i2<rr.length;i2++){if(rt[i2]>tc)break;if(rt[i2]>tc-60&&rr[i2]>300&&rr[i2]<2000)B.push({t:rt[i2],b:60000/rr[i2]});}
+  g.strokeStyle="rgba(255,255,255,.08)";g.strokeRect(x+pad,sy,w-pad*2,hs1);
+  if(B.length>=3){var bs=B.map(function(o){return o.b;}),lo2=Math.min.apply(null,bs)-2,hi2=Math.max(Math.max.apply(null,bs)+2,lo2+10);
+    var Xr=function(t){return x+pad+ (t-(tc-60))/60*(w-pad*2);},Yr=function(v){return sy+hs1-6-(v-lo2)/(hi2-lo2)*(hs1-12);};
+    g.strokeStyle="#e9c46a";g.lineWidth=2.2;g.lineJoin="round";g.beginPath();B.forEach(function(o,i3){var xx=Xr(o.t),yy=Yr(o.b);if(!i3)g.moveTo(xx,yy);else{var p=B[i3-1],px=Xr(p.t),py=Yr(p.b);g.quadraticCurveTo(px,py,(px+xx)/2,(py+yy)/2);}});g.stroke();
+    g.fillStyle="rgba(255,255,255,.45)";g.font="700 9px system-ui";g.textAlign="right";g.fillText(Math.round(hi2),x+w-pad-4,sy+11);g.fillText(Math.round(lo2),x+w-pad-4,sy+hs1-5);}
+  else{g.fillStyle="rgba(255,255,255,.4)";g.font="700 10px system-ui";g.textAlign="center";g.fillText("beats appear as the session plays…",x+w/2,sy+hs1/2);}
+  /* effort ↔ rest across the whole session, playhead marked */
+  var xy=sy+hs1+22;g.fillStyle="#9BA1AC";g.font="800 9px system-ui";g.textAlign="left";g.fillText("EFFORT ↔ REST · whole session",x+pad,xy-6);
+  var pts=bcLH()||[];g.strokeStyle="rgba(255,255,255,.08)";g.strokeRect(x+pad,xy,w-pad*2,hs2);
+  if(pts.length>=2){var t1=Math.max(pts[pts.length-1].t,R.dur),Xx=function(t){return x+pad+(t/Math.max(1,t1))*(w-pad*2);},Yx=function(v){return xy+hs2-3-v*(hs2-6);};
+    for(var i4=1;i4<pts.length;i4++){if(pts[i4].t>tc)break;var led=pts[i4].hf>=pts[i4].lf;g.fillStyle=led?"rgba(95,200,224,.10)":"rgba(233,196,106,.09)";g.fillRect(Xx(pts[i4-1].t),xy,Math.max(1,Xx(pts[i4].t)-Xx(pts[i4-1].t)),hs2);}
+    [["lf","#e9c46a"],["hf","#5fc8e0"]].forEach(function(sp){[0.16,1].forEach(function(al,pass){g.strokeStyle=sp[1];g.globalAlpha=al;g.lineWidth=pass?2:1;g.beginPath();var st=false;
+      for(var i5=0;i5<pts.length;i5++){if(pass&&pts[i5].t>tc)break;var yy2=Yx(pts[i5][sp[0]]);if(!st){g.moveTo(Xx(pts[i5].t),yy2);st=true;}else g.lineTo(Xx(pts[i5].t),yy2);}g.stroke();g.globalAlpha=1;});});
+    g.strokeStyle="#f4b740";g.lineWidth=2;g.beginPath();g.moveTo(Xx(tc),xy-3);g.lineTo(Xx(tc),xy+hs2+3);g.stroke();}
+  else{g.fillStyle="rgba(255,255,255,.4)";g.font="700 10px system-ui";g.textAlign="center";g.fillText("needs a few minutes of beats",x+w/2,xy+hs2/2);}
+  /* state line — what the live monitor would be saying right now */
+  var cur=null;for(var i6=0;i6<pts.length;i6++){if(pts[i6].t>tc)break;cur=pts[i6];}
+  g.textAlign="left";g.font="900 14px system-ui";
+  if(cur){var rest=cur.hf>=cur.lf;g.fillStyle=rest?"#5fc8e0":"#e9c46a";g.fillText(rest?"Rest is leading":"Effort is leading",x+pad,xy+hs2+18);}
+  if(co!=null){g.fillStyle="#f4b740";g.textAlign="right";g.font="800 11px system-ui";g.fillText("coherence "+coW,x+w-pad,xy+hs2+18);}}
 /* ---- head view: overhead brain, both hemispheres, color = the loudest wave at each sensor ---- */
 function bcBandCoh(C){if(!C)return null;var out=[];BC_BANDS.forEach(function(b){var s=0,n=0;for(var k=Math.max(2,Math.round(b[0]*2));k<Math.round(b[1]*2)&&k<C.length;k++){s+=C[k];n++;}out.push(n?s/n:0);});return out;}
 function bcPows(P){if(!P)return null;var out=[],tot=0;
@@ -10672,6 +10713,7 @@ function bcDraw(){var cv=document.getElementById("bcCv");if(!cv)return;var dpr=M
   else if(BC.view==="mirror")bcMirror(g,0,0,W,H,f);
   else if(BC.view==="flow")bcFlow(g,0,0,W,H,f);
   else if(BC.view==="vitals")bcVitals(g,0,0,W,H,f);
+  else if(BC.view==="monitor")bcMonitor(g,0,0,W,H);
   else if(BC.view==="head")bcHead(g,0,0,W,H,f);
   else if(BC.view==="waves")bcWaves(g,0,0,W,H);
   else if(BC.view==="xo")bcXoV(g,0,0,W,H);
@@ -10696,8 +10738,9 @@ function bcLoadRec(at,label){BC.rec=null;BC.ri=0;BC.playing=false;BC.load="Loadi
       if(hasEEG){/* prime the color scale from the whole recording so scrubbing is readable before play */
         var plo=1e9,phi=0;frames.forEach(function(f,fi){if(!f.L||fi%3)return;for(var k2=2;k2<=90;k2++){var a2=f.L[k2],b3=f.R?f.R[k2]:a2;if(a2<plo)plo=a2;if(b3<plo)plo=b3;if(a2>phi)phi=a2;if(b3>phi)phi=b3;}});
         if(phi>0&&plo<1e8){BC.lo=plo;BC.norm=phi;}}
-      if(!hasEEG&&["mirror","flow","ridge","pair"].indexOf(BC.view)>=0)BC.view="waves";
+      if(!hasEEG&&["mirror","flow","ridge","pair"].indexOf(BC.view)>=0)BC.view="monitor";
       document.querySelectorAll("[data-bcv]").forEach(function(b){b.classList.toggle("sel",b.dataset.bcv===BC.view);});
+      BC.playing=true;BC.dir=1;var pb3=document.getElementById("bcPlayB");if(pb3)pb3.textContent="⏸"; /* start rolling on load — no hunting for a play button */
       var sl2=document.getElementById("bcSlide");if(sl2){sl2.max=frames.length-1;sl2.value=0;}var st2=document.getElementById("bcLoad");if(st2)st2.textContent=label+" · "+Math.round(dur/60)+" min loaded"+(hasEEG?"":" · ❤️ heart session");
       bcMarks();bcDraw();};
     if(!D.eegBlocks){/* heart-only session: frames straight from the 1 s timeline */
@@ -10724,7 +10767,7 @@ function renderBrainCharts(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
    +'<canvas id="bcCv" style="position:absolute;inset:0;width:100%;height:100%;display:block"></canvas>'
    +'<div id="bcTop" style="position:absolute;left:0;right:0;top:0;padding:8px 8px 18px;display:flex;gap:5px;align-items:center;flex-wrap:wrap;background:linear-gradient(rgba(10,11,14,.88),rgba(10,11,14,.5) 60%,transparent);transition:opacity .35s">'
     +'<button class="rchip sm" id="eBack" aria-label="Back">←</button>'
-    +[["head","🧠 Head"],["mirror","🪞 Mirror"],["flow","🌊 Flow"],["ridge","⛰ Ridge"],["pair","◫ Pair"],["vitals","💓 Vitals"],["waves","❤️ Waves"],["xo","🔀 LF·HF"],["beat","📈 Rhythm"]].map(function(v){return chip(BC.view===v[0],'data-bcv="'+v[0]+'"',v[1]);}).join("")
+    +[["monitor","🫀 Monitor"],["head","🧠 Head"],["mirror","🪞 Mirror"],["flow","🌊 Flow"],["ridge","⛰ Ridge"],["pair","◫ Pair"],["vitals","💓 Vitals"],["waves","❤️ Waves"],["xo","🔀 LF·HF"],["beat","📈 Rhythm"]].map(function(v){return chip(BC.view===v[0],'data-bcv="'+v[0]+'"',v[1]);}).join("")
     +chip(!isRec,'data-bcs="live"',"● Live")+chip(isRec,'data-bcs="rec"',"📼")
     +'<span id="bcMuse" style="margin-left:auto;font:700 .72rem system-ui;color:'+(M.connected?"#5fe0a8":"#9BA1AC")+'">'+(M.connected?"Muse live":(isRec?"":"Muse off"))+'</span></div>'
    +'<div id="bcBot" style="position:absolute;left:0;right:0;bottom:0;padding:26px 10px 10px;background:linear-gradient(transparent,rgba(10,11,14,.6) 20%,rgba(10,11,14,.92));transition:opacity .35s;'+(isRec?"":"display:none")+'">'
