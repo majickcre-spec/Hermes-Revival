@@ -10823,7 +10823,7 @@ function renderBrainCharts(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
      +[1,2,4,8].map(function(sp){return '<button class="rchip sm'+((BC.spd||1)===sp?" sel":"")+'" data-spd="'+sp+'">'+sp+'×</button>';}).join("")
      +'<button class="rchip sm" data-find="sync" style="color:var(--gold)">⏭ α</button><button class="rchip sm" data-find="co" style="color:#5fe0a8">⏭ ❤️</button></div>'
     +'<div id="bcLoad" class="site-note" style="margin:4px 0 0;font-size:.72rem">'+(BC.load||(BC.rec?BC.rec.label:"Pick a session:"))+'</div>'
-    +'<div id="bcRecs" class="rchips tight" data-nocz style="margin-top:4px;display:'+(BC.rec?"none":"flex")+';flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px">'+(recs.length?recs.map(function(e){return '<button class="rchip sm" data-bcr="'+e.at+'" style="flex:none">'+((e.eegBlocks||0)>0?"🧠 ":"❤️ ")+esc((e.label||"Session").slice(0,24))+'</button>';}).join(""):'<span class="site-note" style="margin:0;white-space:nowrap">No recorded sessions yet — do any meditation with the HeartMath or Muse connected.</span>')+'</div></div></div>';
+    +'<div id="bcRecs" class="rchips tight" data-nocz style="margin-top:4px;display:flex;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px">'+(recs.length?recs.map(function(e){return '<button class="rchip sm" data-bcr="'+e.at+'" style="flex:none">'+((e.eegBlocks||0)>0?"🧠 ":"❤️ ")+esc((e.label||"Session").slice(0,24))+'</button>';}).join(""):'<span class="site-note" style="margin:0;white-space:nowrap">No recorded sessions yet — do any meditation with the HeartMath or Muse connected.</span>')+'</div></div></div>';
   $("#eBack").onclick=goHome;
   var top=document.getElementById("bcTop"),bot=document.getElementById("bcBot");
   var dim=function(){var d=BC.playing&&isRec;if(top)top.style.opacity=d?0.15:1;if(bot)bot.style.opacity=d?0.25:1;};
@@ -12753,7 +12753,10 @@ function renderHrvReplay(src,label,backFn){if(toneRAF)cancelAnimationFrame(toneR
    +'<div id="bioLive"></div>'
    +'<div class="site-note" style="margin:8px 0 2px;font-size:.78rem"><b>Heart rhythm</b> · last minute</div>'
    +'<canvas id="sensWv" style="width:100%;height:80px;display:block;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.25)"></canvas>'
-   +hrvWavesHTML("rpW")+'</div>';
+   +hrvWavesHTML("rpW")
+   +(function(){var others=srIdx().filter(function(e){return ((e.sens&&e.sens.hr)||(e.eegBlocks||0)>0)&&(e.mins||0)>=2&&e.at!==src.startMs;}).sort(function(a,b){return b.at-a.at;}).slice(0,12);
+     return others.length?'<div class="site-note" style="margin:10px 0 2px;font-size:.72rem">Watch another session</div><div class="rchips tight" data-nocz style="flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px">'+others.map(function(e){return '<button class="rchip sm" data-rpo="'+e.at+'" style="flex:none">'+esc((e.label||"Session").slice(0,26))+'</button>';}).join("")+'</div>':'';})()
+   +'</div>';
   $("#eBack").onclick=function(){if(timer)clearInterval(timer);timer=null;RPX=null;teardown=function(){};(backFn||goHome)();};
   var paint=function(){R2.set(st.t);var sl=$("#rpSlide");if(sl&&document.activeElement!==sl)sl.value=Math.round(st.t);var tm=$("#rpTime");if(tm)tm.textContent=sensFmt(st.t)+" / "+sensFmt(R2.dur);
     try{bioPaint();sensWave();hrvWavesPaint("rpW");}catch(e){}};
@@ -12762,6 +12765,7 @@ function renderHrvReplay(src,label,backFn){if(toneRAF)cancelAnimationFrame(toneR
   $("#rpBk").onclick=function(){st.t=Math.max(0,st.t-60);paint();};
   $("#rpFw").onclick=function(){st.t=Math.min(R2.dur,st.t+60);paint();};
   view.querySelectorAll("[data-rpm]").forEach(function(b){b.onclick=function(){var m=R2.marks[+b.dataset.rpm];if(m){st.t=Math.max(0,m.t-5);paint();}};});
+  view.querySelectorAll("[data-rpo]").forEach(function(b){b.onclick=function(){var e=srIdx().find(function(x){return String(x.at)===b.dataset.rpo;});if(timer)clearInterval(timer);timer=null;RPX=null;rpOpenPl(+b.dataset.rpo,(e&&e.label)||"Session",backFn);};});
   $("#rpSlide").oninput=function(){st.t=+this.value;paint();};
   timer=setInterval(function(){if(!RPX||!st.playing)return;st.t+=st.spd;if(st.t>=R2.dur){st.t=R2.dur;st.playing=false;var p=$("#rpPlay");if(p)p.textContent="▶";}paint();},1000);
   paint();}
