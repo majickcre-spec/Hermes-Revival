@@ -6617,13 +6617,14 @@ function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);try{sfLoadInst("guitar");}catch(e){}
   document.removeEventListener("pointerup",fbUpPt);document.removeEventListener("pointercancel",fbUpPt);
   document.addEventListener("pointerup",fbUpPt);document.addEventListener("pointercancel",fbUpPt);
-  teardown=function(){fbDemoReset();trReset();fbScaleStop();fbStopHold();FB.active.clear();document.removeEventListener("pointerup",fbUpPt);document.removeEventListener("pointercancel",fbUpPt);};
+  var fbOnRz=function(){clearTimeout(FB._rzT);FB._rzT=setTimeout(function(){if(document.getElementById("fbSvgWrap"))draw();},250);};window.addEventListener("resize",fbOnRz);
+  teardown=function(){fbDemoReset();trReset();fbScaleStop();fbStopHold();FB.active.clear();window.removeEventListener("resize",fbOnRz);clearTimeout(FB._rzT);document.removeEventListener("pointerup",fbUpPt);document.removeEventListener("pointercancel",fbUpPt);};
   function draw(){fbDemoReset();if(FB.tr&&FB.tr.kind&&(FB.mode!=="train"||FB.tr.inst!==FB.inst))trReset();if(FB.mode!=="train")trClearMarks();fbScaleStop();FB.active.clear();FB.strums={};fbStopHold();
     if(FB.mode==="chord"){var ck=FB.inst+"|"+FB.chord+"|"+FB.adv;if(FB._wc!==ck){FB._wc=ck;var sh0=fbShapeFor(FB.chord);if(sh0)FB.win=fbWinFor(sh0);}}else FB._wc=null;
     var instName={guitar:"Guitar",bass:"Bass",ukulele:"Ukulele"}[FB.inst];
     var winLabel="Frets "+FB.win+"–"+(FB.win+FBR()-1)+(FB.win===1?" (open position)":"");
     var canChord=!!CHORDS[FB.inst];
-    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎸 '+instName+' Neck</span></div><div class="panel">'+
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎸 '+instName+' Neck</span></div><div class="panel">'+gtrRotHint()+
       '<div class="rrow2"><span class="rchips tight"><button class="rchip sm'+(FB.inst==="guitar"?" sel":"")+'" id="fbIg">Guitar</button><button class="rchip sm'+(FB.inst==="bass"?" sel":"")+'" id="fbIb">Bass</button><button class="rchip sm'+(FB.inst==="ukulele"?" sel":"")+'" id="fbIu">Ukulele</button></span>'+
       '<span class="rchips tight" style="margin-left:auto"><button class="rchip sm'+(FB.mode==="play"?" sel":"")+'" id="fbMp">🎵 Play</button><button class="rchip sm'+(FB.mode==="chord"?" sel":"")+'" id="fbMc">✋ Chords</button><button class="rchip sm'+(FB.mode==="scale"?" sel":"")+'" id="fbMs">🎼 Scales</button><button class="rchip sm'+(FB.mode==="train"?" sel":"")+'" id="fbMt">🎓 Train</button></span></div>'+
       fbHowto()+
@@ -6643,6 +6644,7 @@ function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.
       
       '</div>';
     $("#eBack").onclick=goHome;
+    if(fbHoriz()&&window.innerHeight<560){var _st=document.getElementById("fbStage");if(_st)setTimeout(function(){try{_st.scrollIntoView({block:"start",behavior:"instant"});}catch(e){_st.scrollIntoView();}},60);}/* short landscape screens open on the neck, not the chips */
     fbBindTouch(document.getElementById("fbTouch"));
     $("#fbIg").onclick=function(){FB.inst="guitar";if(FB.mode==="chord"&&!fbShapeFor(FB.chord))FB.chord="C";draw();};
     $("#fbIb").onclick=function(){FB.inst="bass";FB.mode="play";draw();};
@@ -7450,7 +7452,7 @@ function renderStrumming(inst){
   function gridHTML(){var g=pat().grid,h="";for(var i=0;i<8;i++){var cl="smcell"+(i%2===0?" beat":"")+(g[i]==="D"?" d":g[i]==="U"?" u":"");var ar=g[i]==="D"?"↓":g[i]==="U"?"↑":"·";h+='<div class="'+cl+'"><div class="ar'+(g[i]?"":" gh")+'">'+ar+'</div><div class="bt">'+beatLbl[i]+'</div></div>';}return h;}
   function draw(){
     var p=pat(),chords=STRUM_CHORDS[SM.inst]||STRUM_CHORDS.guitar;
-    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🪗 Strumming</span></div><div class="panel">'+
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🪗 Strumming</span></div>'+gtrRotHint()+'<div class="panel">'+
       '<div class="rrow2"><span class="rchips tight"><button class="rchip sm'+(SM.mode==="along"?" sel":"")+'" id="smAlong">▶ Play along</button><button class="rchip sm'+(SM.mode==="cr"?" sel":"")+'" id="smCR">🎤 Call &amp; response</button></span></div>'+
       '<div class="rrow2" style="margin-top:6px"><span class="rlab">Pattern</span><span class="rchips tight" id="smPats"></span></div>'+
       '<div id="smGrid">'+gridHTML()+'</div>'+
@@ -7658,7 +7660,7 @@ function renderMethod(inst){inst=inst||"guitar";var C=METHOD[inst];if(!C)return;
   var L=C.lessons;var tempo=load(mk("method","tempo"),90);
   function unlocked(i){return i===0?true:mDone(L[i-1].id);}
   function list(){var done=0;L.forEach(function(x){if(mDone(x.id))done++;});
-    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎵 '+C.label+' Method</span></div><div class="panel">'+
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎵 '+C.label+' Method</span></div>'+gtrRotHint()+'<div class="panel">'+
       '<div class="intro">A step-by-step beginner course — learn to read music and play it on the '+(inst==="piano"?"keys":"neck")+', one '+(inst==="piano"?"step":"string")+' at a time. Finish a lesson to unlock the next.</div>'+
       '<div class="biobar-row"><span class="biobar-l">Lessons done</span><div class="biobar"><div class="biobar-f" style="width:'+Math.round(100*done/L.length)+'%;background:linear-gradient(90deg,var(--gold),var(--gold-deep))"></div></div><span class="biobar-v">'+done+'/'+L.length+'</span></div>'+
       '<div class="grid" id="mList"></div></div>';
@@ -7828,7 +7830,7 @@ function renderStrumTrainer(inst){inst=inst||"guitar";if(toneRAF)cancelAnimation
   var onRs=function(){if(!ST.running)stHwyDraw(ac().currentTime);};window.addEventListener("resize",onRs);
   FB.upright=true;teardown=function(){stStop();FB.onSwipe=null;FB.onStringTap=null;FB.upright=false;fbRestore();window.removeEventListener("resize",onRs);};
   function draw(){stStop();ST.test=false;var P=stP();if(ST.bpmFor!==P.id){ST.bpm=P.bpm;ST.bpmFor=P.id;}ST.chord=stChordAt(0);var PD=stProgDef();
-    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">↕️ Strum Patterns</span></div><div class="panel">'+
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">↕️ Strum Patterns</span></div>'+gtrRotHint()+'<div class="panel">'+
       '<div class="intro">Strums fall down the highway onto the neck. <b>👀 Watch</b> plays it for you. <b>🎸 I\'ll play</b>: after the count-in, swipe the guitar body as each arrow reaches the gold line — <b>right <b>→</b> for a down strum, left <b>←</b> for an up strum</b>, keeping your hand swinging. Pick a progression and the chord changes every bar.</div>'+
       '<div id="stBar" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:6px 0"><button class="btn" id="stGo" style="padding:9px 20px">'+(ST.mode==="play"?"▶ Start":"▶ Watch it")+'</button><button class="btn ghost" id="stTest" style="padding:7px 14px">🎯 Test</button><span class="rchips tight" id="stModes" style="margin:0"></span><button class="btn ghost" id="stSc" style="padding:7px 14px">🏆 My scores</button></div>'+
       '<div class="rrow2"><span class="rlab">Pattern</span><span class="rchips tight" id="stPats"></span></div>'+
@@ -8025,7 +8027,9 @@ function hfxHitLine(c,x0,x1,y,flash,now){const gr=c.createLinearGradient(x0,0,x1
 const HWYP={lbl:load("mjk-hwylbl","note"),neck:load("mjk-hwyneck",false),grid:load("mjk-hwygrid",true),dir:load("mjk-hwydir","auto")};
 /* string instruments lie sideways (like you hold them) on computers; phones keep the upright neck unless you choose otherwise */
 function FBR(){return fbHoriz()?7:4;}
-function fbHoriz(){return false;/* sideways highway view removed (Nov 8) */if(FB.upright)return false;var d=HWYP.dir||"auto";if(d==="across")return true;if(d==="down")return false;try{return window.matchMedia("(pointer:fine)").matches&&window.innerWidth>=900;}catch(e){return window.innerWidth>=1000;}}
+function fbHoriz(){if(FB.upright)return false;var d=HWYP.dir||"auto";if(d==="across")return true;if(d==="down")return false;return window.innerWidth>window.innerHeight;/* landscape screen = neck across, every device */}
+function gtrRotHint(){try{if(window.innerWidth>window.innerHeight||!("ontouchstart" in window))return "";}catch(e){return "";}
+  return '<div class="site-note" style="border:1px solid rgba(244,183,64,.45);border-radius:10px;padding:7px 10px;margin:0 0 8px;color:#f4b740">\ud83d\udd04 Turn your phone sideways \u2014 guitar plays full-width in landscape.</div>';}
 /* chord as a little fretboard window riding the highway: strings = lanes, fret rows top (nut) → bottom (body), like the neck below */
 function hwyGridCard(c,sh,dd,w,y,bh,k,lane,N,proj,strs,col0){
   let mn=99,mx=0;for(let s=0;s<N;s++){const f=sh[s];if(f>0){mn=Math.min(mn,f);mx=Math.max(mx,f);}}
@@ -8057,7 +8061,7 @@ function hfxGem(c,x,y,r,col,label,badge,dim){c.save();const w=r*1.08,h=r*1.08;c.
   c.textAlign="center";c.textBaseline="middle";c.fillStyle="#120c20";c.font="900 "+Math.round(r*1.2)+"px system-ui";c.fillText(label,x,y+r*0.06);
   if(badge){const fs=Math.max(13,r*1.0);hfxBadge(c,x,y-h-fs*0.75-3,badge,col,fs);}
   c.textBaseline="alphabetic";c.restore();}
-function hwyOptsHTML(){return '<div class="rchips tight" style="justify-content:center;margin:2px 0 6px"><button class="rchip sm" id="hwyLbl">\ud83c\udff7\ufe0f Labels: '+({note:"Note",string:"String",off:"Fret only"})[HWYP.lbl]+'</button><button class="rchip sm'+(HWYP.neck?" sel":"")+'" id="hwyNeck">\ud83c\udfb8 Neck: '+(HWYP.neck?"Shown":"Folded")+'</button><button class="rchip sm'+(HWYP.grid?" sel":"")+'" id="hwyGrid">\ud83e\uddf1 Notes: '+(HWYP.grid?"On frets":"Flat")+'</button></div>';}
+function hwyOptsHTML(){return '<div class="rchips tight" style="justify-content:center;margin:2px 0 6px"><button class="rchip sm" id="hwyDir">\u2194\ufe0f View: '+({auto:"Auto",across:"Sideways",down:"Upright"})[HWYP.dir||"auto"]+'</button><button class="rchip sm" id="hwyLbl">\ud83c\udff7\ufe0f Labels: '+({note:"Note",string:"String",off:"Fret only"})[HWYP.lbl]+'</button><button class="rchip sm'+(HWYP.neck?" sel":"")+'" id="hwyNeck">\ud83c\udfb8 Neck: '+(HWYP.neck?"Shown":"Folded")+'</button><button class="rchip sm'+(HWYP.grid?" sel":"")+'" id="hwyGrid">\ud83e\uddf1 Notes: '+(HWYP.grid?"On frets":"Flat")+'</button></div>';}
 function hwyOptsBind(onNeck){const dr=document.getElementById("hwyDir");if(dr)dr.onclick=()=>{HWYP.dir=({auto:"across",across:"down",down:"auto"})[HWYP.dir||"auto"];save("mjk-hwydir",HWYP.dir);dr.textContent="\u2194\ufe0f View: "+({auto:"Auto",across:"Sideways",down:"Upright"})[HWYP.dir];var sw=document.getElementById("fbSvgWrap");if(sw)sw.innerHTML=fbSVG();try{hwyApplyFold();}catch(e){}};const l=document.getElementById("hwyLbl");if(l)l.onclick=()=>{HWYP.lbl=HWYP.lbl==="note"?"string":HWYP.lbl==="string"?"off":"note";save("mjk-hwylbl",HWYP.lbl);l.textContent="\ud83c\udff7\ufe0f Labels: "+({note:"Note",string:"String",off:"Fret only"})[HWYP.lbl];};
   const gq=document.getElementById("hwyGrid");if(gq)gq.onclick=()=>{HWYP.grid=!HWYP.grid;save("mjk-hwygrid",HWYP.grid);gq.classList.toggle("sel",HWYP.grid);gq.textContent="\ud83e\uddf1 Notes: "+(HWYP.grid?"On frets":"Flat");};
   const n=document.getElementById("hwyNeck");if(n)n.onclick=()=>{HWYP.neck=!HWYP.neck;save("mjk-hwyneck",HWYP.neck);n.classList.toggle("sel",HWYP.neck);n.textContent="\ud83c\udfb8 Neck: "+(HWYP.neck?"Shown":"Folded");hwyApplyFold();if(onNeck)onNeck();};}
