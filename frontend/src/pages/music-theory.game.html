@@ -9146,7 +9146,8 @@ function medBinaural(beatHz,carrier,vol,shimmer,mk){medStop();clearTimeout(MED.d
   const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=2200;
   const dg=a.createGain();dg.gain.value=0.86;lp.connect(dg);dg.connect(master);const dd=[];[[0.023,0.09],[0.041,0.06]].forEach(([f,d])=>{const l=a.createOscillator();l.type="sine";l.frequency.value=f;const lg=a.createGain();lg.gain.value=MEDDRIFT.on?d:0;lg._d=d;l.connect(lg);lg.connect(dg.gain);l.start();oscs.push(l);dd.push(lg);});MED.driftG=dd;
   [[-1,0],[1,beatHz]].forEach(([pan,off])=>{const o=a.createOscillator();o.type="sine";o.frequency.value=carrier+off;const pn=a.createStereoPanner?a.createStereoPanner():null;if(pn){pn.pan.value=MEDSPK.on?0:pan;MED.pans.push([pn,pan]);}const g=a.createGain();g.gain.value=0.17;o.connect(pn||g);if(pn)pn.connect(g);g.connect(lp);o.start();oscs.push(o);if(pan===1)rightO=o;else MED.leftO=o;});
-  MED.drones=[];[0,7].forEach(n=>{const o=a.createOscillator();o.type="sine";o.frequency.value=carrier*Math.pow(2,n/12)/2;MED.drones.push([o,n]);const g=a.createGain();g.gain.value=0.035;const tr=a.createOscillator();tr.type="sine";tr.frequency.value=0.07;const tg=a.createGain();tg.gain.value=0.018;tr.connect(tg);tg.connect(g.gain);tr.start();oscs.push(tr);o.connect(g);g.connect(lp);o.start();oscs.push(o);});
+  const subG=a.createGain();subG.gain.value=(typeof MEDSUB!=="undefined"?MEDSUB:0.6)*1.667;subG.connect(lp);MED.subG=subG;
+  MED.drones=[];[0,7].forEach(n=>{const o=a.createOscillator();o.type="sine";o.frequency.value=carrier*Math.pow(2,n/12)/2;MED.drones.push([o,n]);const g=a.createGain();g.gain.value=0.035;const tr=a.createOscillator();tr.type="sine";tr.frequency.value=0.07;const tg=a.createGain();tg.gain.value=0.018;tr.connect(tg);tg.connect(g.gain);tr.start();oscs.push(tr);o.connect(g);g.connect(subG);o.start();oscs.push(o);});
   {const o=a.createOscillator();o.type="sine";o.frequency.value=carrier;MED.pulseO=o;const g=a.createGain();g.gain.value=shimmer?(MEDSPK.on?0.07:0.03):0;MED.pulseBase=g;const lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=beatHz;const lg=a.createGain();lg.gain.value=shimmer?(MEDSPK.on?0.07:0.03):0;lfo.connect(lg);lg.connect(g.gain);lfo.start();oscs.push(lfo);shimL=lfo;MED.pulseG=lg;o.connect(g);g.connect(lp);o.start();oscs.push(o);}
   MED.master=master;MED.oscs=oscs;MED.right=rightO;MED.lfo=shimL;MED.body=null;MED.bodyDepth=null;}
 const MEDDRIFT={on:load("mjk-meddrift",true)};
@@ -11903,6 +11904,7 @@ function renderVoiceJourney(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop()
   function paint(){if(mode==="studio")paintStudio();else paintList();}
   paint();}
 /* ===== Journey melody: slow melodic lines woven over the binaural bed ===== */
+var MEDSUB=+load("mjk-jsub",0.6);/* sub-bass drone level, its own fader */
 var MEDMEL={on:false,mel:null,voice:"bell",t:null,i:0,next:0,g:null,lvl:0.5,root:220};
 var MEL_VOICES=[["bell","\ud83d\udd14 Bells"],["keys","\ud83c\udfb9 Soft keys"],["flute","\ud83e\ude88 Flute"],["pad","\ud83c\udfbb Warm pad"],["box","\ud83c\udfb5 Music box"]];
 var MELODIES=[
@@ -11991,7 +11993,7 @@ function medPrgStart(id,voice,lvl,carrier){medPrgStop();var P2=MED_PROGS.filter(
    else{var steps=Math.max(4,Math.floor(spc/2.4));for(var k2=0;k2<steps;k2++){var semi2=ch[k2%ch.length]+(k2%(ch.length*2)>=ch.length?12:0);melVoicePlay(a2,MEDPRG.g,MEDPRG.voice,MEDPRG.root*Math.pow(2,semi2/12),t+k2*(spc/steps),2.4,MEDPRG.lvl*0.55);}}
    MEDPRG.next+=spc;MEDPRG.ci++;}},900);}
 function renderJourney(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){jBrStop();medStop();try{bgKeep(false);}catch(e){}};
-  var jBrAuto=false,jOpT=null,paused=false,pausedAt=0,humPh="",lastMap=0,jType=load("mjk-jtype","morning"),jLen=load("mjk-jlen",20),jDepth=load("mjk-jdepth",4),jBr=load("mjk-jbreath","off"),jMel=load("mjk-jmel","off"),jMelV=load("mjk-jmelv","bell"),jMelL=+load("mjk-jmell",0.5),jPrg=load("mjk-jprg","off"),jPrgV=load("mjk-jprgv","pad"),jPrgL=+load("mjk-jprgl",0.5),jBrRAF=null,jBrG=null,carrier=200,vol=0.5,shimmer=true,body=load("mjk-bwbody",false),playing=false,t0=0,plan=null;if(opts.type){jType=opts.type;jLen=opts.len||jLen;}
+  var jBrAuto=false,jOpT=null,paused=false,pausedAt=0,humPh="",lastMap=0,jType=load("mjk-jtype","morning"),jLen=load("mjk-jlen",20),jDepth=load("mjk-jdepth",4),jBr=load("mjk-jbreath","off"),jMel=load("mjk-jmel","off"),jMelV=load("mjk-jmelv","bell"),jMelL=+load("mjk-jmell",0.35),jPrg=load("mjk-jprg","off"),jPrgV=load("mjk-jprgv","pad"),jPrgL=+load("mjk-jprgl",0.45),jBrRAF=null,jBrG=null,carrier=200,vol=0.5,shimmer=true,body=load("mjk-bwbody",false),playing=false,t0=0,plan=null;if(opts.type){jType=opts.type;jLen=opts.len||jLen;}
   function fmt(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
   function draw(){var P=jPlanFor(jType,jLen,jDepth),J=JOURNEYS.find(function(j){return j.id===jType;})||JOURNEYS.find(function(j){return j.id==="dive";})||JOURNEYS[0];
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+(opts.title||"🌀 Brainwave Journey")+'</span></div><div class="panel">'+
@@ -12024,6 +12026,7 @@ function renderJourney(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(to
       (jPrg!=="off"?'<div class="rrow2"><span class="rlab">Chord sound</span><span class="rchips tight" id="jPrgVs">'+MEL_VOICES.map(function(v2){return '<button class="rchip sm'+(jPrgV===v2[0]?" sel":"")+'" data-pv="'+v2[0]+'">'+v2[1]+'</button>';}).join("")+'</span></div>'+
       '<div class="rrow"><span class="rlab">Chord level</span><input type="range" id="jPrgL" min="0.1" max="1" step="0.01" value="'+jPrgL+'" style="flex:1"></div>'+
       '<div class="site-note" style="margin:0 0 6px;font-size:.78rem">One chord every 20\u201330 seconds, in the key of your tone \u2014 a tide, not a song. Pad and flute hold the chord; bells, keys and box turn it into a slow arpeggio.</div>':'')+
+      '<div class="rrow"><span class="rlab">Sub bass</span><input type="range" id="jSub" min="0" max="1" step="0.01" value="'+MEDSUB+'" style="flex:1"></div>'+
       '<div class="rrow"><span class="rlab">Volume</span><input type="range" id="jVol" min="0" max="1" step="0.01" value="'+vol+'" style="flex:1"></div>'+
       (opts.note?'':'<div class="actions" style="flex-wrap:wrap">'+(playing?'<button class="btn" id="jPause" style="flex:1 1 55%">'+(paused?"▶ Resume":"⏸ Pause")+'</button><button class="btn ghost" id="jPlay" style="flex:1 1 35%">⏹ End</button>':'<button class="btn" id="jPlay" style="flex:1 1 100%">▶ Begin journey</button>')+'</div>')+(paused?'<div class="site-note" style="text-align:center">Paused at '+fmt(pausedAt)+' — tap Resume to pick up right here.</div>':'')+
       bioPanelHTML()+
@@ -12037,6 +12040,7 @@ function renderJourney(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(to
     $("#jShim").onclick=function(){shimmer=!shimmer;if(playing){medPulse(shimmer);var b=$("#jShim");b.classList.toggle("sel",shimmer);b.textContent="✨ Felt pulse: "+(shimmer?"On":"Off");}else draw();};
     $("#jDrift").onclick=function(){medDrift(!MEDDRIFT.on);this.classList.toggle("sel",MEDDRIFT.on);this.textContent="🌫️ Drift: "+(MEDDRIFT.on?"On":"Off");};
     $("#jBody").onclick=function(){body=!body;save("mjk-bwbody",body);if(playing)medBodyWave(body,vol);draw();};
+    var jsb=$("#jSub");if(jsb)jsb.oninput=function(){MEDSUB=+jsb.value;save("mjk-jsub",MEDSUB);if(MED.subG)MED.subG.gain.setTargetAtTime(MEDSUB*1.667,ac().currentTime,0.1);};
     var jv=$("#jVol");jv.oninput=function(){vol=+jv.value;if(MED.master)MED.master.gain.setTargetAtTime(vol,ac().currentTime,0.1);if(MED.bodyDepth)MED.bodyDepth.gain.value=vol*0.4;};
     $("#jPlay").onclick=function(){if(playing){medStop();playing=false;paused=false;draw();}else{begin();if(opts.note){var r=$("#jRead");if(r)setTimeout(function(){r.scrollIntoView({behavior:"smooth",block:"center"});},60);}}};
     brCueWire(view);if(playing&&jBr!=="off")jBrRun();
