@@ -1260,17 +1260,25 @@ function homeDoors(){var H=document.getElementById("home"),box=document.getEleme
   if(hm){hm.innerHTML='<button data-m="simple" class="'+(isAdv()?"":"sel")+'">Simple</button><button data-m="adv" class="'+(isAdv()?"sel":"")+'">Advanced</button>';hm.querySelectorAll("button").forEach(function(b){b.onclick=function(){setUiMode(b.getAttribute("data-m"));renderHome();};});}}
 let teardown=null;
 /* ===== SCROLL KEEPER: re-renders triggered by a tap keep the scroll position; real navigation (which calls scrollTo/scrollIntoView itself) still moves ===== */
-(function(){var want=null,t=0,intent=false,sx=0,sy=0,orig=window.scrollTo.bind(window);
-  document.addEventListener("pointerdown",function(e){want=window.scrollY;sx=e.clientX;sy=e.clientY;t=Date.now();intent=false;},true);
+(function(){var want=null,t=0,intent=false,sx=0,sy=0,isBack=false,SCR={},lastT=null,orig=window.scrollTo.bind(window);
+  var curT=function(){var v=document.getElementById("view");if(v&&!v.hidden){var tt=v.querySelector(".ttitle");if(tt&&tt.textContent.trim())return tt.textContent.trim();return "view?";}return "home";};
+  document.addEventListener("pointerdown",function(e){want=window.scrollY;sx=e.clientX;sy=e.clientY;t=Date.now();intent=false;
+    isBack=!!(e.target&&e.target.closest&&e.target.closest(".back"));if(lastT==null)lastT=curT();},true);
   /* a drag is the user scrolling — stand down immediately */
   document.addEventListener("pointermove",function(e){if(want!=null&&(Math.abs(e.clientX-sx)>9||Math.abs(e.clientY-sy)>9))want=null;},true);
   document.addEventListener("pointercancel",function(){want=null;},true);
   document.addEventListener("touchmove",function(){want=null;},true);
   window.scrollTo=function(){intent=true;return orig.apply(null,arguments);};
   var siv=Element.prototype.scrollIntoView;Element.prototype.scrollIntoView=function(){intent=true;return siv.apply(this,arguments);};
-  var mo=new MutationObserver(function(){if(want==null||intent||Date.now()-t>900)return;
+  var mo=new MutationObserver(function(){var t2=curT();
+    if(lastT!=null&&t2!==lastT){/* navigated to another screen */
+      if(want!=null&&Date.now()-t<1500)SCR[lastT]=want;/* where they left the old screen */
+      if(isBack&&SCR[t2]!=null)setTimeout(function(){orig(0,SCR[t2]);},0);/* ← lands where they were, not at the top */
+      lastT=t2;isBack=false;want=null;return;}
+    lastT=t2;
+    if(want==null||intent||Date.now()-t>900)return;
     if(Math.abs(window.scrollY-want)>60)orig(0,want);});
-  window.addEventListener("load",function(){var v=document.getElementById("view");if(v)mo.observe(v,{childList:true,subtree:true});});})();
+  window.addEventListener("load",function(){var v=document.getElementById("view");if(v){mo.observe(v,{childList:true,subtree:true,attributes:true,attributeFilter:["hidden"]});lastT=curT();}});})();
 /* ===== SETTINGS ORGANIZER: on every screen, settings rows move into one ⚙️ Settings panel; the main controls stay in view ===== */
 var CZ_KEEP=/^(pattern|groove|rhythm|key|song|level|chord|progression|scale|instrument|mode|type|journey|track|root|bassline)\b/i;
 /* one set of categories, same order on every screen */
