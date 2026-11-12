@@ -9972,9 +9972,15 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     const bf=car>=300?car/2:car;N.brG=a.createGain();N.brG.gain.value=0.0001;const bl=a.createBiquadFilter();bl.type="lowpass";bl.frequency.value=1400;N.brG.connect(bl);bl.connect(M);bl.connect(N.rv);
     [[bf,1],[bf*1.5,0.5],[bf/2,0.35]].forEach(function(q){const o=a.createOscillator(),g=a.createGain();o.type="sine";o.frequency.value=q[0];g.gain.value=q[1];o.connect(g);g.connect(N.brG);o.start();MED.oscs.push(o);});
     /* the drum has its own path so its level and timing stay independent */
-    N.drum=a.createGain();N.drum.gain.value=HSX.drum*0.32;N.lim=a.createDynamicsCompressor();N.lim.threshold.value=-15;N.lim.knee.value=6;N.lim.ratio.value=12;N.lim.attack.value=0.003;N.lim.release.value=0.25;N.out=a.createDynamicsCompressor();N.out.threshold.value=-8;N.out.knee.value=4;N.out.ratio.value=20;N.out.attack.value=0.001;N.out.release.value=0.2;N.sc=a.createWaveShaper();N.sc.curve=(function(){const c=new Float32Array(2048);for(let i=0;i<2048;i++){const x=i/1023.5-1,ax=Math.abs(x);c[i]=ax<0.7?x:Math.sign(x)*(0.7+0.28*Math.tanh((ax-0.7)/0.28));}return c;})();N.out.connect(N.sc);N.trim=a.createGain();N.trim.gain.value=0.676;N.sc.connect(N.trim);N.trim.connect(a.destination);/* -3.4 dB: lands Heart Sync at -16 LUFS at default levels */
+    N.drum=a.createGain();N.drum.gain.value=HSX.drum*0.5;N.lim=a.createDynamicsCompressor();N.lim.threshold.value=-10;N.lim.knee.value=6;N.lim.ratio.value=12;N.lim.attack.value=0.003;N.lim.release.value=0.25;N.out=a.createDynamicsCompressor();N.out.threshold.value=-8;N.out.knee.value=4;N.out.ratio.value=20;N.out.attack.value=0.001;N.out.release.value=0.2;N.sc=a.createWaveShaper();N.sc.curve=(function(){const c=new Float32Array(2048);for(let i=0;i<2048;i++){const x=i/1023.5-1,ax=Math.abs(x);c[i]=ax<0.7?x:Math.sign(x)*(0.7+0.28*Math.tanh((ax-0.7)/0.28));}return c;})();N.out.connect(N.sc);N.trim=a.createGain();N.trim.gain.value=1.0;N.sc.connect(N.trim);N.trim.connect(a.destination);/* unity: Heart Sync sits at the same loudness as the journeys (out-comp + soft clip still guard the peaks) */
     if(MED.gate){try{MED.gate.disconnect();}catch(e){}MED.gate.connect(N.out);}N.drum.connect(N.lim);N.lim.connect(N.out);const ds=a.createGain();ds.gain.value=0.15;N.drum.connect(ds);ds.connect(N.rv);
     try{if(HSX.gong){instBuf("gong",0);instBuf("gong",1);}const I=INSTS[HSX.mel];if(I)I.notes.forEach(function(n){instBuf(HSX.mel,n);});}catch(e){}
+    try{var _ml=load("mjk-jmel","off");if(_ml!=="off")medMelStart(_ml,load("mjk-jmelv","bell"),+load("mjk-jmell",0.35),car);
+      var _pg2=load("mjk-jprg","off");if(_pg2!=="off")medPrgStart(_pg2,load("mjk-jprgv","pad"),+load("mjk-jprgl",0.45),car);
+      var _vb=load("mjk-jvib","off");if(_vb!=="off")medVibroStart(_vb,load("mjk-jvibp","beat"),+load("mjk-jvibl",0.5),car);
+      MEDEXP.on=load("mjk-jlive",true);MEDEXP.body=load("mjk-jshape",true);MEDEXP.amt=+load("mjk-jmodamt",1);
+      var _mw=load("mjk-jmodwhen","plan");MEDEXP.mode=_mw==="plan"?"wave":_mw;/* no Hz plan here: the slow wave carries it */
+      var _mk2=Object.assign({mel:true,prg:true,tone:true,swell:true},load("mjk-jmodk",{}));MEDEXP.mel=_mk2.mel;MEDEXP.prg=_mk2.prg;MEDEXP.tone=_mk2.tone;MEDEXP.swell=_mk2.swell;}catch(e){}
     S.mel=null;S.cyc=0;S.gongAt=0;S.nodes=N;S.note0=car;}
   function retune(a,hz){const N=S.nodes;if(!N)return;const bh=hsBeatHz(hz,hsG(),prog()),t=a.currentTime;S.beatHz=bh;if(MED.right)MED.right.frequency.setTargetAtTime(S.car+bh,t,3);if(MED.lfo)MED.lfo.frequency.setTargetAtTime(bh,t,3);try{medLayersFollow(bh);}catch(e){}}
   function opening(a){}
@@ -10105,6 +10111,24 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
       '<div class="rrow2"><span class="rlab">Extras</span><span class="rchips tight">'+chip("hsGong","🪘 Gong",HSX.gong)+chip("hsOc","🌊 Ocean",HSX.ocean)+chip("hsCh","🔔 Chimes",HSX.chimes)+chip("hsLay","✨ Layers: "+({off:"Off",phi:"Golden φ",oct:"Octaves"})[MEDLAYER.mode],MEDLAYER.mode!=="off")+'</span></div>'+
       '<div class="rrow"><span class="rlab">Heartbeat</span><input type="range" id="hsDv" min="0" max="100" value="'+Math.round(HSX.drum*100)+'" style="flex:1"></div>'+
       '<div class="rrow"><span class="rlab">Music</span><input type="range" id="hsMv" min="0" max="100" value="'+Math.round(HSX.music*100)+'" style="flex:1"></div>'+
+      (function(){var ml=load("mjk-jmel","off"),mv2=load("mjk-jmelv","bell"),pg2=load("mjk-jprg","off"),pv2=load("mjk-jprgv","pad"),vb=load("mjk-jvib","off"),vp=load("mjk-jvibp","beat"),mo=load("mjk-jlive",true),bo=load("mjk-jshape",true),mk3=Object.assign({mel:true,prg:true,tone:true,swell:true},load("mjk-jmodk",{}));
+       var ch2=function(sel,attr,txt){return '<button class="rchip sm'+(sel?" sel":"")+'" '+attr+'>'+txt+'</button>';};
+       return '<details data-nocz style="margin:4px 0 8px"><summary style="cursor:pointer;list-style:none;padding:7px 2px;font:800 .85rem system-ui;color:var(--muted)">\ud83c\udfbc Layers \u00b7 melody, chords, vibro & modulation \u25be</summary>'
+        +'<div class="site-note" style="margin:2px 0 6px;font-size:.76rem">Shared with Brainwave Journeys \u2014 set once, same everywhere. Here they play in the key of your heart\u2019s note.</div>'
+        +'<div class="rrow2"><span class="rlab">Melody</span><span class="rchips tight">'+ch2(ml==="off",'data-hml="off"',"Off")+MELODIES.map(function(m){return ch2(ml===m.id,'data-hml="'+m.id+'"',m.ic+" "+m.name);}).join("")+'</span></div>'
+        +(ml!=="off"?'<div class="rrow2"><span class="rlab">Melody sound</span><span class="rchips tight">'+MEL_VOICES.map(function(v2){return ch2(mv2===v2[0],'data-hmv="'+v2[0]+'"',v2[1]);}).join("")+'</span></div>'
+         +'<div class="rrow"><span class="rlab">Melody level</span><input type="range" id="hsMelL" min="0.1" max="1" step="0.01" value="'+(+load("mjk-jmell",0.35))+'" style="flex:1"></div>':"")
+        +'<div class="rrow2"><span class="rlab">Chords</span><span class="rchips tight">'+ch2(pg2==="off",'data-hpg="off"',"Off")+MED_PROGS.map(function(m){return ch2(pg2===m.id,'data-hpg="'+m.id+'"',m.ic+" "+m.name);}).join("")+'</span></div>'
+        +(pg2!=="off"?'<div class="rrow2"><span class="rlab">Chord sound</span><span class="rchips tight">'+MEL_VOICES.map(function(v2){return ch2(pv2===v2[0],'data-hpv="'+v2[0]+'"',v2[1]);}).join("")+'</span></div>'
+         +'<div class="rrow"><span class="rlab">Chord level</span><input type="range" id="hsPrgL" min="0.1" max="1" step="0.01" value="'+(+load("mjk-jprgl",0.45))+'" style="flex:1"></div>':"")
+        +'<div class="rrow2"><span class="rlab">Vibro sub</span><span class="rchips tight">'+[["off","Off"],["32","32 Hz"],["40","40 Hz"],["52","52 Hz"],["64","64 Hz"],["key","\ud83c\udfbc In key"]].map(function(o){return ch2(vb===o[0],'data-hvb="'+o[0]+'"',o[1]);}).join("")+'</span></div>'
+        +(vb!=="off"?'<div class="rrow2"><span class="rlab">Vibro pulse</span><span class="rchips tight">'+ch2(vp==="steady",'data-hvp="steady"',"Steady")+ch2(vp==="beat",'data-hvp="beat"',"\ud83c\udf00 With the beat")+'</span></div>'
+         +'<div class="rrow"><span class="rlab">Vibro level</span><input type="range" id="hsVibL" min="0.1" max="1" step="0.01" value="'+(+load("mjk-jvibl",0.5))+'" style="flex:1"></div>':"")
+        +'<div class="rrow2"><span class="rlab">Modulation</span><span class="rchips tight">'+ch2(mo,'id="hsModOn"',mo?"On":"Off")+ch2(bo,'id="hsModBody"',"\ud83e\udec0 Body shapes it")+'</span></div>'
+        +(mo?'<div class="rrow2"><span class="rlab">Changes what</span><span class="rchips tight">'+[["mel","\ud83c\udfb5 Melody"],["prg","\ud83c\udfb6 Chords"],["tone","\ud83c\udf2b Tone colour"],["swell","\ud83c\udf0a Level swells"]].map(function(o){return ch2(mk3[o[0]],'data-hmk="'+o[0]+'"',o[1]);}).join("")+'</span></div>'
+         +'<div class="rrow"><span class="rlab">How much</span><input type="range" id="hsModAmt" min="0.15" max="1" step="0.01" value="'+(+load("mjk-jmodamt",1))+'" style="flex:1"></div>'
+         +'<div class="site-note" style="margin:0 0 4px;font-size:.74rem">Here modulation rides a slow 8-minute wave \u2014 and your coherence, when a sensor is on.</div>':"")
+        +'</details>';})()+
       '<div class="czSec">Tempo</div><div class="rrow2"><span class="rlab">Beat follows</span><span class="rchips tight"><button class="rchip sm'+(HSX.fix>0?"":" sel")+'" id="hsFixOff">💓 My heart</button><button class="rchip sm'+(HSX.fix>0?" sel":"")+'" id="hsFixOn">Fixed</button></span></div>'+
       '<div class="rrow" id="hsFixRow" style="'+(HSX.fix>0?"":"opacity:.45")+'"><span class="rlab">Fixed BPM</span><input type="range" id="hsFixR" min="40" max="140" step="2" value="'+(HSX.fix||120)+'" style="flex:1"><span class="rbpm" id="hsFixV" style="min-width:56px">'+(HSX.fix||120)+'</span></div>'+
       (adv?'<div class="czSec">Timing</div><div class="rrow"><span class="rlab">Drum timing</span><input type="range" id="hsLat" min="-300" max="300" step="10" value="'+HSX.lat+'" style="flex:1"><span class="rbpm" id="hsLatV" style="min-width:64px">'+(HSX.lat>0?"+":"")+HSX.lat+' ms</span></div>'+
@@ -10176,6 +10200,25 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
         if(d.length<5){b.textContent="Couldn’t read that — try again";return;}d.sort(function(x,y){return x-y;});HSX.lat=Math.max(-300,Math.min(300,Math.round(d[d.length>>1]*100)*10));save("mjk-hslat",HSX.lat);draw();const s2=$("#hsStage");if(s2)s2.textContent="Drum timing set to "+(HSX.lat>0?"+":"")+HSX.lat+" ms.";},2600);}});
     const dv=$("#hsDv");dv.oninput=function(){HSX.drum=dv.value/100;save("mjk-hsdrum",HSX.drum);if(S.nodes)S.nodes.drum.gain.setTargetAtTime(HSX.drum*0.32,ac().currentTime,0.1);};
     const mv=$("#hsMv");mv.oninput=function(){HSX.music=mv.value/100;save("mjk-hsmusic",HSX.music);if(S.nodes)S.nodes.master.gain.setTargetAtTime(Math.max(0.0001,HSX.music),ac().currentTime,0.2);};
+    (function(){var live=function(){return S.run&&MED.master;},car2=function(){return S.car||200;};
+      var re=function(k,v){save(k,v);if(!live())return;var ml=load("mjk-jmel","off"),pg3=load("mjk-jprg","off"),vb2=load("mjk-jvib","off");
+        medMelStop();medPrgStop();medVibroStop();
+        if(ml!=="off")medMelStart(ml,load("mjk-jmelv","bell"),+load("mjk-jmell",0.35),car2());
+        if(pg3!=="off")medPrgStart(pg3,load("mjk-jprgv","pad"),+load("mjk-jprgl",0.45),car2());
+        if(vb2!=="off")medVibroStart(vb2,load("mjk-jvibp","beat"),+load("mjk-jvibl",0.5),car2());};
+      view.querySelectorAll("[data-hml]").forEach(function(b){b.onclick=function(){re("mjk-jmel",b.dataset.hml);draw();};});
+      view.querySelectorAll("[data-hmv]").forEach(function(b){b.onclick=function(){re("mjk-jmelv",b.dataset.hmv);draw();};});
+      view.querySelectorAll("[data-hpg]").forEach(function(b){b.onclick=function(){re("mjk-jprg",b.dataset.hpg);draw();};});
+      view.querySelectorAll("[data-hpv]").forEach(function(b){b.onclick=function(){re("mjk-jprgv",b.dataset.hpv);draw();};});
+      view.querySelectorAll("[data-hvb]").forEach(function(b){b.onclick=function(){re("mjk-jvib",b.dataset.hvb);draw();};});
+      view.querySelectorAll("[data-hvp]").forEach(function(b){b.onclick=function(){re("mjk-jvibp",b.dataset.hvp);draw();};});
+      var sl=function(id,k,fn){var e2=$(id);if(e2)e2.oninput=function(){save(k,+e2.value);if(fn)fn(+e2.value);};};
+      sl("#hsMelL","mjk-jmell",function(v){MEDMEL.lvl=v;});sl("#hsPrgL","mjk-jprgl",function(v){MEDPRG.lvl=v;});
+      sl("#hsVibL","mjk-jvibl",function(v){if(MED.vibG){var b2=v*0.55;MED.vibG.gain.setTargetAtTime(load("mjk-jvibp","beat")==="beat"?b2*0.55:b2,ac().currentTime,0.1);if(MED.vibD)MED.vibD.gain.setTargetAtTime(b2*0.45,ac().currentTime,0.1);}});
+      sl("#hsModAmt","mjk-jmodamt",function(v){MEDEXP.amt=v;});
+      var mb=$("#hsModOn");if(mb)mb.onclick=function(){var v=!load("mjk-jlive",true);save("mjk-jlive",v);MEDEXP.on=v;draw();};
+      var bb=$("#hsModBody");if(bb)bb.onclick=function(){var v=!load("mjk-jshape",true);save("mjk-jshape",v);MEDEXP.body=v;draw();};
+      view.querySelectorAll("[data-hmk]").forEach(function(b){b.onclick=function(){var mk4=Object.assign({mel:true,prg:true,tone:true,swell:true},load("mjk-jmodk",{}));mk4[b.dataset.hmk]=!mk4[b.dataset.hmk];save("mjk-jmodk",mk4);MEDEXP[b.dataset.hmk]=mk4[b.dataset.hmk];b.classList.toggle("sel",mk4[b.dataset.hmk]);};});})();
     sens();if(S.run)paint();else{drawChart();try{ansPaint("ansHs");}catch(e){}}}
   /* which heartbeat the drum is following, in one place */
   function srcLine(){const el=$("#hsSrc");if(!el)return;let t="",col="#cfc6e8";const sv=CAMP.saved,svOK=sv&&performance.now()-sv.at<180000;
