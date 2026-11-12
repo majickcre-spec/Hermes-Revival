@@ -9451,9 +9451,12 @@ function brCueWire(root){root=root||document;root.querySelectorAll("[data-bcue]"
 var BGK={on:false,el:null,dest:null};
 function bgKeep(on,title){var c=ac();try{if(!c.__mv){var z=c.createGain();z.gain.value=0;z.connect(c.destination);}}catch(e){}var mv=c.__mv;if(!mv)return;
   if(on&&!BGK.on){try{if(!BGK.dest){BGK.dest=c.createMediaStreamDestination();BGK.el=new Audio();BGK.el.setAttribute("playsinline","");BGK.el.srcObject=BGK.dest.stream;}
-      mv.disconnect();mv.connect(BGK.dest);BGK.on=true;var pr=BGK.el.play();if(pr&&pr.catch)pr.catch(function(){bgKeep(false);});}catch(e){try{mv.disconnect();}catch(_){}mv.connect(c.destination);BGK.on=false;}
+      mv.disconnect();mv.connect(BGK.dest);BGK.on=true;
+      if(!BGK.keep){var ko=c.createOscillator(),kg=c.createGain();ko.type="sine";ko.frequency.value=43;kg.gain.value=0.0014;ko.connect(kg);kg.connect(mv);ko.start();BGK.keep=[ko,kg];}
+      BGK.el.onpause=function(){if(BGK.on)setTimeout(function(){try{if(BGK.on&&BGK.el.paused)BGK.el.play().catch(function(){});}catch(e){}},250);};
+      var pr=BGK.el.play();if(pr&&pr.catch)pr.catch(function(){bgKeep(false);});}catch(e){try{mv.disconnect();}catch(_){}mv.connect(c.destination);BGK.on=false;}
     try{if(navigator.mediaSession){navigator.mediaSession.metadata=new MediaMetadata({title:title||"Breathwork",artist:"Majick Music University"});navigator.mediaSession.playbackState="playing";}}catch(e){}}
-  else if(!on&&BGK.on){try{mv.disconnect();}catch(e){}mv.connect(c.destination);BGK.on=false;try{BGK.el.pause();}catch(e){}try{if(navigator.mediaSession)navigator.mediaSession.playbackState="none";}catch(e){}}}
+  else if(!on&&BGK.on){try{mv.disconnect();}catch(e){}mv.connect(c.destination);BGK.on=false;try{if(BGK.keep){BGK.keep[0].stop();BGK.keep=null;}}catch(e){}try{BGK.el.onpause=null;BGK.el.pause();}catch(e){}try{if(navigator.mediaSession)navigator.mediaSession.playbackState="none";}catch(e){}}}
 document.addEventListener("visibilitychange",function(){if(!BGK.on)return;try{var c=ac();if(c.state!=="running")c.resume();if(BGK.el&&BGK.el.paused)BGK.el.play().catch(function(){});}catch(e){}});
 let HR={dev:null,ch:null,bpm:0,rr:[],updated:0,connected:false};
 /* ===== FINGERTIP PULSE: the phone camera reads blood-flow colour changes under a fingertip (photoplethysmography) and feeds beats in as a heart sensor ===== */
