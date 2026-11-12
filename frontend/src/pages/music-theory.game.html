@@ -1260,8 +1260,12 @@ function homeDoors(){var H=document.getElementById("home"),box=document.getEleme
   if(hm){hm.innerHTML='<button data-m="simple" class="'+(isAdv()?"":"sel")+'">Simple</button><button data-m="adv" class="'+(isAdv()?"sel":"")+'">Advanced</button>';hm.querySelectorAll("button").forEach(function(b){b.onclick=function(){setUiMode(b.getAttribute("data-m"));renderHome();};});}}
 let teardown=null;
 /* ===== SCROLL KEEPER: re-renders triggered by a tap keep the scroll position; real navigation (which calls scrollTo/scrollIntoView itself) still moves ===== */
-(function(){var want=null,t=0,intent=false,orig=window.scrollTo.bind(window);
-  document.addEventListener("pointerdown",function(){want=window.scrollY;t=Date.now();intent=false;},true);
+(function(){var want=null,t=0,intent=false,sx=0,sy=0,orig=window.scrollTo.bind(window);
+  document.addEventListener("pointerdown",function(e){want=window.scrollY;sx=e.clientX;sy=e.clientY;t=Date.now();intent=false;},true);
+  /* a drag is the user scrolling — stand down immediately */
+  document.addEventListener("pointermove",function(e){if(want!=null&&(Math.abs(e.clientX-sx)>9||Math.abs(e.clientY-sy)>9))want=null;},true);
+  document.addEventListener("pointercancel",function(){want=null;},true);
+  document.addEventListener("touchmove",function(){want=null;},true);
   window.scrollTo=function(){intent=true;return orig.apply(null,arguments);};
   var siv=Element.prototype.scrollIntoView;Element.prototype.scrollIntoView=function(){intent=true;return siv.apply(this,arguments);};
   var mo=new MutationObserver(function(){if(want==null||intent||Date.now()-t>900)return;
