@@ -9135,7 +9135,7 @@ function renderMelodyLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=
 }
 /* ===== MEDITATION — binaural brainwaves, breathwork + HRV, rhythm mind, sessions ===== */
 let MED={master:null,oscs:[],timer:null};
-function medStop(){window.MJK_FOCUS=false;MED.sess=null;BRPH=null;try{medMelStop();}catch(e){}if(MED.timer){clearInterval(MED.timer);MED.timer=null;}try{if(MED.nat){MED.nat.stop();MED.nat=null;}}catch(e){}MED.layers=[];try{if(MED.ocean){if(MED.ocean.nat)MED.ocean.nat.stop();MED.ocean=null;}}catch(e){}MED.hum=null;clearTimeout(MED.doneT);medWake(false);if(!MED.master)return;const a=ac(),m=MED.master,os=MED.oscs,now=a.currentTime;MED.master=null;MED.oscs=[];try{if(MED.body){MED.body.stop(now);MED.body=null;}if(MED.bodyDepth){MED.bodyDepth.disconnect();MED.bodyDepth=null;}}catch(e){}try{m.gain.cancelScheduledValues(now);m.gain.setValueAtTime(Math.max(0,m.gain.value),now);m.gain.linearRampToValueAtTime(0,now+0.6);}catch(e){}os.forEach(o=>{try{o.stop(now+0.65);}catch(e){}});}
+function medStop(){window.MJK_FOCUS=false;MED.sess=null;BRPH=null;try{medMelStop();medPrgStop();}catch(e){}if(MED.timer){clearInterval(MED.timer);MED.timer=null;}try{if(MED.nat){MED.nat.stop();MED.nat=null;}}catch(e){}MED.layers=[];try{if(MED.ocean){if(MED.ocean.nat)MED.ocean.nat.stop();MED.ocean=null;}}catch(e){}MED.hum=null;clearTimeout(MED.doneT);medWake(false);if(!MED.master)return;const a=ac(),m=MED.master,os=MED.oscs,now=a.currentTime;MED.master=null;MED.oscs=[];try{if(MED.body){MED.body.stop(now);MED.body=null;}if(MED.bodyDepth){MED.bodyDepth.disconnect();MED.bodyDepth=null;}}catch(e){}try{m.gain.cancelScheduledValues(now);m.gain.setValueAtTime(Math.max(0,m.gain.value),now);m.gain.linearRampToValueAtTime(0,now+0.6);}catch(e){}os.forEach(o=>{try{o.stop(now+0.65);}catch(e){}});}
 var MED_WL=null;function medWake(on){try{if(on){if(!MED_WL&&navigator.wakeLock)navigator.wakeLock.request("screen").then(function(l){MED_WL=l;l.addEventListener&&l.addEventListener("release",function(){MED_WL=null;});}).catch(function(){});}else if(MED_WL){MED_WL.release();MED_WL=null;}}catch(e){}}
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&MED.master&&!MED_WL)medWake(true);});
 function medRetune(beatHz,carrier){if(!MED.master||!MED.leftO||!MED.right)return false;const a=ac(),t=a.currentTime;MED.leftO.frequency.setTargetAtTime(carrier,t,0.08);MED.right.frequency.setTargetAtTime(carrier+beatHz,t,0.08);if(MED.lfo)MED.lfo.frequency.setTargetAtTime(beatHz,t,0.08);if(MED.pulseO)MED.pulseO.frequency.setTargetAtTime(carrier,t,0.08);(MED.drones||[]).forEach(([o,n])=>o.frequency.setTargetAtTime(carrier*Math.pow(2,n/12)/2,t,0.2));return true;}
@@ -11972,8 +11972,26 @@ function medMelStart(melId,voice,lvl,carrier){medMelStop();var M2=MELODIES.filte
   while(MEDMEL.next<a2.currentTime+2.5){var st=MEDMEL.mel.seq[MEDMEL.i%MEDMEL.mel.seq.length],dur=st[1]*MEDMEL.mel.spb;
    if(st[0]!=null)melVoicePlay(a2,MEDMEL.g,MEDMEL.voice,MEDMEL.root*Math.pow(2,st[0]/12),MEDMEL.next,dur,MEDMEL.lvl);
    MEDMEL.next+=dur;MEDMEL.i++;}},700);}
+/* ===== Journey chords: drawn-out progressions — a harmonic tide, never a song ===== */
+var MEDPRG={on:false,prg:null,t:null,ci:0,next:0,g:null,lvl:0.5,voice:"pad",root:110};
+var MED_PROGS=[
+ {id:"lift",ic:"\ud83c\udf05",name:"Gentle Lift",spc:24,ch:[[0,4,7,12],[5,9,12,17]]},
+ {id:"tide",ic:"\ud83c\udf0a",name:"Deep Tide",spc:28,ch:[[0,3,7,12],[-4,0,3,8],[3,7,10,15],[-2,2,5,10]]},
+ {id:"sky",ic:"\ud83d\udd4a",name:"Slow Sky",spc:22,ch:[[0,4,7,11],[-5,-1,2,7],[-3,0,4,9],[5,9,12,16]]},
+ {id:"dark",ic:"\ud83c\udf11",name:"Dark Swell",spc:30,ch:[[0,3,7],[-7,-4,0,5]]},
+ {id:"dream",ic:"\u2728",name:"Dream Sevenths",spc:26,ch:[[0,4,7,11],[5,9,12,16],[2,5,9,14],[0,4,7,11]]}];
+function medPrgStop(){MEDPRG.on=false;if(MEDPRG.t){clearInterval(MEDPRG.t);MEDPRG.t=null;}if(MEDPRG.g){try{MEDPRG.g.gain.setTargetAtTime(0.0001,ac().currentTime,1.2);}catch(e){}MEDPRG.g=null;}}
+function medPrgStart(id,voice,lvl,carrier){medPrgStop();var P2=MED_PROGS.filter(function(m){return m.id===id;})[0];if(!P2||!MED.master)return;var a=ac();
+ MEDPRG.on=true;MEDPRG.prg=P2;MEDPRG.voice=voice||"pad";MEDPRG.lvl=lvl==null?0.5:lvl;MEDPRG.ci=0;MEDPRG.next=a.currentTime+0.4;MEDPRG.root=melRoot(carrier)/2;
+ var fx=melFx(a);try{fx.out.disconnect();}catch(e){}fx.out.connect(MED.master);
+ var g=a.createGain();g.gain.value=1;g.connect(fx.inG);MEDPRG.g=g;
+ MEDPRG.t=setInterval(function(){if(!MED.master||!MEDPRG.on){medPrgStop();return;}var a2=ac();
+  while(MEDPRG.next<a2.currentTime+3){var ch=MEDPRG.prg.ch[MEDPRG.ci%MEDPRG.prg.ch.length],t=MEDPRG.next,spc=MEDPRG.prg.spc,sus=(MEDPRG.voice==="pad"||MEDPRG.voice==="flute");
+   if(sus){ch.forEach(function(semi,k){melVoicePlay(a2,MEDPRG.g,MEDPRG.voice,MEDPRG.root*Math.pow(2,semi/12),t+k*0.18,spc+2,MEDPRG.lvl*0.8/Math.sqrt(ch.length));});}
+   else{var steps=Math.max(4,Math.floor(spc/2.4));for(var k2=0;k2<steps;k2++){var semi2=ch[k2%ch.length]+(k2%(ch.length*2)>=ch.length?12:0);melVoicePlay(a2,MEDPRG.g,MEDPRG.voice,MEDPRG.root*Math.pow(2,semi2/12),t+k2*(spc/steps),2.4,MEDPRG.lvl*0.55);}}
+   MEDPRG.next+=spc;MEDPRG.ci++;}},900);}
 function renderJourney(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){jBrStop();medStop();try{bgKeep(false);}catch(e){}};
-  var jBrAuto=false,jOpT=null,paused=false,pausedAt=0,humPh="",lastMap=0,jType=load("mjk-jtype","morning"),jLen=load("mjk-jlen",20),jDepth=load("mjk-jdepth",4),jBr=load("mjk-jbreath","off"),jMel=load("mjk-jmel","off"),jMelV=load("mjk-jmelv","bell"),jMelL=+load("mjk-jmell",0.5),jBrRAF=null,jBrG=null,carrier=200,vol=0.5,shimmer=true,body=load("mjk-bwbody",false),playing=false,t0=0,plan=null;if(opts.type){jType=opts.type;jLen=opts.len||jLen;}
+  var jBrAuto=false,jOpT=null,paused=false,pausedAt=0,humPh="",lastMap=0,jType=load("mjk-jtype","morning"),jLen=load("mjk-jlen",20),jDepth=load("mjk-jdepth",4),jBr=load("mjk-jbreath","off"),jMel=load("mjk-jmel","off"),jMelV=load("mjk-jmelv","bell"),jMelL=+load("mjk-jmell",0.5),jPrg=load("mjk-jprg","off"),jPrgV=load("mjk-jprgv","pad"),jPrgL=+load("mjk-jprgl",0.5),jBrRAF=null,jBrG=null,carrier=200,vol=0.5,shimmer=true,body=load("mjk-bwbody",false),playing=false,t0=0,plan=null;if(opts.type){jType=opts.type;jLen=opts.len||jLen;}
   function fmt(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
   function draw(){var P=jPlanFor(jType,jLen,jDepth),J=JOURNEYS.find(function(j){return j.id===jType;})||JOURNEYS.find(function(j){return j.id==="dive";})||JOURNEYS[0];
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+(opts.title||"🌀 Brainwave Journey")+'</span></div><div class="panel">'+
@@ -12002,6 +12020,10 @@ function renderJourney(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(to
       (jMel!=="off"?'<div class="rrow2"><span class="rlab">Melody sound</span><span class="rchips tight" id="jMelVs">'+MEL_VOICES.map(function(v2){return '<button class="rchip sm'+(jMelV===v2[0]?" sel":"")+'" data-mv="'+v2[0]+'">'+v2[1]+'</button>';}).join("")+'</span></div>'+
       '<div class="rrow"><span class="rlab">Melody level</span><input type="range" id="jMelL" min="0.1" max="1" step="0.01" value="'+jMelL+'" style="flex:1"></div>'+
       '<div class="site-note" style="margin:0 0 6px;font-size:.78rem">A slow melody in the key of your tone, woven over the beat. Soft on purpose \u2014 it should feel far away.</div>':'')+
+      '<div class="rrow2"><span class="rlab">Chords</span><span class="rchips tight" id="jPrgs"><button class="rchip sm'+(jPrg==="off"?" sel":"")+'" data-prg="off">Off</button>'+MED_PROGS.map(function(m){return '<button class="rchip sm'+(jPrg===m.id?" sel":"")+'" data-prg="'+m.id+'">'+m.ic+' '+m.name+'</button>';}).join("")+'</span></div>'+
+      (jPrg!=="off"?'<div class="rrow2"><span class="rlab">Chord sound</span><span class="rchips tight" id="jPrgVs">'+MEL_VOICES.map(function(v2){return '<button class="rchip sm'+(jPrgV===v2[0]?" sel":"")+'" data-pv="'+v2[0]+'">'+v2[1]+'</button>';}).join("")+'</span></div>'+
+      '<div class="rrow"><span class="rlab">Chord level</span><input type="range" id="jPrgL" min="0.1" max="1" step="0.01" value="'+jPrgL+'" style="flex:1"></div>'+
+      '<div class="site-note" style="margin:0 0 6px;font-size:.78rem">One chord every 20\u201330 seconds, in the key of your tone \u2014 a tide, not a song. Pad and flute hold the chord; bells, keys and box turn it into a slow arpeggio.</div>':'')+
       '<div class="rrow"><span class="rlab">Volume</span><input type="range" id="jVol" min="0" max="1" step="0.01" value="'+vol+'" style="flex:1"></div>'+
       (opts.note?'':'<div class="actions" style="flex-wrap:wrap">'+(playing?'<button class="btn" id="jPause" style="flex:1 1 55%">'+(paused?"▶ Resume":"⏸ Pause")+'</button><button class="btn ghost" id="jPlay" style="flex:1 1 35%">⏹ End</button>':'<button class="btn" id="jPlay" style="flex:1 1 100%">▶ Begin journey</button>')+'</div>')+(paused?'<div class="site-note" style="text-align:center">Paused at '+fmt(pausedAt)+' — tap Resume to pick up right here.</div>':'')+
       bioPanelHTML()+
@@ -12029,6 +12051,9 @@ function renderJourney(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(to
     view.querySelectorAll("#jMels [data-mel]").forEach(function(b){b.onclick=function(){jMel=b.dataset.mel;save("mjk-jmel",jMel);if(playing){if(jMel==="off")medMelStop();else medMelStart(jMel,jMelV,jMelL,carrier);}draw();};});
     view.querySelectorAll("#jMelVs [data-mv]").forEach(function(b){b.onclick=function(){jMelV=b.dataset.mv;save("mjk-jmelv",jMelV);if(playing&&jMel!=="off")medMelStart(jMel,jMelV,jMelL,carrier);draw();};});
     var jml=$("#jMelL");if(jml)jml.oninput=function(){jMelL=+jml.value;save("mjk-jmell",jMelL);MEDMEL.lvl=jMelL;};
+    view.querySelectorAll("#jPrgs [data-prg]").forEach(function(b){b.onclick=function(){jPrg=b.dataset.prg;save("mjk-jprg",jPrg);if(playing){if(jPrg==="off")medPrgStop();else medPrgStart(jPrg,jPrgV,jPrgL,carrier);}draw();};});
+    view.querySelectorAll("#jPrgVs [data-pv]").forEach(function(b){b.onclick=function(){jPrgV=b.dataset.pv;save("mjk-jprgv",jPrgV);if(playing&&jPrg!=="off")medPrgStart(jPrg,jPrgV,jPrgL,carrier);draw();};});
+    var jpl=$("#jPrgL");if(jpl)jpl.oninput=function(){jPrgL=+jpl.value;save("mjk-jprgl",jPrgL);MEDPRG.lvl=jPrgL;};
     if(playing&&!paused)tick();}
   function jSched(fromT){var a=ac(),now=a.currentTime,cur=jHzAt(plan,fromT).hz;[[MED.right&&MED.right.frequency,carrier],[MED.lfo&&MED.lfo.frequency,0]].forEach(function(pp){var p=pp[0],base=pp[1];if(!p)return;p.cancelScheduledValues(now);p.setValueAtTime(base+cur,now);plan.forEach(function(s){if(s.t1>fromT)p.linearRampToValueAtTime(base+s.h1,t0+s.t1);});});}
   function jBrStop(){brCueKill();if(jBrRAF)cancelAnimationFrame(jBrRAF);jBrRAF=null;if(jBrG){try{var a=ac(),n=a.currentTime;jBrG.g.gain.setTargetAtTime(0,n,0.3);jBrG.o.forEach(function(o){o.stop(n+1.5);});}catch(e){}jBrG=null;}}
@@ -12041,7 +12066,7 @@ function renderJourney(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(to
       if(jBrG&&k!==lastPh){lastPh=k;try{jBrG.g.gain.setTargetAtTime(paused?0.0001:(cue==="In"?0.05:cue==="Out"?0.008:(sc>0.8?0.05:0.008)),a.currentTime,P.phases[k][1]/3);}catch(e){}}
       jBrRAF=requestAnimationFrame(loop);})();}
   function begin(){BIO.t0=Date.now();try{var _jj=JOURNEYS.find(function(x){return x.id===jType;});window.SR_SUB=_jj?_jj.name:null;}catch(e){}try{tgtReset();}catch(e){}plan=jPlanFor(jType,jLen,jDepth);var h0=plan[0].h0;medBinaural(h0,carrier,vol,shimmer);window.MJK_FOCUS=(jType==="focus");if(jType==="focus"){var JJ=JOURNEYS.find(function(j){return j.id==="focus";}),op=JJ.opener(jLen);fsReset("focus",Date.now()+op*1000);if(jBr==="off"){jBr="coherent";jBrAuto=true;}clearTimeout(jOpT);jOpT=setTimeout(function(){if(jBrAuto&&playing){jBrAuto=false;jBr="off";jBrStop();draw();}},op*1000);}var a=ac();t0=a.currentTime;jSched(0);
-    medBodyWave(body,vol);if(jMel!=="off")medMelStart(jMel,jMelV,jMelL,carrier);if(MEDOCEAN.on)medOceanStart();if(plan.layers)medLayersStart(ladderSpecs(carrier));else if(MEDLAYER.mode!=="off"){medLayersStart(layerSpecs(MEDLAYER.mode,carrier));(MED.layers||[]).forEach(function(L,i){medLayerLevel(i,true,3);});medLayersFollow(h0);}playing=true;paused=false;humPh="";lastMap=0;jEndFade();try{bgKeep(true,(opts.title||"Brainwave Journey").replace(/<[^>]*>/g,""));}catch(e){}draw();MED.timer=setInterval(tick,250);}
+    medBodyWave(body,vol);if(jMel!=="off")medMelStart(jMel,jMelV,jMelL,carrier);if(jPrg!=="off")medPrgStart(jPrg,jPrgV,jPrgL,carrier);if(MEDOCEAN.on)medOceanStart();if(plan.layers)medLayersStart(ladderSpecs(carrier));else if(MEDLAYER.mode!=="off"){medLayersStart(layerSpecs(MEDLAYER.mode,carrier));(MED.layers||[]).forEach(function(L,i){medLayerLevel(i,true,3);});medLayersFollow(h0);}playing=true;paused=false;humPh="";lastMap=0;jEndFade();try{bgKeep(true,(opts.title||"Brainwave Journey").replace(/<[^>]*>/g,""));}catch(e){}draw();MED.timer=setInterval(tick,250);}
   function jEndFade(){try{var a=ac(),end=t0+jLen*60;if(MED.gate&&end>a.currentTime){MED.gate.gain.cancelScheduledValues(a.currentTime);MED.gate.gain.setValueAtTime(MED.gate.gain.value,a.currentTime);MED.gate.gain.setTargetAtTime(0.0001,end,2.5);}}catch(e){}}
   window.__jSkip=function(s){t0-=s;if(playing&&!paused){jSched(ac().currentTime-t0);jEndFade();}};
   function pause(){if(!playing||paused)return;var a=ac();pausedAt=a.currentTime-t0;paused=true;if(MED.timer){clearInterval(MED.timer);MED.timer=null;}
@@ -12328,7 +12353,7 @@ function renderRhythmMind(fromRhythm){if(toneRAF)cancelAnimationFrame(toneRAF);m
   draw();
 }
 function renderMedSession(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  let mins=10,running=false,raf=null,startT=0,intention=load(mk("med","intention"),""),bellEvery=0;
+  let mins=10,running=false,raf=null,startT=0,intention=load(mk("med","intention"),""),bellEvery=0,msPrg=load("mjk-msprg","off"),msPrgV=load("mjk-msprgv","pad");
   teardown=()=>{running=false;if(raf)cancelAnimationFrame(raf);medStop();};
   function draw(){
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🕯️ Meditation Session</span></div><div class="panel">'+
@@ -12336,6 +12361,9 @@ function renderMedSession(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();h
       '<div class="rrow2"><span class="rlab">Intention</span><input id="msInt" placeholder="e.g. let go, be present, heal" value="'+esc(intention)+'" style="flex:1;background:rgba(255,255,255,.06);color:inherit;border:1px solid var(--line);border-radius:8px;padding:8px"></div>'+
       '<div class="rrow2"><span class="rlab">Length</span><span class="rchips tight" id="msMins"></span></div>'+
       '<div class="rrow2"><span class="rlab">Interval bell</span><span class="rchips tight" id="msBell"></span></div>'+
+      '<div class="rrow2"><span class="rlab">Chords</span><span class="rchips tight" id="msPrgs"><button class="rchip sm'+(msPrg==="off"?" sel":"")+'" data-prg="off">Off</button>'+MED_PROGS.map(function(m){return '<button class="rchip sm'+(msPrg===m.id?" sel":"")+'" data-prg="'+m.id+'">'+m.ic+' '+m.name+'</button>';}).join("")+'</span></div>'+
+      (msPrg!=="off"?'<div class="rrow2"><span class="rlab">Chord sound</span><span class="rchips tight" id="msPrgVs">'+MEL_VOICES.map(function(v2){return '<button class="rchip sm'+(msPrgV===v2[0]?" sel":"")+'" data-pv="'+v2[0]+'">'+v2[1]+'</button>';}).join("")+'</span></div>'+
+      '<div class="site-note" style="margin:0 0 4px;font-size:.78rem">Slow chords in the key of the ground tone \u2014 one every 20\u201330 seconds.</div>':'')+
       '<div style="text-align:center;margin:20px 0"><div class="rbpm" id="msTime" style="font-size:2.4rem">'+mins+':00</div><div class="site-note" id="msIntShow"></div></div>'+
       '<div class="actions"><button class="btn" id="msStart">'+(running?"■ End":"▶ Begin")+'</button></div>'+
       '<div class="site-note">Headphones or a quiet room. The ground tone is tuned to the Earth&rsquo;s 7.83 Hz, octaved up so you can feel it.</div></div>';
@@ -12343,6 +12371,8 @@ function renderMedSession(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();h
     const mc=$("#msMins");[3,5,10,15,20].forEach(m=>{const b=document.createElement("button");b.className="rchip sm"+(m===mins?" sel":"");b.textContent=m+" min";b.onclick=()=>{if(running)return;mins=m;$("#msTime").textContent=m+":00";draw();};mc.appendChild(b);});
     const bc=$("#msBell");[["Off",0],["Every 2m",2],["Every 5m",5]].forEach(([lbl,v])=>{const b=document.createElement("button");b.className="rchip sm"+(v===bellEvery?" sel":"");b.textContent=lbl;b.onclick=()=>{if(running)return;bellEvery=v;draw();};bc.appendChild(b);});
     const ii=$("#msInt");if(ii)ii.onchange=()=>{intention=ii.value;save(mk("med","intention"),intention);};
+    view.querySelectorAll("#msPrgs [data-prg]").forEach(function(b){b.onclick=function(){msPrg=b.dataset.prg;save("mjk-msprg",msPrg);if(running&&MED.master){if(msPrg==="off")medPrgStop();else medPrgStart(msPrg,msPrgV,0.5,7.83*32);}draw();};});
+    view.querySelectorAll("#msPrgVs [data-pv]").forEach(function(b){b.onclick=function(){msPrgV=b.dataset.pv;save("mjk-msprgv",msPrgV);if(running&&MED.master&&msPrg!=="off")medPrgStart(msPrg,msPrgV,0.5,7.83*32);draw();};});
     $("#msIntShow").textContent=intention?("“"+intention+"”"):"";
     $("#msStart").onclick=()=>{if(running)endS();else startS();};
   }
@@ -12350,7 +12380,7 @@ function renderMedSession(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();h
     const master=a.createGain();master.gain.value=0.0001;master.connect(a.destination);master.gain.setTargetAtTime(0.42,a.currentTime,1.2);const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=1200;lp.connect(master);const oscs=[];
     [7.83*32,7.83*48].forEach((f,i)=>{const o=a.createOscillator();o.type="sine";o.frequency.value=f;const g=a.createGain();g.gain.value=i?0.03:0.06;o.connect(g);g.connect(lp);o.start();oscs.push(o);});
     const po=a.createOscillator();po.type="sine";po.frequency.value=7.83*32;const pg=a.createGain();pg.gain.value=0.04;const lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=7.83;const lg=a.createGain();lg.gain.value=0.04;lfo.connect(lg);lg.connect(pg.gain);lfo.start();oscs.push(lfo);po.connect(pg);pg.connect(lp);po.start();oscs.push(po);
-    MED.master=master;MED.oscs=oscs;efBell(a,master,a.currentTime+0.2,528,2.2);
+    MED.master=master;MED.oscs=oscs;if(msPrg!=="off")medPrgStart(msPrg,msPrgV,0.5,7.83*32);efBell(a,master,a.currentTime+0.2,528,2.2);
     $("#msStart").textContent="■ End";loopS();}
   function endS(){running=false;medWake(false);if(raf)cancelAnimationFrame(raf);const a=ac();efBell(a,pianoMaster(a),a.currentTime,396,2.6);medStop();const b=$("#msStart");if(b)b.textContent="▶ Begin";}
   let lastBell=0;
