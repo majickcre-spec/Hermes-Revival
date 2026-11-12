@@ -10538,6 +10538,23 @@ function bcMirror(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);if(!f)r
     g.strokeStyle=al?"#f4b740":"rgba(255,255,255,.55)";g.lineWidth=al?2.5:1.2;g.shadowColor=al?"#f4b740":"transparent";g.shadowBlur=al?10:0;
     g.beginPath();g.moveTo(x+36,yy);g.lineTo(x+w-8,yy);g.stroke();g.shadowBlur=0;g.lineWidth=1;
     g.fillStyle=al?"#f4b740":"#ECEDEF";g.font="800 11px system-ui";g.textAlign="right";g.fillText((al?"α sync ":"sync ")+fz.toFixed(1)+" Hz · "+Math.round(c*100)+"%",x+w-10,yy-5);});
+  /* harmonic structure: octave (2:1), twelfth (3:1) and golden-ratio (φ) relations between sync peaks */
+  var hp=(f.pk||[]).filter(function(p){return p[1]>=0.5&&p[0]>=1&&p[0]<=45;}).sort(function(a,b){return a[0]-b[0];}),rel=[];
+  for(var i3=0;i3<hp.length;i3++)for(var j3=i3+1;j3<hp.length;j3++){var rr2=hp[j3][0]/hp[i3][0];
+    if(Math.abs(rr2-2)<=0.08)rel.push([hp[i3][0],hp[j3][0],"2:1 OCTAVE","#f4b740"]);
+    else if(Math.abs(rr2-1.618)<=0.06)rel.push([hp[i3][0],hp[j3][0],"φ 1.618","#ff7ad9"]);
+    else if(Math.abs(rr2-3)<=0.1)rel.push([hp[i3][0],hp[j3][0],"3:1","#8bd45a"]);}
+  rel.slice(0,4).forEach(function(q,qi){var ya=bcY(q[0],y,h),yb2=bcY(q[1],y,h),bx=x+46+qi*13;
+    g.strokeStyle=q[3];g.lineWidth=2;g.globalAlpha=0.9;
+    g.beginPath();g.moveTo(bx+6,ya);g.quadraticCurveTo(bx-8,(ya+yb2)/2,bx+6,yb2);g.stroke();
+    g.beginPath();g.moveTo(bx+6,ya);g.lineTo(bx+11,ya);g.moveTo(bx+6,yb2);g.lineTo(bx+11,yb2);g.stroke();g.globalAlpha=1;
+    g.save();g.translate(bx-10,(ya+yb2)/2);g.rotate(-Math.PI/2);g.fillStyle=q[3];g.font="800 10px system-ui";g.textAlign="center";g.fillText(q[2],0,0);g.restore();});
+  /* octave & φ ladder off the strongest sync peak f₀ */
+  if(hp.length){var p0=hp.slice().sort(function(a,b){return b[1]-a[1];})[0],f0=p0[0],yy0=bcY(f0,y,h);
+    [[f0*2,"2f₀","#f4b740"],[f0/2,"f₀/2","#f4b740"],[f0*1.618,"φf₀","#ff7ad9"],[f0/1.618,"f₀/φ","#ff7ad9"]].forEach(function(L2){var fz3=L2[0];if(fz3<1.2||fz3>44)return;var yy2=bcY(fz3,y,h);
+      g.setLineDash([2,4]);g.strokeStyle=L2[2];g.globalAlpha=0.55;g.beginPath();g.moveTo(cx-44,yy2);g.lineTo(cx+44,yy2);g.stroke();g.setLineDash([]);g.globalAlpha=0.95;
+      g.fillStyle=L2[2];g.font="700 9px ui-monospace,monospace";g.textAlign="center";g.fillText(L2[1]+" "+fz3.toFixed(1),cx,yy2-3);g.globalAlpha=1;});
+    g.fillStyle="#ECEDEF";g.font="800 9px ui-monospace,monospace";g.textAlign="center";g.fillText("f₀ "+f0.toFixed(1)+" Hz",cx,yy0-3);}
   g.fillStyle="rgba(155,161,172,.5)";g.font="700 8.5px ui-monospace,monospace";g.textAlign="left";g.fillText("fs 256 Hz · Δf 0.5 Hz · bar = relative power (auto-ranged)",x+40,y+h-6);}
 /* view 2: flow — time runs left→right, color is power, gold dots are sync peaks */
 function bcFlowCol(fg,f,x0,cw,hgt){for(var k=2;k<=90;k++){var fz=k/2,v=0,n=0;if(f.L){v+=f.L[k];n++;}if(f.R){v+=f.R[k];n++;}if(!n)continue;v=bcV(v/n);
@@ -10555,17 +10572,21 @@ function bcFlow(g,x,y,w,h,f){var cw=4;
   [5,10,20,30,40].forEach(function(fz){var yy=bcY(fz,y,h);g.fillStyle="rgba(255,255,255,.5)";g.font="700 10px system-ui";g.textAlign="right";g.fillText(fz+" Hz",x+w-6,yy+3);g.strokeStyle="rgba(255,255,255,.06)";g.beginPath();g.moveTo(x,yy);g.lineTo(x+w,yy);g.stroke();});
   g.fillStyle="#9BA1AC";g.font="800 10px system-ui";g.textAlign="left";g.fillText("now →",x+w-52,y+h-6);g.fillText("gold dots = hemi-sync · gold band = alpha",x+6,y+h-6);}
 /* view 3: ridge — the last ~40 spectra as a mountain range receding into the distance */
-function bcRidge(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);var H2=BC.hist.slice(-40);if(!H2.length)return bcNoData(g,x,y,w,h);
+function bcRidge(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);var H2=BC.hist.slice(-40);if(!H2.length)return bcNoData(g,x,y,w,h);h=bcResv(h);
   var rows=H2.length;
   for(var i=0;i<rows;i++){var fr=H2[i],depth=(i+1)/rows,yb=y+h*0.16+depth*(h*0.76),x0=x+20+(1-depth)*w*0.09,ww=(w-40)-(1-depth)*w*0.18,amp=h*0.42*(0.3+0.7*depth);
     if(!fr.L&&!fr.R)continue;
     var pts=[];for(var k=2;k<=90;k++){var v=0,n=0;if(fr.L){v+=fr.L[k];n++;}if(fr.R){v+=fr.R[k];n++;}v=n?bcV(v/n):0;pts.push([x0+(k-2)/88*ww,yb-v*amp]);}
     g.beginPath();g.moveTo(x0,yb);pts.forEach(function(p){g.lineTo(p[0],p[1]);});g.lineTo(x0+ww,yb);g.closePath();
     g.fillStyle="rgba(14,15,19,0.96)";g.fill();
-    g.beginPath();pts.forEach(function(p,j){j?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]);});
-    g.strokeStyle=i===rows-1?"#ECEDEF":"rgba(59,217,186,"+(0.1+0.55*depth)+")";g.lineWidth=i===rows-1?2:1;g.stroke();
+    var last=i===rows-1,al2=last?1:0.12+0.55*depth;g.lineWidth=last?2:1;g.globalAlpha=al2;
+    for(var j2=1;j2<pts.length;j2++){g.strokeStyle=bcCol((j2+2)/2);g.beginPath();g.moveTo(pts[j2-1][0],pts[j2-1][1]);g.lineTo(pts[j2][0],pts[j2][1]);g.stroke();}
+    g.globalAlpha=1;
     if(i===rows-1&&fr.pk)fr.pk.forEach(function(p){if(p[1]<0.6)return;var px=x0+(p[0]*2-2)/88*ww;g.fillStyle=p[0]>=8&&p[0]<13?"#f4b740":"#ECEDEF";g.beginPath();g.arc(px,yb+8,3,0,7);g.fill();});}
-  BC_BANDS.forEach(function(b){var px=x+20+((b[0]+b[1])/2*2-2)/88*(w-40);g.fillStyle=b[2];g.font="800 11px system-ui";g.textAlign="center";g.fillText(b[3],px,y+h-6);});}
+  BC_BANDS.forEach(function(b){var c1=x+20+(b[1]*2-2)/88*(w-40),px=x+20+(((b[0]+b[1])/2)*2-2)/88*(w-40);
+    if(b[1]<45){g.setLineDash([2,5]);g.strokeStyle="rgba(255,255,255,.1)";g.beginPath();g.moveTo(c1,y+h*0.12);g.lineTo(c1,y+h-26);g.stroke();g.setLineDash([]);}
+    g.fillStyle=b[2];g.font="900 14px system-ui";g.textAlign="center";g.fillText(b[4],px,y+h-14);
+    g.font="700 8.5px ui-monospace,monospace";g.fillText(b[0]+"–"+b[1]+" Hz",px,y+h-3);});}
 function bcT(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
 function bcSeries(){if(BC.src==="rec"){var R=BC.rec;if(!R||!R.tl||!R.tl.t||!R.tl.t.length)return null;var f=R.frames[BC.ri];return {S:R.tl,cur:f?f.t:0,coPct:true};}
   var L=BIO.log;if(L.length<2)return null;var t0=L[0].t;
@@ -10898,12 +10919,16 @@ function renderBrainCharts(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
   var recs=srIdx().filter(function(e){return (e.eegBlocks||0)>0||(e.sens&&e.sens.hr);}).sort(function(a,b){return b.at-a.at;}).slice(0,12);
   var isRec=BC.src==="rec",H=Math.max(420,window.innerHeight-64);
   var chip=function(sel,attr,txt){return '<button class="rchip sm'+(sel?" sel":"")+'" '+attr+' style="backdrop-filter:blur(6px)">'+txt+'</button>';};
+  var VLIST=[["monitor","🫀 Monitor"],["head","🧠 Head"],["mirror","🪞 Mirror"],["flow","🌊 Flow"],["ridge","⛰ Ridge"],["pair","◫ Pair"],["vitals","💓 Vitals"],["waves","❤️ Waves"],["xo","🔀 LF·HF"],["beat","📈 Rhythm"]];
+  var fold=load(mk("bc","fold"),false),curV=VLIST.filter(function(v){return v[0]===BC.view;})[0];
   view.innerHTML='<div id="bcWrap" style="position:relative;height:'+H+'px;border-radius:14px;overflow:hidden;background:#0E0F13">'
    +'<canvas id="bcCv" style="position:absolute;inset:0;width:100%;height:100%;display:block"></canvas>'
    +'<div id="bcTop" style="position:absolute;left:0;right:0;top:0;padding:8px 8px 18px;display:flex;gap:5px;align-items:center;flex-wrap:wrap;background:linear-gradient(rgba(10,11,14,.88),rgba(10,11,14,.5) 60%,transparent);transition:opacity .35s">'
     +'<button class="rchip sm" id="eBack" aria-label="Back">←</button>'
-    +[["monitor","🫀 Monitor"],["head","🧠 Head"],["mirror","🪞 Mirror"],["flow","🌊 Flow"],["ridge","⛰ Ridge"],["pair","◫ Pair"],["vitals","💓 Vitals"],["waves","❤️ Waves"],["xo","🔀 LF·HF"],["beat","📈 Rhythm"]].map(function(v){return chip(BC.view===v[0],'data-bcv="'+v[0]+'"',v[1]);}).join("")
-    +chip(!isRec,'data-bcs="live"',"● Live")+chip(isRec,'data-bcs="rec"',"📼")
+    +(fold?chip(true,'id="bcFold"',(curV?curV[1]:BC.view)+" ▾")
+      :VLIST.map(function(v){return chip(BC.view===v[0],'data-bcv="'+v[0]+'"',v[1]);}).join("")
+       +chip(!isRec,'data-bcs="live"',"● Live")+chip(isRec,'data-bcs="rec"',"📼")
+       +chip(false,'id="bcFold"',"▴"))
     +'<span id="bcMuse" style="margin-left:auto;font:700 .72rem system-ui;color:'+(M.connected?"#5fe0a8":"#9BA1AC")+'">'+(M.connected?"Muse live":(isRec?"":"Muse off"))+'</span></div>'
    +'<div id="bcBot" style="position:absolute;left:0;right:0;bottom:0;padding:26px 10px 10px;background:linear-gradient(transparent,rgba(10,11,14,.6) 20%,rgba(10,11,14,.92));transition:opacity .35s;'+(isRec?"":"display:none")+'">'
     +'<canvas id="bcMk" style="display:block;width:100%;height:14px;border-radius:4px;background:rgba(255,255,255,.05)"></canvas>'
@@ -10917,6 +10942,7 @@ function renderBrainCharts(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
     +'<div style="display:flex;gap:8px;align-items:center;margin:4px 0 0"><div id="bcLoad" class="site-note" style="margin:0;font-size:.72rem;flex:1">'+(BC.load||(BC.rec?BC.rec.label:"Pick a session:"))+'</div><button class="rchip sm" id="bcFullMon" style="flex:none'+(BC.rec?'':';display:none')+'">🫀 Full monitor</button></div>'
     +'<div id="bcRecs" class="rchips tight" data-nocz style="margin-top:4px;display:flex;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px">'+(recs.length?recs.map(function(e){return '<button class="rchip sm" data-bcr="'+e.at+'" style="flex:none">'+((e.eegBlocks||0)>0?"🧠 ":"❤️ ")+esc((e.label||"Session").slice(0,24))+'</button>';}).join(""):'<span class="site-note" style="margin:0;white-space:nowrap">No recorded sessions yet — do any meditation with the HeartMath or Muse connected.</span>')+'</div></div></div>';
   $("#eBack").onclick=goHome;
+  var fb=document.getElementById("bcFold");if(fb)fb.onclick=function(){save(mk("bc","fold"),!fold);renderBrainCharts();};
   var top=document.getElementById("bcTop"),bot=document.getElementById("bcBot");
   var dim=function(){var d=BC.playing&&isRec;if(top)top.style.opacity=d?0.15:1;if(bot)bot.style.opacity=d?0.25:1;};
   view.querySelectorAll("[data-bcv]").forEach(function(b){b.onclick=function(){BC.view=b.dataset.bcv;BC.fl=null;BC.lastFlow=null;try{save(mk("bc","view"),BC.view);}catch(e){}renderBrainCharts();};});
