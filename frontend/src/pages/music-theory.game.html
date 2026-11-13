@@ -13296,7 +13296,7 @@ function sensPanelOpen(o){SENS.open=o;const p=document.getElementById("sensPanel
   p.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><b style="font-size:1.05rem">🫀 Body readings</b><button class="mbtn" id="sensX" style="flex:none;width:36px;height:36px;padding:0;border-radius:50%">✕</button></div>'+
     fullPageNote()+'<div class="srow"><button class="mbtn" id="sensHRb"></button><button class="mbtn" id="sensMb"></button></div><div id="sensMsg" class="snote"></div>'+
     '<div id="sensLive"></div>'+
-    '<div class="srow"><button class="mbtn" id="sensGo">📊 My sessions</button><button class="mbtn" id="sensIns">📈 What works</button></div>'+
+    '<div class="srow"><button class="mbtn" id="sensRead">\ud83d\udcd6 Read my last 10 min</button></div><div class="srow"><button class="mbtn" id="sensGo">📊 My sessions</button><button class="mbtn" id="sensIns">📈 What works</button></div>'+
     '<details style="margin-top:6px"><summary class="snote" style="cursor:pointer;list-style:none">⚙︎ Tags, recording and connection help ▾</summary><div id="sensTags" style="margin:8px 0"></div>'+
     '<div class="srow"><button class="mbtn" id="sensRec"></button></div>'+
     '<label class="snote" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="sensAuto"'+(load("mjk-sens-auto",true)?" checked":"")+'> record automatically when a sensor connects</label>'+
@@ -13309,6 +13309,7 @@ function sensPanelOpen(o){SENS.open=o;const p=document.getElementById("sensPanel
   document.getElementById("sensMall").onclick=async()=>{if(M.connected)return;if(!bioBT()){msg("<b>This browser can’t use Bluetooth.</b> Use the <b>Bluefy</b> app on iPhone.");return;}const st=document.getElementById("sensMsg");try{await museConnect(st,true);msg("🧠 Muse connected — sit still a moment while it settles.");}catch(e){const r=String((e&&(e.message||e.name))||e||"");try{if(M.gatt&&M.gatt.connected)M.gatt.disconnect();}catch(_){}msg(/fe8d|service|not found|No Services/i.test(r)?"That device isn’t a Muse (or the Muse didn’t answer): <i>"+esc(r)+"</i>":"Couldn’t connect: <i>"+esc(r)+"</i>");}sensEnsureTimer();bioStart();sensUI();};
   document.getElementById("sensRec").onclick=()=>{if(SENS.rec)sensSave(true);else{if(!HR.connected&&!M.connected){msg("Connect a sensor first.");return;}sensBegin();}};
   document.getElementById("sensGo").onclick=()=>{sensPanelOpen(false);try{if(typeof teardown==="function")teardown();}catch(e){}teardown=null;renderSensSessions();};
+  document.getElementById("sensRead").onclick=()=>{var D=(SENS.data||[]).slice(-600);if(D.length<120){msg("Give it a couple of minutes with a sensor connected, then tap again.");return;}sensPanelOpen(false);try{if(typeof teardown==="function")teardown();}catch(e){}teardown=null;renderBioRead(D.map(function(p){return Object.assign({},p,{t:p.t-D[0].t});}),"The last "+Math.round(D.length/60)+" minutes",null);};
   document.getElementById("sensAuto").onchange=e=>save("mjk-sens-auto",e.target.checked);
   document.getElementById("sensIns").onclick=()=>{sensPanelOpen(false);try{if(typeof teardown==="function")teardown();}catch(e){}teardown=null;renderInsights();};sensTagsUI();
   sensUI();try{brainLayout();}catch(e){}}
@@ -13469,6 +13470,74 @@ function sensTagsUI(){var el=document.getElementById("sensTags");if(!el)return;v
 function insKey(act){var p=String(act||"App").split(" · ");return p.slice(0,p[0]==="Brainwave Journey"||p.length>2?2:p.length>1?2:1).join(" · ");}
 function insShift(a,b){var av=function(arr,k){var v=arr.map(function(p){return p[k];}).filter(function(x){return x!=null&&x>0;});return v.length?v.reduce(function(x,y){return x+y;},0)/v.length:null;};
   var h0=av(a,"hr"),h1=av(b,"hr"),v0=av(a,"hrv"),v1=av(b,"hrv");if(h0==null||h1==null||v0==null||v1==null)return null;return Math.max(-100,Math.min(100,50*Math.log(v1/v0)/0.7+50*(h0-h1)/15));}
+/* ===== \ud83d\udcd6 SESSION READ \u2014 what the heart, brain and their sync were doing, in plain words ===== */
+function brAvg(a){return a.length?a.reduce(function(x,y){return x+y;},0)/a.length:null;}
+function brGet(D,k){return D.map(function(p){return p[k];}).filter(function(x){return x!=null&&x>0;});}
+function brPearson(xs,ys){var n=xs.length;if(n<5)return null;var mx=brAvg(xs),my=brAvg(ys),sx=0,sy=0,sxy=0;for(var i=0;i<n;i++){var a=xs[i]-mx,b=ys[i]-my;sx+=a*a;sy+=b*b;sxy+=a*b;}if(sx<=0||sy<=0)return null;return sxy/Math.sqrt(sx*sy);}
+function brMinutes(D){var G={};D.forEach(function(p){var m=Math.floor(p.t/60);(G[m]=G[m]||[]).push(p);});
+  return Object.keys(G).map(function(m){var seg=G[m];function a(k){return brAvg(brGet(seg,k));}var acts={};seg.forEach(function(p){var k=(p.act||"").split(" \u00b7 ")[0];acts[k]=(acts[k]||0)+1;});
+    var act=Object.keys(acts).sort(function(x,y){return acts[y]-acts[x];})[0]||"";
+    return {m:+m,hr:a("hr"),hrv:a("hrv"),co:a("co"),al:a("al"),th:a("th"),be:a("be"),hs:a("hs"),act:act};}).sort(function(a,b){return a.m-b.m;});}
+function brBest(mins,score){var bi=null,bv=-1e9;mins.forEach(function(x){var v=score(x);if(v!=null&&v>bv){bv=v;bi=x;}});return bi;}
+function brTrend(a,b,eps,up,down,flat){if(a==null||b==null)return flat;var d=b-a;return d>eps?up:(d<-eps?down:flat);}
+function brCorrWord(r){var s=Math.abs(r);if(s>=0.6)return r>0?"moved strongly together":"pulled strongly in opposite directions";if(s>=0.35)return r>0?"tended to move together":"tended to move apart";return "didn\u2019t show a clear link this time";}
+function brCoPct(c){return c==null?null:Math.round(c/(1+c)*100);}
+function renderBioRead(D,title,backFn){home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){};
+  D=(D||[]).filter(function(p){return p&&p.t!=null;});
+  var mins=brMinutes(D),T=D.length?D[D.length-1].t:0;
+  function a(k){return brAvg(brGet(D,k));}
+  function pa(arr,k){return brAvg(arr.map(function(x){return x[k];}).filter(function(v){return v!=null;}));}
+  function mAct(x){return x&&x.act?x.act:"";}
+  var n3=Math.max(1,Math.floor(mins.length/3)),first=mins.slice(0,n3),last=mins.slice(-n3);
+  var out=[];
+  var hr=a("hr"),hrv=a("hrv"),co=a("co"),al=a("al"),th=a("th"),be=a("be"),hs=a("hs");
+  if(hr!=null||hrv!=null){var s1="";
+    if(hr!=null){var hr0=pa(first,"hr"),hr1=pa(last,"hr");
+      s1+="Your heart averaged <b>"+Math.round(hr)+" bpm</b>, "+brTrend(hr0,hr1,2.5,"rising from ~"+Math.round(hr0||hr)+" to ~"+Math.round(hr1||hr)+" \u2014 more alert or working harder","easing from ~"+Math.round(hr0||hr)+" down to ~"+Math.round(hr1||hr)+" \u2014 the settling direction","holding steady")+". ";}
+    if(hrv!=null){var hv0=pa(first,"hrv"),hv1=pa(last,"hrv"),base=sensList().map(function(x){return x.hrv;}).filter(function(x){return x!=null&&x>0;}),usual=brAvg(base);
+      s1+="HRV sat around <b>"+Math.round(hrv)+" ms</b>"+(usual&&base.length>=3?(hrv>usual*1.08?" \u2014 above":hrv<usual*0.92?" \u2014 below":" \u2014 right at")+" your usual "+Math.round(usual)+" ms (your average over "+base.length+" recorded sessions)":"")+". ";
+      s1+=brTrend(hv0,hv1,3,"It climbed as the session went on \u2014 you relaxed into it.","It faded toward the end \u2014 effort or focus starting to cost.","It held steady throughout.");}
+    out.push(["\u2764\ufe0f Your heart",s1]);}
+  if(co!=null){var coMins=mins.filter(function(x){return x.co!=null;}),hiCo=coMins.filter(function(x){return x.co>=1;}),bc=brBest(mins,function(x){return x.co;});
+    out.push(["\ud83c\udf0a Coherence","Your heart rhythm was in coherence \u2014 smooth, breath-shaped waves, the \u201cflow\u201d groove \u2014 about <b>"+Math.round(100*hiCo.length/Math.max(1,coMins.length))+"%</b> of the time (average depth "+brCoPct(co)+"%)."+(bc&&bc.co!=null?" Deepest stretch around <b>"+sensFmt(bc.m*60)+"</b>"+(mAct(bc)?" \u2014 during <b>"+esc(mAct(bc))+"</b>":"")+".":"")]);}
+  if(al!=null){var al0=pa(first,"al"),al1=pa(last,"al"),be0=pa(first,"be"),be1=pa(last,"be"),ba=brBest(mins,function(x){return x.al;});
+    var s2="Alpha (calm, open attention) averaged <b>"+Math.round(al)+"%</b>"+brTrend(al0,al1,3," and grew through the session \u2014 your brain settled into the calm band"," and faded late \u2014 attention tightening back up",", steady throughout")+".";
+    if(ba&&ba.al!=null)s2+=" Deepest alpha minute: <b>"+sensFmt(ba.m*60)+"</b> ("+Math.round(ba.al)+"%)"+(mAct(ba)?" during <b>"+esc(mAct(ba))+"</b>":"")+".";
+    if(be!=null&&be0!=null&&be1!=null)s2+=" Beta (busy, thinking mind) went "+Math.round(be0)+"% \u2192 "+Math.round(be1)+"% \u2014 "+brTrend(be0,be1,3,"the chatter picked up","the chatter quieted","level chatter")+".";
+    out.push(["\ud83e\udde0 Your brain",s2]);}
+  var s3="";
+  if(hs!=null){var bh=brBest(mins,function(x){return x.hs;});
+    s3+="Your left and right hemispheres\u2019 alpha rhythms ran in sync <b>"+Math.round(hs)+"%</b> on average"+(hs>=60?" \u2014 strongly locked together.":hs>=40?" \u2014 moderately linked.":" \u2014 mostly doing their own thing this time.");
+    if(bh&&bh.hs!=null)s3+=" Best hemi-sync: <b>"+sensFmt(bh.m*60)+"</b> ("+Math.round(bh.hs)+"%)"+(mAct(bh)?" during <b>"+esc(mAct(bh))+"</b>":"")+".";}
+  if(al!=null&&th!=null&&th>0){var phi=al/th;
+    s3+=" Your \u03b1:\u03b8 power balance averaged <b>"+phi.toFixed(2)+"</b>"+(Math.abs(phi-1.618)<=0.18?" \u2014 right at the golden ratio (\u03c6 \u2248 1.618), the balance the Mirror view brackets.":phi>1.618?" \u2014 above the \u03c6 balance point: more alert than dreamy.":" \u2014 below the \u03c6 balance point: more dreamy than alert.");
+    s3+=" In frequency, \u03b1 (\u224810 Hz) already sings an octave above \u03b8 (\u22485 Hz) \u2014 minutes where both run strong are that octave stack lighting up.";}
+  if(s3)out.push(["\ud83e\ude9e Hemispheres & harmony",s3]);
+  if(al!=null&&(co!=null||hrv!=null)){
+    function pairs(k1,k2){var xs=[],ys=[];mins.forEach(function(x){if(x[k1]!=null&&x[k2]!=null){xs.push(x[k1]);ys.push(x[k2]);}});return brPearson(xs,ys);}
+    var r1=pairs("co","al"),r2=pairs("hrv","al"),r3=pairs("hr","be"),s5=[];
+    if(r1!=null)s5.push("Heart coherence and alpha "+brCorrWord(r1)+".");
+    if(r2!=null)s5.push("HRV and alpha "+brCorrWord(r2)+".");
+    if(r3!=null)s5.push("Heart rate and busy-mind beta "+brCorrWord(r3)+".");
+    var bb=brBest(mins,function(x){var v=0,n=0;if(x.hrv!=null&&hrv){v+=x.hrv/hrv;n++;}if(x.co!=null&&co){v+=x.co/Math.max(0.2,co);n++;}if(x.al!=null&&al){v+=x.al/al;n++;}if(x.hs!=null){v+=x.hs/60;n++;}return n>=2?v/n:null;});
+    if(bb)s5.push("Your most <b>together</b> minute \u2014 heart and brain calm at once \u2014 was <b>"+sensFmt(bb.m*60)+"</b>"+(mAct(bb)?", during <b>"+esc(mAct(bb))+"</b>":"")+".");
+    if(s5.length)out.push(["\ud83d\udd17 Heart \u2194 brain",s5.join(" ")]);}
+  var acts={};mins.forEach(function(x){var k=mAct(x);if(!k||k==="Home"||k==="App")return;(acts[k]=acts[k]||[]).push(x);});
+  var ar=Object.keys(acts).filter(function(k){return acts[k].length>=2;}).map(function(k){return {k:k,hrv:pa(acts[k],"hrv"),co:pa(acts[k],"co")};});
+  var byH=ar.filter(function(r){return r.hrv!=null;}).sort(function(a,b){return b.hrv-a.hrv;});
+  if(byH.length>=2)out.push(["\ud83c\udfc6 What helped most here","Within this window, HRV ran highest during <b>"+esc(byH[0].k)+"</b> ("+Math.round(byH[0].hrv)+" ms) and lowest during <b>"+esc(byH[byH.length-1].k)+"</b> ("+Math.round(byH[byH.length-1].hrv)+" ms)."]);
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack">\u2190</button><span class="ttitle">\ud83d\udcd6 Session read</span></div>'+
+    '<div class="panel"><div class="intro"><b>'+esc(title||"Session")+'</b> \u00b7 '+sensFmt(T)+(mins.length<5?'<div class="site-note">Short window \u2014 the story sharpens with a few more minutes of data.</div>':'')+'</div></div>'+
+    (out.length?out.map(function(sec){return '<div class="panel"><div class="rlab" style="display:block;margin-bottom:6px">'+sec[0]+'</div><div style="font-size:.95rem;line-height:1.55">'+sec[1]+'</div></div>';}).join(""):'<div class="panel"><div class="site-note">Not enough sensor data in this window \u2014 connect the heart strap or Muse and give it a few minutes, then come back.</div></div>')+
+    '<div class="panel"><details><summary style="cursor:pointer;font-weight:800">\ud83d\udcd6 How to read these numbers \u25be</summary><div class="site-note" style="line-height:1.6;margin-top:8px">'+
+    '<b>HRV (ms)</b> \u2014 the variety between heartbeats. Higher usually means your nervous system is relaxed and adaptable.<br>'+
+    '<b>Coherence</b> \u2014 your heartbeat rising and falling in smooth waves, usually with the breath. More time in it = deeper flow.<br>'+
+    '<b>\u03b1 / \u03b8 / \u03b2</b> \u2014 brainwave shares: \u03b1 calm &amp; open, \u03b8 dreamy &amp; deep, \u03b2 busy &amp; thinking.<br>'+
+    '<b>Hemi-sync</b> \u2014 how much the left and right hemispheres\u2019 alpha rhythms lock together (Muse, ear to ear).<br>'+
+    '<b>\u03c6 &amp; octaves</b> \u2014 \u03b1:\u03b8 near 1.618 is the golden-ratio balance; an octave is one rhythm doubling another, like \u03b1 over \u03b8.</div></details>'+
+    '<div class="actions" style="margin-top:10px"><button class="btn" id="brIns" style="width:100%">\ud83d\udcc8 Which activities work best for you \u2014 all sessions</button></div></div>';
+  $("#eBack").onclick=backFn||goHome;$("#brIns").onclick=renderInsights;
+}
 function renderInsights(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){};
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">📈 What works for you</span></div><div class="panel"><div class="site-note">Reading your sessions…</div></div>';$("#eBack").onclick=renderSensSessions;
   var L=sensList();Promise.all(L.map(function(s){return idbGet("sens-"+s.id).catch(function(){return null;});})).then(function(Ss){
@@ -13523,7 +13592,7 @@ function renderSensDetail(id){if(SENS.rec&&SENS.sid===id)sensSave(false);view.in
       ((calm||focus)?'<div class="idea-fb">'+(calm?'🌿 <b>Calmest minute</b> at '+sensFmt(calm.t)+' — '+esc(calm.act)+'<br>':'')+(focus&&has("be")?'🎯 <b>Most focused minute</b> at '+sensFmt(focus.t)+' — '+esc(focus.act):'')+'</div>':'')+
       '<div class="rlab" style="display:block;margin:12px 0 4px">By activity</div><div style="overflow-x:auto"><table class="senstab"><tr><th>Activity</th><th>min</th><th>HR</th><th>HRV</th><th>Coh</th>'+(has("al")?'<th>α</th><th>θ</th><th>β</th>':'')+'</tr>'+
       rows.map(r=>'<tr><td>'+esc(r.k)+'</td><td>'+(r.n/60).toFixed(1)+'</td><td>'+f(r.hr)+'</td><td>'+f(r.hrv)+'</td><td>'+(r.co!=null?r.co.toFixed(1):"—")+'</td>'+(has("al")?'<td>'+f(r.al,"%")+'</td><td>'+f(r.th,"%")+'</td><td>'+f(r.be,"%")+'</td>':'')+'</tr>').join("")+'</table></div>'+
-      '<div class="actions" style="margin:12px 0 2px"><button class="btn" id="sensWatch" style="width:100%">🎬 Watch this session as video</button></div>'+
+      '<div class="actions" style="margin:12px 0 2px"><button class="btn" id="sensRead2" style="width:100%">\ud83d\udcd6 Read this session in plain words</button></div><div class="actions" style="margin:8px 0 2px"><button class="btn ghost" id="sensWatch" style="width:100%">🎬 Watch this session as video</button></div>'+
       '<div class="actions ilacts"><button class="btn ghost" id="sensCsv">⬇ Download CSV</button><button class="btn ghost" id="sensDel">🗑 Delete</button></div>';
     const cv=document.getElementById("sensCv"),dpr=Math.min(2,window.devicePixelRatio||1),W=cv.clientWidth,H=260;cv.width=W*dpr;cv.height=H*dpr;const c=cv.getContext("2d");c.scale(dpr,dpr);
     const X=t=>8+(W-16)*t/T,strip=18,top1=strip+6,h1=has("al")?130:220,top2=top1+h1+8,h2=H-top2-6;
@@ -13535,6 +13604,7 @@ function renderSensDetail(id){if(SENS.rec&&SENS.sid===id)sensSave(false);view.in
     c.fillStyle="rgba(255,255,255,.5)";c.font="10px system-ui";c.fillText("0:00",8,H-2);c.fillText(sensFmt(T),W-34,H-2);
     document.getElementById("sensCsv").onclick=()=>{const head="seconds,activity,playing,heart_rate,hrv_rmssd_ms,coherence,alpha_pct,theta_pct,beta_pct\n",body=D.map(p=>[p.t,'"'+String(p.act||"").replace(/"/g,"'")+'"',p.pl||0,p.hr??"",p.hrv??"",p.co??"",p.al??"",p.th??"",p.be??""].join(",")).join("\n");
       const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([head+body],{type:"text/csv"}));a.download="mmu-sensors-"+new Date(S.start).toISOString().slice(0,16).replace(/[:T]/g,"-")+".csv";document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),500);};
+    document.getElementById("sensRead2").onclick=()=>renderBioRead(D,new Date(S.start).toLocaleDateString()+" \u00b7 "+sensFmt(T),()=>renderSensDetail(id));
     document.getElementById("sensWatch").onclick=()=>{const end=S.start+T*1000,back=()=>renderSensDetail(id);
       /* a parallel full recording (with every beat) usually exists from the meditation itself — prefer it */
       const pl=srIdx().filter(e=>e.at>=S.start-60000&&e.at<=end).sort((a,b)=>(b.mins||0)-(a.mins||0))[0];
