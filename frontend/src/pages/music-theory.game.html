@@ -11308,7 +11308,7 @@ function plReport(at){home.hidden=true;view.hidden=false;window.scrollTo(0,0);va
       '<div class="actions" style="margin:10px 0 4px"><button class="btn" id="srRead" style="width:100%">\ud83d\udcd6 Read this session in plain words</button></div><div class="actions" style="margin:8px 0 4px"><button class="btn ghost" id="plWatch" style="width:100%">🎬 Watch this session as video</button></div>'+
       '<div class="actions" style="flex-wrap:wrap"><button class="btn ghost" data-x="hs">⬇ Hemisphere sync CSV</button><button class="btn ghost" data-x="cas">⬇ Cascades CSV</button><button class="btn ghost" data-x="tl">⬇ Second-by-second CSV</button><button class="btn ghost" data-x="rr">⬇ Heartbeat intervals CSV</button>'+(D.eegBlocks&&!D.fromServer?'<button class="btn ghost" data-x="eeg">⬇ Raw EEG CSV</button>':'')+(res.pending&&!res.rank&&res.ids?'<button class="btn" id="plJ2">Judge the photo target</button>':'')+'<button class="btn" id="plAll">'+(isPL?"All results":"All sessions")+'</button></div>';
     $("#plAll").onclick=isPL?plResults:renderSessions;if($("#plJ2"))$("#plJ2").onclick=function(){plJudge(res);};
-    var rb=document.getElementById("srRead");if(rb)rb.onclick=function(){renderBioRead(srReadD(T),(typeof stamp!=="undefined"?stamp:"Session"),function(){plReport(at);});};
+    var rb=document.getElementById("srRead");if(rb)rb.onclick=function(){renderBioRead(srReadD(T),(typeof stamp!=="undefined"?stamp:"Session"),function(){plReport(at);},{start:at});};
     if($("#plWatch"))$("#plWatch").onclick=function(){
       if((ix.eegBlocks||0)>0){BC.src="rec";BC.playing=false;renderBrainCharts();bcLoadRec(at,ix.label||"Session");}
       else rpOpenPl(at,ix.label||"Session",function(){plReport(at);});};
@@ -13294,7 +13294,7 @@ function sensList(){return load("mjk-sens-list",[]);}
 function sensBegin(){if(SENS.rec)return;SENS.rec=true;SENS.sid="s"+Date.now().toString(36);SENS.t0=Date.now();SENS.data=[];SENS.tags=[];SENS.lastSave=Date.now();sensUI();}
 function sensSave(final){if(!SENS.sid||!SENS.data.length)return;const d=SENS.data,av=k=>{const v=d.map(p=>p[k]).filter(x=>x!=null&&x>0);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):null;};
   idbPut("sens-"+SENS.sid,{id:SENS.sid,start:SENS.t0,data:d,tags:(SENS.tags||[]).slice()}).catch(()=>{});
-  const L=sensList().filter(x=>x.id!==SENS.sid);L.unshift({id:SENS.sid,start:SENS.t0,dur:Math.round((d[d.length-1].t||0)),n:d.length,hr:av("hr"),hrv:av("hrv"),al:av("al"),th:av("th"),be:av("be"),acts:[...new Set(d.map(p=>p.act.split(" · ")[0]))].slice(0,6),tags:(SENS.tags||[]).slice()});save("mjk-sens-list",L.slice(0,200));SENS.lastSave=Date.now();
+  const L=sensList().filter(x=>x.id!==SENS.sid);L.unshift({id:SENS.sid,start:SENS.t0,dur:Math.round((d[d.length-1].t||0)),n:d.length,hr:av("hr"),hrv:av("hrv"),al:av("al"),th:av("th"),be:av("be"),co:(function(){const v=d.map(p=>p.co).filter(x=>x!=null&&x>0);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length*100)/100:null;})(),hs:av("hs"),ga:av("ga"),acts:[...new Set(d.map(p=>p.act.split(" · ")[0]))].slice(0,6),tags:(SENS.tags||[]).slice()});save("mjk-sens-list",L.slice(0,200));SENS.lastSave=Date.now();
   if(final){SENS.rec=false;SENS.sid=null;SENS.data=[];}sensUI();}
 function sensTick(){try{if(HR.connected&&HR.updated&&performance.now()-HR.updated>20000){HR.connected=false;HR_ERR="The heart sensor went quiet. Reconnecting\u2026";if(HR.dev)hrAutoReconnect(HR.dev,null,0);}}catch(e){}try{tgtTick();}catch(e){}const on=HR.connected||M.connected;if(!on){if(SENS.rec){if(!SENS.offSince)SENS.offSince=Date.now();else if(Date.now()-SENS.offSince>90000){sensSave(true);}}sensUI();return;}SENS.offSince=0;
   if(!SENS.rec&&load("mjk-sens-auto",true))sensBegin();
@@ -13341,7 +13341,7 @@ function sensPanelOpen(o){SENS.open=o;const p=document.getElementById("sensPanel
   document.getElementById("sensMall").onclick=async()=>{if(M.connected)return;if(!bioBT()){msg("<b>This browser can’t use Bluetooth.</b> Use the <b>Bluefy</b> app on iPhone.");return;}const st=document.getElementById("sensMsg");try{await museConnect(st,true);msg("🧠 Muse connected — sit still a moment while it settles.");}catch(e){const r=String((e&&(e.message||e.name))||e||"");try{if(M.gatt&&M.gatt.connected)M.gatt.disconnect();}catch(_){}msg(/fe8d|service|not found|No Services/i.test(r)?"That device isn’t a Muse (or the Muse didn’t answer): <i>"+esc(r)+"</i>":"Couldn’t connect: <i>"+esc(r)+"</i>");}sensEnsureTimer();bioStart();sensUI();};
   document.getElementById("sensRec").onclick=()=>{if(SENS.rec)sensSave(true);else{if(!HR.connected&&!M.connected){msg("Connect a sensor first.");return;}sensBegin();}};
   document.getElementById("sensGo").onclick=()=>{sensPanelOpen(false);try{if(typeof teardown==="function")teardown();}catch(e){}teardown=null;renderSensSessions();};
-  document.getElementById("sensRead").onclick=()=>{var D=(SENS.data||[]).slice(-600);if(D.length<120){msg("Give it a couple of minutes with a sensor connected, then tap again.");return;}sensPanelOpen(false);try{if(typeof teardown==="function")teardown();}catch(e){}teardown=null;renderBioRead(D.map(function(p){return Object.assign({},p,{t:p.t-D[0].t});}),"The last "+Math.round(D.length/60)+" minutes",null);};
+  document.getElementById("sensRead").onclick=()=>{var D=(SENS.data||[]).slice(-600);if(D.length<120){msg("Give it a couple of minutes with a sensor connected, then tap again.");return;}sensPanelOpen(false);try{if(typeof teardown==="function")teardown();}catch(e){}teardown=null;renderBioRead(D.map(function(p){return Object.assign({},p,{t:p.t-D[0].t});}),"The last "+Math.round(D.length/60)+" minutes",null,{live:true,start:Date.now(),id:SENS.sid});};
   document.getElementById("sensAuto").onchange=e=>save("mjk-sens-auto",e.target.checked);
   document.getElementById("sensIns").onclick=()=>{sensPanelOpen(false);try{if(typeof teardown==="function")teardown();}catch(e){}teardown=null;renderInsights();};sensTagsUI();
   sensUI();try{brainLayout();}catch(e){}}
@@ -13515,7 +13515,7 @@ function rvSession(){
   ];P.total=32*mm;
   renderJourney({plan:P,len:32,title:"\ud83d\udd2d Remote Viewing",rv:{car:Math.round(car*10)/10},
     note:"<b>Sit up, sensors on, eyes closed.</b> Three minutes of slow, even breathing while the tone settles \u2014 then the sound carries you down to the window. In the window, change nothing and name nothing; let impressions arrive as pictures and feelings. When the return brings you up, speak or sketch everything immediately \u2014 then your Session read opens on its own and shows your gap to the target.",
-    done:function(){try{var D=(SENS.data||[]).slice(-(34*60));if(D.length>180){var z=D[0].t;renderBioRead(D.map(function(q){return Object.assign({},q,{t:q.t-z});}),"\ud83d\udd2d Remote Viewing \u2014 this session",null);}}catch(e){}}});
+    done:function(){try{var D=(SENS.data||[]).slice(-(34*60));if(D.length>180){var z=D[0].t;renderBioRead(D.map(function(q){return Object.assign({},q,{t:q.t-z});}),"\ud83d\udd2d Remote Viewing \u2014 this session",null,{live:true,start:Date.now(),id:SENS.sid});}}catch(e){}}});
 }
 /* ===== \ud83d\udcd6 SESSION READ \u2014 what the heart, brain and their sync were doing, in plain words ===== */
 function brAvg(a){return a.length?a.reduce(function(x,y){return x+y;},0)/a.length:null;}
@@ -13529,7 +13529,7 @@ function brBest(mins,score){var bi=null,bv=-1e9;mins.forEach(function(x){var v=s
 function brTrend(a,b,eps,up,down,flat){if(a==null||b==null)return flat;var d=b-a;return d>eps?up:(d<-eps?down:flat);}
 function brCorrWord(r){var s=Math.abs(r);if(s>=0.6)return r>0?"moved strongly together":"pulled strongly in opposite directions";if(s>=0.35)return r>0?"tended to move together":"tended to move apart";return "didn\u2019t show a clear link this time";}
 function brCoPct(c){return c==null?null:Math.round(c/(1+c)*100);}
-function renderBioRead(D,title,backFn){home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){};
+function renderBioRead(D,title,backFn,mt){home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){};var meta=mt||{};
   D=(D||[]).filter(function(p){return p&&p.t!=null;});
   var mins=brMinutes(D),T=D.length?D[D.length-1].t:0;
   function a(k){return brAvg(brGet(D,k));}
@@ -13605,8 +13605,51 @@ function renderBioRead(D,title,backFn){home.hidden=true;view.hidden=false;window
   var ar=Object.keys(acts).filter(function(k){return acts[k].length>=2;}).map(function(k){return {k:k,hrv:pa(acts[k],"hrv"),co:pa(acts[k],"co")};});
   var byH=ar.filter(function(r){return r.hrv!=null;}).sort(function(a,b){return b.hrv-a.hrv;});
   if(byH.length>=2)out.push(["\ud83c\udfc6 What helped most here","Within this window, HRV ran highest during <b>"+esc(byH[0].k)+"</b> ("+Math.round(byH[0].hrv)+" ms) and lowest during <b>"+esc(byH[byH.length-1].k)+"</b> ("+Math.round(byH[byH.length-1].hrv)+" ms)."]);
+  /* \ud83e\udded right now + \ud83d\udcca compared to you */
+  var nowTs=meta.start||Date.now();
+  function dayK(ts){return new Date(ts).toDateString();}
+  function bandOf(ts){var h=new Date(ts).getHours();return h>=5&&h<12?"morning":h<17?"afternoon":h<22?"evening":"night";}
+  var band=bandOf(nowTs);
+  var SL=sensList().filter(function(x){return x.start&&x.start<nowTs+1000&&(!meta.id||x.id!==meta.id)&&(x.dur||0)>=180;});
+  function agg(ls,k,dec){var v=ls.map(function(x){return x[k];}).filter(function(x){return x!=null&&x>0;});if(!v.length)return null;var m2=v.reduce(function(a2,b2){return a2+b2;},0)/v.length;return dec?Math.round(m2*100)/100:Math.round(m2);}
+  var pT=SL.filter(function(x){return dayK(x.start)===dayK(nowTs)&&x.start<nowTs-60000;}),
+      pY=SL.filter(function(x){return dayK(x.start)===dayK(nowTs-864e5);}),
+      p7=SL.filter(function(x){return x.start>nowTs-7*864e5;}),
+      p30=SL.filter(function(x){return x.start>nowTs-30*864e5;}),
+      pB=SL.filter(function(x){return bandOf(x.start)===band;});
+  var stateHtml="";
+  (function(){var endW=D.slice(-Math.min(D.length,180));
+    var eHrv=brAvg(brGet(endW,"hrv")),eCo=brAvg(brGet(endW,"co")),eAl=brAvg(brGet(endW,"al"));
+    var baseP=pB.length>=3?pB:SL,bHrv=agg(baseP,"hrv"),bandNote=pB.length>=3?"your usual for "+band+"s":"your usual";
+    var line="";
+    if(eHrv!=null&&bHrv){var ra=eHrv/bHrv;
+      if(ra>=1.1)line="<b>Running high.</b> HRV "+Math.round(eHrv)+" ms \u2014 above "+bandNote+" ("+bHrv+" ms)"+((eCo!=null&&eCo>=1)?", heart in coherence":"")+". A good window for whatever needs depth.";
+      else if(ra<=0.85)line="<b>Wound up.</b> HRV "+Math.round(eHrv)+" ms \u2014 below "+bandNote+" ("+bHrv+" ms). A short settle \u2014 slow breath, one journey segment \u2014 would likely pay off.";
+      else line="<b>Steady.</b> HRV "+Math.round(eHrv)+" ms, right at "+bandNote+" ("+bHrv+" ms).";}
+    else if(eHrv!=null)line="HRV "+Math.round(eHrv)+" ms over the last stretch. A few more recorded sessions and this line starts comparing you to you.";
+    if(eAl!=null)line+=" \u03b1 "+Math.round(eAl)+"% \u2014 "+(eAl>=45?"calm attention available.":eAl>=30?"middling calm.":"busy-mind territory.");
+    if(line)stateHtml='<div class="panel"><div class="rlab" style="display:block;margin-bottom:6px">'+(meta.live?"\ud83e\udded Right now":"\ud83e\udded Where this left you")+'</div><div style="font-size:.95rem;line-height:1.55">'+line+'</div></div>';
+  })();
+  var stripHtml="";
+  (function(){if(SL.length<2)return;
+    function cell(v,dec){return v==null?"\u2013":(dec?v.toFixed(2):Math.round(v));}
+    function nowOf(k){return brAvg(brGet(D,k));}
+    var rows=[["HRV ms","hrv",false],["HR bpm","hr",false],["\u03b1 %","al",false],["Coher.","co",true],["Sync %","hs",false]].map(function(rw){
+      var k=rw[1],dec=rw[2],nv=nowOf(k);var cT=agg(pT,k,dec),cY=agg(pY,k,dec),c7=agg(p7,k,dec),c30=agg(p30,k,dec);
+      if(nv==null&&c7==null&&c30==null)return "";
+      return '<tr><td style="font-weight:800">'+rw[0]+'</td><td><b>'+cell(nv,dec)+'</b></td><td>'+cell(cT,dec)+'</td><td>'+cell(cY,dec)+'</td><td>'+cell(c7,dec)+'</td><td>'+cell(c30,dec)+'</td></tr>';}).join("");
+    if(!rows)return;
+    var v7=agg(p7,"hrv"),v30=agg(p30,"hrv"),vd="";
+    if(v7&&v30)vd=v7>v30*1.04?"\u2191 HRV trending up \u2014 the 7-day average ("+v7+" ms) sits above the 30-day ("+v30+" ms).":v7<v30*0.96?"\u2193 HRV has slipped \u2014 7-day "+v7+" ms vs 30-day "+v30+" ms.":"\u2192 HRV steady \u2014 7-day "+v7+" ms, 30-day "+v30+" ms.";
+    var a7=agg(p7,"al"),a30=agg(p30,"al");
+    if(a7&&a30)vd+=(vd?" ":"")+(a7>a30*1.04?"\u2191 \u03b1 rising week over week.":a7<a30*0.96?"\u2193 \u03b1 lower than last month.":"\u2192 \u03b1 steady.");
+    stripHtml='<div class="panel"><div class="rlab" style="display:block;margin-bottom:6px">\ud83d\udcca Compared to you</div>'+
+      '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font:700 .8rem system-ui" class="plTab"><tr style="color:var(--muted)"><td></td><td>This</td><td>Today</td><td>Yest.</td><td>7-day</td><td>30-day</td></tr>'+rows+'</table></div>'+
+      (vd?'<div class="site-note" style="margin-top:6px">'+vd+'</div>':'')+
+      '<div class="site-note" style="margin-top:2px;font-size:.74rem">Averages of your recorded sessions \u00b7 \u201cToday\u201d = earlier today. Coherence and sync columns fill in as new sessions record them.</div></div>';
+  })();
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">\u2190</button><span class="ttitle">\ud83d\udcd6 Session read</span></div>'+
-    '<div class="panel"><div class="intro"><b>'+esc(title||"Session")+'</b> \u00b7 '+(Math.round(T/60)>=1?Math.round(T/60)+" min":Math.round(T)+" s")+(mins.length<5?'<div class="site-note">Short window \u2014 the story sharpens with a few more minutes of data.</div>':'')+'</div></div>'+
+    '<div class="panel"><div class="intro"><b>'+esc(title||"Session")+'</b> \u00b7 '+(Math.round(T/60)>=1?Math.round(T/60)+" min":Math.round(T)+" s")+(mins.length<5?'<div class="site-note">Short window \u2014 the story sharpens with a few more minutes of data.</div>':'')+'</div></div>'+stateHtml+stripHtml+
     (out.length?out.map(function(sec){return '<div class="panel"><div class="rlab" style="display:block;margin-bottom:6px">'+sec[0]+'</div><div style="font-size:.95rem;line-height:1.55">'+sec[1]+'</div></div>';}).join(""):'<div class="panel"><div class="site-note">Not enough sensor data in this window \u2014 connect the heart strap or Muse and give it a few minutes, then come back.</div></div>')+
     '<div class="panel"><details><summary style="cursor:pointer;font-weight:800">\ud83d\udcd6 How to read these numbers \u25be</summary><div class="site-note" style="line-height:1.6;margin-top:8px">'+
     '<b>HRV (ms)</b> \u2014 the variety between heartbeats. Higher usually means your nervous system is relaxed and adaptable.<br>'+
@@ -13683,7 +13726,7 @@ function renderSensDetail(id){if(SENS.rec&&SENS.sid===id)sensSave(false);view.in
     c.fillStyle="rgba(255,255,255,.5)";c.font="10px system-ui";c.fillText("0:00",8,H-2);c.fillText(sensFmt(T),W-34,H-2);
     document.getElementById("sensCsv").onclick=()=>{const head="seconds,activity,playing,heart_rate,hrv_rmssd_ms,coherence,alpha_pct,theta_pct,beta_pct\n",body=D.map(p=>[p.t,'"'+String(p.act||"").replace(/"/g,"'")+'"',p.pl||0,p.hr??"",p.hrv??"",p.co??"",p.al??"",p.th??"",p.be??""].join(",")).join("\n");
       const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([head+body],{type:"text/csv"}));a.download="mmu-sensors-"+new Date(S.start).toISOString().slice(0,16).replace(/[:T]/g,"-")+".csv";document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),500);};
-    document.getElementById("sensRead2").onclick=()=>renderBioRead(D,new Date(S.start).toLocaleDateString()+" "+new Date(S.start).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}),()=>renderSensDetail(id));
+    document.getElementById("sensRead2").onclick=()=>renderBioRead(D,new Date(S.start).toLocaleDateString()+" "+new Date(S.start).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}),()=>renderSensDetail(id),{start:S.start,id:id});
     document.getElementById("sensWatch").onclick=()=>{const end=S.start+T*1000,back=()=>renderSensDetail(id);
       /* a parallel full recording (with every beat) usually exists from the meditation itself — prefer it */
       const pl=srIdx().filter(e=>e.at>=S.start-60000&&e.at<=end).sort((a,b)=>(b.mins||0)-(a.mins||0))[0];
