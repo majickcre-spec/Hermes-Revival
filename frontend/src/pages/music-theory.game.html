@@ -2414,7 +2414,18 @@ const RHYTHM_PATTERNS=[
  {id:"syncopa",name:"Syncopation",div:4,active:[0,6,8,14],say:"1 . . .  &(of 2) . 3 . . .  &(of 4)"},
  {id:"skip3",name:"Skip the 3",div:4,active:[0,4,12],say:"1 – 2 – (rest) – 4"},
  {id:"slow",name:"Slow pulse (1 & 3)",div:4,active:[0,8],say:"1 – – –   3 – – –"},
- {id:"backbeat",name:"Backbeat (2 & 4)",div:4,active:[4,12],say:"(rest) 2 (rest) 4"}
+ {id:"backbeat",name:"Backbeat (2 & 4)",div:4,active:[4,12],say:"(rest) 2 (rest) 4"},
+ {id:"g_rock",name:"\ud83c\udfb8 Rock",div:4,active:[0,4,8,10,12],say:"1 \u2013 2 \u2013 3 & 4"},
+ {id:"g_hiphop",name:"\ud83c\udfa4 Hip-hop (boom bap)",div:4,active:[0,4,10,12],say:"1 \u2013 2 \u2013 (& of 3) 4"},
+ {id:"g_house",name:"\ud83e\ude69 House (off-beats)",div:4,active:[2,6,10,14],say:"the & after every beat"},
+ {id:"g_trap",name:"\ud83c\udf9b Trap (half-time)",div:4,active:[0,8,11,14],say:"1 \u2013 \u2013 3 . . a (& of 4)"},
+ {id:"g_reggae",name:"\ud83c\udf34 Reggae (one drop)",div:4,active:[4,8,12],say:"(rest) 2 \u2013 3 \u2013 4"},
+ {id:"g_clave",name:"\ud83c\udfba Latin (son clave)",div:4,active:[0,3,6,10,12],say:"1 . . a . . & . . . 3 . 4"},
+ {id:"g_afro",name:"\ud83e\ude98 Afrobeat",div:4,active:[0,3,6,8,11,14],say:"1 . . a . . & . 3 . . a . . & ."},
+ {id:"g_country",name:"\ud83e\udd20 Country (two-step)",div:4,active:[0,2,4,8,10,12],say:"1 & 2 \u2013 3 & 4"},
+ {id:"g_jazz",name:"\ud83c\udfb7 Jazz (swing ride)",div:3,active:[0,3,5,6,9,11],say:"1 \u2013 2 \u2013 let 3 \u2013 4 \u2013 let"},
+ {id:"g_funk",name:"\ud83d\udd7a Funk (the One)",div:4,active:[0,3,6,8,10,11,14],say:"ONE . . a . . & . 3 . & a . . & ."},
+ {id:"g_dnb",name:"\u26a1 Drum & bass (two-step)",div:4,active:[0,6,8,10,14],say:"1 . . . . . & . 3 . & . . . & ."}
 ];
 const RHYTHM_CARDS=[
  {ic:"📖",title:"Learn Rhythm",blurb:"Flip-cards for note values — whole, half, quarter, eighths, triplets — and how to count each. Hear every one.",go:()=>rhythmLearn()},
@@ -9493,6 +9504,21 @@ const BREATH=[
  {id:"478",name:"4·7·8 Relax",desc:"A long exhale drops you into rest — great before sleep.",phases:[["In",4],["Hold",7],["Out",8]]},
  {id:"calm",name:"Deep Calm 4·4·6",desc:"Longer exhale than inhale — downshifts the nervous system.",phases:[["In",4],["Hold",4],["Out",6]]}
 ];
+/* shared breathing circle \u2014 on by default in every meditation, pattern choice underneath */
+const MBR={t0:0,raf:null,on:false};
+function mbrPat(){var id=load("mjk-medbr","coherent");return id==="off"?null:(BREATH.find(function(b){return b.id===id;})||BREATH[0]);}
+function mbrHTML(){var cur=load("mjk-medbr","coherent");return '<div id="mbrW" style="display:none;flex-direction:column;align-items:center;margin:8px 0"><div id="mbrC" style="width:min(200px,56vw);height:min(200px,56vw);border-radius:50%;background:radial-gradient(circle at 50% 40%,rgba(52,224,198,.45),rgba(236,72,153,.2));border:2px solid rgba(236,201,119,.55);display:flex;align-items:center;justify-content:center;transform:scale(.6);transition:transform .12s linear"><div style="text-align:center"><div id="mbrCue" style="font-weight:800;font-size:1.3rem"></div><div id="mbrT" style="opacity:.8"></div></div></div><div class="rchips tight" style="justify-content:center;margin-top:6px">'+[["off","Off"]].concat(BREATH.map(function(b){return [b.id,b.name];})).map(function(o){return '<button class="rchip sm'+(cur===o[0]?" sel":"")+'" data-mbr="'+o[0]+'">'+o[1]+'</button>';}).join("")+'</div></div>';}
+function mbrStop(){MBR.on=false;if(MBR.raf)cancelAnimationFrame(MBR.raf);MBR.raf=null;var w=document.getElementById("mbrW");if(w)w.style.display="none";}
+function mbrStart(){if(MBR.on)return;var w=document.getElementById("mbrW");if(!w)return;MBR.on=true;MBR.t0=performance.now();
+  (function loop(){if(!MBR.on)return;var P=mbrPat(),w2=document.getElementById("mbrW");if(!w2){MBR.raf=requestAnimationFrame(loop);return;}
+    if(!P){w2.style.display="none";MBR.raf=requestAnimationFrame(loop);return;}
+    w2.style.display="flex";
+    var cyc=P.phases.reduce(function(x,y){return x+y[1];},0),u=(((performance.now()-MBR.t0)/1000)%cyc+cyc)%cyc,sc=0.6,cue="",left=0,lvl=0;
+    for(var i=0;i<P.phases.length;i++){var ph=P.phases[i],d=ph[1];if(u<=d){var x=u/d,e2=0.5-0.5*Math.cos(Math.PI*x);sc=ph[0]==="In"?0.6+0.4*e2:ph[0]==="Out"?1-0.4*e2:(lvl?1:0.6);cue=ph[0];left=Math.ceil(d-u);break;}u-=d;lvl=ph[0]==="In"?1:ph[0]==="Out"?0:lvl;}
+    var c=document.getElementById("mbrC");if(c)c.style.transform="scale("+sc.toFixed(3)+")";
+    var cu=document.getElementById("mbrCue");if(cu)cu.textContent=cue;var tt=document.getElementById("mbrT");if(tt)tt.textContent=left;
+    MBR.raf=requestAnimationFrame(loop);})();}
+document.addEventListener("click",function(e){var b=e.target&&e.target.closest?e.target.closest("[data-mbr]"):null;if(!b)return;save("mjk-medbr",b.dataset.mbr);document.querySelectorAll("[data-mbr]").forEach(function(x){x.classList.toggle("sel",x.dataset.mbr===b.dataset.mbr);});if(MBR.on)MBR.t0=performance.now();});
 /* breath cues: quiet count click + soft transition chime, scheduled on the audio clock (keeps time with the screen locked) */
 const BRCUE=Object.assign({click:false,chime:false,vol:1},load("mjk-brcues",{}));
 function brCueBufs(a){if(a._brCue)return a._brCue;const sr=a.sampleRate,mk=(len,f)=>{const b=a.createBuffer(1,Math.round(sr*len),sr),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=f(i/sr);return b;};
@@ -10170,7 +10196,7 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     L.forEach(function(h,i){if(h.co==null||i===0)return;g.fillStyle="rgba(95,211,141,"+(0.05+0.25*h.co).toFixed(3)+")";g.fillRect(X(L[i-1].t),8,Math.max(1,X(h.t)-X(L[i-1].t)),H-26);});
     const line=function(k,col,w,dash){g.strokeStyle=col;g.lineWidth=w;g.setLineDash(dash||[]);g.beginPath();let on=false;L.forEach(function(h){if(h[k]==null){on=false;return;}if(!on){g.moveTo(X(h.t),Y(h[k]));on=true;}else g.lineTo(X(h.t),Y(h[k]));});g.stroke();g.setLineDash([]);};
     line("mb","#7ff0d6",2,[5,4]);line("hr","#ef6262",2.4);}
-  function hsStop(silent){brCueKill();S.run=false;S.rt=[];if(S.rr){S.rr=null;try{if(CAMP.on)camStop();}catch(e){}}if(S.timer){clearInterval(S.timer);S.timer=null;}if(S.raf)cancelAnimationFrame(S.raf);S.raf=null;medStop();try{if(S.nodes&&S.nodes.lim){const L=S.nodes.lim;setTimeout(function(){try{L.disconnect();}catch(e){}},1500);}}catch(e){}S.nodes=null;try{bgKeep(false);}catch(e){}if(!silent){const b=$("#hsGo");if(b)b.textContent="▶ Begin";}}
+  function hsStop(silent){brCueKill();try{mbrStop();}catch(e){}S.run=false;S.rt=[];if(S.rr){S.rr=null;try{if(CAMP.on)camStop();}catch(e){}}if(S.timer){clearInterval(S.timer);S.timer=null;}if(S.raf)cancelAnimationFrame(S.raf);S.raf=null;medStop();try{if(S.nodes&&S.nodes.lim){const L=S.nodes.lim;setTimeout(function(){try{L.disconnect();}catch(e){}},1500);}}catch(e){}S.nodes=null;try{bgKeep(false);}catch(e){}if(!silent){const b=$("#hsGo");if(b)b.textContent="▶ Begin";}}
   function finish(){const L=S.hist.filter(function(h){return h.hr;}),md=function(a2){const b=a2.slice().sort(function(x,y){return x-y;});return b.length?b[b.length>>1]:null;};
     const R={t:Date.now(),mins:Math.round(el()/60),mode:HSX.mode,h0:md(L.slice(0,60).map(function(h){return h.hr;})),h1:md(L.slice(-60).map(function(h){return h.hr;})),lo:L.length?Math.min.apply(null,L.map(function(h){return h.hr;})):null,
       sync:S.syncAll?S.syncHit/S.syncAll:null,co:S.coN?S.coSum/S.coN:null,coPk:S.coPk||null,n0:(function(){const f=S.hist.find(function(h){return h.hr;});return f?hsNote(f.hr/60):(S.note0||S.note);})(),n1:S.note,ns:null};
@@ -10230,7 +10256,7 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
       '<div class="rrow" id="hsFixRow" style="'+(HSX.fix>0?"":"opacity:.45")+'"><span class="rlab">Fixed BPM</span><input type="range" id="hsFixR" min="40" max="140" step="2" value="'+(HSX.fix||120)+'" style="flex:1"><span class="rbpm" id="hsFixV" style="min-width:56px">'+(HSX.fix||120)+'</span></div>'+
       (adv?'<div class="czSec">Timing</div><div class="rrow"><span class="rlab">Drum timing</span><input type="range" id="hsLat" min="-300" max="300" step="10" value="'+HSX.lat+'" style="flex:1"><span class="rbpm" id="hsLatV" style="min-width:64px">'+(HSX.lat>0?"+":"")+HSX.lat+' ms</span></div>'+
       '<div class="site-note" style="margin:-4px 0 8px;font-size:.76rem">Drum early or late against the beat you feel? '+(S.run&&HR.connected?'<button class="rchip sm" id="hsCal">Tap where you feel your heartbeat</button> (8 taps) or slide it.':'Use “Tap your heartbeat to start”, or slide it.')+' Bluetooth headphones and ear sensors usually need a few hundred ms.</div>':'');
-    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">💓 Heart Sync</span></div><div class="panel">'+
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">💓 Heart Sync</span></div><div class="panel">'+mbrHTML()+
       (S.run?'':'<div class="intro">Hear your own heartbeat as a deep drum, with music tuned to it. It matches your heart, then helps it slow down. Headphones are best.</div>'+
         '<div class="preset-row">'+HS_PRE.map(function(p){return '<button class="preset'+(pre===p.id?" sel":"")+'" id="hsP_'+p.id+'"><b>'+p.t+'</b><span>'+p.d+'</span></button>';}).join("")+'</div>'+
         (pre?'':'<div class="site-note" style="margin:0 0 6px;font-size:.76rem">Using your own settings.</div>'))+
@@ -10255,7 +10281,7 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     czWire("hsCz",function(){return !!S.cz;},function(v){S.cz=v;},function(){draw();});
     HS_PRE.forEach(function(p){const b=$("#hsP_"+p.id);if(b)b.onclick=function(){hsApplyPreset(p);S.bp=null;S.bk=0;draw();};});
     $("#eBack").onclick=function(){hsStop(true);renderMeditation();};
-    $("#hsGo").onclick=function(){try{if(S.run){finish();}else begin();}catch(e){S.dbgErr=(e&&e.message||String(e)).slice(0,120);}};
+    $("#hsGo").onclick=function(){try{if(S.run){finish();}else begin();}catch(e){S.dbgErr=(e&&e.message||String(e)).slice(0,120);}setTimeout(function(){if(S.run)mbrStart();else mbrStop();},350);};
     /* tap-to-start: your felt heartbeat sets the drum's starting beat, its tempo (no sensor) and its timing offset (with a sensor) */
     const tg0=$("#hsTapGo");const hsTapFn=(function(){unlockAudio();const a=ac(),b=$("#hsTapGo")||{},n=$("#hsTapN"),t=performance.now()/1000+off(a),core=$("#hsCore");S.st=S.st||[];if(S.st.length&&t-S.st[S.st.length-1]>2.5)S.st=[];S.st.push(t);ingest(a);
       if(core){core.style.transition="none";core.style.transform="scale(1.12)";requestAnimationFrame(function(){core.style.transition="transform .4s ease-out";core.style.transform="scale(1)";});}
@@ -11513,7 +11539,7 @@ function renderMeditation(){if(toneRAF)cancelAnimationFrame(toneRAF);if(!(MED.jS
 function renderBrainwave(startId){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{medStop();};
   let wi=2,carrier=200,vol=0.5,shimmer=true,playing=false,body=load("mjk-bwbody",false);const startBW=hz=>{medBinaural(hz,carrier,vol,shimmer);medBodyWave(body,vol);};if(startId){for(var _bi=0;_bi<BRAINWAVES.length;_bi++){if(BRAINWAVES[_bi].id===startId)wi=_bi;}}
   function draw(){const w=BRAINWAVES[wi];
-    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌀 Brainwave Binaural</span></div><div class="panel">'+
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌀 Brainwave Binaural</span></div><div class="panel">'+mbrHTML()+
       '<div class="intro">A <b>binaural beat</b> plays a slightly different tone in each ear; your brain hears the <b>difference</b> as a pulse and tends to settle toward it. Pick what you want, put on <b>headphones</b>, and relax — nothing to do but listen.</div>'+
       '<button class="btn" id="bwJourney" style="width:100%;margin:4px 0 12px">🌀 30-min Journey — down deep &amp; back up →</button>'+
       '<div class="rlab" style="display:block;margin:4px 0 6px">Intention</div><div class="rchips" id="bwWaves"></div>'+
@@ -11535,7 +11561,7 @@ function renderBrainwave(startId){if(toneRAF)cancelAnimationFrame(toneRAF);medSt
     $("#bwDrift").onclick=function(){medDrift(!MEDDRIFT.on);this.classList.toggle("sel",MEDDRIFT.on);this.textContent=MEDDRIFT.on?"On":"Off";};
     $("#bwShim").onclick=()=>{shimmer=!shimmer;if(playing)medPulse(shimmer);draw();};
     const bv=$("#bwVol");bv.oninput=()=>{vol=+bv.value;if(MED.master)MED.master.gain.setTargetAtTime(vol,ac().currentTime,0.1);};
-    $("#bwPlay").onclick=()=>{if(playing){medStop();playing=false;$("#bwPlay").textContent="▶ Play";}else{startBW(+$("#bwBeat").value);playing=true;$("#bwPlay").textContent="⏸ Stop";}};
+    $("#bwPlay").onclick=()=>{if(playing){medStop();playing=false;mbrStop();$("#bwPlay").textContent="▶ Play";}else{startBW(+$("#bwBeat").value);playing=true;mbrStart();$("#bwPlay").textContent="⏸ Stop";}};
   }
   draw();
 }
@@ -11724,13 +11750,13 @@ function renderNature(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.
       return '<details class="natcat" data-c="'+c+'"'+(open===c?" open":"")+'><summary>'+nm+' <span class="site-note" style="font-size:.75rem">'+list.filter(s=>mix[s.id]>0).length+' on</span></summary>'+
         list.map(s=>'<div class="natrow"><span class="natnm">'+esc(s.nm)+(s.occ?' <span class="site-note" style="font-size:.7rem">now & then</span>':'')+'</span><input type="range" min="0" max="1" step="0.05" value="'+(mix[s.id]||0)+'" data-s="'+esc(s.id)+'">'+(c==="mine"?'<button class="rchip sm" data-ud="'+esc(s.id)+'">🗑</button>':'')+'</div>').join("")+
         (c==="mine"?'<label class="rchip sm" style="cursor:pointer;margin-top:6px">📂 Add a recording<input type="file" accept="audio/*" id="natUp" hidden></label><div class="site-note" style="font-size:.75rem;margin-top:4px">Your own field recordings — a creek, rain on your roof. Saved on this device. They loop with a soft crossfade.</div>':'')+'</details>';}).join("");
-    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎧 Soundscapes</span></div><div class="panel">'+
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎧 Soundscapes</span></div><div class="panel">'+mbrHTML()+
       '<div class="site-note" style="margin-bottom:8px">Background sound to sleep, relax or focus to. Pick a scene, shape it with the sliders, save your own. Any scene can play under the Guided Sessions and Voice Journeys.</div>'+
       NAT_GRPS.concat(["My mixes"]).map(g=>{const ms=natAllMixes().filter(m=>g==="My mixes"?m.mine:m.grp===g);return ms.length?'<div class="rlab" style="display:block;margin:10px 0 4px">'+g+'</div><div class="rchips tight">'+ms.map(m=>'<button class="rchip sm'+(cur===m.id?' sel':'')+'" data-sc="'+esc(m.id)+'">'+(m.mine?"★ ":"")+esc(m.nm)+'</button>').join("")+'</div>':"";}).join("")+
       '<div class="actions ilacts" style="margin-top:10px"><button class="btn" id="natGo">'+(H?"■ Stop":"▶ Play")+'</button><button class="btn ghost" id="natSave">★ Save this mix</button></div>'+
       '<div style="display:flex;align-items:center;gap:8px;margin:6px 0 4px"><span class="rlab">Spatial</span><span class="rchips tight"><button class="rchip sm'+(NATSP.on?' sel':'')+'" id="natSp">'+(NATSP.on?'🎧 3D on — headphones':'Off — speakers')+'</button></span></div><div style="display:flex;align-items:center;gap:8px;margin:6px 0 10px"><span class="rlab">Volume</span><input type="range" id="natVol" min="0" max="1" step="0.05" value="'+vol+'" style="flex:1;accent-color:var(--gold)"></div>'+groups+
       '<div class="site-note" style="font-size:.72rem;margin-top:10px">Recordings: CC0 and Pixabay-licence recordings collected by the open-source Moodist project. Piano: Salamander Grand Piano (CC-BY 3.0).</div></div>';
-    $("#eBack").onclick=function(){try{teardown&&teardown();}catch(e){}teardown=null;renderMeditation();};$("#natGo").onclick=()=>{if(H){stopP();paint();}else play();};
+    $("#eBack").onclick=function(){try{teardown&&teardown();}catch(e){}teardown=null;renderMeditation();};$("#natGo").onclick=()=>{if(H){stopP();mbrStop();paint();}else{play();mbrStart();}};
     $("#natSp").onclick=()=>{NATSP.on=!NATSP.on;save("mjk-natsp",NATSP.on);if(H)play();else paint();};$("#natVol").oninput=e=>{vol=+e.target.value;save("mjk-natvol",vol);if(MED.master)MED.master.gain.setTargetAtTime(vol,ac().currentTime,0.2);};
     view.querySelectorAll("[data-sc]").forEach(b=>b.onclick=()=>{const m=natAllMixes().find(x=>x.id===b.dataset.sc);if(!m)return;mix=Object.assign({},m.mix);key=m.key||null;cur=m.id;save("mjk-natmix",mix);save("mjk-natkey",key);save("mjk-natcur",cur);play();});
     view.querySelectorAll("[data-s]").forEach(r=>r.oninput=()=>{const id=r.dataset.s,v=+r.value;if(v>0)mix[id]=v;else delete mix[id];save("mjk-natmix",mix);if(H)H.set(id,v);});
@@ -12273,7 +12299,7 @@ function renderJourney(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(to
   function draw(){var P=opts.plan||jPlanFor(jType,jLen,jDepth),J=JOURNEYS.find(function(j){return j.id===jType;})||JOURNEYS.find(function(j){return j.id==="dive";})||JOURNEYS[0];
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+(opts.title||"🌀 Brainwave Journey")+'</span></div><div class="panel">'+
       (opts.note?'<div style="border:1px solid var(--gold);border-radius:14px;padding:12px 14px;margin:4px 0 10px;line-height:1.5;font-size:.95rem">'+opts.note+'</div>'+'<div class="actions" style="flex-wrap:wrap">'+(playing?'<button class="btn" id="jPause" style="flex:1 1 55%">'+(paused?"▶ Resume":"⏸ Pause")+'</button><button class="btn ghost" id="jPlay" style="flex:1 1 35%">⏹ End</button>':'<button class="btn" id="jPlay" style="flex:1 1 100%">▶ Begin journey</button>')+'</div>':'<div class="intro">A guided ride on a binaural beat that slowly moves your brainwaves where you want them. Pick a journey for the time of day. <b>Headphones on</b>, lie back, nothing to do but listen.</div>'+
-      '<div id="jTypes" style="display:grid;gap:6px;margin:8px 0"></div>')+
+      (playing?'':'<div id="jTypes" style="display:grid;gap:6px;margin:8px 0"></div>'))+
       (opts.note?'':'<div style="margin:6px 0 4px;font:900 1.15rem system-ui">'+J.ic+' '+J.name+' <span style="font-size:.8rem;font-weight:700;color:var(--muted)">\u00b7 '+J.when+'</span></div><div class="site-note" style="margin:0 0 4px">'+J.desc+'</div>'+
       '<div class="site-note" style="margin:0 0 6px;font-size:.8rem">'+P.map(function(s){return '<b>'+Math.round(s.t0/60)+'\u2013'+Math.round(s.t1/60)+' min</b> '+s.label+' ('+(s.h0===s.h1?s.h0:s.h0+'\u2192'+s.h1)+' Hz)';}).join('<br>')+'</div>')+
       '<div id="jRead" style="text-align:center;margin:8px 0"><div style="font:900 2.2rem system-ui;color:#f4b740" id="jHz">'+P[0].h0.toFixed(1)+' Hz</div><div style="font-weight:800" id="jBandL">'+jBand(P[0].h0)+'</div><div class="site-note" id="jPhase" style="margin:2px 0">Ready when you are</div><div class="rbpm" id="jLeft" style="display:inline-block;margin-top:4px">'+jLen+':00</div></div>'+
@@ -12667,7 +12693,7 @@ function renderMedSession(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();h
   let mins=10,running=false,raf=null,startT=0,intention=load(mk("med","intention"),""),bellEvery=0,msPrg=load("mjk-msprg","off"),msPrgV=load("mjk-msprgv","pad");
   teardown=()=>{running=false;if(raf)cancelAnimationFrame(raf);medStop();};
   function draw(){
-    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🕯️ Meditation Session</span></div><div class="panel">'+
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🕯️ Meditation Session</span></div><div class="panel">'+mbrHTML()+
       '<div class="intro">Set an intention, choose a length, and sit. A soft <b>7.83 Hz ground tone</b> holds the space; a bell opens and closes, with optional interval bells to bring you back.</div>'+
       '<div class="rrow2"><span class="rlab">Intention</span><input id="msInt" placeholder="e.g. let go, be present, heal" value="'+esc(intention)+'" style="flex:1;background:rgba(255,255,255,.06);color:inherit;border:1px solid var(--line);border-radius:8px;padding:8px"></div>'+
       '<div class="rrow2"><span class="rlab">Length</span><span class="rchips tight" id="msMins"></span></div>'+
@@ -12685,7 +12711,7 @@ function renderMedSession(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();h
     view.querySelectorAll("#msPrgs [data-prg]").forEach(function(b){b.onclick=function(){msPrg=b.dataset.prg;save("mjk-msprg",msPrg);if(running&&MED.master){if(msPrg==="off")medPrgStop();else medPrgStart(msPrg,msPrgV,0.5,7.83*32);}draw();};});
     view.querySelectorAll("#msPrgVs [data-pv]").forEach(function(b){b.onclick=function(){msPrgV=b.dataset.pv;save("mjk-msprgv",msPrgV);if(running&&MED.master&&msPrg!=="off")medPrgStart(msPrg,msPrgV,0.5,7.83*32);draw();};});
     $("#msIntShow").textContent=intention?("“"+intention+"”"):"";
-    $("#msStart").onclick=()=>{if(running)endS();else startS();};
+    $("#msStart").onclick=()=>{if(running){endS();mbrStop();}else{startS();mbrStart();}};
   }
   function startS(){unlockAudio();medStop();medWake(true);const a=ac();running=true;startT=a.currentTime;const ii=$("#msInt");if(ii){intention=ii.value;save(mk("med","intention"),intention);}
     const master=a.createGain();master.gain.value=0.0001;master.connect(a.destination);master.gain.setTargetAtTime(0.42,a.currentTime,1.2);const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=1200;lp.connect(master);const oscs=[];
