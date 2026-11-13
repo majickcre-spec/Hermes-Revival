@@ -9155,7 +9155,7 @@ function renderMelodyLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=
 }
 /* ===== MEDITATION — binaural brainwaves, breathwork + HRV, rhythm mind, sessions ===== */
 let MED={master:null,oscs:[],timer:null};
-function medStop(){window.MJK_FOCUS=false;MED.sess=null;BRPH=null;try{medMelStop();medPrgStop();medVibroStop();}catch(e){}MED.planHz=null;MED.planPos=null;MED.jSess=null;MED.uiOff=false;try{if(MED.vclip){MED.vclip.pause();MED.vclip=null;}}catch(e){}if(MED.timer){clearInterval(MED.timer);MED.timer=null;}try{if(MED.nat){MED.nat.stop();MED.nat=null;}}catch(e){}MED.layers=[];try{if(MED.ocean){if(MED.ocean.nat)MED.ocean.nat.stop();MED.ocean=null;}}catch(e){}MED.hum=null;clearTimeout(MED.doneT);medWake(false);if(!MED.master)return;const a=ac(),m=MED.master,os=MED.oscs,now=a.currentTime;MED.master=null;MED.oscs=[];try{if(MED.body){MED.body.stop(now);MED.body=null;}if(MED.bodyDepth){MED.bodyDepth.disconnect();MED.bodyDepth=null;}}catch(e){}try{m.gain.cancelScheduledValues(now);m.gain.setValueAtTime(Math.max(0,m.gain.value),now);m.gain.linearRampToValueAtTime(0,now+0.6);}catch(e){}os.forEach(o=>{try{o.stop(now+0.65);}catch(e){}});}
+function medStop(){window.MJK_FOCUS=false;MED.sess=null;BRPH=null;try{medMelStop();medPrgStop();medVibroStop();}catch(e){}MED.planHz=null;MED.planPos=null;MED.jSess=null;MED.uiOff=false;try{if(MED.vclip){MED.vclip.pause();MED.vclip=null;}}catch(e){}if(MED.timer){clearInterval(MED.timer);MED.timer=null;}try{if(MED.nat){MED.nat.stop();MED.nat=null;}}catch(e){}MED.layers=[];try{if(MED.ocean){if(MED.ocean.nat)MED.ocean.nat.stop();MED.ocean=null;}}catch(e){}MED.hum=null;clearTimeout(MED.doneT);medWake(false);if(!MED.master)return;try{localStorage.removeItem("mjk-livej");}catch(e){}const a=ac(),m=MED.master,os=MED.oscs,now=a.currentTime;MED.master=null;MED.oscs=[];try{if(MED.body){MED.body.stop(now);MED.body=null;}if(MED.bodyDepth){MED.bodyDepth.disconnect();MED.bodyDepth=null;}}catch(e){}try{m.gain.cancelScheduledValues(now);m.gain.setValueAtTime(Math.max(0,m.gain.value),now);m.gain.linearRampToValueAtTime(0,now+0.6);}catch(e){}os.forEach(o=>{try{o.stop(now+0.65);}catch(e){}});}
 var MED_WL=null;function medWake(on){try{if(on){if(!MED_WL&&navigator.wakeLock)navigator.wakeLock.request("screen").then(function(l){MED_WL=l;l.addEventListener&&l.addEventListener("release",function(){MED_WL=null;});}).catch(function(){});}else if(MED_WL){MED_WL.release();MED_WL=null;}}catch(e){}}
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&MED.master&&!MED_WL)medWake(true);});
 function medRetune(beatHz,carrier){if(!MED.master||!MED.leftO||!MED.right)return false;const a=ac(),t=a.currentTime;MED.leftO.frequency.setTargetAtTime(carrier,t,0.08);MED.right.frequency.setTargetAtTime(carrier+beatHz,t,0.08);if(MED.lfo)MED.lfo.frequency.setTargetAtTime(beatHz,t,0.08);if(MED.pulseO)MED.pulseO.frequency.setTargetAtTime(carrier,t,0.08);(MED.drones||[]).forEach(([o,n])=>o.frequency.setTargetAtTime(carrier*Math.pow(2,n/12)/2,t,0.2));return true;}
@@ -12269,6 +12269,7 @@ function renderJourney(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(to
     if(plan.layers&&MED.layers){plan.layers.forEach(function(w,i){var want=t>=w[0]&&t<w[1];if(MED.layers[i]&&MED.layers[i].on!==want)medLayerLevel(i,want,4);});}else if(MED.layers&&MED.layers.length)medLayersFollow(cur.hz);
     var lb=$("#jLayers");if(lb&&MED.layers){lb.innerHTML=MED.layers.map(function(L){var f=L.hz||(+(cur.hz*L.ratio).toFixed(2));return '<span class="rchip sm" style="'+(L.on?"background:linear-gradient(90deg,#f4b740,#7ff0d6);color:#120c20;border-color:transparent;box-shadow:0 0 10px rgba(244,183,64,.6)":"opacity:.45")+'">'+(Math.round(f*100)/100)+'</span>';}).join("");}
     var nowMs=Date.now();if(mp&&nowMs-lastMap>1500){lastMap=nowMs;mp.innerHTML=jSVG(plan,total,t);}
+    if(nowMs-(window.__ljAt||0)>3000){window.__ljAt=nowMs;try{localStorage.setItem("mjk-livej",JSON.stringify({ty:jType,ln:jLen,el:Math.round(t),ti:opts.title||null,no:opts.note||null,pl:opts.plan||null,vo:opts.voice||null,at:Date.now()}));}catch(e){}}
     var seg=null;for(var i=0;i<plan.length;i++){if(t>=plan[i].t0&&t<plan[i].t1){seg=plan[i];break;}}var hb=$("#jHum");
     if(seg&&seg.hum){var c=(t-seg.t0)%12,p=c<4?"in":"hum";if(p!==humPh){humPh=p;medHumCue(p,8);brCueNow(ac(),p==="in"?"In":"Out",p==="in"?4-c:12-c);}
       if(hb){hb.style.display="block";hb.innerHTML=p==="in"?'<div style="font:900 1.5rem system-ui;color:#7ff0d6">🌬️ Breathe in through your nose</div><div class="site-note">slow and easy… '+Math.ceil(4-c)+'</div>':'<div style="font:900 1.5rem system-ui;color:#f4b740">🐝 Hmmmmm…</div><div class="site-note">lips closed, hum with the voice — feel it buzz in your nose &amp; cheeks … '+Math.ceil(12-c)+'</div>';
@@ -13872,6 +13873,34 @@ $("#switchProfile").onclick=()=>{save("majick-active",null);renderGate();window.
 (function(){const b=$("#exitBtn");if(!b)return;
   if(window.top===window.self){b.hidden=true;return;}
   b.onclick=()=>{try{window.parent.postMessage({mjk:"home"},"*");}catch(e){}};})();
+
+/* ===== a new build never yanks the page: quiet "update ready" chip, shown only when no session is live ===== */
+(function(){var cur=null,el=null;
+  function busy(){try{return !!(MED.master||MED.sess||(typeof HR!=="undefined"&&HR.connected)||(typeof M!=="undefined"&&M&&M.connected)||(typeof LUC!=="undefined"&&LUC.on)||(typeof BC!=="undefined"&&BC.on));}catch(e){return false;}}
+  function show(){if(el)return;if(busy()){setTimeout(show,30000);return;}
+    el=document.createElement("button");el.textContent="\u2b06\ufe0f New version ready \u2014 tap to update";
+    el.style.cssText="position:fixed;left:50%;transform:translateX(-50%);bottom:76px;z-index:9997;background:#1d1733;color:#e8e3ff;border:1px solid rgba(160,130,255,.55);border-radius:999px;padding:10px 16px;font:700 .85rem system-ui;box-shadow:0 6px 18px rgba(0,0,0,.5)";
+    el.onclick=function(){location.reload();};document.body.appendChild(el);}
+  function chk(){fetch(location.pathname,{method:"HEAD",cache:"no-store"}).then(function(r){var v=r.headers.get("last-modified")||r.headers.get("etag");if(!v)return;if(cur===null){cur=v;return;}if(v!==cur){cur=v;show();}}).catch(function(){});}
+  setTimeout(chk,8000);setInterval(chk,180000);})();
+
+/* ===== resume an interrupted journey: a reload (update, Bluefy refresh) lands back where the session left off ===== */
+(function(){var r=null;try{r=JSON.parse(localStorage.getItem("mjk-livej")||"null");}catch(e){}
+  if(!r||!r.ln||!activeId())return;
+  if(Date.now()-(r.at||0)>45*60000||r.el>=r.ln*60-15){try{localStorage.removeItem("mjk-livej");}catch(e){}return;}
+  var J=(typeof JOURNEYS!=="undefined"?JOURNEYS:[]).find(function(j){return j.id===r.ty;});
+  var nm=r.ti?String(r.ti).replace(/<[^>]*>/g,""):(J?J.name:"your journey");
+  var mn=Math.floor(r.el/60),sc=r.el%60,tt=mn+":"+(sc<10?"0":"")+sc;
+  var w=document.createElement("div");
+  w.style.cssText="position:fixed;left:12px;right:12px;bottom:84px;z-index:9998;background:#15102a;border:1px solid rgba(127,240,214,.45);border-radius:14px;padding:12px 14px;display:flex;gap:10px;align-items:center;box-shadow:0 8px 24px rgba(0,0,0,.55)";
+  w.innerHTML='<div style="flex:1;font:600 .85rem system-ui;color:#d9f3ea;line-height:1.35">Session interrupted \u2014 '+tt+' into '+nm+'</div><button id="ljGo" style="background:linear-gradient(90deg,#7ff0d6,#f4b740);color:#120c20;border:0;border-radius:999px;padding:9px 14px;font:800 .85rem system-ui;white-space:nowrap">\u25b6 Resume</button><button id="ljX" style="background:none;border:0;color:#78808f;font:700 1.05rem system-ui;padding:4px">\u2715</button>';
+  document.body.appendChild(w);
+  w.querySelector("#ljX").onclick=function(){try{localStorage.removeItem("mjk-livej");}catch(e){}w.remove();};
+  w.querySelector("#ljGo").onclick=function(){unlockAudio();w.remove();
+    var o={type:r.ty,len:r.ln};if(r.pl)o.plan=r.pl;if(r.vo)o.voice=r.vo;if(r.ti)o.title=r.ti;if(r.no)o.note=r.no;
+    renderJourney(o);
+    setTimeout(function(){var b=document.getElementById("jPlay");if(b){b.click();try{if(window.__jSkip)__jSkip(r.el);if(r.vo&&window.GMV){var i=0;while(i<r.vo.length&&r.vo[i].at<=r.el)i++;GMV.i=i;}}catch(e){}}},350);};
+})();
 
 renderGate();
 try{sessStartTicker();}catch(e){}
