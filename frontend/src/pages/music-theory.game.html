@@ -13513,6 +13513,26 @@ function renderBioRead(D,title,backFn){home.hidden=true;view.hidden=false;window
     s3+=" Your \u03b1:\u03b8 power balance averaged <b>"+phi.toFixed(2)+"</b>"+(Math.abs(phi-1.618)<=0.18?" \u2014 right at the golden ratio (\u03c6 \u2248 1.618), the balance the Mirror view brackets.":phi>1.618?" \u2014 above the \u03c6 balance point: more alert than dreamy.":" \u2014 below the \u03c6 balance point: more dreamy than alert.");
     s3+=" In frequency, \u03b1 (\u224810 Hz) already sings an octave above \u03b8 (\u22485 Hz) \u2014 minutes where both run strong are that octave stack lighting up.";}
   if(s3)out.push(["\ud83e\ude9e Hemispheres & harmony",s3]);
+  if(hs!=null&&al!=null&&mins.length>=4){
+    var top3=mins.map(function(x){return x.hs;}).filter(function(v){return v!=null;}).sort(function(a,b){return b-a;}).slice(0,3);
+    var depth=brAvg(top3)||0,run=0,curR=0;
+    mins.forEach(function(x){if(x.hs!=null&&x.hs>=60){curR++;if(curR>run)run=curR;}else curR=0;});
+    var stackN=mins.filter(function(x){return x.th!=null&&x.al!=null&&(x.th+x.al)>=60&&(x.be==null||x.be<=22);}).length,stackP=100*stackN/mins.length;
+    var phiR=(th&&th>0)?al/th:null;
+    var subs=[["Sync depth",Math.min(100,depth/70*100),Math.round(depth)+"% best vs 70%+"],
+      ["Holding it",Math.min(100,run/3*100),run+" min sustained vs 3+"],
+      ["Alpha fuel",Math.min(100,(al||0)/45*100),Math.round(al)+"% \u03b1 vs 45%+"],
+      ["Octave stack \u03b8+\u03b1",Math.min(100,stackP/30*100),Math.round(stackP)+"% of minutes vs 30%+"]];
+    if(phiR!=null)subs.push(["\u03c6 balance",Math.max(0,100-Math.abs(phiR-1.618)/0.8*100),phiR.toFixed(2)+" vs \u03c6 1.618"]);
+    var tot=Math.round(brAvg(subs.map(function(x){return x[1];}))||0);
+    var weak=subs.slice().sort(function(a,b){return a[1]-b[1];})[0];
+    var TIP={"Sync depth":"a deeper left\u2013right lock \u2014 eyes closed, attention resting evenly in both ears at once","Holding it":"holding it \u2014 the sync came in flashes; come back to the breath the instant it slips and let the flashes join up","Alpha fuel":"more alpha fuel \u2014 eyes closed, long slow exhales, soft face","Octave stack \u03b8+\u03b1":"letting \u03b8 rise underneath \u03b1 \u2014 drift one layer deeper without losing the calm","\u03c6 balance":(phiR!=null&&phiR>1.618?"easing the alertness \u2014 this window leaned alert of the \u03c6 point":"a touch more brightness \u2014 this window leaned dreamy of the \u03c6 point")};
+    var bars=subs.map(function(sx){return '<div style="margin:7px 0"><div style="display:flex;justify-content:space-between;font-size:.8rem"><span>'+sx[0]+'</span><span style="color:var(--muted)">'+sx[2]+'</span></div><div style="height:8px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:3px"><div style="height:100%;width:'+Math.round(sx[1])+'%;background:linear-gradient(90deg,#7c5cff,#7ff0d6)"></div></div></div>';}).join("");
+    out.push(["\ud83c\udf0c The mystical gap \u00b7 after Jean Millay",
+      '<div style="font-size:1.7rem;font-weight:900;margin:0 0 2px">'+tot+'%<span style="font-size:.85rem;font-weight:700;color:var(--muted)"> of the way there</span></div>'+
+      '<div style="margin-bottom:6px">Millay\u2019s phase-sync research found the doorway opens when the two hemispheres don\u2019t just touch sync \u2014 they <b>hold</b> it, minutes at a time, on a bed of strong \u03b1.</div>'+bars+
+      '<div style="margin-top:8px">The missing piece this time: <b>'+TIP[weak[0]]+'</b>.</div>']);
+  }
   if(al!=null&&(co!=null||hrv!=null)){
     function pairs(k1,k2){var xs=[],ys=[];mins.forEach(function(x){if(x[k1]!=null&&x[k2]!=null){xs.push(x[k1]);ys.push(x[k2]);}});return brPearson(xs,ys);}
     var r1=pairs("co","al"),r2=pairs("hrv","al"),r3=pairs("hr","be"),s5=[];
@@ -13534,7 +13554,7 @@ function renderBioRead(D,title,backFn){home.hidden=true;view.hidden=false;window
     '<b>Coherence</b> \u2014 your heartbeat rising and falling in smooth waves, usually with the breath. More time in it = deeper flow.<br>'+
     '<b>\u03b1 / \u03b8 / \u03b2</b> \u2014 brainwave shares: \u03b1 calm &amp; open, \u03b8 dreamy &amp; deep, \u03b2 busy &amp; thinking.<br>'+
     '<b>Hemi-sync</b> \u2014 how much the left and right hemispheres\u2019 alpha rhythms lock together (Muse, ear to ear).<br>'+
-    '<b>\u03c6 &amp; octaves</b> \u2014 \u03b1:\u03b8 near 1.618 is the golden-ratio balance; an octave is one rhythm doubling another, like \u03b1 over \u03b8.</div></details>'+
+    '<b>\u03c6 &amp; octaves</b> \u2014 \u03b1:\u03b8 near 1.618 is the golden-ratio balance; an octave is one rhythm doubling another, like \u03b1 over \u03b8.<br><b>The mystical gap</b> \u2014 how close this window came to the sustained hemisphere-sync profile Jean Millay\u2019s subjects showed during unity experiences: deep sync, held for minutes, on strong \u03b1, with \u03b8 stacked an octave below.</div></details>'+
     '<div class="actions" style="margin-top:10px"><button class="btn" id="brIns" style="width:100%">\ud83d\udcc8 Which activities work best for you \u2014 all sessions</button></div></div>';
   $("#eBack").onclick=backFn||goHome;$("#brIns").onclick=renderInsights;
 }
