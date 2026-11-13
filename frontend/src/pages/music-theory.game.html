@@ -13150,7 +13150,7 @@ const MUSE_SVC="0000fe8d-0000-1000-8000-00805f9b34fb", MUSE_CTRL="273e0001-4c4d-
   MUSE_EEG=["273e0003-4c4d-454d-96be-f03bac821358","273e0004-4c4d-454d-96be-f03bac821358","273e0005-4c4d-454d-96be-f03bac821358","273e0006-4c4d-454d-96be-f03bac821358"],
   MUSE_PPG=["273e000f-4c4d-454d-96be-f03bac821358","273e0010-4c4d-454d-96be-f03bac821358","273e0011-4c4d-454d-96be-f03bac821358"];
 const M={gatt:null,dev:null,ctrl:null,connected:false,battery:null,
-  eeg:[[],[],[],[]],alpha:0,theta:0,beta:0,qual:[0,0,0,0],
+  eeg:[[],[],[],[]],alpha:0,theta:0,beta:0,gamma:0,qual:[0,0,0,0],
   ppg:[],ppgN:0,lastPeakT:0,ibis:[],hr:0,rmssd:0,
   bandT:null,ppgT:null,uiT:null};
 function museSleep(ms){return new Promise(r=>setTimeout(r,ms));}
@@ -13172,18 +13172,18 @@ function bandPowers(samps){ // 256 samples @256Hz → {theta,alpha,beta} + rms
   let rms=0;for(let i=0;i<N;i++){const w=0.5-0.5*Math.cos(2*Math.PI*i/(N-1));re[i]=(samps[i]-mean)*w;im[i]=0;rms+=(samps[i]-mean)*(samps[i]-mean);}
   rms=Math.sqrt(rms/N);
   fft(re,im);
-  const p=k=>re[k]*re[k]+im[k]*im[k];let th=0,al=0,be=0;
-  for(let k=4;k<=7;k++)th+=p(k);for(let k=8;k<=12;k++)al+=p(k);for(let k=13;k<=29;k++)be+=p(k);
-  return {theta:th,alpha:al,beta:be,rms};
+  const p=k=>re[k]*re[k]+im[k]*im[k];let th=0,al=0,be=0,ga=0;
+  for(let k=4;k<=7;k++)th+=p(k);for(let k=8;k<=12;k++)al+=p(k);for(let k=13;k<=29;k++)be+=p(k);for(let k=30;k<=44;k++)ga+=p(k);
+  return {theta:th,alpha:al,beta:be,gamma:ga,rms};
 }
 function museBands(){
-  let T=0,A=0,B=0,used=0;
+  let T=0,A=0,B=0,G=0,used=0;
   for(let ch=0;ch<4;ch++){const buf=M.eeg[ch];if(buf.length<256)continue;
     const r=bandPowers(buf.slice(buf.length-256));
     M.qual[ch]=(r.rms>1&&r.rms<150)?1:0; /* >150 µV is usually a blink or movement — leave that channel out */
-    if(M.qual[ch]){const tt=r.theta+r.alpha+r.beta||1;T+=r.theta/tt;A+=r.alpha/tt;B+=r.beta/tt;used++;} /* relative power per channel, then averaged, so one noisy sensor can't dominate */
+    if(M.qual[ch]){const tt=r.theta+r.alpha+r.beta||1;T+=r.theta/tt;A+=r.alpha/tt;B+=r.beta/tt;G+=r.gamma/(tt+r.gamma);used++;} /* relative power per channel, then averaged, so one noisy sensor can't dominate */
     if(buf.length>2048)buf.splice(0,buf.length-2048);}
-  if(used){const s=M.theta==null?1:0.3;M.theta=(M.theta==null?0:M.theta*(1-s))+s*100*T/used;M.alpha=(M.alpha==null?0:M.alpha*(1-s))+s*100*A/used;M.beta=(M.beta==null?0:M.beta*(1-s))+s*100*B/used;}
+  if(used){const s=M.theta==null?1:0.3;M.theta=(M.theta==null?0:M.theta*(1-s))+s*100*T/used;M.alpha=(M.alpha==null?0:M.alpha*(1-s))+s*100*A/used;M.beta=(M.beta==null?0:M.beta*(1-s))+s*100*B/used;M.gamma=(M.gamma==null?0:M.gamma*(1-s))+s*100*G/used;}
 }
 function musePPG(){
   const buf=M.ppg;if(buf.length<96)return;
@@ -13247,7 +13247,7 @@ function museDisconnect(){
   if(M.bandT)clearInterval(M.bandT);if(M.ppgT)clearInterval(M.ppgT);if(M.uiT)clearInterval(M.uiT);
   M.bandT=M.ppgT=M.uiT=null;
   try{if(M.gatt&&M.gatt.connected)M.gatt.disconnect();}catch(e){}
-  M.connected=false;M.eeg=[[],[],[],[]];M.ppg=[];M.ppgN=0;M.lastPeakT=0;M.ibis=[];M.hr=0;M.rmssd=0;M.alpha=M.theta=M.beta=0;
+  M.connected=false;M.eeg=[[],[],[],[]];M.ppg=[];M.ppgN=0;M.lastPeakT=0;M.ibis=[];M.hr=0;M.rmssd=0;M.alpha=M.theta=M.beta=M.gamma=0;
 }
 function inFrame(){try{return window.self!==window.top;}catch(e){return true;}}
 function fullPageNote(){return inFrame()?'<div class="snote" style="border:1px solid #f3c14a;border-radius:10px;padding:8px;color:#f4ead2">📱 <b>On iPhone (Bluefy), Bluetooth only works in the full-page app.</b> <a href="/app.html" target="_blank" rel="noopener" style="color:#f3c14a;font-weight:800">Open full-page MMU ↗</a> then connect there.</div>':'';}
@@ -13266,7 +13266,7 @@ function sensSave(final){if(!SENS.sid||!SENS.data.length)return;const d=SENS.dat
   if(final){SENS.rec=false;SENS.sid=null;SENS.data=[];}sensUI();}
 function sensTick(){try{if(HR.connected&&HR.updated&&performance.now()-HR.updated>20000){HR.connected=false;HR_ERR="The heart sensor went quiet. Reconnecting\u2026";if(HR.dev)hrAutoReconnect(HR.dev,null,0);}}catch(e){}try{tgtTick();}catch(e){}const on=HR.connected||M.connected;if(!on){if(SENS.rec){if(!SENS.offSince)SENS.offSince=Date.now();else if(Date.now()-SENS.offSince>90000){sensSave(true);}}sensUI();return;}SENS.offSince=0;
   if(!SENS.rec&&load("mjk-sens-auto",true))sensBegin();
-  if(SENS.rec){const co=bioCoherence();SENS.data.push({t:Math.round((Date.now()-SENS.t0)/1000),hr:bioHR(),hrv:bioHRV(),co:co?Math.round(co.score*100)/100:null,al:M.connected?Math.round(M.alpha):null,th:M.connected?Math.round(M.theta):null,be:M.connected?Math.round(M.beta):null,hs:(function(){try{var h=M.connected?eegHemiSync():null;return h?Math.round(h.al*100):null;}catch(e){return null;}})(),act:sensActivity(),pl:sensPlaying()?1:0});
+  if(SENS.rec){const co=bioCoherence();SENS.data.push({t:Math.round((Date.now()-SENS.t0)/1000),hr:bioHR(),hrv:bioHRV(),co:co?Math.round(co.score*100)/100:null,al:M.connected?Math.round(M.alpha):null,th:M.connected?Math.round(M.theta):null,be:M.connected?Math.round(M.beta):null,ga:(M.connected&&M.gamma!=null)?Math.round(M.gamma):null,hs:(function(){try{var h=M.connected?eegHemiSync():null;return h?Math.round(h.al*100):null;}catch(e){return null;}})(),act:sensActivity(),pl:sensPlaying()?1:0});
     if(Date.now()-SENS.lastSave>30000)sensSave(false);}
   sensUI();}
 function sensEnsureTimer(){if(!SENS.timer)SENS.timer=setInterval(sensTick,1000);}
@@ -13477,7 +13477,7 @@ function brPearson(xs,ys){var n=xs.length;if(n<5)return null;var mx=brAvg(xs),my
 function brMinutes(D){var G={};D.forEach(function(p){var m=Math.floor(p.t/60);(G[m]=G[m]||[]).push(p);});
   return Object.keys(G).map(function(m){var seg=G[m];function a(k){return brAvg(brGet(seg,k));}var acts={};seg.forEach(function(p){var k=(p.act||"").split(" \u00b7 ")[0];acts[k]=(acts[k]||0)+1;});
     var act=Object.keys(acts).sort(function(x,y){return acts[y]-acts[x];})[0]||"";
-    return {m:+m,hr:a("hr"),hrv:a("hrv"),co:a("co"),al:a("al"),th:a("th"),be:a("be"),hs:a("hs"),act:act};}).sort(function(a,b){return a.m-b.m;});}
+    return {m:+m,hr:a("hr"),hrv:a("hrv"),co:a("co"),al:a("al"),th:a("th"),be:a("be"),hs:a("hs"),ga:a("ga"),act:act};}).sort(function(a,b){return a.m-b.m;});}
 function brBest(mins,score){var bi=null,bv=-1e9;mins.forEach(function(x){var v=score(x);if(v!=null&&v>bv){bv=v;bi=x;}});return bi;}
 function brTrend(a,b,eps,up,down,flat){if(a==null||b==null)return flat;var d=b-a;return d>eps?up:(d<-eps?down:flat);}
 function brCorrWord(r){var s=Math.abs(r);if(s>=0.6)return r>0?"moved strongly together":"pulled strongly in opposite directions";if(s>=0.35)return r>0?"tended to move together":"tended to move apart";return "didn\u2019t show a clear link this time";}
@@ -13516,22 +13516,33 @@ function renderBioRead(D,title,backFn){home.hidden=true;view.hidden=false;window
   if(hs!=null&&al!=null&&mins.length>=4){
     var top3=mins.map(function(x){return x.hs;}).filter(function(v){return v!=null;}).sort(function(a,b){return b-a;}).slice(0,3);
     var depth=brAvg(top3)||0,run=0,curR=0;
-    mins.forEach(function(x){if(x.hs!=null&&x.hs>=60){curR++;if(curR>run)run=curR;}else curR=0;});
-    var stackN=mins.filter(function(x){return x.th!=null&&x.al!=null&&(x.th+x.al)>=60&&(x.be==null||x.be<=22);}).length,stackP=100*stackN/mins.length;
+    mins.forEach(function(x){if(x.hs!=null&&x.hs>=65){curR++;if(curR>run)run=curR;}else curR=0;});
+    var stackN=mins.filter(function(x){return x.th!=null&&x.al!=null&&(x.th+x.al)>=65&&(x.be==null||x.be<=18);}).length,stackP=100*stackN/mins.length;
     var phiR=(th&&th>0)?al/th:null;
-    var subs=[["Sync depth",Math.min(100,depth/70*100),Math.round(depth)+"% best vs 70%+"],
-      ["Holding it",Math.min(100,run/3*100),run+" min sustained vs 3+"],
-      ["Alpha fuel",Math.min(100,(al||0)/45*100),Math.round(al)+"% \u03b1 vs 45%+"],
-      ["Octave stack \u03b8+\u03b1",Math.min(100,stackP/30*100),Math.round(stackP)+"% of minutes vs 30%+"]];
-    if(phiR!=null)subs.push(["\u03c6 balance",Math.max(0,100-Math.abs(phiR-1.618)/0.8*100),phiR.toFixed(2)+" vs \u03c6 1.618"]);
+    var ga=a("ga"),ga3=null;if(ga!=null){var gt=mins.map(function(x){return x.ga;}).filter(function(v){return v!=null;}).sort(function(a,b){return b-a;}).slice(0,3);ga3=brAvg(gt);}
+    var subs=[["Hemi-sync depth",Math.min(100,depth/80*100),Math.round(depth)+"% best \u00b7 target 80%+"],
+      ["Holding the sync",Math.min(100,run/5*100),run+" min held \u00b7 target 5+"],
+      ["Alpha fuel",Math.min(100,(al||0)/50*100),Math.round(al)+"% \u03b1 \u00b7 target 50%+"],
+      ["\u03b8 under \u03b1 (octave)",Math.min(100,stackP/40*100),Math.round(stackP)+"% of minutes \u00b7 target 40%+"]];
+    if(be!=null)subs.push(["Quiet \u03b2",Math.min(100,15/Math.max(1,be)*100),Math.round(be)+"% \u03b2 \u00b7 target \u226415%"]);
+    if(co!=null)subs.push(["Heart coherence",Math.min(100,co/1.5*100),brCoPct(co)+"% depth \u00b7 target 60%+"]);
+    if(phiR!=null)subs.push(["\u03c6 balance",Math.max(0,100-Math.abs(phiR-1.618)/0.8*100),phiR.toFixed(2)+" \u00b7 target \u03c6 1.618"]);
+    if(ga3!=null)subs.push(["\u03b3 flashes",Math.min(100,ga3/8*100),Math.round(ga3)+"% best \u00b7 target 8%+"]);
     var tot=Math.round(brAvg(subs.map(function(x){return x[1];}))||0);
     var weak=subs.slice().sort(function(a,b){return a[1]-b[1];})[0];
-    var TIP={"Sync depth":"a deeper left\u2013right lock \u2014 eyes closed, attention resting evenly in both ears at once","Holding it":"holding it \u2014 the sync came in flashes; come back to the breath the instant it slips and let the flashes join up","Alpha fuel":"more alpha fuel \u2014 eyes closed, long slow exhales, soft face","Octave stack \u03b8+\u03b1":"letting \u03b8 rise underneath \u03b1 \u2014 drift one layer deeper without losing the calm","\u03c6 balance":(phiR!=null&&phiR>1.618?"easing the alertness \u2014 this window leaned alert of the \u03c6 point":"a touch more brightness \u2014 this window leaned dreamy of the \u03c6 point")};
+    var TIP={"Hemi-sync depth":"a deeper left\u2013right lock \u2014 eyes closed, attention resting evenly in both ears at once",
+      "Holding the sync":"holding the sync \u2014 it came in flashes; come back to the breath the instant it slips and let the flashes join into minutes",
+      "Alpha fuel":"more alpha fuel \u2014 eyes closed, long slow exhales, soft face",
+      "\u03b8 under \u03b1 (octave)":"\u03b8 rising underneath \u03b1 \u2014 drift one layer deeper without losing the calm",
+      "Quiet \u03b2":"the describing mind stepping aside \u2014 name nothing during the session; let impressions arrive without words",
+      "Heart coherence":"the heart carrying it \u2014 slow, even breathing until the rhythm turns to smooth waves",
+      "\u03c6 balance":(phiR!=null&&phiR>1.618?"easing the alertness \u2014 this window leaned alert of the \u03c6 point":"a touch more brightness \u2014 this window leaned dreamy of the \u03c6 point"),
+      "\u03b3 flashes":"the \u03b3 flash \u2014 the pop of the image arriving; it shows up on its own once the rest is held"};
     var bars=subs.map(function(sx){return '<div style="margin:7px 0"><div style="display:flex;justify-content:space-between;font-size:.8rem"><span>'+sx[0]+'</span><span style="color:var(--muted)">'+sx[2]+'</span></div><div style="height:8px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:3px"><div style="height:100%;width:'+Math.round(sx[1])+'%;background:linear-gradient(90deg,#7c5cff,#7ff0d6)"></div></div></div>';}).join("");
-    out.push(["\ud83c\udf0c The mystical gap \u00b7 after Jean Millay",
-      '<div style="font-size:1.7rem;font-weight:900;margin:0 0 2px">'+tot+'%<span style="font-size:.85rem;font-weight:700;color:var(--muted)"> of the way there</span></div>'+
-      '<div style="margin-bottom:6px">Millay\u2019s phase-sync research found the doorway opens when the two hemispheres don\u2019t just touch sync \u2014 they <b>hold</b> it, minutes at a time, on a bed of strong \u03b1.</div>'+bars+
-      '<div style="margin-top:8px">The missing piece this time: <b>'+TIP[weak[0]]+'</b>.</div>']);
+    out.push(["\ud83d\udd2d Remote viewing \u00b7 the target & your gap",
+      '<div style="margin-bottom:8px"><b>The target</b> \u2014 what we expect the needles to read in the remote-viewing state (modeled on Jean Millay\u2019s phase-sync research): the two hemispheres locked <b>80%+</b> and <b>held 5+ minutes</b>, on <b>\u03b1 50%+</b> with <b>\u03b8 stacked an octave below</b>, <b>\u03b2 \u226415%</b> (the describing mind quiet), the heart in <b>60%+ coherence</b>, \u03b1:\u03b8 at <b>\u03c6</b> \u2014 and \u03b3 flashing as the image lands.</div>'+
+      '<div style="font-size:1.7rem;font-weight:900;margin:0 0 6px">'+tot+'%<span style="font-size:.85rem;font-weight:700;color:var(--muted)"> of the way there</span></div>'+bars+
+      '<div style="margin-top:8px">Closest to opening: <b>'+TIP[weak[0]]+'</b>.</div>']);
   }
   if(al!=null&&(co!=null||hrv!=null)){
     function pairs(k1,k2){var xs=[],ys=[];mins.forEach(function(x){if(x[k1]!=null&&x[k2]!=null){xs.push(x[k1]);ys.push(x[k2]);}});return brPearson(xs,ys);}
@@ -13554,7 +13565,7 @@ function renderBioRead(D,title,backFn){home.hidden=true;view.hidden=false;window
     '<b>Coherence</b> \u2014 your heartbeat rising and falling in smooth waves, usually with the breath. More time in it = deeper flow.<br>'+
     '<b>\u03b1 / \u03b8 / \u03b2</b> \u2014 brainwave shares: \u03b1 calm &amp; open, \u03b8 dreamy &amp; deep, \u03b2 busy &amp; thinking.<br>'+
     '<b>Hemi-sync</b> \u2014 how much the left and right hemispheres\u2019 alpha rhythms lock together (Muse, ear to ear).<br>'+
-    '<b>\u03c6 &amp; octaves</b> \u2014 \u03b1:\u03b8 near 1.618 is the golden-ratio balance; an octave is one rhythm doubling another, like \u03b1 over \u03b8.<br><b>The mystical gap</b> \u2014 how close this window came to the sustained hemisphere-sync profile Jean Millay\u2019s subjects showed during unity experiences: deep sync, held for minutes, on strong \u03b1, with \u03b8 stacked an octave below.</div></details>'+
+    '<b>\u03c6 &amp; octaves</b> \u2014 \u03b1:\u03b8 near 1.618 is the golden-ratio balance; an octave is one rhythm doubling another, like \u03b1 over \u03b8.<br><b>\u03b3 (gamma)</b> \u2014 the fastest band; brief flashes often ride on moments of insight or vivid imagery.<br><b>Remote viewing target</b> \u2014 the profile we expect at that state: deep sustained hemi-sync on strong \u03b1, \u03b8 an octave below, \u03b2 quiet, heart coherent, \u03b1:\u03b8 at \u03c6, \u03b3 flashing as impressions land.</div></details>'+
     '<div class="actions" style="margin-top:10px"><button class="btn" id="brIns" style="width:100%">\ud83d\udcc8 Which activities work best for you \u2014 all sessions</button></div></div>';
   $("#eBack").onclick=backFn||goHome;$("#brIns").onclick=renderInsights;
 }
