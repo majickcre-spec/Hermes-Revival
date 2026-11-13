@@ -13232,7 +13232,7 @@ function sensWave(){const cv=document.getElementById("sensWv");if(!cv)return;con
   const bs=B.map(o=>o.b),lo=Math.min.apply(null,bs)-2,hi=Math.max(Math.max.apply(null,bs)+2,lo+10),X=t=>(t-(now-60000))/60000*W,Y=v=>H-6-(v-lo)/(hi-lo)*(H-12);
   g.strokeStyle="#e9c46a";g.lineWidth=2.2;g.lineJoin="round";g.beginPath();B.forEach((o,i)=>{const x=X(o.t),y=Y(o.b);if(!i)g.moveTo(x,y);else{const p=B[i-1],px=X(p.t),py=Y(p.b);g.quadraticCurveTo(px,py,(px+x)/2,(py+y)/2);}});g.stroke();
   g.fillStyle="rgba(255,255,255,.45)";g.font="10px system-ui";g.fillText(Math.round(hi)+"",W-22,12);g.fillText(Math.round(lo)+"",W-22,H-4);}
-function sensPanelOpen(o){SENS.open=o;const p=document.getElementById("sensPanel");if(!p)return;p.hidden=!o;if(!o)return;
+function sensPanelOpen(o){SENS.open=o;const p=document.getElementById("sensPanel");if(!p)return;p.hidden=!o;if(!o){try{brainLayout();}catch(e){}return;}
   p.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><b style="font-size:1.05rem">🫀 Body readings</b><button class="mbtn" id="sensX" style="flex:none;width:36px;height:36px;padding:0;border-radius:50%">✕</button></div>'+
     fullPageNote()+'<div class="srow"><button class="mbtn" id="sensHRb"></button><button class="mbtn" id="sensMb"></button></div><div id="sensMsg" class="snote"></div>'+
     '<div id="sensLive"></div>'+
@@ -13251,22 +13251,54 @@ function sensPanelOpen(o){SENS.open=o;const p=document.getElementById("sensPanel
   document.getElementById("sensGo").onclick=()=>{sensPanelOpen(false);try{if(typeof teardown==="function")teardown();}catch(e){}teardown=null;renderSensSessions();};
   document.getElementById("sensAuto").onchange=e=>save("mjk-sens-auto",e.target.checked);
   document.getElementById("sensIns").onclick=()=>{sensPanelOpen(false);try{if(typeof teardown==="function")teardown();}catch(e){}teardown=null;renderInsights();};sensTagsUI();
-  sensUI();}
+  sensUI();try{brainLayout();}catch(e){}}
+const BRP={open:false,t:null,hist:[]};
+function brainLayout(){var b=document.getElementById("brainPanel"),sp=document.getElementById("sensPanel");if(!b)return;
+  var both=!!(sp&&!sp.hidden&&!b.hidden&&innerWidth<760);
+  if(sp)sp.style.maxHeight=both?"34vh":"";b.style.maxHeight=both?"44vh":"";
+  var base=66;if(both)base=66+sp.offsetHeight+10;
+  b.style.bottom="calc("+base+"px + env(safe-area-inset-bottom))";}
+function brainPanelTick(){var p=document.getElementById("brainPanel");if(!p||p.hidden)return;var L=document.getElementById("bpLive");if(!L)return;
+  if(!M.connected){if(!L.dataset.nc){L.dataset.nc="1";L.innerHTML='<div class="snote">Muse not connected yet \u2014 one tap below.</div>';}brainLayout();return;}
+  delete L.dataset.nc;
+  var a=Math.round(M.alpha||0),th=Math.round(M.theta||0),be=Math.round(M.beta||0);
+  BRP.hist.push(a);if(BRP.hist.length>48)BRP.hist.shift();
+  var lead=(a>=th&&a>=be)?["\u03b1 \u00b7 calm flow","#5fe0a8"]:(th>=be?["\u03b8 \u00b7 deep & dreamy","#5fc8e0"]:["\u03b2 \u00b7 busy mind","#ff9349"]);
+  var q=(M.qual&&M.qual.length?M.qual:[1,1,1,1]).map(function(x){return '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:3px;background:'+(x>=0.5?"#5fe0a8":"#ff5d6c")+'"></span>';}).join("");
+  function bar(nm,v,c){return '<div style="display:flex;align-items:center;gap:8px;margin:5px 0"><b style="width:16px;font:800 .85rem system-ui;color:'+c+'">'+nm+'</b><div style="flex:1;height:10px;border-radius:5px;background:rgba(255,255,255,.07);overflow:hidden"><div style="height:100%;width:'+Math.max(2,Math.min(100,v))+'%;background:'+c+'"></div></div><span style="width:40px;text-align:right;font:700 .8rem ui-monospace,monospace">'+v+'%</span></div>';}
+  var w=150,h=26,n=BRP.hist.length,pts=BRP.hist.map(function(v,i){return (i/Math.max(1,n-1)*w).toFixed(1)+","+(h-2-Math.max(0,Math.min(100,v))/100*(h-4)).toFixed(1);}).join(" ");
+  L.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin:2px 0 6px"><b style="color:'+lead[1]+';font:800 .9rem system-ui">'+lead[0]+'</b><span class="snote" style="margin:0">signal'+q+(M.battery!=null?" \u00b7 \ud83d\udd0b"+Math.round(M.battery)+"%":"")+'</span></div>'
+    +bar("\u03b1",a,"#5fe0a8")+bar("\u03b8",th,"#5fc8e0")+bar("\u03b2",be,"#ff9349")
+    +'<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><span class="snote" style="margin:0;flex:none">\u03b1 trend</span><svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" style="flex:1" preserveAspectRatio="none"><polyline points="'+pts+'" fill="none" stroke="#5fe0a8" stroke-width="1.6" stroke-linejoin="round"/></svg></div>';
+  brainLayout();}
+function brainPanelOpen(o){BRP.open=o;var p=document.getElementById("brainPanel");if(!p)return;p.hidden=!o;if(BRP.t){clearInterval(BRP.t);BRP.t=null;}if(!o){brainLayout();return;}
+  p.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><b style="font-size:1.05rem">\ud83e\udde0 Brain live</b><button class="mbtn" id="bpX" style="flex:none;width:36px;height:36px;padding:0;border-radius:50%">\u2715</button></div>'
+    +'<div id="bpLive"></div><div id="bpMsg" class="snote" style="margin:4px 0 0"></div>'
+    +'<div class="srow"><button class="mbtn" id="bpConn"></button><button class="mbtn" id="bpFull">\u26f6 Full Brain Charts</button></div>';
+  document.getElementById("bpX").onclick=function(){brainPanelOpen(false);};
+  var cb=document.getElementById("bpConn");function cLbl(){cb.textContent=M.connected?"\ud83c\udfa7 Muse connected":"\ud83d\udd17 Connect Muse";}cLbl();
+  cb.onclick=async function(){if(M.connected)return;var st=document.getElementById("bpMsg");if(!bioBT()){st.innerHTML="<b>This browser can\u2019t use Bluetooth.</b> On iPhone use the <b>Bluefy</b> app; on a computer use Chrome.";return;}
+    try{await museConnect(st);st.innerHTML="\ud83e\udde0 Muse connected \u2014 sit still a moment while it settles.";}
+    catch(e){var r=String((e&&(e.message||e.name))||e||"");st.innerHTML=/cancel|chooser/i.test(r)?"No Muse picked. Turn it on (hold the button until the lights move), close the Muse app, then tap again.":"Couldn\u2019t connect. The \u2764\ufe0f sensors button has full connection help.";}
+    try{sensEnsureTimer();bioStart();sensUI();}catch(e){}cLbl();};
+  document.getElementById("bpFull").onclick=function(){brainPanelOpen(false);try{if(typeof teardown==="function")teardown();}catch(e){}teardown=null;renderBrainCharts();};
+  brainPanelTick();BRP.t=setInterval(function(){brainPanelTick();var c2=document.getElementById("bpConn");if(c2&&!document.getElementById("brainPanel").hidden)c2.textContent=M.connected?"\ud83c\udfa7 Muse connected":"\ud83d\udd17 Connect Muse";},700);brainLayout();}
 (function(){try{const s=document.createElement("style");s.textContent=
 "#sensFab{position:fixed;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:2147482500;padding:9px 14px;border-radius:999px;border:1px solid rgba(255,93,108,.55);background:rgba(20,14,40,.92);color:#ffb3ba;font:800 .9rem system-ui;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.35)}"+
 "#sensFab.on{background:#2a1220;color:#fff;border-color:#ff5d6c}#sensFab .sdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff5d6c;margin-left:4px;animation:sblink 1.2s infinite}@keyframes sblink{50%{opacity:.25}}"+
 "#sensPanel{position:fixed;right:12px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:2147482500;width:min(360px,calc(100vw - 24px));max-height:70vh;overflow:auto;background:var(--card,#1a1430);border:1px solid var(--line,#3a3160);border-radius:16px;padding:12px;color:var(--cream,#f4ead2);box-shadow:0 10px 30px rgba(0,0,0,.5)}"+
-"#sensPanel .mbtn{flex:1;border:1px solid var(--line,#3a3160);background:var(--card2,#241c42);color:inherit;border-radius:10px;padding:9px 10px;font:800 .85rem system-ui;cursor:pointer}#sensPanel .srow{display:flex;gap:8px;margin:8px 0}"+
-"#sensPanel .snote{font-size:.78rem;color:var(--muted,#9a93b8);margin:6px 0}#sensPanel .sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:6px 0}#sensPanel .stile{background:var(--bg,#0f0b1e);border:1px solid var(--line,#3a3160);border-radius:10px;padding:6px;text-align:center}#sensPanel .sl{font-size:.68rem;color:var(--muted,#9a93b8);font-weight:800}#sensPanel .sv{font:900 1.05rem system-ui}"+
+"#sensPanel .mbtn,#brainPanel .mbtn{flex:1;border:1px solid var(--line,#3a3160);background:var(--card2,#241c42);color:inherit;border-radius:10px;padding:9px 10px;font:800 .85rem system-ui;cursor:pointer}#sensPanel .srow,#brainPanel .srow{display:flex;gap:8px;margin:8px 0}"+
+"#sensPanel .snote,#brainPanel .snote{font-size:.78rem;color:var(--muted,#9a93b8);margin:6px 0}#sensPanel .sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:6px 0}#sensPanel .stile{background:var(--bg,#0f0b1e);border:1px solid var(--line,#3a3160);border-radius:10px;padding:6px;text-align:center}#sensPanel .sl{font-size:.68rem;color:var(--muted,#9a93b8);font-weight:800}#sensPanel .sv{font:900 1.05rem system-ui}"+
 ".pkWide #sensFab{display:none!important}"+
 "#metFab{display:none!important}"+ /* replaced by the brain button, per Travis */
 "#brainFab{position:fixed;left:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:2147482500;padding:9px 14px;border-radius:999px;border:1px solid rgba(95,224,168,.55);background:rgba(20,14,40,.92);color:#aef0d6;font:800 .9rem system-ui;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.35)}"+
 "#brainFab.on{background:#0f2a22;color:#fff;border-color:#5fe0a8}"+
-".pkWide #brainFab,body.gated #brainFab,body.djOn #brainFab{display:none!important}";document.head.appendChild(s);
+"#brainPanel{position:fixed;left:12px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:2147482500;width:min(340px,calc(100vw - 24px));max-height:60vh;overflow:auto;background:var(--card,#1a1430);border:1px solid rgba(95,224,168,.4);border-radius:16px;padding:12px;color:var(--cream,#f4ead2);box-shadow:0 10px 30px rgba(0,0,0,.5)}"+
+".pkWide #brainFab,body.gated #brainFab,body.djOn #brainFab,.pkWide #brainPanel,body.gated #brainPanel,body.djOn #brainPanel{display:none!important}";document.head.appendChild(s);
   const f=document.createElement("button");f.id="sensFab";f.type="button";f.setAttribute("aria-label","Sensors");document.body.appendChild(f);f.onclick=()=>{unlockAudio();sensPanelOpen(!SENS.open);};
   const bf=document.createElement("button");bf.id="brainFab";bf.type="button";bf.setAttribute("aria-label","Brain Charts");bf.textContent="🧠";document.body.appendChild(bf);
-  bf.onclick=()=>{unlockAudio();try{if(typeof teardown==="function")teardown();}catch(e){}teardown=null;sensPanelOpen(false);renderBrainCharts();};
-  const p=document.createElement("div");p.id="sensPanel";p.hidden=true;document.body.appendChild(p);sensUI();window.addEventListener("pagehide",()=>{if(SENS.rec)sensSave(false);});}catch(e){}})();
+  bf.onclick=()=>{unlockAudio();brainPanelOpen(!BRP.open);};
+  const p=document.createElement("div");p.id="sensPanel";p.hidden=true;document.body.appendChild(p);const bp=document.createElement("div");bp.id="brainPanel";bp.hidden=true;document.body.appendChild(bp);sensUI();window.addEventListener("pagehide",()=>{if(SENS.rec)sensSave(false);});}catch(e){}})();
 
 /* ===== MONITOR REPLAY — the live HRV monitor, replayed through its own code: same screen, same readouts, plus a transport ===== */
 function rpxMake(src){var tl=src.tl,log=[];for(var i=0;i<tl.t.length;i++)log.push({t:src.startMs+tl.t[i]*1000,hr:tl.hr&&tl.hr[i]!=null?tl.hr[i]:null,hrv:tl.hrv&&tl.hrv[i]!=null?tl.hrv[i]:null,co:tl.co?tl.co[i]:null});
