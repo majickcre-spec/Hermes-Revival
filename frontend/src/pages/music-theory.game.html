@@ -12214,8 +12214,8 @@ function renderGuidedStudio(doc){if(toneRAF)cancelAnimationFrame(toneRAF);medSto
         +'<div class="rrow" style="margin:6px 0 0;gap:6px"><button class="rchip sm'+(ps.key?"":"")+'" data-grec="'+i+'">'+(ps.key?"🎙 Re-record":"🎙 Record")+'</button>'+(ps.key?'<button class="rchip sm" data-gpl="'+i+'">▶</button>':'')
         +'<span class="rchips tight" style="margin-left:auto"><button class="rchip sm" data-gat="'+i+':-30">−</button><span class="rbpm" style="min-width:44px;text-align:center">'+fmtM(at)+'</span><button class="rchip sm" data-gat="'+i+':30">+</button></span>'
         +(D.ps.length>1?'<button class="rchip sm" data-gdel="'+i+'">🗑</button>':'')+'</div>'
-        +'<div class="site-note" style="margin:4px 0 0;font-size:.72rem" id="gmSt'+i+'">'+(ps.key?"voice saved ✓ · plays at "+fmtM(at):"no recording yet · plays at "+fmtM(at))+'</div></div>';}).join("")
-     +'<div class="actions" style="margin:0 0 10px"><button class="rchip" id="gmAddP">➕ Add a passage</button></div>'
+        +'<div class="site-note" style="margin:4px 0 0;font-size:.72rem" id="gmSt'+i+'">'+(ps.key?"voice saved ✓ · plays at "+fmtM(at):(ps.txt&&ps.txt.trim()?"no recording — the device voice will read it · plays at "+fmtM(at):"empty · plays at "+fmtM(at)))+'</div></div>';}).join("")
+     +'<div class="actions" style="margin:0 0 10px;flex-wrap:wrap"><button class="rchip" id="gmAddP">➕ Add a passage</button><button class="rchip" id="gmPaste">\ud83d\udcdc Paste a long text</button></div>'+'<div id="gmPasteW" style="display:none"><textarea id="gmPasteT" placeholder="Paste a chapter or teaching here — it becomes passages spread across the journey. Passages without a recording are read aloud in the device\u2019s voice (record over any of them to use yours)." style="width:100%;box-sizing:border-box;min-height:140px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:8px;color:inherit;padding:8px"></textarea><div class="actions" style="margin:6px 0 10px"><button class="btn" id="gmSplit">\u2702\ufe0f Split into passages</button></div></div>'
      +'<div class="actions"><button class="btn" id="gmGo" style="flex:1 1 60%">▶ Save &amp; begin</button><button class="btn ghost" id="gmSv" style="flex:1 1 30%">💾 Save</button></div>'
      +(gmList().length?'<div class="rlab" style="display:block;margin:14px 0 4px">My meditations</div>'+gmList().map(function(m2){return '<div class="rrow" style="border-top:1px solid var(--line);padding:8px 0;gap:6px"><div style="flex:1;min-width:0"><b style="font-size:.9rem">'+esc(m2.title||"Untitled")+'</b><div class="site-note" style="margin:0;font-size:.72rem">'+m2.stages.reduce(function(x,s3){return x+s3.min;},0)+' min · '+m2.ps.length+' passage'+(m2.ps.length>1?"s":"")+'</div></div><button class="rchip sm" data-mgo="'+m2.id+'">▶</button><button class="rchip sm" data-med="'+m2.id+'">✏️</button><button class="rchip sm" data-mdel="'+m2.id+'">🗑</button></div>';}).join(""):'')
      +'</div>';
@@ -12227,6 +12227,13 @@ function renderGuidedStudio(doc){if(toneRAF)cancelAnimationFrame(toneRAF);medSto
     view.querySelectorAll("[data-sdel]").forEach(function(b){b.onclick=function(){keep();D.stages.splice(+b.dataset.sdel,1);draw();};});
     $("#gmAddS").onclick=function(){keep();D.stages.push({hz:6,min:5});draw();};
     $("#gmAddP").onclick=function(){keep();D.ps.push({txt:"",at:null,key:null});draw();};
+    var pw2=$("#gmPaste");if(pw2)pw2.onclick=function(){var w2=$("#gmPasteW");if(w2)w2.style.display=w2.style.display==="none"?"":"none";};
+    var sp2=$("#gmSplit");if(sp2)sp2.onclick=function(){keep();var tx=($("#gmPasteT")||{}).value||"";tx=tx.replace(/\s+/g," ").trim();if(tx.length<40)return;
+      var re2=null;try{re2=new RegExp("(?<=[.!?\u2026;:])\\s+");}catch(e){}
+      var sens=re2?tx.split(re2):(tx.match(/[^.!?\u2026]+[.!?\u2026]*\s*/g)||[tx]);
+      var parts=[],cur="";sens.forEach(function(sn){sn=String(sn).trim();if(!sn)return;if((cur+" "+sn).length>620){if(cur)parts.push(cur);cur=sn;}else cur=cur?cur+" "+sn:sn;});if(cur)parts.push(cur);
+      if(!parts.length)return;var fresh=D.ps.length===1&&!(D.ps[0].txt&&D.ps[0].txt.trim())&&!D.ps[0].key;
+      D.ps=(fresh?[]:D.ps).concat(parts.map(function(t3){return {txt:t3,at:null,key:null};}));draw();};
     view.querySelectorAll("[data-gdel]").forEach(function(b){b.onclick=function(){keep();var i2=+b.dataset.gdel;var k=D.ps[i2].key;if(k)try{idbDel(k);}catch(e){}D.ps.splice(i2,1);draw();};});
     view.querySelectorAll("[data-gat]").forEach(function(b){b.onclick=function(){keep();var q=b.dataset.gat.split(":"),i2=+q[0];var cur=D.ps[i2].at==null?autoAt(i2):D.ps[i2].at;D.ps[i2].at=Math.max(0,Math.min(totMin()*60-5,cur+ +q[1]));draw();};});
     view.querySelectorAll("[data-gpl]").forEach(function(b){b.onclick=function(){idbGet(D.ps[+b.dataset.gpl].key).then(function(bl){if(!bl)return;var u=URL.createObjectURL(bl),el=new Audio(u);el.onended=function(){URL.revokeObjectURL(u);};el.play();});};});
@@ -12239,12 +12246,12 @@ function renderGuidedStudio(doc){if(toneRAF)cancelAnimationFrame(toneRAF);medSto
           mr.start(500);b.textContent="■ Stop";if(stt)stt.textContent="Recording — read the passage slowly…";}catch(e){if(stt)stt.textContent="Recording isn’t available in this browser.";}});};});
     var saveDoc=function(){keep();var L=gmList().filter(function(m2){return m2.id!==D.id;});L.unshift(D);gmSave(L);};
     $("#gmSv").onclick=function(){saveDoc();draw();};
-    $("#gmGo").onclick=function(){saveDoc();var voice=D.ps.filter(function(ps){return ps.key;}).map(function(ps,ix){return {at:ps.at==null?autoAt(D.ps.indexOf(ps)):ps.at,key:ps.key};}).sort(function(a,b2){return a.at-b2.at;});
+    $("#gmGo").onclick=function(){saveDoc();var voice=D.ps.filter(function(ps){return ps.key||(ps.txt&&ps.txt.trim());}).map(function(ps){return {at:ps.at==null?autoAt(D.ps.indexOf(ps)):ps.at,key:ps.key||null,text:(ps.txt||"").trim().slice(0,1400)};}).sort(function(a,b2){return a.at-b2.at;});
       var plan=gmPlan(D.stages);
       renderJourney({plan:plan,len:totMin(),voice:voice,title:"🎙 "+(D.title||"Guided Meditation"),
         note:"<b>"+esc(D.title||"Your guided meditation")+".</b> Your voice rides over the full journey soundboard — open ⚙️ Settings for melody, chords, sub bass, vibro and the rest. Headphones on, press Begin."});};
     view.querySelectorAll("[data-mgo]").forEach(function(b){b.onclick=function(){var m2=gmList().filter(function(x){return x.id===b.dataset.mgo;})[0];if(!m2)return;
-      var voice=m2.ps.filter(function(ps){return ps.key;}).map(function(ps,ix){return {at:ps.at==null?Math.round(m2.stages.reduce(function(x,s3){return x+s3.min;},0)*60*(ix+0.3)/Math.max(1,m2.ps.length)):ps.at,key:ps.key};}).sort(function(a,b2){return a.at-b2.at;});
+      var voice=m2.ps.filter(function(ps){return ps.key||(ps.txt&&ps.txt.trim());}).map(function(ps,ix){return {at:ps.at==null?Math.round(m2.stages.reduce(function(x,s3){return x+s3.min;},0)*60*(ix+0.3)/Math.max(1,m2.ps.length)):ps.at,key:ps.key||null,text:(ps.txt||"").trim().slice(0,1400)};}).sort(function(a,b2){return a.at-b2.at;});
       renderJourney({plan:gmPlan(m2.stages),len:m2.stages.reduce(function(x,s3){return x+s3.min;},0),voice:voice,title:"🎙 "+(m2.title||"Guided Meditation"),note:"<b>"+esc(m2.title||"Guided meditation")+".</b> Press Begin and close your eyes."});};});
     view.querySelectorAll("[data-med]").forEach(function(b){b.onclick=function(){var m2=gmList().filter(function(x){return x.id===b.dataset.med;})[0];if(m2)renderGuidedStudio(m2);};});
     view.querySelectorAll("[data-mdel]").forEach(function(b){b.onclick=function(){if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Sure?";return;}
@@ -12265,7 +12272,7 @@ function renderJourney(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(to
       ((J.ladder||MEDLAYER.mode!=="off")?'<div id="jLayers" class="rchips tight" style="justify-content:center;margin:4px 0">'+(J.ladder?PHI_LADDER.map(function(h){return '<span class="rchip sm" style="opacity:.45">'+h+'</span>';}).join(""):'')+'</div><div class="site-note" style="text-align:center;font-size:.76rem;margin:0 0 4px">'+(J.ladder?"\u03c6 ladder from Schumann \u2014 lit = playing (Hz)":(MEDLAYER.mode==="phi"?"\u03c6 layers locked to the main beat (\u00f7\u03c6\u00b2 \u00f7\u03c6 \u00d7\u03c6 \u00d7\u03c6\u00b2)":"Octave layers locked to the main beat (\u00bd\u00d7 2\u00d7 4\u00d7)"))+'</div>':'')+
       '<div class="rrow2" style="margin-top:6px"><span class="rlab">Breathe with it</span><span class="rchips tight" id="jBrs">'+[["off","Off"]].concat(BREATH.map(function(b){return [b.id,b.name];})).map(function(o){return '<button class="rchip sm'+(jBr===o[0]?" sel":"")+'" data-br="'+o[0]+'">'+o[1]+'</button>';}).join("")+'</span></div>'+brCueRowHTML()+
       (J.focus?'<div id="fsBox" style="margin:8px 0"></div>':'')+
-      '<div id="jHum" style="display:none;text-align:center;margin:8px 0;padding:10px;border-radius:14px;background:var(--bg);border:1px solid var(--line)"></div>'+
+      '<div id="jHum" style="display:none;text-align:center;margin:8px 0;padding:10px;border-radius:14px;background:var(--bg);border:1px solid var(--line)"></div>'+'<div id="jTeach" style="display:none;margin:8px 0;padding:14px 16px;border-radius:14px;background:rgba(244,183,64,.07);border:1px solid rgba(244,183,64,.4);line-height:1.65;font-size:1.02rem"></div>'+
       '<div id="jMap">'+jSVG(P,jLen*60,playing?0:null)+'</div>'+
       (opts.plan?'':'<div class="rrow2" style="margin-top:10px"><span class="rlab">Length</span><span class="rchips tight" id="jLens"></span></div>')+
       ((J.segs||opts.plan)?'':'<div class="rrow2"><span class="rlab">How deep</span><span class="rchips tight" id="jDeps"></span></div>')+
@@ -12357,7 +12364,18 @@ function renderJourney(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(to
   function resume(){if(!playing||!paused)return;try{if(MED.vclip)MED.vclip.play();}catch(e){}var a=ac();unlockAudio();t0=a.currentTime-pausedAt;paused=false;if(MED.jSess){MED.jSess.paused=false;MED.jSess.t0=t0;}jSched(pausedAt);if(MED.gate){MED.gate.gain.cancelScheduledValues(a.currentTime);MED.gate.gain.setTargetAtTime(1,a.currentTime,0.4);var _e=t0+jLen*60;if(_e>a.currentTime+1)MED.gate.gain.setTargetAtTime(0.0001,_e,2.5);}lastMap=0;draw();MED.timer=setInterval(tick,250);}
   function readout(t){var total=jLen*60,cur=jHzAt(plan,t),hz=$("#jHz"),bl=$("#jBandL"),ph=$("#jPhase"),lf=$("#jLeft"),mp=$("#jMap");if(hz)hz.textContent=cur.hz.toFixed(1)+" Hz";if(bl)bl.textContent=jBand(cur.hz);if(ph)ph.textContent=cur.label;if(lf)lf.textContent=fmt(total-t)+" left";if(mp)mp.innerHTML=jSVG(plan,total,t);}
   function tick(){if(!playing||paused)return;var total=jLen*60,t=ac().currentTime-t0,cur=jHzAt(plan,t);
-    if(opts.voice&&opts.voice.length&&window.GMV){while(GMV.i<opts.voice.length&&opts.voice[GMV.i].at<=t){(function(cl){idbGet(cl.key).then(function(bl){if(!bl||!playing)return;try{var u=URL.createObjectURL(bl),el=new Audio(u);MED.vclip=el;if(MED.master)MED.master.gain.setTargetAtTime(vol*0.5,ac().currentTime,0.4);/* the bed bows to the voice */el.onended=function(){try{URL.revokeObjectURL(u);}catch(e){}MED.vclip=null;if(MED.master)MED.master.gain.setTargetAtTime(vol,ac().currentTime,0.8);};el.play();}catch(e){}});})(opts.voice[GMV.i]);GMV.i++;}}if(jType==="focus")fsPaint("fsBox");
+    if(opts.voice&&opts.voice.length&&window.GMV){while(GMV.i<opts.voice.length&&opts.voice[GMV.i].at<=t){(function(cl){
+      var done=false,wd=null;
+      var show=function(){var tb=$("#jTeach");if(tb&&cl.text){tb.style.display="";tb.textContent=cl.text;}};
+      var dip=function(){if(MED.master)MED.master.gain.setTargetAtTime(vol*0.45,ac().currentTime,0.4);};
+      var back=function(){if(done)return;done=true;if(wd)clearTimeout(wd);MED.vclip=null;if(MED.master)MED.master.gain.setTargetAtTime(vol,ac().currentTime,0.8);setTimeout(function(){var tb2=$("#jTeach");if(tb2&&!MED.vclip)tb2.style.display="none";},6000);};
+      if(cl.key){idbGet(cl.key).then(function(bl){if(!bl||!playing)return;try{var u=URL.createObjectURL(bl),el=new Audio(u);MED.vclip=el;dip();show();el.onended=function(){try{URL.revokeObjectURL(u);}catch(e){}back();};el.play();}catch(e){}});}
+      else if(cl.text&&window.speechSynthesis){try{var ut=new SpeechSynthesisUtterance(cl.text);ut.rate=0.84;ut.pitch=0.96;
+        try{var vs=speechSynthesis.getVoices().filter(function(v2){return v2.lang&&v2.lang.indexOf("en")===0;});var pf=vs.filter(function(v2){return /siri|premium|enhanced|ava|samantha|daniel|serena/i.test(v2.name);})[0]||vs[0];if(pf)ut.voice=pf;}catch(e){}
+        MED.vclip={pause:function(){try{speechSynthesis.cancel();}catch(e){}}};dip();show();
+        ut.onend=back;ut.onerror=back;wd=setTimeout(back,Math.min(240,cl.text.split(/\s+/).length/1.7+8)*1000);
+        speechSynthesis.speak(ut);}catch(e){back();}}
+    })(opts.voice[GMV.i]);GMV.i++;}}if(jType==="focus")fsPaint("fsBox");
     var hz=$("#jHz"),bl=$("#jBandL"),ph=$("#jPhase"),lf=$("#jLeft"),mp=$("#jMap");
     if(hz)hz.textContent=cur.hz.toFixed(1)+" Hz";if(bl)bl.textContent=jBand(cur.hz)+({Beta:cur.hz>=15?" · alert & energized":" · everyday thinking",Alpha:" · calm, relaxed",Theta:" · deep, dreamy",Delta:" · deepest rest"})[jBand(cur.hz)];
     if(ph)ph.textContent=cur.label;if(lf)lf.textContent=fmt(total-t)+" left";
