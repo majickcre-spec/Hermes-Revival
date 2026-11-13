@@ -11283,6 +11283,17 @@ function renderSessions(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=t
   draw(null);srSync().then(function(){if(syncOn()&&acctTok())_api("/api/sessions",{}).then(function(j){if($("#srClaude")||view.querySelector(".srRow")||true)draw(j.sessions||[]);}).catch(function(){draw(null);});});}
 
 function plRmssd(rr){var d=[];for(var i=1;i<rr.length;i++){var x=rr[i]-rr[i-1];if(Math.abs(x)<250)d.push(x*x);}return d.length>=4?Math.round(Math.sqrt(d.reduce(function(a,b){return a+b;},0)/d.length)*10)/10:null;}
+function srReadD(T){var D2=[],stN=srStages(T),tt0=(T.t&&T.t[0])||0;
+  for(var i=0;i<T.t.length;i++){
+    var th=(T.th&&T.th[i]!=null)?Math.exp(T.th[i]):null,al=(T.al&&T.al[i]!=null)?Math.exp(T.al[i]):null,be=(T.be&&T.be[i]!=null)?Math.exp(T.be[i]):null,ga=(T.ga&&T.ga[i]!=null)?Math.exp(T.ga[i]):null;
+    var tt=(th!=null&&al!=null&&be!=null)?(th+al+be):null;
+    var cp=(T.co&&T.co[i]!=null)?Math.max(0,Math.min(95,T.co[i])):null;
+    var hsv=null;if(T.hp&&T.hp[i]&&T.hp[i].length){var sm=0,n=0;T.hp[i].forEach(function(q){if(q[0]>=8&&q[0]<=13){sm+=q[1];n++;}});if(n)hsv=Math.round(100*sm/n);}
+    D2.push({t:Math.round(T.t[i]-tt0),hr:T.hr?T.hr[i]:null,hrv:T.hrv?T.hrv[i]:null,
+      co:cp!=null?Math.round(cp/(100-cp)*100)/100:null,
+      al:tt?Math.round(100*al/tt):(T.ra?T.ra[i]:null),th:tt?Math.round(100*th/tt):(T.rt?T.rt[i]:null),be:tt?Math.round(100*be/tt):null,
+      ga:(tt&&ga!=null)?Math.round(100*ga/(tt+ga)):null,hs:hsv,act:stN[T.st[i]]||"",pl:1});
+  }return D2;}
 function plReport(at){home.hidden=true;view.hidden=false;window.scrollTo(0,0);var ix=srIdx().find(function(x){return x.at===at;})||{},isPL=(ix.kind||"perception")==="perception",res=(isPL&&plStore().find(function(x){return x.at===at;}))||{at:at,mins:ix.mins};
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">📈 Session report</span></div><div class="panel" id="plRep">Loading…</div>';$("#eBack").onclick=renderSessions;
   idbGet("pl-"+at).then(function(D){if(D||!syncOn()||!acctTok())return D;return _api("/api/sessions/"+at,{}).then(function(s){ix.label=ix.label||s.label;return {tl:s.timeline||{t:[]},rr:(s.rr&&s.rr.rr)||[],rrT:(s.rr&&s.rr.rrT)||[],eegBlocks:0,sens:(s.report&&s.report.sensors)||{},fromServer:true};}).catch(function(){return null;});}).then(function(D){var box=$("#plRep");if(!box)return;var head='<div style="font:900 1.05rem system-ui;margin:0 0 2px">'+esc(ix.label||("Perception Lab · "+srWhen(at)))+'</div><div class="site-note" style="margin:0 0 8px">'+(res.minsDone!=null?res.minsDone:(ix.mins||res.mins||"–"))+(res.mins&&isPL?' of '+res.mins:'')+' min'+(res.rank?' · target ranked #'+res.rank+(res.hit?' ✓':''):res.pending?' · photo target not judged yet':'')+(ix.syncedAt?' · ☁︎ backed up':'')+'</div>';
@@ -11294,9 +11305,10 @@ function plReport(at){home.hidden=true;view.hidden=false;window.scrollTo(0,0);va
       '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font:700 .78rem system-ui" class="plTab"><tr style="color:var(--muted)"><td>Stage</td><td>min</td><td>HR</td><td>HRV (RMSSD)</td><td>Coherence %</td><td>Alpha %</td><td>Theta %</td></tr>'+rows+'</table></div>'+
       ['hr|Heart rate (bpm)|#ff8fa3','co|Coherence %|#7ff0d6','ra|Alpha % (relative)|#5fe0a8','rt|Theta % (relative)|#5fc8e0'].map(function(x){var p=x.split("|");return T[p[0]].some(function(v){return v!=null;})?'<div class="rlab" style="display:block;margin:10px 0 2px">'+p[1]+'</div><canvas class="plCh" data-k="'+p[0]+'" data-c="'+p[2]+'" style="width:100%;height:90px;background:rgba(255,255,255,.03);border-radius:8px"></canvas>':'';}).join("")+
       plHemiHTML(T)+
-      '<div class="actions" style="margin:10px 0 4px"><button class="btn" id="plWatch" style="width:100%">🎬 Watch this session as video</button></div>'+
+      '<div class="actions" style="margin:10px 0 4px"><button class="btn" id="srRead" style="width:100%">\ud83d\udcd6 Read this session in plain words</button></div><div class="actions" style="margin:8px 0 4px"><button class="btn ghost" id="plWatch" style="width:100%">🎬 Watch this session as video</button></div>'+
       '<div class="actions" style="flex-wrap:wrap"><button class="btn ghost" data-x="hs">⬇ Hemisphere sync CSV</button><button class="btn ghost" data-x="cas">⬇ Cascades CSV</button><button class="btn ghost" data-x="tl">⬇ Second-by-second CSV</button><button class="btn ghost" data-x="rr">⬇ Heartbeat intervals CSV</button>'+(D.eegBlocks&&!D.fromServer?'<button class="btn ghost" data-x="eeg">⬇ Raw EEG CSV</button>':'')+(res.pending&&!res.rank&&res.ids?'<button class="btn" id="plJ2">Judge the photo target</button>':'')+'<button class="btn" id="plAll">'+(isPL?"All results":"All sessions")+'</button></div>';
     $("#plAll").onclick=isPL?plResults:renderSessions;if($("#plJ2"))$("#plJ2").onclick=function(){plJudge(res);};
+    var rb=document.getElementById("srRead");if(rb)rb.onclick=function(){renderBioRead(srReadD(T),(typeof stamp!=="undefined"?stamp:"Session"),function(){plReport(at);});};
     if($("#plWatch"))$("#plWatch").onclick=function(){
       if((ix.eegBlocks||0)>0){BC.src="rec";BC.playing=false;renderBrainCharts();bcLoadRec(at,ix.label||"Session");}
       else rpOpenPl(at,ix.label||"Session",function(){plReport(at);});};
