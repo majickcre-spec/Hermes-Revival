@@ -1786,6 +1786,39 @@ function playSustain(freq,start,dur,peak){
 }
 function playSing(midi,dur){playSustain(midiToFreq(midi),0,dur||2.2,0.9);}
 
+/* ===== \ud83c\udfb9 MIDI IN \u2014 answer ear training on a real keyboard. USB/Web MIDI on computers; Bluetooth MIDI (BLE) in Bluefy. ===== */
+const MIN={on:false,kind:null,dev:null,name:"",cb:null};
+function minNote(m,vel){if(!MIN.on||!(vel>0))return;try{if(typeof pkSound==="function")pkSound(m,0,0.85,0.5);}catch(e){}try{if(typeof MIN.cb==="function")MIN.cb(m);}catch(e){}}
+function minParse(dv){try{var b=[];for(var i=0;i<dv.byteLength;i++)b.push(dv.getUint8(i));var j=1,st=0,ts=true;
+  while(j<b.length){var x=b[j];
+    if(x&0x80){if(ts){ts=false;j++;continue;}st=x;j++;
+      if(st>=0x90&&st<=0x9F){minNote(b[j],b[j+1]||0);j+=2;}
+      else if(st>=0xC0&&st<=0xDF){j+=1;}
+      else{j+=2;}
+      ts=true;continue;}
+    if(st>=0x90&&st<=0x9F){minNote(b[j],b[j+1]||0);j+=2;}else if(st>=0x80&&st<=0x8F){j+=2;}else j++;ts=true;}
+}catch(e){}}
+async function minConnect(){var st=document.getElementById("minMsg");function say(h){if(st)st.innerHTML=h;}
+  if(MIN.on){minDisconnect();say("MIDI disconnected.");return;}
+  try{
+    if(navigator.requestMIDIAccess){try{var acc=await navigator.requestMIDIAccess();var n=0;acc.inputs.forEach(function(inp){n++;MIN.name=inp.name||"MIDI keyboard";inp.onmidimessage=function(ev){var d=ev.data;if(!d)return;if((d[0]&0xF0)===0x90)minNote(d[1],d[2]||0);};});
+      if(n){MIN.on=true;MIN.kind="midi";say("\ud83c\udfb9 <b>"+esc(MIN.name)+"</b> connected \u2014 play your answers on the keys.");minBadge();return;}
+      if(!navigator.bluetooth){say("No MIDI device found \u2014 plug the keyboard in (USB) and tap again.");return;}}catch(e2){if(!navigator.bluetooth)throw e2;}}
+    if(navigator.bluetooth){var SVC="03b80e5a-ede8-4b33-a751-6ce34ec4c700",CHR="7772e5db-3868-4112-a1a9-f2669d106bf3";
+      var dev=await navigator.bluetooth.requestDevice({filters:[{services:[SVC]}],optionalServices:[SVC]});
+      var g=await dev.gatt.connect(),sv=await g.getPrimaryService(SVC),ch=await sv.getCharacteristic(CHR);
+      await ch.startNotifications();ch.addEventListener("characteristicvaluechanged",function(ev){minParse(ev.target.value);});
+      MIN.on=true;MIN.kind="ble";MIN.dev=dev;MIN.name=dev.name||"Bluetooth MIDI";
+      dev.addEventListener("gattserverdisconnected",function(){MIN.on=false;minBadge();});
+      say("\ud83c\udfb9 <b>"+esc(MIN.name)+"</b> connected \u2014 play your answers on the keys.");minBadge();return;}
+    say("<b>This browser can\u2019t reach a MIDI keyboard.</b> On iPhone use the Bluefy app (Bluetooth MIDI); on a computer use Chrome (USB).");
+  }catch(e){var r=String((e&&(e.message||e.name))||e||"");say(/cancel|chooser/i.test(r)?"No device picked. Put the keyboard in Bluetooth pairing mode and tap again.":"Couldn\u2019t connect (<i>"+esc(r)+"</i>). Turn the keyboard\u2019s Bluetooth MIDI on and try again.");}
+  minBadge();}
+function minDisconnect(){try{if(MIN.dev&&MIN.dev.gatt&&MIN.dev.gatt.connected)MIN.dev.gatt.disconnect();}catch(e){}MIN.on=false;MIN.cb=null;MIN.dev=null;minBadge();}
+function minBadge(){document.querySelectorAll(".minChip").forEach(function(b){b.classList.toggle("sel",MIN.on);b.textContent=MIN.on?"\ud83c\udfb9 MIDI \u2713 "+MIN.name:"\ud83c\udfb9 Use a MIDI keyboard";});}
+function minUI(){return '<div style="display:flex;justify-content:center;margin-top:8px"><button type="button" class="rchip sm minChip'+(MIN.on?" sel":"")+'">'+(MIN.on?"\ud83c\udfb9 MIDI \u2713 "+esc(MIN.name):"\ud83c\udfb9 Use a MIDI keyboard")+'</button></div><div id="minMsg" style="text-align:center;font-size:.78rem;color:var(--muted);margin-top:4px">'+(MIN.on?"Play your answer on the keys.":"")+'</div>';}
+document.addEventListener("click",function(e){var c=e.target&&e.target.closest?e.target.closest(".minChip"):null;if(c){try{unlockAudio();}catch(_){}minConnect();}});
+
 function openEar(mode){if(mode==="tone"){renderTone();return;}
   home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   if(mode==="intervals")renderLevels();else if(mode==="songs")renderSongs();else if(mode==="chords")renderChordEar();else if(mode==="scales")renderScaleEar();else if(mode==="noteid")renderNoteEar();else if(mode==="prog")renderProgEar();else if(mode==="cadence")renderCadenceEar();beanChip();}
@@ -6036,6 +6069,30 @@ function earTone(midi,delayMs,dur,gain){try{if(typeof sfLoadInst==="function")sf
   var o=a.createOscillator(),g=a.createGain();o.type="triangle";o.frequency.value=midiToFreq(midi);g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(pk,t+0.012);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(pianoMaster(a));o.start(t);o.stop(t+dur+0.12);EAR_O.push({o:o,g:g});
 }catch(e){}})();}
 function playScaleEar(root,iv){earStop();iv.forEach(function(s,i){earTone(root+s,i*320,0.55,0.26);});}
+/* ===== See it after you name it \u2014 chord, scale and progression reveals in the keyboard-card style ===== */
+function etEarReveal(host,kind,root,def){
+  var card=document.createElement("div");card.className="ivCard";host.appendChild(card);
+  var pc=((root%12)+12)%12,low=root-pc;
+  function nm(m){return NOTE_NAMES[((m%12)+12)%12];}
+  function kwrap(){var w=document.createElement("div");w.style.position="relative";card.appendChild(w);var kb=buildKeyboard(low,2,function(){},false);w.appendChild(kb);return kb;}
+  if(kind==="prog"||kind==="cadence"){
+    var m1=def.name.match(/\(([^)]*\u2013[^)]*)\)/),core=m1?m1[1]:def.name.replace(/\s*\(.*$/,""),rn=core.split("\u2013").map(function(x){return x.trim();});
+    var SUF={maj:"",min:"m",dim:"dim",aug:"aug",dom7:"7",maj7:"maj7",min7:"m7"};
+    card.innerHTML='<div class="ivLab"><span class="ivName">'+def.name+'</span><span class="ivSub">\u00b7 in '+nm(root)+'</span></div><div class="ivChips">'+def.iv.map(function(ch,i){return '<span class="ivCh" data-i="'+i+'"><i>'+(rn[i]||"")+'</i>'+nm(root+ch[0])+(SUF[ch[1]]||"")+'</span>';}).join("")+'</div>';
+    var kb=kwrap();
+    playProg(root,def.iv);
+    def.iv.forEach(function(ch,i){setTimeout(function(){if(!kb.isConnected)return;
+      kb.querySelectorAll(".hiA,.hiT").forEach(function(k){k.classList.remove("hiA","hiT");});kb.querySelectorAll(".kl").forEach(function(k){k.remove();});
+      card.querySelectorAll(".ivCh").forEach(function(c,j){c.classList.toggle("sel",j===i);});
+      (CHORD_DEFS[ch[1]]||CHORD_DEFS.maj).iv.forEach(function(sv,si){var m=root+ch[0]+sv;while(m>low+24)m-=12;var k=kb.querySelector('[data-m="'+m+'"]');if(k)k.classList.add(si===0?"hiA":"hiT");ivKeyLabel(kb,m);});
+    },i*620);});
+  }else{
+    var tones=def.iv.map(function(sv){return root+sv;});
+    card.innerHTML='<div class="ivLab"><span class="ivName">'+nm(root)+" "+def.name+'</span><span class="ivSub">\u00b7 '+tones.map(nm).join(" ")+'</span></div>';
+    var kb2=kwrap();
+    tones.forEach(function(m,i){var k=kb2.querySelector('[data-m="'+m+'"]');if(k)k.classList.add((def.iv[i]%12===0)?"hiA":"hiT");ivKeyLabel(kb2,m);});
+  }
+}
 function earGame(cfg){
   home.hidden=true;view.hidden=false;window.scrollTo(0,0);let level=load(mk("ear",cfg.key+"-lvl"),0);
   function back(){goHome();}
@@ -6052,16 +6109,19 @@ function earGame(cfg){
       const def=cfg.defs[cur.key];const label=def.name+(def.desc?' <span style="opacity:.72;font-weight:400">— '+def.desc+'</span>':'');
       const fb=$("#egFb");if(fb){fb.className="feedback "+(ok?"good":"try");fb.innerHTML=ok?"✓ "+label:"✗ That was "+label;}
       document.querySelectorAll(".egopt").forEach(b=>{const bk=b.getAttribute("data-k");if(bk===cur.key)b.classList.add("sel");else if(bk===k&&!ok)b.style.opacity=".5";b.disabled=true;});
-      i++;const delay=def.desc?2600:1050;setTimeout(()=>{if(i>=rounds)done();else nq();},delay);}
+      i++;var rev=document.getElementById("egRev");if(rev){rev.innerHTML="";try{etEarReveal(rev,cfg.key,cur.root,def);}catch(e){}if(cfg.key==="chord"||cfg.key==="scale")setTimeout(function(){cfg.play(cur.root,def.iv);},200);}
+      const delay=(cfg.key==="prog"||cfg.key==="cadence")?def.iv.length*620+1800:(def.desc?3000:2400);setTimeout(()=>{if(i>=rounds)done();else nq();},delay);}
     function draw(){
       let h='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+cfg.title+' · L'+(level+1)+'</span></div><div class="panel">'+
         '<div class="q" style="text-align:center">What did you hear? <span style="color:var(--muted)">('+(i+1)+'/'+rounds+')</span></div>'+
         '<div class="actions" style="justify-content:center"><button class="btn ghost" id="egHear">🔊 Hear it again</button></div>'+
-        '<div class="choices" id="egChoices"></div><div class="feedback" id="egFb"></div></div>';
+        ((cfg.key==="chord"||cfg.key==="scale")?minUI():"")+
+        '<div class="choices" id="egChoices"></div><div class="feedback" id="egFb"></div><div id="egRev"></div></div>';
       view.innerHTML=h;$("#eBack").onclick=()=>{levels();};
       $("#egHear").onclick=()=>cfg.play(cur.root,cfg.defs[cur.key].iv);
-      const ch=$("#egChoices");opts.forEach(k=>{const b=document.createElement("button");b.className="choice egopt";b.setAttribute("data-k",k);b.textContent=cfg.defs[k].name;b.onclick=()=>pick(k);ch.appendChild(b);});}
-    function done(){const prev=load(mk("ear",cfg.key+"-l"+level+"-best"),0);if(correct>prev)save(mk("ear",cfg.key+"-l"+level+"-best"),correct);
+      const ch=$("#egChoices");opts.forEach(k=>{const b=document.createElement("button");b.className="choice egopt";b.setAttribute("data-k",k);b.textContent=cfg.defs[k].name;b.onclick=()=>pick(k);ch.appendChild(b);});
+      if(cfg.key==="chord"||cfg.key==="scale"){var mb=[],mt=null;MIN.cb=function(m){if(answered)return;mb.push(m);clearTimeout(mt);mt=setTimeout(function(){var ns=mb.slice().sort(function(a,b){return a-b;});mb=[];if(ns.length<3||answered)return;var base=ns[0],sig=JSON.stringify(ns.map(function(x){return x-base;}));var hit=opts.filter(function(k){return JSON.stringify(cfg.defs[k].iv.slice().sort(function(a,b){return a-b;}))===sig;})[0];var fb=$("#egFb");if(hit!=null){var bt=document.querySelector('.egopt[data-k="'+hit+'"]');if(bt)bt.click();}else if(fb){fb.className="feedback try";fb.textContent="Heard "+ns.map(function(x){return NOTE_NAMES[((x%12)+12)%12];}).join(" ")+" \u2014 that shape isn\u2019t one of the choices.";}},cfg.key==="chord"?450:900);};}else MIN.cb=null;}
+    function done(){MIN.cb=null;const prev=load(mk("ear",cfg.key+"-l"+level+"-best"),0);if(correct>prev)save(mk("ear",cfg.key+"-l"+level+"-best"),correct);
       let bonus=0;if(correct>=6&&!load(mk("ear",cfg.key+"-l"+level+"-paid"),false)){if(activeId()&&!isAdult()){addBeans(10);bonus=10;}save(mk("ear",cfg.key+"-l"+level+"-paid"),true);}
       view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+cfg.title+'</span></div><div class="panel" style="text-align:center"><div class="q">You got <b>'+correct+'/'+rounds+'</b>!</div>'+(bonus?'<div class="bean-note">+'+bonus+' 🫘 level bonus</div>':"")+(correct>=6&&level<cfg.levels.length-1?'<div class="intro" style="margin-top:10px">Great ear — try the next level!</div>':"")+'<div class="actions" style="justify-content:center"><button class="btn" id="egAgain">Again</button><button class="btn ghost" id="egLvls">Levels</button></div></div>';
       $("#eBack").onclick=back;$("#egAgain").onclick=run;$("#egLvls").onclick=levels;if(correct>=6)burst($(".panel"),12);beanChip();}
@@ -6074,7 +6134,7 @@ function renderScaleEar(){earGame({key:"scale",title:"🎶 Scale Ear Trainer",in
 function renderNoteEar(){
   home.hidden=true;view.hidden=false;window.scrollTo(0,0);let low=48,oct=2,i=0,correct=0,target=null,answered=false;const rounds=10;
   teardown=()=>{};
-  function newQ(){answered=false;target=low+Math.floor(Math.random()*(oct*12+1));draw();setTimeout(()=>playTone(midiToFreq(target),0,1.4),200);}
+  function newQ(){answered=false;target=low+Math.floor(Math.random()*(oct*12+1));draw();MIN.cb=function(m){if(answered)return;var mm=m;if(m<low||m>low+oct*12){var pcs=((((m%12)-(low%12))%12)+12)%12,cand=[low+pcs,low+pcs+12,low+pcs+24].filter(function(x){return x<=low+oct*12;});mm=cand.indexOf(target)>=0?target:cand[0];}guess(mm,view.querySelector('[data-m="'+mm+'"]'));};setTimeout(()=>playTone(midiToFreq(target),0,1.4),200);}
   function guess(m,el){if(answered)return;answered=true;const ok=(m===target);if(ok){correct++;if(activeId()&&!isAdult()){addBeans(1);beanChip();}}
     const ce=view.querySelector('[data-m="'+target+'"]');if(ce)ce.classList.add("on");if(!ok&&el)el.style.opacity=".5";
     const fb=$("#neFb");if(fb){fb.className="feedback "+(ok?"good":"try");fb.innerHTML=ok?"✓ Yes — "+noteNameOct(target):"✗ That was "+noteNameOct(target)+" (you tapped "+noteNameOct(m)+")";}
@@ -6083,10 +6143,10 @@ function renderNoteEar(){
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎹 Note ID</span></div><div class="panel">'+
       '<div class="q" style="text-align:center">Hear the note, then tap it <span style="color:var(--muted)">('+(i+1)+'/'+rounds+')</span></div>'+
       '<div class="actions" style="justify-content:center"><button class="btn ghost" id="neHear">🔊 Hear it again</button></div>'+
-      '<div id="neBox"></div><div class="feedback" id="neFb"></div></div>';
+      '<div id="neBox"></div>'+minUI()+'<div class="feedback" id="neFb"></div></div>';
     $("#eBack").onclick=goHome;$("#neHear").onclick=()=>playTone(midiToFreq(target),0,1.4);
-    $("#neBox").appendChild(buildKeyboard(low,oct,guess,true));}
-  function done(){view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎹 Note ID</span></div><div class="panel" style="text-align:center"><div class="q">You got <b>'+correct+'/'+rounds+'</b>!</div><div class="actions" style="justify-content:center"><button class="btn" id="neAgain">Again</button><button class="btn ghost" id="neHome">Done</button></div></div>';$("#eBack").onclick=goHome;$("#neAgain").onclick=renderNoteEar;$("#neHome").onclick=goHome;if(correct>=7)burst($(".panel"),12);beanChip();}
+    var nw=document.createElement("div");nw.className="ivCard etPlay";var nwi=document.createElement("div");nwi.style.position="relative";nw.appendChild(nwi);$("#neBox").appendChild(nw);nwi.appendChild(buildKeyboard(low,oct,guess,true));}
+  function done(){MIN.cb=null;view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎹 Note ID</span></div><div class="panel" style="text-align:center"><div class="q">You got <b>'+correct+'/'+rounds+'</b>!</div><div class="actions" style="justify-content:center"><button class="btn" id="neAgain">Again</button><button class="btn ghost" id="neHome">Done</button></div></div>';$("#eBack").onclick=goHome;$("#neAgain").onclick=renderNoteEar;$("#neHome").onclick=goHome;if(correct>=7)burst($(".panel"),12);beanChip();}
   newQ();
 }
 /* ===== THE PATH — guided curriculum: MI 'learn by doing' + nervous-system regulation ===== */
@@ -13623,18 +13683,22 @@ function renderBioSession(){
 
 /* ===== Hear → Name → See: keyboard reveal card (video-style visual) ===== */
 (function(){try{var s=document.createElement("style");s.textContent=
-".ivCard{position:relative;background:#131519;border:1px solid var(--line);border-radius:14px;padding:10px 10px 8px;margin:12px 0}"+
-".ivLab{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:2px 4px 10px;min-height:1.5em}"+
-".ivLab .ivName{font-weight:800;font-size:1rem;color:var(--gold)}"+
-".ivLab .ivSub{font-weight:700;font-size:.8rem;color:var(--muted)}"+
-".ivCard .pk{margin:0;height:128px;pointer-events:none}"+
-".ivCard.listen .pk-w{background:linear-gradient(#2A2E37,#211b36);border-color:#131519}"+
-".ivCard.listen .pk-b{background:#0B0D10;border-color:#0B0D10}"+
-".ivCard .pk-w{color:transparent}"+
-".ivCard .pk-w.hiA{background:var(--gold)!important;color:#241800}.ivCard .pk-w.hiT{background:#34e0c6!important;color:#00332b}"+
-".ivCard .pk-b.hiA{background:var(--gold)!important;border-color:#8a6a1d}.ivCard .pk-b.hiT{background:#34e0c6!important;border-color:#0f7f6d}"+
-".ivCard .kl{position:absolute;bottom:4px;left:0;right:0;text-align:center;font:800 .6rem system-ui,sans-serif;pointer-events:none}"+
-".ivCard .pk-w{position:relative}.ivCard .pk-w .kl{color:#241800}.ivCard .pk-b .kl{color:#00231d}"+
+".ivCard{position:relative;background:#101217;border:1px solid #272b36;border-radius:20px;padding:12px 10px 12px;margin:12px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 10px 26px rgba(0,0,0,.35)}"+
+".ivLab{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;padding:2px 6px 10px;min-height:1.5em}"+
+".ivLab .ivName{font-weight:800;font-size:1.05rem;color:#f3efe6}"+
+".ivLab .ivSub{font-weight:700;font-size:.9rem;color:#c8cdd8}"+
+".ivCard .pk{margin:0;height:168px;pointer-events:none}"+
+".ivCard .pk-w{background:#f2ecdf;border-color:#101217;border-radius:0 0 7px 7px;color:transparent;position:relative}"+
+".ivCard .pk-b{background:#14161c;border-color:#14161c;border-radius:0 0 5px 5px}"+
+".ivCard .pk-w.hiA{background:#f0a93c!important;color:#241800}.ivCard .pk-w.hiT{background:#4ed1b4!important;color:#00332b}"+
+".ivCard .pk-b.hiA{background:#f0a93c!important;border-color:#b47c22}.ivCard .pk-b.hiT{background:#4ed1b4!important;border-color:#1d9a81}"+
+".ivCard .kl{position:absolute;bottom:6px;left:0;right:0;text-align:center;font:800 .78rem system-ui,sans-serif;pointer-events:none}"+
+".ivCard .pk-w .kl{color:#241800}.ivCard .pk-b .kl{color:#07211c}"+
+".ivCard.etPlay .pk{pointer-events:auto}.ivCard.etPlay .pk-w{color:#6b6350}.ivCard.etPlay .pk-w span{font:800 .72rem system-ui}"+
+".ivCard .pk-w.on,.ivCard .pk-b.on{background:#f0a93c!important;color:#241800}"+
+".ivChips{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:0 0 10px}"+
+".ivChips .ivCh{font:800 .95rem system-ui;color:#e9e6de}.ivChips .ivCh i{font-style:normal;color:var(--muted);margin-right:4px;font-size:.78rem}"+
+".ivChips .ivCh.sel{color:var(--gold)}.ivChips .ivCh.sel i{color:var(--gold)}"+
 ".ivArc{position:absolute;inset:0;pointer-events:none;overflow:visible}";
 document.head.appendChild(s);}catch(e){}})();
 function ivCardHTML(){return '<div class="ivCard listen" id="ivCard"><div class="ivLab" id="ivLab"><span class="ivSub">Listen…</span></div><div id="ivKb" style="position:relative"></div></div>';}
@@ -13646,13 +13710,13 @@ function ivReveal(kb,root,semis){
   var top=root+semis,a=kb.querySelector('[data-m="'+root+'"]'),b=kb.querySelector('[data-m="'+top+'"]');
   if(a)a.classList.add("hiA");if(b&&top!==root)b.classList.add("hiT");
   ivKeyLabel(kb,root);if(top!==root)ivKeyLabel(kb,top);
-  if(lab)lab.innerHTML='<span class="ivName">'+INAMES[semis]+'</span><span class="ivSub">'+noteNameOct(root).replace(/-?\d+$/,"")+' to '+noteNameOct(top).replace(/-?\d+$/,"")+' · '+semis+' half step'+(semis===1?"":"s")+'</span>';
+  if(lab)lab.innerHTML='<span class="ivName">'+INAMES[semis]+'</span><span class="ivSub">\u00b7 '+noteNameOct(root).replace(/-?\d+$/,"")+' to '+noteNameOct(top).replace(/-?\d+$/,"")+' · '+semis+' half step'+(semis===1?"":"s")+'</span>';
   if(a&&b&&top!==root){try{
     var W=kb.clientWidth,H=kb.clientHeight;
     function cx(el){var r=el.getBoundingClientRect(),k=kb.getBoundingClientRect();return r.left-k.left+r.width/2;}
     var x1=cx(a),x2=cx(b),y=H*0.72,lift=Math.min(H*0.5,Math.max(18,(x2-x1)*0.25));
     var svg=document.createElementNS("http://www.w3.org/2000/svg","svg");svg.setAttribute("class","ivArc");svg.setAttribute("width",W);svg.setAttribute("height",H);
-    svg.innerHTML='<path d="M '+x1+' '+y+' Q '+((x1+x2)/2)+' '+(y-lift)+' '+x2+' '+y+'" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="2.5" stroke-linecap="round"/>';
+    svg.innerHTML='<path d="M '+x1+' '+y+' Q '+((x1+x2)/2)+' '+(y-lift)+' '+x2+' '+y+'" fill="none" stroke="#1c1e24" stroke-width="3" stroke-linecap="round"/>';
     kb.appendChild(svg);
   }catch(e){}}
 }
@@ -13672,6 +13736,7 @@ function renderLevels(){
 function renderRound(level){
   const set=EAR_LEVELS[level-1],TOTAL=10;let qi=0,correct=0;
   function done(){
+    MIN.cb=null;
     const pass=correct>=Math.ceil(TOTAL*0.7);let note="";
     if(pass&&!load(mk("ear","lvl"+level),false)){save(mk("ear","lvl"+level),true);
       if(activeId()&&!load(mk("ear","lvl"+level+"-paid"),false)){addBeans(15);save(mk("ear","lvl"+level+"-paid"),true);beanChip();note='<div class="bean-note">+15 🫘</div>';}}
@@ -13694,6 +13759,7 @@ function renderRound(level){
         ${ivCardHTML()}
         <div class="actions"><button class="btn" id="play">▶ Play</button><button class="btn ghost" id="replay">↻ Again</button></div>
         <div class="opts" id="opts" style="margin-top:14px"></div>
+        ${minUI()}
         <div class="feedback" id="fb"></div>
         <div class="actions"><button class="btn" id="next" disabled>Next</button></div></div>`;
     $("#eBack").onclick=goHome;
@@ -13710,6 +13776,7 @@ function renderRound(level){
           if(_f&&activeId()&&load(mk("ear","lvl"+level),false)){addBeans(1);beanChip();}}
         else{box.dataset.miss="1";b.classList.add("wrong");b.disabled=true;$("#fb").textContent="Not quite — tap ↻ and listen again.";$("#fb").className="feedback try";}};
       box.appendChild(b);});
+    var mB=[];MIN.cb=function(m){if(box.dataset.lock)return;mB.push(m);if(mB.length>2)mB=mB.slice(-2);if(mB.length===2){var d=Math.abs(mB[1]-mB[0]);if(d>12){d=d%12;if(d===0)d=12;}mB=[];var bt=[...box.children].find(x=>x.textContent===INAMES[d]);if(bt)bt.click();else{$("#fb").textContent="You played "+(INAMES[d]||d+" half steps")+" \u2014 not one of this level\u2019s choices.";$("#fb").className="feedback try";}}};
     $("#next").onclick=()=>{qi++;step();};
     setTimeout(playIt,250);
   }
@@ -13746,7 +13813,7 @@ function renderSongQuiz(){
         <span style="margin-left:auto;color:var(--muted);font-weight:800;font-size:.8rem">${qi+1}/${TOTAL}</span></div>
       <div class="panel"><div class="ask">Hear the interval — which song starts like it?</div>
         <div class="actions"><button class="btn" id="play">▶ Play</button><button class="btn ghost" id="replay">↻ Again</button></div>
-        <div class="opts" id="opts" style="margin-top:14px"></div><div class="feedback" id="fb"></div>
+        <div class="opts" id="opts" style="margin-top:14px"></div>${minUI()}<div class="feedback" id="fb"></div>
         <div class="actions"><button class="btn" id="next" disabled>Next</button></div></div>`;
     $("#eBack").onclick=goHome;const playIt=()=>playInterval(60,s);$("#play").onclick=playIt;$("#replay").onclick=playIt;
     const box=$("#opts");
@@ -13756,6 +13823,7 @@ function renderSongQuiz(){
           correct++;$("#fb").textContent="Yes — that's a "+INAMES[s]+" ♪";$("#fb").className="feedback good";$("#next").disabled=false;$("#next").focus();}
         else{b.classList.add("wrong");b.disabled=true;$("#fb").textContent="Not that one — listen again.";$("#fb").className="feedback try";}};
       box.appendChild(b);});
+    var mB2=[];MIN.cb=function(m){if(box.dataset.lock)return;mB2.push(m);if(mB2.length>2)mB2=mB2.slice(-2);if(mB2.length===2){var d=Math.abs(mB2[1]-mB2[0]);if(d>12){d=d%12;if(d===0)d=12;}mB2=[];var ix=opts.indexOf(d);if(ix>=0)box.children[ix].click();else{$("#fb").textContent="You played "+(INAMES[d]||d+" half steps")+" \u2014 not one of these songs.";$("#fb").className="feedback try";}}};
     $("#next").onclick=()=>{qi++;step();};setTimeout(playIt,250);
   }
   step();
