@@ -1887,12 +1887,20 @@ function stopMic(){
   toneAnalyser=null;window.MIC_NODE=null;
   setTimeout(audioPlaybackCategory,60);
 }
+function micHelp(){var iOS=/iPhone|iPad|iPod/.test(navigator.userAgent);
+  return iOS?"Allow the mic — in Bluefy: aA menu → Website Settings → Microphone → Allow, then try again."
+  :"Allow the mic: click the 🎙/🔒 icon by the address bar → Microphone → Allow. On a Mac, also check System Settings → Privacy & Security → Microphone and switch your browser on, then reload.";}
+async function micInputs(){try{var ds=await navigator.mediaDevices.enumerateDevices();return ds.filter(function(d){return d.kind==="audioinput";});}catch(e){return [];}}
 async function ensureMic(){
   if(toneAnalyser)return true;
   try{
     const a=ac();
     try{if(navigator.audioSession)navigator.audioSession.type="play-and-record";}catch(e){}
-    micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    var want=load("mjk-micdev",null);
+    var cons={echoCancellation:false,noiseSuppression:false,autoGainControl:false};
+    if(want&&want.id)cons.deviceId={ideal:want.id};
+    micStream=await navigator.mediaDevices.getUserMedia({audio:cons});
+    try{var tr=micStream.getAudioTracks()[0];window.MIC_LABEL=(tr&&tr.label)||"";}catch(e){}
     const src=a.createMediaStreamSource(micStream);
     const mg=a.createGain();mg.gain.value=4.4; // boost so quiet notes/singing register
     toneAnalyser=a.createAnalyser();toneAnalyser.fftSize=2048;toneAnalyser.smoothingTimeConstant=0;
@@ -3227,7 +3235,11 @@ function swPlaySecs(secs){swStopPlay();unlockAudio();const D=swData(),song=swSon
 function swSingSec(song,sec){if(SW.rec){const R=SW.rec;R.done&&R.done();return;}swStopPlay();unlockAudio();
   const el0=()=>view.querySelector('.sw-sec[data-sec="'+sec.id+'"] .sw-melbar span'),say=t=>{const e=el0();if(e)e.textContent=t;};
   const SRC=window.SpeechRecognition||window.webkitSpeechRecognition;say("Turning on the mic…");
-  ensureMic().then(ok=>{if(!ok){say("I need the microphone — in Bluefy: aA menu → Website Settings → Microphone → Allow, then try again.");return;}
+  ensureMic().then(ok=>{if(!ok){say(micHelp());return;}
+    if(!/iPhone|iPad|iPod/.test(navigator.userAgent))micInputs().then(function(ds){if(ds.length<2)return;var hostEl=view.querySelector('.sw-sec[data-sec="'+sec.id+'"] .sw-melbar');if(!hostEl||hostEl.querySelector(".micSel"))return;var cur=(load("mjk-micdev",null)||{}).id,sel=document.createElement("select");sel.className="micSel";sel.style.cssText="max-width:46%;background:rgba(255,255,255,.06);color:#cfd4de;border:1px solid rgba(255,255,255,.14);border-radius:8px;font:700 .72rem system-ui;padding:3px 4px";
+      sel.innerHTML=ds.map(function(d,i){return '<option value="'+swEsc(d.deviceId)+'"'+((cur?d.deviceId===cur:((window.MIC_LABEL||"")===d.label&&d.label))?" selected":"")+'>🎙 '+swEsc(d.label||("Mic "+(i+1)))+'</option>';}).join("");
+      sel.onchange=function(){save("mjk-micdev",{id:sel.value});try{stopMic();}catch(e){}ensureMic().then(function(ok2){say(ok2?"Mic switched — sing when ready.":micHelp());});};
+      hostEl.appendChild(sel);});
     const a=ac(),s16=swS16(),S=swSteps(),beat=4*s16,barT=S*s16,start=a.currentTime+0.2,t0=start+16*s16,maxBars=Math.max(8,sec.lines.length);
     const R=SW.rec={raf:null,sec:sec.id,frames:[],words:"",base:"",sr:null,stopped:false,chunks:[],mr:null,mime:"",maxRms:0};swDraw();
     /* record the actual take so it can be played back as the section's placeholder melody */
@@ -3247,7 +3259,7 @@ function swSingSec(song,sec){if(SW.rec){const R=SW.rec;R.done&&R.done();return;}
       const t=now-t0,m=f>70&&f<1200?69+12*Math.log2(f/440):null;R.frames.push({t:t,m:m});const bi=Math.floor(t/barT);
       if(bi!==lastBar){if(lastBar>=0){const fr=R.frames.filter(x=>x.t>=lastBar*barT&&x.t<(lastBar+1)*barT),v=fr.filter(x=>x.m!=null).length;if(v>fr.length*0.08){quiet=0;sang=true;}else if(sang)quiet++;}lastBar=bi;}
       const lvl=rms>0.05?"▮▮▮":rms>0.015?"▮▮▯":rms>0.004?"▮▯▯":"▯▯▯";
-      if(t>4&&R.maxRms<0.004)say("The mic hears nothing — in Bluefy: aA menu → Website Settings → Microphone → Allow, then try again.");
+      if(t>4&&R.maxRms<0.004)say(/iPhone|iPad|iPod/.test(navigator.userAgent)?"The mic hears nothing — in Bluefy: aA menu → Website Settings → Microphone → Allow, then try again.":"The mic hears nothing — it may be listening to the wrong input. Pick your mic from the 🎙 selector, and check the input level in System Settings → Sound.");
       else say("🎤 Bar "+(bi+1)+" · mic "+lvl+(R.words?" · “"+R.words.split(" ").slice(-4).join(" ")+"”":"")+" — tap ■ Stop when done");
       if(bi>=maxBars||quiet>=2){R.done();return;}R.raf=requestAnimationFrame(tick);};R.raf=requestAnimationFrame(tick);});}
 /* turn a sung take into lines: notes per bar ≈ syllables per bar; the words are dealt out by syllables, one line per sung bar */
@@ -10668,7 +10680,7 @@ function renderLucid(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true
     view.querySelectorAll("[data-sg]").forEach(function(b){b.onclick=function(){b.classList.toggle("sel");var s2=b.dataset.sg,i=LUC.mSigns.indexOf(s2);if(i<0)LUC.mSigns.push(s2);else LUC.mSigns.splice(i,1);};});
     var vKey=LUC.mVoice||null,vb=$("#lucVo"),vSt=$("#lucVoSt");if(vKey)vSt.textContent="Voice note saved ✓";
     vb.onclick=function(){if(LUC.recMr){try{LUC.recMr.stop();}catch(e){}return;}
-      ensureMic().then(function(ok){if(!ok){vSt.textContent="Mic blocked — in Bluefy: aA → Website Settings → Microphone → Allow.";return;}
+      ensureMic().then(function(ok){if(!ok){vSt.textContent=micHelp();return;}
         try{var mt=MediaRecorder.isTypeSupported("audio/mp4")?"audio/mp4":"audio/webm";var mr=new MediaRecorder(micStream,{mimeType:mt}),ch=[];LUC.recMr=mr;
           mr.ondataavailable=function(e){if(e.data&&e.data.size)ch.push(e.data);};
           mr.onstop=function(){LUC.recMr=null;try{stopMic();}catch(e){}var bl=new Blob(ch,{type:mt});if(bl.size>2000){vKey="lucidlog:"+Date.now();LUC.mVoice=vKey;idbPut(vKey,bl);vSt.textContent="Voice note saved ✓";}vb.textContent="🎙 Record what you remember";};
@@ -12287,7 +12299,7 @@ function renderGuidedStudio(doc){if(toneRAF)cancelAnimationFrame(toneRAF);medSto
     view.querySelectorAll("[data-gpl]").forEach(function(b){b.onclick=function(){idbGet(D.ps[+b.dataset.gpl].key).then(function(bl){if(!bl)return;var u=URL.createObjectURL(bl),el=new Audio(u);el.onended=function(){URL.revokeObjectURL(u);};el.play();});};});
     view.querySelectorAll("[data-grec]").forEach(function(b){b.onclick=function(){keep();var i2=+b.dataset.grec,stt=$("#gmSt"+i2);
       if(GMR.mr){try{GMR.mr.stop();}catch(e){}return;}
-      ensureMic().then(function(ok){if(!ok){if(stt)stt.textContent="Mic blocked — in Bluefy: aA → Website Settings → Microphone → Allow.";return;}
+      ensureMic().then(function(ok){if(!ok){if(stt)stt.textContent=micHelp();return;}
         try{var mt=MediaRecorder.isTypeSupported("audio/mp4")?"audio/mp4":"audio/webm";var mr=new MediaRecorder(micStream,{mimeType:mt}),ch2=[];GMR.mr=mr;
           mr.ondataavailable=function(e){if(e.data&&e.data.size)ch2.push(e.data);};
           mr.onstop=function(){GMR.mr=null;try{stopMic();}catch(e){}var bl=new Blob(ch2,{type:mt});if(bl.size>2000){var k="gmv-"+D.id+"-"+i2+"-"+Date.now().toString(36);if(D.ps[i2].key)try{idbDel(D.ps[i2].key);}catch(e){}D.ps[i2].key=k;idbPut(k,bl);}draw();};
