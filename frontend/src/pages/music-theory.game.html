@@ -3126,6 +3126,7 @@ function swDraw(){const D=swData(),song=swSong();if(SW.lib){swLibDraw();return;}
       <div class="rrow"><span class="rlab">Tempo</span><input type="range" id="swBpm" min="50" max="160" value="${song.bpm||90}" style="flex:1"><span class="rbpm" id="swBpmV">${song.bpm||90} BPM</span></div>
       <div class="rrow2"><span class="rlab">Each line is</span><span class="rchips tight">${[1,2].map(b=>'<button class="rchip sm'+((D.bars||1)===b?" sel":"")+'" data-bars="'+b+'">'+b+(b>1?" bars":" bar")+'</button>').join("")}</span></div>
       <div class="rrow2"><span class="rlab">Melody sound</span><span class="rchips tight">${[["piano","Piano"],["keys","Keys"],["voice","Voice"]].map(v=>'<button class="rchip sm'+((D.voice||"piano")===v[0]?" sel":"")+'" data-voice="'+v[0]+'">'+v[1]+'</button>').join("")}</span></div>
+      <div class="rrow2"><span class="rlab">Your voice plays</span><span class="rchips tight">${[["nat","Natural"],["warm","🕯️ Warm"],["space","✨ Space · echo"]].map(v=>'<button class="rchip sm'+((D.vfx||"warm")===v[0]?" sel":"")+'" data-vfx="'+v[0]+'">'+v[1]+'</button>').join("")}</span></div>
       <div class="rrow2"><span class="rlab">Key</span><span class="rchips tight" style="flex-wrap:wrap">${SW_SHARPN.map((nm,i)=>'<button class="rchip sm'+(swKey(song).root===i?" sel":"")+'" data-kr="'+i+'">'+nm+'</button>').join("")}<button class="rchip sm${swKey(song).minor?"":" sel"}" data-kq="0">Major</button><button class="rchip sm${swKey(song).minor?" sel":""}" data-kq="1">Minor</button></span></div>
       <div class="rrow2"><span class="rlab">Chords play as</span><span class="rchips tight">${[["off","Off"],["block","Block chords"],["arp","Arpeggio"]].map(v=>'<button class="rchip sm'+((D.acc||"block")===v[0]?" sel":"")+'" data-acc="'+v[0]+'">'+v[1]+'</button>').join("")}</span></div>
       <div class="rrow2"><span class="rlab">Chords by feel</span><span class="rchips tight" style="flex-wrap:wrap">${SW_FEELS.map((F,i)=>'<button class="rchip sm'+(swFeelSel(song)===i?" sel":"")+'" data-feel="'+i+'">'+F.l+'<small style="display:block;opacity:.8;font-weight:700">'+swFeelDesc(song,F)+'</small></button>').join("")}</span></div>
@@ -3168,6 +3169,7 @@ function swWire(D,song){
   const bp=$("#swBpm");bp.oninput=()=>{song.bpm=+bp.value;$("#swBpmV").textContent=song.bpm+" BPM";const tv=$("#swTv");if(tv)tv.textContent=song.bpm+" BPM";swSave();};
   view.querySelectorAll("[data-bars]").forEach(b=>b.onclick=()=>{D.bars=+b.dataset.bars;swSave();swDraw();});
   view.querySelectorAll("[data-voice]").forEach(b=>b.onclick=()=>{D.voice=b.dataset.voice;swSave();swDraw();});
+  view.querySelectorAll("[data-vfx]").forEach(b=>b.onclick=()=>{D.vfx=b.dataset.vfx;swSave();swDraw();});
   $("#swSyl").onclick=()=>{D.syl=!D.syl;swSave();swDraw();};
   view.querySelectorAll("[data-kr]").forEach(b=>b.onclick=()=>{swSetKey(song,+b.dataset.kr,swKey(song).minor);swDraw();});
   view.querySelectorAll("[data-kq]").forEach(b=>b.onclick=()=>{swSetKey(song,swKey(song).root,b.dataset.kq==="1");swDraw();});
@@ -3227,7 +3229,12 @@ function swMelAct(a,sec,el){const song=swSong(),tag=sec.tag,msg=el.querySelector
         const rms=Math.sqrt(sum/Math.max(1,cnt));let g=rms>0.0004?0.16/rms:1;if(g<1)g=1;if(g>9)g=9;if(pk*g>2.4)g=Math.max(1,2.4/pk);
         const a=ac(),src=a.createBufferSource();src.buffer=buf;const gn=a.createGain();gn.gain.value=g;
         const cp=a.createDynamicsCompressor();cp.threshold.value=-10;cp.knee.value=8;cp.ratio.value=8;cp.attack.value=0.003;cp.release.value=0.25;
-        src.connect(gn);gn.connect(cp);cp.connect(a.destination);
+        const P=({nat:{},warm:{sat:2.5,rv:[1.4,3.2],rw:0.14},space:{sat:1.6,rv:[2.2,2.6],rw:0.26,dl:0.75,dw:0.18,fb:0.3}})[swData().vfx||"warm"]||{};
+        src.connect(gn);let nd=gn;
+        if(P.sat){const sh=a.createWaveShaper(),N=1024,cv=new Float32Array(N);for(let i=0;i<N;i++){const x=i/(N-1)*2-1;cv[i]=Math.tanh(P.sat*x)/Math.tanh(P.sat);}sh.curve=cv;sh.oversample="2x";nd.connect(sh);nd=sh;}
+        nd.connect(cp);cp.connect(a.destination);
+        if(P.dw){const dl=a.createDelay(2);dl.delayTime.value=Math.min(1.5,60/((song&&song.bpm)||90)*(P.dl||0.75));const fb=a.createGain();fb.gain.value=P.fb||0.25;const dw=a.createGain();dw.gain.value=P.dw;cp.connect(dl);dl.connect(fb);fb.connect(dl);dl.connect(dw);dw.connect(a.destination);}
+        if(P.rw){const cl=a.createConvolver(),sr=a.sampleRate,L=Math.floor(sr*P.rv[0]),bu=a.createBuffer(2,L,sr);for(let ch=0;ch<2;ch++){const d2=bu.getChannelData(ch);for(let i=0;i<L;i++)d2[i]=(Math.random()*2-1)*Math.pow(1-i/L,P.rv[1]);}cl.buffer=bu;const rw=a.createGain();rw.gain.value=P.rw;cp.connect(cl);cl.connect(rw);rw.connect(a.destination);}
         SW.takeAud={pause(){try{src.onended=null;src.stop();}catch(e){}}};SW.takeOn=tag;
         src.onended=()=>{SW.takeAud=null;SW.takeOn=null;swDraw();};src.start();swDraw();
       }).catch(()=>goOld(bl));};
