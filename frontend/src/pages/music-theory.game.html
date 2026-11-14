@@ -2492,9 +2492,14 @@ function click(time,kind,vol){
   g.gain.exponentialRampToValueAtTime(0.0001,time+sd.dur);
   o.connect(g);g.connect(clickBus(a));o.start(time);o.stop(time+sd.dur+0.03);
 }
-function rStop(){R.running=false;if(R.schID){clearInterval(R.schID);R.schID=null;}if(R.raf){cancelAnimationFrame(R.raf);R.raf=null;}const b=$("#rStart");if(b)b.textContent="▶ Start";}
+function rRetireBus(){try{if(CLICK_BUS){CLICK_BUS.disconnect();CLICK_BUS=null;}}catch(e){}}
+function rStop(){const was=R.running;R.running=false;if(was){try{bgKeep(false);}catch(e){}rRetireBus();}if(R.schID){clearInterval(R.schID);R.schID=null;}if(R.raf){cancelAnimationFrame(R.raf);R.raf=null;}const b=$("#rStart");if(b)b.textContent="▶ Start";}
 function rSchedule(){
-  const a=ac(),ahead=0.12,pat=rPat(),div=pat.div;
+  const a=ac(),ahead=document.hidden?6:0.12,pat=rPat(),div=pat.div;
+  /* if the phone stalled us, skip the missed clicks silently and land back on the same grid */
+  if(R.nextTime<a.currentTime-0.05){const cd=rCellDur();let n=Math.ceil((a.currentTime+0.03-R.nextTime)/cd);
+    while(n-->0){const inC=R.barCount<R.countIn,cs=4*div*((!inC&&pat.bars)||1);R.cur=(R.cur%cs+1)%cs;if(R.cur===0)R.barCount++;R.nextTime+=cd;}
+    R.visQ=[];R.expected=R.expected.filter(e=>e.t>=a.currentTime);}
   while(R.nextTime<a.currentTime+ahead){
     const inCount=R.barCount<R.countIn,cells=4*div*((!inCount&&pat.bars)||1);
     const cell=R.cur%cells,onBeat=cell%div===0;R.cur=cell;
@@ -2504,7 +2509,7 @@ function rSchedule(){
       click(R.nextTime,cell===0?"accent":(onBeat?"beat":"sub"));
       if(R.speak)R.expected.push({t:R.nextTime,done:false});
     }
-    R.visQ.push({t:R.nextTime,cell,count:inCount});
+    if(!document.hidden)R.visQ.push({t:R.nextTime,cell,count:inCount});
     R.nextTime+=rCellDur();R.cur=(R.cur+1)%cells;if(R.cur===0)R.barCount++;
   }
 }
@@ -2564,6 +2569,12 @@ function rStart(){
   R.visQ=[];R.expected=[];R.detected=[];R.ciPeak=0;R.bleedWarned=false;R.litCell=-1;R.barCount=0;R.resolved=0;R.matched=0;R.inPocket=0;R.errSum=0;R.errAbsSum=0;
   R.t0=R.nextTime;R.countEndTime=R.t0+R.countIn*(60/R.bpm)*4;R.floor=null;R.lastPeak=0;
   R.schID=setInterval(rSchedule,25);R.raf=requestAnimationFrame(rFrame);
+  try{bgKeep(true,"Metronome \u00b7 "+R.bpm+" BPM");}catch(e){}
+  if(!R.visH){R.visH=function(){if(!R.running)return;try{if(ac().state!=="running")ac().resume();}catch(e){}
+      if(!document.hidden){/* back on screen: drop the clicks queued ahead and reschedule from now, so tempo changes and the lights line up again */
+        rRetireBus();const a=ac(),cd=rCellDur(),pat=rPat(),div=pat.div;let n=Math.floor((R.nextTime-a.currentTime-0.05)/cd);
+        while(n-->0){R.nextTime-=cd;if(R.cur===0){R.barCount=Math.max(0,R.barCount-1);}const inC=R.barCount<R.countIn,cs=4*div*((!inC&&pat.bars)||1);R.cur=(R.cur-1+cs)%cs;}}
+      rSchedule();};document.addEventListener("visibilitychange",R.visH);}
   const b=$("#rStart");if(b)b.textContent="⏸ Stop";
 }
 function rRenderCells(){
