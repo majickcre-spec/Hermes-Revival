@@ -518,6 +518,13 @@ body.djOn #metFab,body.djOn #sensFab{display:none!important}
 .czSheet .czCat{font-size:.95rem!important;font-weight:800;letter-spacing:.02em;text-transform:none;color:var(--ink,#fff)!important;opacity:1!important;margin:18px 0 0!important;padding-bottom:4px;border-bottom:2px solid var(--gold,#e9c46a)}
 body.fbHz #fbBox{display:inline-block!important;width:80%;vertical-align:middle}
 body.fbHz #fbZone{display:inline-block;width:20%;margin-top:0!important;margin-left:-1%;vertical-align:middle}
+html.fbLockH,body.fbLock{overflow:hidden!important;overscroll-behavior:none}
+body.fbLock #fbStage{position:fixed!important;inset:0;z-index:60;background:#0b0b10;border-radius:0!important;padding:46px max(10px,env(safe-area-inset-right)) 30px max(10px,env(safe-area-inset-left))!important;box-sizing:border-box;display:flex;align-items:center;justify-content:center;height:auto!important}
+body.fbLock #fbScaler{flex:0 0 auto;margin:0 auto}
+body.fbLock #fbSecs{position:fixed;top:6px;left:50%;transform:translateX(-50%);z-index:62;margin:0!important;max-width:70vw}
+body.fbLock #fbSecs .btn{padding:6px 12px!important}
+body.fbLock #fbHold{position:fixed;left:30%;right:30%;bottom:10px;z-index:62;margin:0!important}
+body.fbLock #fbStatus{position:fixed;top:14px;right:max(14px,env(safe-area-inset-right));z-index:62;max-width:28vw;font-size:.72rem;text-align:right;min-height:0!important;margin:0}
 #stNeck.land{display:grid!important;grid-template-columns:minmax(0,1fr);grid-template-rows:110px minmax(0,1fr);gap:6px;max-width:none!important;height:calc(100vh - 20px);height:calc(100svh - 20px);min-height:280px;max-height:620px;width:calc(100vw - 20px)!important;position:relative;left:50%;transform:translateX(-50%);margin:0!important}
 #stNeck.land #stHwy{grid-area:1/1;width:100%;height:100%!important;min-height:0;border-radius:14px!important}
 #stNeck.land #stRight{grid-area:2/1;display:flex;align-items:center;justify-content:center;gap:0;min-height:0;min-width:0}
@@ -6552,11 +6559,18 @@ function fbGeo(){var strings=fbStrings(),N=strings.length;var VBW=360,padL=28,pa
   return {strings:strings,N:N,VBW:VBW,VBH:VBH,nutY:nutY,rowH:rowH,rows:rows,bottomY:bottomY,cx:cx,topHalf:topHalf,botHalf:botHalf,sx:sx,fy:fy};}
 function fbStrW(s,N){ if(FB.inst==="bass")return 4.4-s*0.55; if(FB.inst==="ukulele")return 2.6-s*0.18; return 3.5-s*0.34; }
 function fbWound(s){ if(FB.inst==="ukulele")return false; if(FB.inst==="bass")return true; return s<=2; }
-function fbHzFit(){try{if(!document.body.classList.contains("fbHz"))return;var bx=document.getElementById("fbBox"),z=document.getElementById("fbZone");if(!bx||!z)return;var ns=bx.querySelector("svg"),zs=z.querySelector("svg");if(!ns||!zs)return;
+function fbLockOn(){return !!(FB.lockScr&&fbHoriz()&&window.innerWidth>window.innerHeight&&window.matchMedia&&matchMedia("(pointer:coarse)").matches&&document.getElementById("fbStage"));}
+function fbLockUpd(){var on=fbLockOn();document.body.classList.toggle("fbLock",on);document.documentElement.classList.toggle("fbLockH",on);
+  var sc=document.getElementById("fbScaler");if(!on){if(sc)sc.style.width="";return;}
+  var st=document.getElementById("fbStage"),bx=document.getElementById("fbBox"),z=document.getElementById("fbZone");if(!st||!sc||!bx||!z)return;var ns=bx.querySelector("svg"),zs=z.querySelector("svg");if(!ns||!zs)return;
+  var gv=function(sv){var v=(sv.getAttribute("viewBox")||"0 0 1 1").split(/\s+/);return [+v[2]||1,+v[3]||1];},nv=gv(ns),zv=gv(zs),tot=nv[0]+zv[0],cs=getComputedStyle(st);
+  var Wa=st.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight),Ha=st.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
+  sc.style.width=Math.floor(Math.min(Wa,Ha*tot/Math.max(nv[1],zv[1])))+"px";}
+function fbHzFit(){try{if(!document.body.classList.contains("fbHz")){fbLockUpd();return;}var bx=document.getElementById("fbBox"),z=document.getElementById("fbZone");if(!bx||!z)return;var ns=bx.querySelector("svg"),zs=z.querySelector("svg");if(!ns||!zs)return;
   var gv=function(sv){var v=(sv.getAttribute("viewBox")||"0 0 1 1").split(/\s+/);return [+v[2]||1,+v[3]||1];},nv=gv(ns),zv=gv(zs),tot=nv[0]+zv[0];if(!tot)return;
-  bx.style.width=(nv[0]/tot*100).toFixed(2)+"%";z.style.width=(zv[0]/tot*100).toFixed(2)+"%";}catch(e){}}
+  bx.style.width=(nv[0]/tot*100).toFixed(2)+"%";z.style.width=(zv[0]/tot*100).toFixed(2)+"%";fbLockUpd();}catch(e){}}
 function fbSVG(){var h=fbHoriz();try{document.body.classList.toggle("fbHz",h);}catch(e){}
-  try{if(h){cancelAnimationFrame(FB._hzF);FB._hzF=requestAnimationFrame(fbHzFit);}else{var bx=document.getElementById("fbBox"),z0=document.getElementById("fbZone");if(bx)bx.style.width="";if(z0)z0.style.width="";}}catch(e){}
+  try{if(h){cancelAnimationFrame(FB._hzF);FB._hzF=requestAnimationFrame(fbHzFit);}else{var bx=document.getElementById("fbBox"),z0=document.getElementById("fbZone");if(bx)bx.style.width="";if(z0)z0.style.width="";requestAnimationFrame(fbLockUpd);}}catch(e){}
   var s0=fbSVG0();return h?fbRotSVG(s0):s0;}
 function fbRotSVG(str){try{var doc=new DOMParser().parseFromString(str,"image/svg+xml"),sv=doc.documentElement;if(!sv||sv.nodeName!=="svg")return str;var vb=(sv.getAttribute("viewBox")||"").split(/\s+/).map(Number);if(vb.length!==4)return str;var W=vb[2],H=vb[3];
   sv.querySelectorAll("text").forEach(function(t){var x=parseFloat(t.getAttribute("x")||0),y=parseFloat(t.getAttribute("y")||0);t.setAttribute("transform","rotate(90 "+x+" "+y+") "+(t.getAttribute("transform")||""));});
@@ -6820,12 +6834,12 @@ function fbHowto(){var m=FB.mode,inst={guitar:"guitar",bass:"bass",ukulele:"ukul
   else if(m==="train")st=["Pick an activity from the trainer menu.","Read the prompt above the neck, then tap the neck (or pluck a string on the body) where it asks.","<b>Green ✓</b> = right. <b>Red ✗</b> = try again — the hint tells you what you hit.","Each activity saves your best score and earns beans. Finish all five for <b>🏆 Neck Master</b>.","<b>← Trainer</b> takes you back to the menu any time."];
   else st=["Hold your phone like the "+inst+" neck: the strings run from the <b>top (nut)</b> down to the <b>body</b>. The thickest, lowest string is on the <b>left</b>.","<b>Fretting hand:</b> press a spot on a string to play that note. Fret numbers are on the left.","<b>Strumming hand:</b> swipe your thumb across the strings on the <b>guitar body</b> below the neck. Swipe right = down-strum, left = up-strum. Tap one string on the body to pick just that string.","Hold frets with one hand while you strum with the other — the notes you hold ring in the strum.","Tap section <b>1 2 3 4</b> to jump along the neck (1 = open position, 4 = frets 13–16), or step with <b>▲ ▼</b>.","<b>Note names</b> shows the name of every note on the neck."];
   return '<details class="howto" id="fbHow" data-how="1"'+(FB.howOpen?" open":"")+'><summary>ⓘ How to play <span class="hw-car">▾</span></summary><div class="hw-body"><ol class="hw-steps">'+st.map(function(x){return "<li>"+x+"</li>";}).join("")+'</ol></div></details>';}
-function renderFretboard(inst,startMode){if(inst){FB.inst=inst;}if(startMode)FB.mode=startMode;if(FB.inst==="bass"&&FB.mode==="chord")FB.mode="play";if(FB.mode==="chord"&&!fbShapeFor(FB.chord))FB.chord=(CHORDS[FB.inst]?Object.keys(CHORDS[FB.inst])[0]:"C");
+function renderFretboard(inst,startMode){FB.lockScr=true;if(inst){FB.inst=inst;}if(startMode)FB.mode=startMode;if(FB.inst==="bass"&&FB.mode==="chord")FB.mode="play";if(FB.mode==="chord"&&!fbShapeFor(FB.chord))FB.chord=(CHORDS[FB.inst]?Object.keys(CHORDS[FB.inst])[0]:"C");
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);try{sfLoadInst("guitar");}catch(e){}
   document.removeEventListener("pointerup",fbUpPt);document.removeEventListener("pointercancel",fbUpPt);
   document.addEventListener("pointerup",fbUpPt);document.addEventListener("pointercancel",fbUpPt);
   var fbOnRz=function(){clearTimeout(FB._rzT);FB._rzT=setTimeout(function(){if(document.getElementById("fbSvgWrap"))draw();},250);};window.addEventListener("resize",fbOnRz);window.addEventListener("orientationchange",fbOnRz);
-  teardown=function(){fbDemoReset();trReset();fbScaleStop();fbStopHold();FB.active.clear();window.removeEventListener("resize",fbOnRz);window.removeEventListener("orientationchange",fbOnRz);clearTimeout(FB._rzT);document.removeEventListener("pointerup",fbUpPt);document.removeEventListener("pointercancel",fbUpPt);};
+  teardown=function(){FB.lockScr=false;document.body.classList.remove("fbLock");document.documentElement.classList.remove("fbLockH");fbDemoReset();trReset();fbScaleStop();fbStopHold();FB.active.clear();window.removeEventListener("resize",fbOnRz);window.removeEventListener("orientationchange",fbOnRz);clearTimeout(FB._rzT);document.removeEventListener("pointerup",fbUpPt);document.removeEventListener("pointercancel",fbUpPt);};
   function draw(){fbDemoReset();if(FB.tr&&FB.tr.kind&&(FB.mode!=="train"||FB.tr.inst!==FB.inst))trReset();if(FB.mode!=="train")trClearMarks();fbScaleStop();FB.active.clear();FB.strums={};fbStopHold();
     if(FB.mode==="chord"){var ck=FB.inst+"|"+FB.chord+"|"+FB.adv;if(FB._wc!==ck){FB._wc=ck;var sh0=fbShapeFor(FB.chord);if(sh0)FB.win=fbWinFor(sh0);}}else FB._wc=null;
     var instName={guitar:"Guitar",bass:"Bass",ukulele:"Ukulele"}[FB.inst];
