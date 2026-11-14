@@ -6552,7 +6552,12 @@ function fbGeo(){var strings=fbStrings(),N=strings.length;var VBW=360,padL=28,pa
   return {strings:strings,N:N,VBW:VBW,VBH:VBH,nutY:nutY,rowH:rowH,rows:rows,bottomY:bottomY,cx:cx,topHalf:topHalf,botHalf:botHalf,sx:sx,fy:fy};}
 function fbStrW(s,N){ if(FB.inst==="bass")return 4.4-s*0.55; if(FB.inst==="ukulele")return 2.6-s*0.18; return 3.5-s*0.34; }
 function fbWound(s){ if(FB.inst==="ukulele")return false; if(FB.inst==="bass")return true; return s<=2; }
-function fbSVG(){var h=fbHoriz();try{document.body.classList.toggle("fbHz",h);}catch(e){}var s0=fbSVG0();return h?fbRotSVG(s0):s0;}
+function fbHzFit(){try{if(!document.body.classList.contains("fbHz"))return;var bx=document.getElementById("fbBox"),z=document.getElementById("fbZone");if(!bx||!z)return;var ns=bx.querySelector("svg"),zs=z.querySelector("svg");if(!ns||!zs)return;
+  var gv=function(sv){var v=(sv.getAttribute("viewBox")||"0 0 1 1").split(/\s+/);return [+v[2]||1,+v[3]||1];},nv=gv(ns),zv=gv(zs),tot=nv[0]+zv[0];if(!tot)return;
+  bx.style.width=(nv[0]/tot*100).toFixed(2)+"%";z.style.width=(zv[0]/tot*100).toFixed(2)+"%";}catch(e){}}
+function fbSVG(){var h=fbHoriz();try{document.body.classList.toggle("fbHz",h);}catch(e){}
+  try{if(h){cancelAnimationFrame(FB._hzF);FB._hzF=requestAnimationFrame(fbHzFit);}else{var bx=document.getElementById("fbBox"),z0=document.getElementById("fbZone");if(bx)bx.style.width="";if(z0)z0.style.width="";}}catch(e){}
+  var s0=fbSVG0();return h?fbRotSVG(s0):s0;}
 function fbRotSVG(str){try{var doc=new DOMParser().parseFromString(str,"image/svg+xml"),sv=doc.documentElement;if(!sv||sv.nodeName!=="svg")return str;var vb=(sv.getAttribute("viewBox")||"").split(/\s+/).map(Number);if(vb.length!==4)return str;var W=vb[2],H=vb[3];
   sv.querySelectorAll("text").forEach(function(t){var x=parseFloat(t.getAttribute("x")||0),y=parseFloat(t.getAttribute("y")||0);t.setAttribute("transform","rotate(90 "+x+" "+y+") "+(t.getAttribute("transform")||""));});
   var g=doc.createElementNS("http://www.w3.org/2000/svg","g");g.setAttribute("transform","translate(0,"+W+") rotate(-90)");[].slice.call(sv.childNodes).forEach(function(n){if(n.nodeName!=="defs")g.appendChild(n);});sv.appendChild(g);sv.setAttribute("viewBox","0 0 "+H+" "+W);return new XMLSerializer().serializeToString(sv);}catch(e){return str;}}
