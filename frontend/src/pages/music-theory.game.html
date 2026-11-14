@@ -524,6 +524,12 @@ body.fbLock #fbScaler{flex:0 0 auto;margin:0 auto}
 body.fbLock #fbSecs{position:fixed;top:6px;left:50%;transform:translateX(-50%);z-index:62;margin:0!important;max-width:70vw}
 body.fbLock #fbSecs .btn{padding:6px 12px!important}
 body.fbLock #fbHold{position:fixed;left:30%;right:30%;bottom:10px;z-index:62;margin:0!important}
+body.fbLock #fbSide{position:fixed;top:8px;left:max(10px,env(safe-area-inset-left));z-index:63;margin:0}
+body.fbLockP #fbStage{padding:10px 56px 10px 46px!important}
+body.fbLockP #fbSecs{top:50%!important;left:calc(100vw - 28px)!important;transform:translate(-50%,-50%) rotate(90deg)!important;max-width:none}
+body.fbLockP #fbSide{top:calc(100vh - 160px);left:calc(100vw - 26px);transform:translate(-50%,-50%) rotate(90deg);white-space:nowrap}
+body.fbLockP #fbHold{left:22px!important;right:auto!important;top:50%!important;bottom:auto!important;width:50vh;transform:translate(-50%,-50%) rotate(90deg)}
+body.fbLockP #fbStatus{top:50%!important;left:8px!important;right:auto!important;bottom:auto!important;max-width:60vh!important;transform:translate(-50%,-50%) rotate(90deg) translateY(-50%);white-space:nowrap}
 body.fbLock #fbStatus{position:fixed;top:14px;right:max(14px,env(safe-area-inset-right));z-index:62;max-width:28vw;font-size:.72rem;text-align:right;min-height:0!important;margin:0}
 #stNeck.land{display:grid!important;grid-template-columns:minmax(0,1fr);grid-template-rows:110px minmax(0,1fr);gap:6px;max-width:none!important;height:calc(100vh - 20px);height:calc(100svh - 20px);min-height:280px;max-height:620px;width:calc(100vw - 20px)!important;position:relative;left:50%;transform:translateX(-50%);margin:0!important}
 #stNeck.land #stHwy{grid-area:1/1;width:100%;height:100%!important;min-height:0;border-radius:14px!important}
@@ -6559,9 +6565,15 @@ function fbGeo(){var strings=fbStrings(),N=strings.length;var VBW=360,padL=28,pa
   return {strings:strings,N:N,VBW:VBW,VBH:VBH,nutY:nutY,rowH:rowH,rows:rows,bottomY:bottomY,cx:cx,topHalf:topHalf,botHalf:botHalf,sx:sx,fy:fy};}
 function fbStrW(s,N){ if(FB.inst==="bass")return 4.4-s*0.55; if(FB.inst==="ukulele")return 2.6-s*0.18; return 3.5-s*0.34; }
 function fbWound(s){ if(FB.inst==="ukulele")return false; if(FB.inst==="bass")return true; return s<=2; }
-function fbLockOn(){return !!(FB.lockScr&&fbHoriz()&&window.innerWidth>window.innerHeight&&window.matchMedia&&matchMedia("(pointer:coarse)").matches&&document.getElementById("fbStage"));}
-function fbLockUpd(){var on=fbLockOn();document.body.classList.toggle("fbLock",on);document.documentElement.classList.toggle("fbLockH",on);
+function fbLockOn(){if(!FB.lockScr||!document.getElementById("fbStage"))return false;if(FB.sideLock)return true;return !!(fbHoriz()&&window.innerWidth>window.innerHeight&&window.matchMedia&&matchMedia("(pointer:coarse)").matches);}
+function fbLockUpd(){var on=fbLockOn(),hz=document.body.classList.contains("fbHz");document.body.classList.toggle("fbLock",on);document.body.classList.toggle("fbLockP",on&&!hz);document.documentElement.classList.toggle("fbLockH",on);
+  var sb=document.getElementById("fbSide");if(sb){sb.textContent=FB.sideLock?"\ud83d\udd13 Unlock":"\ud83d\udd12 Lock sideways";sb.classList.toggle("sel",!!FB.sideLock);}
   var sc=document.getElementById("fbScaler");if(!on){if(sc)sc.style.width="";return;}
+  if(!hz){/* portrait + locked: the upright guitar IS sideways once the phone is turned — fill the screen */
+    var st0=document.getElementById("fbStage"),bx0=document.getElementById("fbBox"),z0=document.getElementById("fbZone");if(!st0||!sc||!bx0||!z0)return;var n0=bx0.querySelector("svg"),zz=z0.querySelector("svg");if(!n0||!zz)return;
+    var gv0=function(sv){var v=(sv.getAttribute("viewBox")||"0 0 1 1").split(/\s+/);return [+v[2]||1,+v[3]||1];},a=gv0(n0),b=gv0(zz),c0=getComputedStyle(st0);
+    var Wp=st0.clientWidth-parseFloat(c0.paddingLeft)-parseFloat(c0.paddingRight),Hp=st0.clientHeight-parseFloat(c0.paddingTop)-parseFloat(c0.paddingBottom);
+    sc.style.width=Math.floor(Math.min(Wp,Hp/(a[1]/a[0]+b[1]/b[0]-0.046)))+"px";return;}
   var st=document.getElementById("fbStage"),bx=document.getElementById("fbBox"),z=document.getElementById("fbZone");if(!st||!sc||!bx||!z)return;var ns=bx.querySelector("svg"),zs=z.querySelector("svg");if(!ns||!zs)return;
   var gv=function(sv){var v=(sv.getAttribute("viewBox")||"0 0 1 1").split(/\s+/);return [+v[2]||1,+v[3]||1];},nv=gv(ns),zv=gv(zs),tot=nv[0]+zv[0],cs=getComputedStyle(st);
   var Wa=st.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight),Ha=st.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
@@ -6834,12 +6846,12 @@ function fbHowto(){var m=FB.mode,inst={guitar:"guitar",bass:"bass",ukulele:"ukul
   else if(m==="train")st=["Pick an activity from the trainer menu.","Read the prompt above the neck, then tap the neck (or pluck a string on the body) where it asks.","<b>Green ✓</b> = right. <b>Red ✗</b> = try again — the hint tells you what you hit.","Each activity saves your best score and earns beans. Finish all five for <b>🏆 Neck Master</b>.","<b>← Trainer</b> takes you back to the menu any time."];
   else st=["Hold your phone like the "+inst+" neck: the strings run from the <b>top (nut)</b> down to the <b>body</b>. The thickest, lowest string is on the <b>left</b>.","<b>Fretting hand:</b> press a spot on a string to play that note. Fret numbers are on the left.","<b>Strumming hand:</b> swipe your thumb across the strings on the <b>guitar body</b> below the neck. Swipe right = down-strum, left = up-strum. Tap one string on the body to pick just that string.","Hold frets with one hand while you strum with the other — the notes you hold ring in the strum.","Tap section <b>1 2 3 4</b> to jump along the neck (1 = open position, 4 = frets 13–16), or step with <b>▲ ▼</b>.","<b>Note names</b> shows the name of every note on the neck."];
   return '<details class="howto" id="fbHow" data-how="1"'+(FB.howOpen?" open":"")+'><summary>ⓘ How to play <span class="hw-car">▾</span></summary><div class="hw-body"><ol class="hw-steps">'+st.map(function(x){return "<li>"+x+"</li>";}).join("")+'</ol></div></details>';}
-function renderFretboard(inst,startMode){FB.lockScr=true;if(inst){FB.inst=inst;}if(startMode)FB.mode=startMode;if(FB.inst==="bass"&&FB.mode==="chord")FB.mode="play";if(FB.mode==="chord"&&!fbShapeFor(FB.chord))FB.chord=(CHORDS[FB.inst]?Object.keys(CHORDS[FB.inst])[0]:"C");
+function renderFretboard(inst,startMode){FB.lockScr=true;if(FB.sideLock==null)FB.sideLock=load("mjk-fbside",false);if(inst){FB.inst=inst;}if(startMode)FB.mode=startMode;if(FB.inst==="bass"&&FB.mode==="chord")FB.mode="play";if(FB.mode==="chord"&&!fbShapeFor(FB.chord))FB.chord=(CHORDS[FB.inst]?Object.keys(CHORDS[FB.inst])[0]:"C");
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);try{sfLoadInst("guitar");}catch(e){}
   document.removeEventListener("pointerup",fbUpPt);document.removeEventListener("pointercancel",fbUpPt);
   document.addEventListener("pointerup",fbUpPt);document.addEventListener("pointercancel",fbUpPt);
   var fbOnRz=function(){clearTimeout(FB._rzT);FB._rzT=setTimeout(function(){if(document.getElementById("fbSvgWrap"))draw();},250);};window.addEventListener("resize",fbOnRz);window.addEventListener("orientationchange",fbOnRz);
-  teardown=function(){FB.lockScr=false;document.body.classList.remove("fbLock");document.documentElement.classList.remove("fbLockH");fbDemoReset();trReset();fbScaleStop();fbStopHold();FB.active.clear();window.removeEventListener("resize",fbOnRz);window.removeEventListener("orientationchange",fbOnRz);clearTimeout(FB._rzT);document.removeEventListener("pointerup",fbUpPt);document.removeEventListener("pointercancel",fbUpPt);};
+  teardown=function(){FB.lockScr=false;document.body.classList.remove("fbLock","fbLockP");document.documentElement.classList.remove("fbLockH");fbDemoReset();trReset();fbScaleStop();fbStopHold();FB.active.clear();window.removeEventListener("resize",fbOnRz);window.removeEventListener("orientationchange",fbOnRz);clearTimeout(FB._rzT);document.removeEventListener("pointerup",fbUpPt);document.removeEventListener("pointercancel",fbUpPt);};
   function draw(){fbDemoReset();if(FB.tr&&FB.tr.kind&&(FB.mode!=="train"||FB.tr.inst!==FB.inst))trReset();if(FB.mode!=="train")trClearMarks();fbScaleStop();FB.active.clear();FB.strums={};fbStopHold();
     if(FB.mode==="chord"){var ck=FB.inst+"|"+FB.chord+"|"+FB.adv;if(FB._wc!==ck){FB._wc=ck;var sh0=fbShapeFor(FB.chord);if(sh0)FB.win=fbWinFor(sh0);}}else FB._wc=null;
     var instName={guitar:"Guitar",bass:"Bass",ukulele:"Ukulele"}[FB.inst];
@@ -6853,14 +6865,14 @@ function renderFretboard(inst,startMode){FB.lockScr=true;if(inst){FB.inst=inst;}
       (FB.mode==="chord"?'<div class="rrow2"><span class="rlab">Chord</span><span class="rchips tight" id="fbChips"></span></div>'+
         fbDemoBarHTML()+(FB_ADV[FB.inst]?'<div class="rrow2" style="margin-top:2px"><button class="rchip sm'+(FB.adv?" sel":"")+'" id="fbAdv">'+(FB.adv?"★ Showing advanced shapes":"➕ More / advanced shapes")+'</button></div>':''):'')+
       (FB.mode==="scale"?'<div class="rrow2"><span class="rlab">Root</span><span class="rchips tight" id="fbRoot"></span></div><div class="rrow2" style="margin-top:2px"><span class="rlab">Scale</span><span class="rchips tight" id="fbScale"></span></div>'+fbDemoBarHTML():'')+
-      '<div id="fbSecs" style="display:flex;align-items:center;gap:6px;margin:8px 0 2px"><button class="btn ghost" id="fbUp" aria-label="Section toward the nut" style="flex:0 0 auto;padding:10px 14px;font-size:1rem">'+(fbHoriz()?"◀":"▲")+'</button>'+FB_SECS.map(function(w,i){return '<button class="rchip'+(FB.win===w?" sel":"")+'" data-win="'+w+'" style="flex:1 1 0;min-width:0;justify-content:center;padding:10px 0;font-weight:900;font-size:1.05rem">'+(i+1)+'</button>';}).join("")+'<button class="btn ghost" id="fbDn" aria-label="Section toward the body" style="flex:0 0 auto;padding:10px 14px;font-size:1rem">'+(fbHoriz()?"▶":"▼")+'</button></div>'+
+      '<div id="fbSecs" style="display:flex;align-items:center;gap:6px;margin:8px 0 2px"><button class="btn ghost" id="fbUp" aria-label="Section toward the nut" style="flex:0 0 auto;padding:10px 14px;font-size:1rem">'+((fbHoriz()||FB.sideLock)?"◀":"▲")+'</button>'+FB_SECS.map(function(w,i){return '<button class="rchip'+(FB.win===w?" sel":"")+'" data-win="'+w+'" style="flex:1 1 0;min-width:0;justify-content:center;padding:10px 0;font-weight:900;font-size:1.05rem">'+(i+1)+'</button>';}).join("")+'<button class="btn ghost" id="fbDn" aria-label="Section toward the body" style="flex:0 0 auto;padding:10px 14px;font-size:1rem">'+((fbHoriz()||FB.sideLock)?"▶":"▼")+'</button></div>'+
       '<div id="fbWinLbl" style="text-align:center;font:800 .82rem system-ui,sans-serif;color:var(--muted);margin:0 0 6px">'+fbSecLabel()+'</div>'+
       '<div id="fbDemoSay" style="display:none;text-align:center;font:700 .95rem/1.35 system-ui,sans-serif;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:4px 0 8px;min-height:2.7em"></div>'+
       '<div id="fbStage" style="overflow:hidden;border-radius:14px;padding-bottom:14px"><div id="fbScaler" style="transform-origin:0 0;transition:transform .7s ease">'+
       '<div id="fbBox" style="position:relative"><div id="fbSvgWrap">'+fbSVG()+'</div><div id="fbTouch" style="position:absolute;left:0;top:0;right:0;bottom:0;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none"></div></div>'+
       '<div id="fbZone" style="touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;margin-top:-4.6%;position:relative;filter:drop-shadow(0 10px 20px rgba(0,0,0,.45))">'+fbZoneSVG()+'</div></div></div>'+
       (FB.mode==="chord"?'<div id="fbHold"><div id="fbHoldBar"></div></div>':'')+
-      '<div class="actions" style="justify-content:center;margin-top:10px"><button class="rchip sm'+(FB.showNotes?" sel":"")+'" id="fbNotes">🏷️ Note names: '+(FB.showNotes?"On":"Off")+'</button></div>'+volSlider("fbVol")+
+      '<div class="actions" style="justify-content:center;margin-top:10px"><button class="rchip sm'+(FB.showNotes?" sel":"")+'" id="fbNotes">🏷️ Note names: '+(FB.showNotes?"On":"Off")+'</button><button class="rchip sm'+(FB.sideLock?" sel":"")+'" id="fbSide">'+(FB.sideLock?"\ud83d\udd13 Unlock":"\ud83d\udd12 Lock sideways")+'</button></div>'+volSlider("fbVol")+
       '<div class="feedback" id="fbStatus" style="min-height:22px">'+(FB.mode==="chord"?"Fingers on the dots \u00b7 hold 3 seconds":"")+'</div>'+
       
       '</div>';
@@ -6893,6 +6905,7 @@ function renderFretboard(inst,startMode){FB.lockScr=true;if(inst){FB.inst=inst;}
     {var _hw=$("#fbHow");if(_hw)_hw.addEventListener("toggle",function(){FB.howOpen=_hw.open;});}
     if(FB.mode==="train"){var _st=$("#fbStatus");if(_st)_st.textContent="";var _nb=$("#fbNotes");if(_nb)_nb.style.display="none";trMount();}
     var nb=$("#fbNotes");if(nb)nb.onclick=function(){FB.showNotes=!FB.showNotes;draw();};
+    var sdb=$("#fbSide");if(sdb)sdb.onclick=function(){FB.sideLock=!FB.sideLock;save("mjk-fbside",FB.sideLock);draw();};
     var ab=$("#fbAdv");if(ab)ab.onclick=function(){FB.adv=!FB.adv;draw();};
     if(FB.mode==="chord"){var cc=$("#fbChips");var locked=fbLockedCount();fbChordNames().forEach(function(nm){var isAdv=FB.adv&&FB_ADV[FB.inst]&&FB_ADV[FB.inst][nm]&&!(CHORDS[FB.inst]&&CHORDS[FB.inst][nm]);var btn=document.createElement("button");btn.className="rchip sm"+(nm===FB.chord?" sel":"")+(isAdv?" fbchip-adv":"");btn.textContent=(isAdv?"★ ":"")+nm;btn.onclick=function(){FB.chord=nm;draw();};cc.appendChild(btn);});}
   }
