@@ -2960,6 +2960,9 @@ const SW_PROGS={
       {l:"Andalusian",r:["i","VII","VI","V"],c:[[0,0],[10,1],[8,1],[7,1]]},
       {l:"Night drive",r:["i","VI","iv","v"],c:[[0,0],[8,1],[5,0],[7,0]]}]};
 function swProgList(song){return SW_PROGS[swKey(song).minor?"min":"maj"];}
+const SW_FEELS=[{l:"☀️ Uplifting",q:0,p:0},{l:"💛 Heartfelt",q:0,p:1},{l:"🎸 Classic",q:0,p:2},{l:"🍦 Sweet",q:0,p:3},{l:"🍹 Smooth",q:0,p:4},{l:"🌧️ Moody",q:1,p:0},{l:"🌙 Haunting",q:1,p:1},{l:"⚡ Gritty",q:1,p:2},{l:"🔥 Spanish",q:1,p:3},{l:"🚘 Night drive",q:1,p:4}];
+function swFeelSel(song){const k=swKey(song),tags=[...new Set(song.sections.map(x=>x.tag))];if(!tags.length||!song.prog)return -1;
+  for(let i=0;i<SW_FEELS.length;i++){const F=SW_FEELS[i];if(!!k.minor!==!!F.q)continue;if(tags.every(t=>song.prog[t]===F.p))return i;}return -1;}
 function swProgOf(song,tag){const i=song.prog?song.prog[tag]:null;const L=swProgList(song);return (i==null||i<0||i>=L.length)?null:L[i];}
 function swChName(song,c){const k=swKey(song);return swKeyNames(song)[(k.root+c[0])%12]+(c[1]?"":"m");}
 function swChord(song,tag,barIdx){const p=swProgOf(song,tag);if(!p)return null;const k=swKey(song),c=p.c[barIdx%p.c.length],pc=(k.root+c[0])%12,third=(pc+(c[1]?4:3))%12,fifth=(pc+7)%12;
@@ -3123,6 +3126,7 @@ function swDraw(){const D=swData(),song=swSong();if(SW.lib){swLibDraw();return;}
       <div class="rrow2"><span class="rlab">Melody sound</span><span class="rchips tight">${[["piano","Piano"],["keys","Keys"],["voice","Voice"]].map(v=>'<button class="rchip sm'+((D.voice||"piano")===v[0]?" sel":"")+'" data-voice="'+v[0]+'">'+v[1]+'</button>').join("")}</span></div>
       <div class="rrow2"><span class="rlab">Key</span><span class="rchips tight" style="flex-wrap:wrap">${SW_SHARPN.map((nm,i)=>'<button class="rchip sm'+(swKey(song).root===i?" sel":"")+'" data-kr="'+i+'">'+nm+'</button>').join("")}<button class="rchip sm${swKey(song).minor?"":" sel"}" data-kq="0">Major</button><button class="rchip sm${swKey(song).minor?" sel":""}" data-kq="1">Minor</button></span></div>
       <div class="rrow2"><span class="rlab">Chords play as</span><span class="rchips tight">${[["off","Off"],["block","Block chords"],["arp","Arpeggio"]].map(v=>'<button class="rchip sm'+((D.acc||"block")===v[0]?" sel":"")+'" data-acc="'+v[0]+'">'+v[1]+'</button>').join("")}</span></div>
+      <div class="rrow2"><span class="rlab">Chords by feel</span><span class="rchips tight" style="flex-wrap:wrap">${SW_FEELS.map((F,i)=>'<button class="rchip sm'+(swFeelSel(song)===i?" sel":"")+'" data-feel="'+i+'">'+F.l+'</button>').join("")}</span></div>
       <div class="rrow2"><span class="rlab">Syllable counts</span><span class="rchips tight"><button class="rchip sm${D.syl?" sel":""}" id="swSyl">${D.syl?"On":"Off"}</button></span></div>
       <div class="actions"><button class="btn ghost" id="swCopy">Copy lyrics</button><button class="btn ghost" id="swDelSong">Delete this song</button></div>
     </details>
@@ -3171,6 +3175,11 @@ function swWire(D,song){
     else if(a==="close"){SW.cp=null;swDraw();}
     else if(a==="hear"){swStopPlay();unlockAudio();const s16=swS16(),ev=[];for(let i=0;i<4;i++){const c=swChord(song,sec.tag,i);if(c)c.midis.forEach(mm=>ev.push({k:"n",at:i*8*s16,midi:mm,dur:8*s16*0.95}));}swRun(ev);}};});
   view.querySelectorAll("[data-chp]").forEach(b=>b.onclick=()=>{const se=b.closest(".sw-sec"),sec=song.sections.find(x=>x.id===se.dataset.sec),i=+b.dataset.chp;if(!song.prog)song.prog={};if(i<0)delete song.prog[sec.tag];else song.prog[sec.tag]=i;SW.cp=null;swSave();swDraw();});
+  view.querySelectorAll("[data-feel]").forEach(b=>b.onclick=()=>{const F=SW_FEELS[+b.dataset.feel];if(!F)return;song.key=song.key||{root:0,minor:false};song.key.minor=!!F.q;if(!song.prog)song.prog={};
+    [...new Set(song.sections.map(x=>x.tag))].forEach(t=>song.prog[t]=F.p);swSave();
+    swStopPlay();unlockAudio();const s16=swS16(),ev=[],tg=song.sections[0]?song.sections[0].tag:"Verse";
+    for(let i=0;i<4;i++){const c=swChord(song,tg,i);if(c)c.midis.forEach(mm=>ev.push({k:"n",at:i*4*s16,midi:mm,dur:4*s16*0.95}));}
+    if(ev.length)swRun(ev);swDraw();});
   view.querySelectorAll("[data-why]").forEach(b=>{b.onmousedown=e=>e.preventDefault();b.onclick=()=>{const el=b.closest(".sw-line"),sec=song.sections.find(x=>x.id===el.dataset.s),li=+el.dataset.l;el.classList.add("on");const msg=el.querySelector(".sw-msg");if(msg)msg.textContent=swWhy(song,sec,li);};});
   $("#swCopy").onclick=()=>{const txt=(song.title||"Untitled")+"\n\n"+song.sections.map(s=>"["+swSecName(song,s)+"]\n"+swLinesOf(song,s).map(l=>l.t).filter(Boolean).join("\n")).join("\n\n");try{navigator.clipboard.writeText(txt);$("#swCopy").textContent="Copied ✓";}catch(e){}};
   $("#swDelSong").onclick=e=>{const b=e.target;if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Tap again to delete";return;}D.songs=D.songs.filter(s=>s.id!==song.id);if(!D.songs.length)D.songs.push(swNewSong(""));D.cur=D.songs[0].id;SW.active=null;swSave();swDraw();};
