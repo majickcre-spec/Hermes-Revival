@@ -7898,7 +7898,7 @@ const SPATS=[
 /* song examples and the "why it works" notes carried over from the old Strumming screen */
 const ST_INFO={downs:"alldown",eighths:"downup",folk:"dduudu",rock:"8down",reggae:"reggae",gballad:"ballad",bounce:"country"};
 function stInfo(P){var id=ST_INFO[P.id];if(!id)return null;for(var i=0;i<STRUM_PATS.length;i++)if(STRUM_PATS[i].id===id)return STRUM_PATS[i];return null;}
-const ST={input:load("mjk-stinput","touch"),micRaf:null,prog:load("mjk-stprog","pop"),key:load("mjk-stkey","G"),barsN:load("mjk-stbars",8),loop:load("mjk-stloop",false),neck:load("mjk-stneck",true),test:false,one:"G",chordQ:[],pi:2,chord:"G",mode:"watch",bpm:null,bpmFor:null,inst:"guitar",running:false,schID:null,raf:null,visQ:[],exp:[],click:load("mjk-stclick",true),clickVol:load("mjk-stclickvol",load("mjk-stclick",true)?0.35:0)};
+const ST={input:load("mjk-stinput","touch"),micRaf:null,prog:load("mjk-stprog","pop"),key:load("mjk-stkey","G"),barsN:load("mjk-stbars",8),loop:load("mjk-stloop",false),neck:load("mjk-stneck",true),test:false,one:"G",chordQ:[],pi:2,chord:"G",mode:"watch",bpm:null,bpmFor:null,inst:"guitar",running:false,schID:null,raf:null,visQ:[],exp:[],click:load("mjk-stclick",true),clickVol:load("mjk-stclickvol",load("mjk-stclick",true)?0.35:0),strumVol:load("mjk-ststrum",1)};
 (function(){try{var s=document.createElement("style");s.textContent=
 ".stlane{display:flex;gap:3px;margin:6px 0 4px}"+
 ".stc{flex:1;min-width:0;border-radius:8px;background:var(--card2);border:1px solid var(--line);text-align:center;padding:7px 0 4px;transition:background .06s}"+
@@ -7956,10 +7956,10 @@ function stWin(){var P=stP();return Math.min(0.16,(60/ST.bpm)/P.div*0.45);}
 function stFrets(cn){return CHORDS[ST.inst]&&CHORDS[ST.inst][cn||ST.chord];}
 function stBassS(fr,alt){var first=-1,second=-1;for(var i=0;i<fr.length;i++){if(fr[i]>=0){if(first<0)first=i;else if(second<0){second=i;break;}}}return alt&&second>=0?second:first;}
 function stStrum(fr,t,down,g,dur){var notes=chordNotes(ST.inst,fr),ord=down?notes:notes.slice().reverse();ord.forEach(function(m,i){pluck(m,t+i*0.012,dur,g);});}
-function stPlay(ch,t,P,slot,cn){var fr=stFrets(cn);if(!fr)return;var acc=P.acc&&P.acc.indexOf(slot)>=0;
-  if(ch==="D"||ch==="U")stStrum(fr,t,ch==="D",acc?0.5:0.32,1.3);
-  else if(ch==="d"||ch==="u")stStrum(fr,t,ch==="d",0.26,0.07);
-  else if(ch==="B"){var s=stBassS(fr,slot>0);if(s>=0)pluck(STRING_INSTR[ST.inst].strings[s]+fr[s],t,1.1,0.45);}}
+function stPlay(ch,t,P,slot,cn){var fr=stFrets(cn);if(!fr)return;var acc=P.acc&&P.acc.indexOf(slot)>=0,sv=ST.strumVol==null?1:ST.strumVol;
+  if(ch==="D"||ch==="U")stStrum(fr,t,ch==="D",(acc?0.5:0.32)*sv,1.3);
+  else if(ch==="d"||ch==="u")stStrum(fr,t,ch==="d",0.26*sv,0.07);
+  else if(ch==="B"){var s=stBassS(fr,slot>0);if(s>=0)pluck(STRING_INSTR[ST.inst].strings[s]+fr[s],t,1.1,0.45*sv);}}
 function stViz(ch,slot){var z=document.getElementById("fbZone"),fr=stFrets();if(!z||!fr)return;
   if(ch==="B"){var bs=stBassS(fr,slot>0);if(bs>=0)fbZoneVib(bs);return;}
   var down=(ch==="D"||ch==="d"),N=fr.length,k=0;for(var i=0;i<N;i++){(function(s){if(fr[s]<0)return;var d=k*14;k++;setTimeout(function(){fbZoneVib(s);},d);})(down?i:N-1-i);}
@@ -7970,7 +7970,7 @@ function stSchedule(){if(ST.schedDone)return;var a=ac(),P=stP(),bd=60/ST.bpm,n=P
     var t=stSlotT(P,ST.barStart,ST.slot,bd);if(t>a.currentTime+ahead)break;var ch=P.pat[ST.slot];
     if(ST.slot%P.div===0)click(t,ST.slot===0?"accent":"beat",ST.clickVol);
     if(ST.slot===0)ST.chordQ.push({t:t,bar:ST.bar});var callB=ST.mode==="watch"||(ST.mode==="cr"&&ST.bar%2===0);if(callB&&ch!=="-")stPlay(ch,t,P,ST.slot,stChordAt(ST.bar));
-    if(!callB&&ch!=="-")ST.exp.push({t:t,ch:ch,slot:ST.slot,bar:ST.bar,done:false});
+    if(!callB&&ch!=="-"){ST.exp.push({t:t,ch:ch,slot:ST.slot,bar:ST.bar,done:false});ST.expN++;}
     ST.visQ.push({t:t,slot:ST.slot,bar:ST.bar,ch:ch});
     ST.slot++;if(ST.slot>=n){ST.slot=0;ST.bar++;ST.barStart+=P.beats*bd;if(ST.mode!=="watch"&&!ST.loop&&ST.bar>=ST.bars){ST.endT=ST.barStart;ST.schedDone=true;break;}}}}
 function stCells(){return document.querySelectorAll("#stLane .stc");}
@@ -7984,6 +7984,7 @@ function stFrame(){var now=ac().currentTime;while(ST.chordQ.length&&ST.chordQ[0]
     if(e.count){var cn=$("#stCount");if(cn)cn.textContent=String(e.count);}
     else{var cn2=$("#stCount");if(cn2&&cn2.textContent)cn2.textContent="";if(e.slot===0)stLaneClear(e.bar);stLaneLight(e.slot);if((ST.mode==="watch"||(ST.mode==="cr"&&e.bar%2===0))&&e.ch!=="-")stViz(e.ch,e.slot);}}
   if(ST.mode!=="watch"&&ST.running){var win=stWin();ST.exp.forEach(function(x){if(!x.done&&now>x.t+win){x.done=true;x.res="miss";ST.miss++;ST.streak=0;stMark(x,"miss");stHud();}});
+    while(ST.exp.length&&ST.exp[0].done&&now>ST.exp[0].t+win+1)ST.exp.shift();
     if(ST.schedDone&&now>ST.endT+0.35){stFinish();return;}}
   ST.raf=requestAnimationFrame(stFrame);}
 function stJudge(kind){if(ST.mode==="watch"||!ST.running)return;var now=ac().currentTime;if(now<ST.firstT-0.2)return;if(ST.mode==="cr"){var bdur=stP().beats*60/ST.bpm,cb=Math.floor((now-ST.firstT+0.12)/bdur);if(cb%2===0)return;}var win=stWin(),best=null,bd=1e9;
@@ -7996,7 +7997,7 @@ function stJudge(kind){if(ST.mode==="watch"||!ST.running)return;var now=ac().cur
 function stStop(keep){ST.running=false;if(ST.micRaf){cancelAnimationFrame(ST.micRaf);ST.micRaf=null;}if(ST.schID){clearInterval(ST.schID);ST.schID=null;}if(ST.raf){cancelAnimationFrame(ST.raf);ST.raf=null;}ST.visQ=[];
   var b=$("#stGo");if(b)b.textContent=ST.mode==="watch"?"▶ Watch it":"▶ Start";var tb=$("#stTest");if(tb)tb.textContent="🎯 Test";var cn=$("#stCount");if(cn)cn.textContent="";
   if(!keep)stCells().forEach(function(x){x.classList.remove("on","nx","hit","wrong","miss");});else stCells().forEach(function(x){x.classList.remove("on","nx");});}
-function stStart(){unlockAudio();if(ST.running)return;var a=ac(),P=stP();ST.running=true;ST.visQ=[];ST.exp=[];ST.hit=0;ST.wrong=0;ST.miss=0;ST.extra=0;ST.streak=0;ST.err=0;ST.nErr=0;ST.bar=0;ST.slot=0;ST.schedDone=false;ST.bars=ST.barsN;ST.laneBar=0;ST.chordQ=[];ST.chord=stChordAt(0);stNeckRender();
+function stStart(){unlockAudio();if(ST.running)return;var a=ac(),P=stP();ST.running=true;ST.visQ=[];ST.exp=[];ST.expN=0;ST.hit=0;ST.wrong=0;ST.miss=0;ST.extra=0;ST.streak=0;ST.err=0;ST.nErr=0;ST.bar=0;ST.slot=0;ST.schedDone=false;ST.bars=ST.barsN;ST.laneBar=0;ST.chordQ=[];ST.chord=stChordAt(0);stNeckRender();
   ST.cnt=P.beats;ST.next=a.currentTime+0.15;ST.firstT=ST.next+P.beats*(60/ST.bpm);ST.barStart=ST.firstT;stLaneClear(0);
   ST.schID=setInterval(stSchedule,25);ST.raf=requestAnimationFrame(stFrame);var b=$("#stGo");if(b)b.textContent="⏹ Stop";
   if(ST.mode!=="watch"&&ST.input==="mic")stMicListen();
@@ -8004,7 +8005,7 @@ function stStart(){unlockAudio();if(ST.running)return;var a=ac(),P=stP();ST.runn
 /* your own guitar through the mic: each strum's attack counts as a hit (the mic can't tell down from up) */
 function stMicListen(){ensureMic().then(function(ok){if(!ok||!ST.running||!toneAnalyser){stTip("Mic is off — swipe the guitar body instead, or allow the mic.");return;}var buf=new Float32Array(toneAnalyser.fftSize),prev=0,last=-1;
   var loop=function(){if(!ST.running){ST.micRaf=null;return;}toneAnalyser.getFloatTimeDomainData(buf);var q=0;for(var i=0;i<buf.length;i++)q+=buf[i]*buf[i];var r=Math.sqrt(q/buf.length),now=ac().currentTime;if(r>0.045&&(r-prev)>0.02&&(now-last)>0.09){last=now;stJudge("any");}prev=r;ST.micRaf=requestAnimationFrame(loop);};ST.micRaf=requestAnimationFrame(loop);});}
-function stFinish(){stStop(true);var P=stP(),total=ST.exp.length,pct=total?Math.round(100*ST.hit/total):0,ms=ST.nErr?Math.round(1000*ST.err/ST.nErr):0;
+function stFinish(){stStop(true);var P=stP(),total=ST.expN||ST.exp.length,pct=total?Math.round(100*ST.hit/total):0,ms=ST.nErr?Math.round(1000*ST.err/ST.nErr):0;
   var bests=load(mk("strum","best"),{}),key=ST.inst+"-"+P.id,rec=(bests[key]==null||pct>bests[key]);if(rec){bests[key]=pct;save(mk("strum","best"),bests);}
   var bn=pct>=80?5:pct>=50?2:0;if(bn&&activeId()){addBeans(bn);try{beanChip();}catch(e){}}
   {const all=stStats(),k=stStatKey(),st=all[k]||{t:P.name+(ST.mode==="cr"&&!ST.test?" · call & response":""),c:(ST.prog==="one"?ST.one:stProgDef().n+" in "+ST.key),inst:ST.inst,m:ST.test?"test":ST.mode,tries:0,bestAcc:0,bestBpm:0,hist:[]};st.tries++;st.at=Date.now();if(pct>st.bestAcc){st.bestAcc=pct;st.bestBpm=ST.bpm;}st.hist.push({a:pct,s:pct,b:ST.bpm,t:Date.now()});st.hist=st.hist.slice(-30);all[k]=st;save("mjk-strstats",all);const rr=$("#stRes");if(rr)rr.innerHTML=(ST.test?'<div style="text-align:center;color:var(--gold);font-weight:800;font-size:.8rem">TEST · '+(pct>=90?"Passed with honors":pct>=75?"Passed":"Not yet — practice and test again")+'</div>':'')+'<div class="site-note" style="text-align:center;margin:4px 0 0">🏆 Best '+st.bestAcc+'% · Try #'+st.tries+'</div>'+melSpark(st.hist);}
@@ -8046,7 +8047,7 @@ function renderStrumTrainer(inst){inst=inst||"guitar";if(toneRAF)cancelAnimation
       '<div class="rrow2"><span class="rlab">Speed</span><span class="rchips tight" id="stSpd"></span></div>'+
       '<div class="rrow2"><span class="rlab">Bars</span><span class="rchips tight" id="stBars"></span></div>'+(function(){var pr=stProgChords();ST.lbo=Object.assign({n:0,s:0},load("mjk-stlb-"+ST.prog,{n:0,s:0}));return pr?lbHTML("stLB",ST.lbo,pr.length):"";})()+
       '<div class="rrow2"><span class="rlab">I play with</span><span class="rchips tight"><button class="rchip sm'+(ST.input==="touch"?" sel":"")+'" data-stin="touch">👆 Screen</button><button class="rchip sm'+(ST.input==="mic"?" sel":"")+'" data-stin="mic">🎸 My guitar (mic)</button></span></div>'+
-      clickVolRow("stClickV",ST.clickVol)+volSlider("stVol")+'</div>';
+      clickVolRow("stClickV",ST.clickVol)+'<div class="rrow"><span class="rlab">\ud83c\udfb8 Strums</span><input type="range" id="stStrumV" min="0" max="100" value="'+Math.round((ST.strumVol==null?1:ST.strumVol)*100)+'" style="flex:1"><span class="rbpm" id="stStrumVV">'+Math.round((ST.strumVol==null?1:ST.strumVol)*100)+'%</span></div>'+volSlider("stVol")+'</div>';
     $("#eBack").onclick=function(){stStop();FB.onSwipe=null;FB.onStringTap=null;FB.upright=false;fbRestore();window.removeEventListener("resize",onRs);window.removeEventListener("orientationchange",onRs);renderStrings(ST.inst);};
     SPATS.forEach(function(p,i){var b=document.createElement("button");b.className="rchip sm"+(i===ST.pi?" sel":"");b.textContent=p.name;b.onclick=function(){ST.pi=i;draw();};$("#stPats").appendChild(b);});
     [["watch","👀 Watch"],["play","🎸 I'll play"],["cr","🔁 Call & response"]].forEach(function(o){var b=document.createElement("button");b.className="rchip sm"+(ST.mode===o[0]?" sel":"");b.textContent=o[1];b.onclick=function(){ST.mode=o[0];draw();};$("#stModes").appendChild(b);});
@@ -8063,6 +8064,7 @@ function renderStrumTrainer(inst){inst=inst||"guitar";if(toneRAF)cancelAnimation
     $("#stLoop").onclick=function(){ST.loop=!ST.loop;save("mjk-stloop",ST.loop);this.classList.toggle("sel",ST.loop);};
     $("#stNk").onclick=function(){ST.neck=!ST.neck;save("mjk-stneck",ST.neck);this.classList.toggle("sel",ST.neck);stLayout();if(!ST.running)stHwyDraw(ac().currentTime);};
     bindClickVol("stClickV",function(v){ST.clickVol=v;save("mjk-stclickvol",v);});bindVol("stVol");
+    var svr=$("#stStrumV");if(svr)svr.oninput=function(){ST.strumVol=(+svr.value)/100;save("mjk-ststrum",ST.strumVol);var l=$("#stStrumVV");if(l)l.textContent=svr.value+"%";};
     view.querySelectorAll("[data-stin]").forEach(function(b){b.onclick=function(){ST.input=b.dataset.stin;save("mjk-stinput",ST.input);view.querySelectorAll("[data-stin]").forEach(function(x){x.classList.toggle("sel",x===b);});if(ST.input==="mic"){unlockAudio();ensureMic();}};});
     $("#stGo").onclick=function(){if(ST.running){if(ST.loop&&ST.mode!=="watch"&&ST.exp.length)stFinish();else stStop(true);}else{ST.test=false;$("#stRes").innerHTML="";stStart();var n2=document.getElementById("stNeck");if(n2&&n2.classList.contains("land"))try{n2.scrollIntoView({block:"start"});}catch(e){}}};
     $("#stTest").onclick=function(){if(ST.running){stStop(true);return;}if(ST.mode!=="play"){ST.mode="play";draw();}ST.test=true;$("#stRes").innerHTML="";stStart();$("#stTest").textContent="⏹ Stop test";};
@@ -8212,7 +8214,8 @@ if(!load("mjk-prghwy1",false)){PRG.view="hwy";save("mjk-prgview","hwy");save("mj
 function prgCam(){if(PRG.view!=="neck"||!PRG.zoom){var st=document.getElementById("fbStage"),sc=document.getElementById("fbScaler");if(sc)sc.style.transform="";if(st)st.style.height="";return;}var z=FBD.zoom;FBD.zoom=true;try{fbDemoCam("chord");}catch(e){}FBD.zoom=z;}
 (function(){try{var s=document.createElement("style");s.textContent=".pvsweep{position:absolute;top:0;bottom:0;width:20%;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(255,240,200,.5),transparent);animation:pvsw .2s linear forwards}.pvsweep.up{animation-name:pvswu}@keyframes pvsw{from{left:-20%}to{left:100%}}@keyframes pvswu{from{left:100%}to{left:-20%}}";document.head.appendChild(s);}catch(e){}})();
 function clickVolRow(id,vol){return '<div class="rrow" style="margin:4px 0"><span class="rlab">\ud83e\udd41 Click</span><button class="rchip sm'+(vol>0?" sel":"")+'" id="'+id+'On">'+(vol>0?"On":"Off")+'</button><input type="range" class="gclick" id="'+id+'" min="0" max="100" value="'+Math.round(CLICK_VOL*100)+'" style="flex:1;accent-color:var(--gold)" title="click volume — whole app"><span class="rbpm" id="'+id+'V" style="min-width:52px;text-align:right">'+(CLICK_VOL>0?Math.round(CLICK_VOL*100)+"%":"\ud83d\udd07 off")+'</span></div>';}
-function bindClickVol(id,set){var r=document.getElementById(id);if(!r)return;r.oninput=function(){setClickVol((+r.value)/100);};var b=document.getElementById(id+"On");if(b)b.onclick=function(){var on=!b.classList.contains("sel");b.classList.toggle("sel",on);b.textContent=on?"On":"Off";set(on?0.35:0);};}
+function bindClickVol(id,set){var r=document.getElementById(id);if(!r)return;var lbl=function(v){var e=document.getElementById(id+"V");if(e)e.textContent=v>0?Math.round(v*100)+"%":"\ud83d\udd07 off";var b2=document.getElementById(id+"On");if(b2){b2.classList.toggle("sel",v>0);b2.textContent=v>0?"On":"Off";}};
+  r.oninput=function(){var v=(+r.value)/100;setClickVol(v);if(set)set(v);lbl(v);};var b=document.getElementById(id+"On");if(b)b.onclick=function(){var on=!b.classList.contains("sel");var v=on?0.35:0;set(v);lbl(v);if(r)r.value=Math.round(v*100);};}
 
 /* ===== NECK HIGHWAY — chords, strums and a bouncing ball flow down onto the neck ===== */
 function prgNeckish(){return PRG.view==="neck"||PRG.view==="hwy";}
