@@ -3017,7 +3017,7 @@ function swTagN(song,tag){const c=[];song.sections.forEach(sec=>{if(sec.tag===ta
 function swCands(song,tag){return song.sung[tag]?1:0;}
 function swCand(song,tag,i){const hs=swCands(song,tag);if(hs&&i===0){const m=song.sung[tag];return Object.assign({},m,{label:"Your sung melody"});}const k=i-hs+1;const m=swGen(swTagN(song,tag),k,tag,swKey(song));m.label=(["Arc","Falling","Rising","Wave"][m.sh]||"Shaped")+" melody "+k+" in "+swKeyName(song);m.seed=k;return m;}
 function swPlayNotes(ns,off){const s16=swS16(),v=swData().voice||"piano";(ns||[]).forEach(n=>melNote(n.midi,off+n.step*s16,Math.max(0.12,n.len*s16*0.92),v));}
-function swStopPlay(){if(SW.stopT){clearTimeout(SW.stopT);SW.stopT=null;}SW.tm.forEach(clearTimeout);SW.tm=[];if(SW.takeAud){try{SW.takeAud.pause();}catch(e){}SW.takeAud=null;SW.takeOn=null;}view.querySelectorAll(".sw-line.pl").forEach(x=>x.classList.remove("pl"));const b=$("#swPlay");if(b)b.textContent="▶ Play song";}
+function swStopPlay(){SW.voiceQ=null;if(SW.stopT){clearTimeout(SW.stopT);SW.stopT=null;}SW.tm.forEach(clearTimeout);SW.tm=[];if(SW.takeAud){try{SW.takeAud.pause();}catch(e){}SW.takeAud=null;SW.takeOn=null;}view.querySelectorAll(".sw-line.pl").forEach(x=>x.classList.remove("pl"));const b=$("#swPlay");if(b)b.textContent="▶ Play song";}
 function swRecStop(){if(SW.rec){SW.rec.stopped=true;try{SW.rec.sr&&SW.rec.sr.stop();}catch(e){}if(SW.rec.raf)cancelAnimationFrame(SW.rec.raf);SW.rec=null;try{stopMic();}catch(e){}}}
 function renderIdeaLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);SW.ideas=null;SW.mp=null;teardown=()=>{swStopPlay();swRecStop();};SW.lib=swData().songs.some(s=>s.setup);swDraw();}
 const SW_CSS=`<style>
@@ -3105,7 +3105,7 @@ function swDraw(){const D=swData(),song=swSong();if(SW.lib){swLibDraw();return;}
   const secHTML=song.sections.map((sec,si)=>{const tgt=swTarget(song,sec),mel=song.mel[sec.tag],firstOfTag=!seenTag[sec.tag];seenTag[sec.tag]=1;
     const hd='<div class="sw-hd"><select class="sw-tag" aria-label="Section type">'+SW_TAGS.map(t=>'<option'+(t===sec.tag?" selected":"")+'>'+t+'</option>').join("")+'</select><select class="sw-rsch" aria-label="Rhyme scheme" style="background:rgba(255,255,255,.06);color:#cfd4de;border:1px solid rgba(255,255,255,.14);border-radius:8px;font:700 .72rem system-ui;padding:3px 4px">'+SW_RHYMES.map(r=>'<option value="'+r+'"'+(swScheme(song,sec)===r?" selected":"")+'>'+(r==="free"?"rhyme: free":r)+'</option>').join("")+'</select>'+(swSecName(song,sec)!==sec.tag?'<span class="sw-name">'+swEsc(swSecName(song,sec).slice(sec.tag.length).trim())+'</span>':'')+'<span style="flex:1"></span><button data-sa="play" aria-label="Play section">▶</button><button data-sa="up" aria-label="Move up"'+(si?"":" disabled")+'>↑</button><button data-sa="down" aria-label="Move down"'+(si<song.sections.length-1?"":" disabled")+'>↓</button><button data-sa="del" aria-label="Delete section">✕</button></div>';
     let melRow="";if(firstOfTag&&!tgt){if(SW.mp===sec.tag){const i=SW.pi[sec.tag]||0,c=swCand(song,sec.tag,i);melRow='<div class="sw-mp"><div class="nav"><button data-m="prev" aria-label="Previous melody"'+(i?"":" disabled")+'>←</button><div>'+c.label+'<small>'+(c.src==="sung"?"from your voice":"built for "+c.n+" syllables a line")+'</small></div><button data-m="next" aria-label="Next melody">→</button></div><div class="row"><button data-m="listen">▶ Listen</button><button data-m="use" class="go">✓ Use for every '+sec.tag.toLowerCase()+'</button><button data-m="sing">🎤 Sing my own</button><button data-m="close">Close</button></div><div class="sw-msg" style="margin-left:0;text-align:center"></div></div>';}
-      else melRow='<div class="sw-melbar"><span>🎵 '+(mel?(mel.label||"Melody")+" · "+mel.n+" notes a line":"No melody yet")+'</span>'+(song.takes&&song.takes[sec.tag]?'<button data-m="take">'+(SW.takeOn===sec.tag?"■ Take":"▶ Take")+'</button>':'')+'<button data-m="singsec">'+(SW.rec&&SW.rec.sec===sec.id?"■ Stop":"🎤 Sing it in")+'</button><button data-m="open">'+(mel?"Change":"Pick")+'</button></div>';}
+      else melRow='<div class="sw-melbar"><span>🎵 '+(mel?(mel.label||"Melody")+" · "+mel.n+" notes a line":"No melody yet")+'</span>'+(swTakeN(song,sec.tag)?'<button data-m="take">'+(SW.takeOn===sec.tag?"■ Take":"▶ Take")+'</button>'+(swTakeN(song,sec.tag)>1?'<button data-m="tkpick">'+swTakeSel(song,sec.tag)+'/'+swTakeN(song,sec.tag)+' ▾</button>':''):'')+'<button data-m="singsec">'+(SW.rec&&SW.rec.sec===sec.id?"■ Stop":"🎤 Sing it in")+'</button><button data-m="open">'+(mel?"Change":"Pick")+'</button></div>'+(SW.tkOpen===sec.tag&&swTakeN(song,sec.tag)>1?'<div class="rchips tight" style="margin:4px 0 2px">'+Array.from({length:swTakeN(song,sec.tag)},(x,k)=>'<button class="rchip sm'+(swTakeSel(song,sec.tag)===k+1?" sel":"")+'" data-m="tk'+(k+1)+'">▶ Take '+(k+1)+'</button>').join("")+'<button class="rchip sm" data-m="tkdel">✕ Delete this take</button></div>':'');}
     let chRow="";if(firstOfTag&&!tgt){const pr=swProgOf(song,sec.tag);
       if(SW.cp===sec.tag){const cur=song.prog?song.prog[sec.tag]:null;
         chRow='<div class="sw-mp">'+swProgList(song).map((p,i)=>'<button class="sw-form'+(cur===i?" sel":"")+'" data-chp="'+i+'">'+p.l+' — '+p.r.join("–")+'<small style="display:block;opacity:.8;font-weight:700">'+p.c.map(c=>swChName(song,c)).join(" · ")+'</small></button>').join("")+'<div class="row"><button data-chp="-1">No chords</button><button data-ch="close">Close</button></div><div class="sw-sub" style="margin-top:4px">Chords repeat bar by bar under every '+sec.tag.toLowerCase()+'. Tap a chord on any line to see why the melody fits it.</div></div>';}
@@ -3124,7 +3124,7 @@ function swDraw(){const D=swData(),song=swSong();if(SW.lib){swLibDraw();return;}
     <div id="swSecs">${secHTML}</div>
     <div class="rchips tight" style="justify-content:center;margin:6px 0">${["Verse","Pre-Chorus","Chorus","Bridge","Outro"].map(t=>'<button class="rchip sm" data-add="'+t+'">+ '+t+'</button>').join("")}</div>
     <div class="sw-tempo"><button id="swTm" aria-label="Slower">−</button><span id="swTv">${song.bpm||90} BPM</span><button id="swTp" aria-label="Faster">+</button><button id="swClk" class="${D.click?"sel":""}">Click ${D.click?"on":"off"}</button></div>
-    <div class="actions"><button class="btn" id="swPlay">${SW.stopT?"■ Stop":"▶ Play song"}</button></div>
+    <div class="actions"><button class="btn" id="swPlay">${SW.stopT?"■ Stop":"▶ Play song"}</button><button class="btn ghost" id="swVoice">${SW.voiceQ?"■ Stop voice":"🎤 My voice"}</button></div>
     <details id="swSet" style="margin-top:8px"${setOpen?" open":""}><summary style="cursor:pointer;list-style:none;padding:8px 2px;font:800 .85rem system-ui;color:var(--muted)">⚙️ Settings</summary>
       <div class="rrow2"><span class="rlab">Songs</span><span class="rchips tight">${D.songs.map(s=>'<button class="rchip sm'+(s.id===song.id?" sel":"")+'" data-song="'+s.id+'">'+swEsc(s.title||"Untitled")+'</button>').join("")}<button class="rchip sm" id="swNew">+ New song</button></span></div>
       <div class="rrow"><span class="rlab">Topic</span><input id="swTopic" value="${swEsc(song.topic)}" placeholder="What's it about?" style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:8px;color:inherit;padding:6px"></div>
@@ -3165,6 +3165,11 @@ function swWire(D,song){
     el.querySelectorAll("[data-ne]").forEach(b=>{b.onmousedown=e=>e.preventDefault();b.onclick=()=>swNoteEdit(b.dataset.ne,sec,li);});});
   view.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{const tag=b.dataset.add,sec=swSec(tag);const prev=(tag==="Chorus"||tag==="Pre-Chorus")&&song.sections.find(x=>x.tag===tag&&!x.same&&x.lines.some(l=>l.t.trim()));if(prev){sec.same=prev.id;sec.lines=[];}song.sections.push(sec);if(!prev)SW.active={s:sec.id,l:0};swSave();swDraw();if(!prev)swFocus();});
   $("#swPlay").onclick=()=>{if(SW.stopT){swStopPlay();return;}swPlaySecs(song.sections);};
+  const vb=$("#swVoice");if(vb)vb.onclick=()=>{if(SW.voiceQ||SW.takeAud){swStopPlay();swDraw();return;}
+    const tags=song.sections.filter(x=>swTakeN(song,x.tag)).map(x=>x.tag);
+    if(!tags.length){vb.textContent="No recordings yet — 🎤 Sing it in";setTimeout(()=>{if(vb.isConnected&&!SW.voiceQ)vb.textContent="🎤 My voice";},2200);return;}
+    swStopPlay();SW.voiceQ=tags;vb.textContent="■ Stop voice";
+    const next=()=>{if(!SW.voiceQ||!SW.voiceQ.length){SW.voiceQ=null;swDraw();return;}const t2=SW.voiceQ.shift();swTakePlay(song,t2,next);};next();};
   const tset=v=>{song.bpm=Math.max(50,Math.min(160,v));$("#swTv").textContent=song.bpm+" BPM";const r=$("#swBpm");if(r){r.value=song.bpm;$("#swBpmV").textContent=song.bpm+" BPM";}swSave();};
   $("#swTm").onclick=()=>tset((song.bpm||90)-2);$("#swTp").onclick=()=>tset((song.bpm||90)+2);
   $("#swClk").onclick=()=>{D.click=!D.click;swSave();const b=$("#swClk");b.textContent="Click "+(D.click?"on":"off");b.classList.toggle("sel",D.click);};
@@ -3224,26 +3229,41 @@ function swLineAct(a,sec,li,el){const song=swSong(),ln=sec.lines[li],msg=el.quer
   else if(a==="ideas"){const box=el.querySelector(".sw-ideas");if(SW.ideas&&SW.ideas.s===sec.id&&SW.ideas.l===li){SW.ideas=null;box.style.display="none";return;}SW.ideas={s:sec.id,l:li,w:null};swIdeas(song,sec,li,el);}
   else if(a==="del"){sec.lines.splice(li,1);if(!sec.lines.length)sec.lines.push(swLine());SW.active=null;SW.ideas=null;swSave();swDraw();}}
 /* ---- melody picker: one at a time, flip, listen, choose; or sing your own ---- */
+function swTakeN(song,tag){return (song.takes&&+song.takes[tag])||0;}
+function swTakeSel(song,tag){const n=swTakeN(song,tag);if(!n)return 0;const x=song.takeSel?+song.takeSel[tag]:0;return (x>=1&&x<=n)?x:n;}
+function swTakeKey(song,tag,i){return song.id+":"+tag+(i>1?":"+i:"");}
+function swTakePlay(song,tag,done,tell){tell=tell||(()=>{});const idx=swTakeSel(song,tag);if(!idx){if(done)done();else tell("No recording saved yet — tap 🎤 Sing it in first.");return;}
+  const key=swTakeKey(song,tag,idx),fin=()=>{SW.takeAud=null;SW.takeOn=null;if(done)done();else swDraw();},
+  goOld=bl=>{try{unlockAudio();const u=URL.createObjectURL(bl),au=new Audio(u);SW.takeAud=au;SW.takeOn=tag;
+    au.onended=au.onerror=()=>{try{URL.revokeObjectURL(u);}catch(e){}fin();};au.play().catch(()=>{SW.takeAud=null;SW.takeOn=null;tell("Couldn't play the recording here.");});swDraw();}catch(e){tell("Couldn't play the recording here.");}},
+  go=bl=>{unlockAudio();bl.arrayBuffer().then(ab=>ac().decodeAudioData(ab)).then(buf=>{
+    let sum=0,pk=0,cnt=0;for(let c=0;c<buf.numberOfChannels;c++){const d=buf.getChannelData(c);for(let i=0;i<d.length;i+=4){const v=d[i],av=v<0?-v:v;sum+=v*v;cnt++;if(av>pk)pk=av;}}
+    const rms=Math.sqrt(sum/Math.max(1,cnt));let g=rms>0.0004?0.16/rms:1;if(g<1)g=1;if(g>9)g=9;if(pk*g>2.4)g=Math.max(1,2.4/pk);
+    const a=ac(),src=a.createBufferSource();src.buffer=buf;const gn=a.createGain();gn.gain.value=g;
+    const cp=a.createDynamicsCompressor();cp.threshold.value=-10;cp.knee.value=8;cp.ratio.value=8;cp.attack.value=0.003;cp.release.value=0.25;
+    const P=({nat:{},warm:{sat:2.5,rv:[1.4,3.2],rw:0.14},space:{sat:1.6,rv:[2.2,2.6],rw:0.26,dl:0.75,dw:0.18,fb:0.3}})[swData().vfx||"warm"]||{};
+    src.connect(gn);let nd=gn;
+    if(P.sat){const sh=a.createWaveShaper(),N=1024,cv=new Float32Array(N);for(let i=0;i<N;i++){const x=i/(N-1)*2-1;cv[i]=Math.tanh(P.sat*x)/Math.tanh(P.sat);}sh.curve=cv;sh.oversample="2x";nd.connect(sh);nd=sh;}
+    nd.connect(cp);cp.connect(a.destination);
+    if(P.dw){const dl=a.createDelay(2);dl.delayTime.value=Math.min(1.5,60/((song&&song.bpm)||90)*(P.dl||0.75));const fb=a.createGain();fb.gain.value=P.fb||0.25;const dw=a.createGain();dw.gain.value=P.dw;cp.connect(dl);dl.connect(fb);fb.connect(dl);dl.connect(dw);dw.connect(a.destination);}
+    if(P.rw){const cl=a.createConvolver(),sr=a.sampleRate,L=Math.floor(sr*P.rv[0]),bu=a.createBuffer(2,L,sr);for(let ch=0;ch<2;ch++){const d2=bu.getChannelData(ch);for(let i=0;i<L;i++)d2[i]=(Math.random()*2-1)*Math.pow(1-i/L,P.rv[1]);}cl.buffer=bu;const rw=a.createGain();rw.gain.value=P.rw;cp.connect(cl);cl.connect(rw);rw.connect(a.destination);}
+    SW.takeAud={pause(){try{src.onended=null;src.stop();}catch(e){}}};SW.takeOn=tag;
+    src.onended=()=>fin();src.start();swDraw();
+  }).catch(()=>goOld(bl));};
+  const bl=(SW.takeBlob||{})[key];if(bl)go(bl);else idbGet("swtake:"+key).then(b2=>{if(b2){SW.takeBlob=SW.takeBlob||{};SW.takeBlob[key]=b2;go(b2);}else tell("No recording saved yet — tap 🎤 Sing it in first.");});}
 function swMelAct(a,sec,el){const song=swSong(),tag=sec.tag,msg=el.querySelector(".sw-mp .sw-msg"),say=t=>{if(msg)msg.textContent=t;};let i=SW.pi[tag]||0;
   if(a==="take"){const bar=el.querySelector(".sw-melbar span"),tell=t=>{if(bar)bar.textContent=t;};
-    if(SW.takeAud){try{SW.takeAud.pause();}catch(e){}SW.takeAud=null;SW.takeOn=null;swDraw();return;}
-    const key=song.id+":"+tag,goOld=bl=>{try{unlockAudio();const u=URL.createObjectURL(bl),au=new Audio(u);SW.takeAud=au;SW.takeOn=tag;
-      au.onended=au.onerror=()=>{SW.takeAud=null;SW.takeOn=null;try{URL.revokeObjectURL(u);}catch(e){}swDraw();};au.play().catch(()=>{SW.takeAud=null;SW.takeOn=null;tell("Couldn't play the recording here.");});swDraw();}catch(e){tell("Couldn't play the recording here.");}},
-      go=bl=>{unlockAudio();bl.arrayBuffer().then(ab=>ac().decodeAudioData(ab)).then(buf=>{
-        let sum=0,pk=0,cnt=0;for(let c=0;c<buf.numberOfChannels;c++){const d=buf.getChannelData(c);for(let i=0;i<d.length;i+=4){const v=d[i],av=v<0?-v:v;sum+=v*v;cnt++;if(av>pk)pk=av;}}
-        const rms=Math.sqrt(sum/Math.max(1,cnt));let g=rms>0.0004?0.16/rms:1;if(g<1)g=1;if(g>9)g=9;if(pk*g>2.4)g=Math.max(1,2.4/pk);
-        const a=ac(),src=a.createBufferSource();src.buffer=buf;const gn=a.createGain();gn.gain.value=g;
-        const cp=a.createDynamicsCompressor();cp.threshold.value=-10;cp.knee.value=8;cp.ratio.value=8;cp.attack.value=0.003;cp.release.value=0.25;
-        const P=({nat:{},warm:{sat:2.5,rv:[1.4,3.2],rw:0.14},space:{sat:1.6,rv:[2.2,2.6],rw:0.26,dl:0.75,dw:0.18,fb:0.3}})[swData().vfx||"warm"]||{};
-        src.connect(gn);let nd=gn;
-        if(P.sat){const sh=a.createWaveShaper(),N=1024,cv=new Float32Array(N);for(let i=0;i<N;i++){const x=i/(N-1)*2-1;cv[i]=Math.tanh(P.sat*x)/Math.tanh(P.sat);}sh.curve=cv;sh.oversample="2x";nd.connect(sh);nd=sh;}
-        nd.connect(cp);cp.connect(a.destination);
-        if(P.dw){const dl=a.createDelay(2);dl.delayTime.value=Math.min(1.5,60/((song&&song.bpm)||90)*(P.dl||0.75));const fb=a.createGain();fb.gain.value=P.fb||0.25;const dw=a.createGain();dw.gain.value=P.dw;cp.connect(dl);dl.connect(fb);fb.connect(dl);dl.connect(dw);dw.connect(a.destination);}
-        if(P.rw){const cl=a.createConvolver(),sr=a.sampleRate,L=Math.floor(sr*P.rv[0]),bu=a.createBuffer(2,L,sr);for(let ch=0;ch<2;ch++){const d2=bu.getChannelData(ch);for(let i=0;i<L;i++)d2[i]=(Math.random()*2-1)*Math.pow(1-i/L,P.rv[1]);}cl.buffer=bu;const rw=a.createGain();rw.gain.value=P.rw;cp.connect(cl);cl.connect(rw);rw.connect(a.destination);}
-        SW.takeAud={pause(){try{src.onended=null;src.stop();}catch(e){}}};SW.takeOn=tag;
-        src.onended=()=>{SW.takeAud=null;SW.takeOn=null;swDraw();};src.start();swDraw();
-      }).catch(()=>goOld(bl));};
-    const bl=(SW.takeBlob||{})[key];if(bl)go(bl);else idbGet("swtake:"+key).then(b2=>{if(b2){SW.takeBlob=SW.takeBlob||{};SW.takeBlob[key]=b2;go(b2);}else tell("No recording saved yet — tap 🎤 Sing it in first.");});
+    if(SW.takeAud){swStopPlay();swDraw();return;}
+    swStopPlay();swTakePlay(song,tag,null,tell);return;}
+  if(a==="tkpick"){SW.tkOpen=SW.tkOpen===tag?null:tag;swDraw();return;}
+  if(/^tk\d+$/.test(a||"")){const k=+a.slice(2);song.takeSel=song.takeSel||{};song.takeSel[tag]=k;swSave();swStopPlay();swTakePlay(song,tag,null,()=>{});return;}
+  if(a==="tkdel"){const n=swTakeN(song,tag);if(!n)return;const iDel=swTakeSel(song,tag);swStopPlay();
+    (async()=>{try{SW.takeBlob=SW.takeBlob||{};
+      for(let j=iDel+1;j<=n;j++){const b2=SW.takeBlob[swTakeKey(song,tag,j)]||await idbGet("swtake:"+swTakeKey(song,tag,j));if(b2){SW.takeBlob[swTakeKey(song,tag,j-1)]=b2;await idbPut("swtake:"+swTakeKey(song,tag,j-1),b2);}}
+      await idbDel("swtake:"+swTakeKey(song,tag,n));delete SW.takeBlob[swTakeKey(song,tag,n)];
+      const left=n-1;if(left)song.takes[tag]=left;else delete song.takes[tag];
+      song.takeSel=song.takeSel||{};if(left)song.takeSel[tag]=Math.min(Math.max(1,iDel),left);else delete song.takeSel[tag];
+      if(left<2)SW.tkOpen=null;swSave();}catch(e){}swDraw();})();
     return;}
   if(a==="open"){SW.mp=tag;const m=song.mel[tag];SW.pi[tag]=m?(m.src==="sung"?0:(m.seed||1)-1+swCands(song,tag)):0;swDraw();return;}
   if(a==="close"){SW.mp=null;swRecStop();swDraw();return;}
@@ -3307,7 +3327,7 @@ function swSingSec(song,sec){if(SW.rec){const R=SW.rec;R.done&&R.done();return;}
     const buf=new Float32Array(toneAnalyser.fftSize);let quiet=0,lastBar=-1,sang=false;
     R.done=()=>{if(R.stopped)return;R.stopped=true;try{R.sr&&R.sr.stop();}catch(e){}try{if(R.mr&&R.mr.state!=="inactive")R.mr.stop();}catch(e){}if(R.raf)cancelAnimationFrame(R.raf);
       setTimeout(()=>{SW.rec=null;try{stopMic();}catch(e){}SW.tm.forEach(clearTimeout);SW.tm=[];
-        try{if(R.chunks.length){const bl=new Blob(R.chunks,{type:R.mime||"audio/mp4"});if(bl.size>2000){SW.takeBlob=SW.takeBlob||{};SW.takeBlob[song.id+":"+sec.tag]=bl;song.takes=song.takes||{};song.takes[sec.tag]=1;swSave();idbPut("swtake:"+song.id+":"+sec.tag,bl).catch(()=>{});}}}catch(e){}
+        try{if(R.chunks.length){const bl=new Blob(R.chunks,{type:R.mime||"audio/mp4"});if(bl.size>2000){const tn=((song.takes&&+song.takes[sec.tag])||0)+1;SW.takeBlob=SW.takeBlob||{};SW.takeBlob[swTakeKey(song,sec.tag,tn)]=bl;song.takes=song.takes||{};song.takes[sec.tag]=tn;song.takeSel=song.takeSel||{};song.takeSel[sec.tag]=tn;swSave();idbPut("swtake:"+swTakeKey(song,sec.tag,tn),bl).catch(()=>{});}}}catch(e){}
         swSingFill(song,sec,R,S,s16);},R.sr?700:0);};
     const tick=()=>{if(SW.rec!==R||R.stopped)return;const now=a.currentTime;if(now<t0){say("Sing in "+Math.ceil((t0-now)/beat)+"…"+(R.sr?"":" (I'll catch the tune — type the words after)"));R.raf=requestAnimationFrame(tick);return;}
       toneAnalyser.getFloatTimeDomainData(buf);let rms=0;for(let i=0;i<buf.length;i++)rms+=buf[i]*buf[i];rms=Math.sqrt(rms/buf.length);if(rms>R.maxRms)R.maxRms=rms;const f=rms>0.01?autoCorrelate(buf,a.sampleRate):-1;
