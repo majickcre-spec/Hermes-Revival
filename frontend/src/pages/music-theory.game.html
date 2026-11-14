@@ -524,6 +524,8 @@ body.fbHz #fbZone{display:inline-block;width:20%;margin-top:0!important;margin-l
 #stNeck{position:relative}
 #stNeck #fbSvgWrap{position:absolute;top:4px;right:4px;width:46%;max-width:300px;pointer-events:none;z-index:2;filter:drop-shadow(0 8px 16px rgba(0,0,0,.55))}
 #stNeck.land #fbSvgWrap{position:static;width:48%;max-width:140px;margin:0 auto 4px;filter:none}
+#stNeck.land #fbZone{display:flex;justify-content:center}
+#stNeck.land #fbZone svg{height:min(52vh,320px);width:auto;display:block}
 .czBack{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:70;opacity:0;pointer-events:none;transition:opacity .25s}
 .czBack.on{opacity:1;pointer-events:auto}
 .czSheet{position:fixed;left:0;right:0;bottom:0;z-index:71;max-height:82vh;overflow:auto;-webkit-overflow-scrolling:touch;background:var(--panel,#1c1830);border-top:1px solid var(--line);border-radius:18px 18px 0 0;padding:6px 16px calc(18px + env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .28s ease;box-shadow:0 -10px 40px rgba(0,0,0,.45);max-width:720px;margin:0 auto}
@@ -8015,9 +8017,12 @@ function renderStrumTrainer(inst){inst=inst||"guitar";if(toneRAF)cancelAnimation
   var fbSave={mode:FB.mode,chord:FB.chord,inst:FB.inst,win:FB.win,adv:FB.adv};function fbRestore(){FB.mode=fbSave.mode;FB.chord=fbSave.chord;FB.inst=fbSave.inst;FB.win=fbSave.win;FB.adv=fbSave.adv;}
   ST.inst=inst;if(!CHORDS[inst][ST.one])ST.one=Object.keys(CHORDS[inst])[0];var ks=stKeys(inst);if(ks.indexOf(ST.key)<0)ST.key=ks[0]||"C";if(!ks.length)ST.prog="one";
   FB.onSwipe=function(dir){stJudge(dir==="d"?"down":"up");};FB.onStringTap=function(){stJudge("pick");};
-  var stLayout=function(){var n=document.getElementById("stNeck");if(!n)return;var land=window.innerWidth>window.innerHeight;n.classList.toggle("land",land);var r=document.getElementById("stRight");if(r)r.style.flex=land?"0 0 40%":"";var sw=document.getElementById("fbSvgWrap");if(sw)sw.style.display=ST.neck?"":"none";};
-  var onRs=function(){stLayout();if(!ST.running)stHwyDraw(ac().currentTime);};window.addEventListener("resize",onRs);
-  FB.upright=true;teardown=function(){stStop();FB.onSwipe=null;FB.onStringTap=null;FB.upright=false;fbRestore();window.removeEventListener("resize",onRs);};
+  var stLayout=function(){var n=document.getElementById("stNeck");if(!n)return;var land=window.innerWidth>window.innerHeight;
+    if(FB.upright!==!land){FB.upright=!land;try{stNeckRender();}catch(e){}var z0=document.getElementById("fbZone");if(z0){z0.innerHTML=fbZoneSVG();fbBindZone(z0);}}
+    n.classList.toggle("land",land);var r=document.getElementById("stRight");if(r)r.style.flex=land?"0 0 40%":"";var sw=document.getElementById("fbSvgWrap");if(sw)sw.style.display=ST.neck?"":"none";
+    var zs=document.querySelector("#fbZone svg");if(zs){if(land){var vb=(zs.getAttribute("viewBox")||"0 0 200 360").split(/\s+/),vw=+vb[2]||200,vh2=+vb[3]||360,hh=Math.round(Math.min(window.innerHeight*0.52,320));zs.style.height=hh+"px";zs.style.width=Math.round(hh*vw/vh2)+"px";zs.style.margin="0 auto";var zp=zs.parentNode;if(zp&&zp.style)zp.style.width="100%";}else{zs.style.width="100%";zs.style.height="auto";zs.style.margin="";}}};
+  var onRs=function(){stLayout();if(!ST.running)stHwyDraw(ac().currentTime);clearTimeout(ST._rzT);ST._rzT=setTimeout(function(){stLayout();if(!ST.running)stHwyDraw(ac().currentTime);},350);};window.addEventListener("resize",onRs);window.addEventListener("orientationchange",onRs);
+  FB.upright=!(window.innerWidth>window.innerHeight);teardown=function(){stStop();FB.onSwipe=null;FB.onStringTap=null;FB.upright=false;fbRestore();window.removeEventListener("resize",onRs);window.removeEventListener("orientationchange",onRs);};
   function draw(){stStop();ST.test=false;var P=stP();if(ST.bpmFor!==P.id){ST.bpm=P.bpm;ST.bpmFor=P.id;}ST.chord=stChordAt(0);var PD=stProgDef();
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">↕️ Strum Patterns</span></div>'+gtrRotHint()+'<div class="panel">'+
       '<div class="intro">Strums fall down the highway onto the neck. <b>👀 Watch</b> plays it for you. <b>🎸 I\'ll play</b>: after the count-in, swipe the guitar body as each arrow reaches the gold line — <b>right <b>→</b> for a down strum, left <b>←</b> for an up strum</b>, keeping your hand swinging. Pick a progression and the chord changes every bar.</div>'+
@@ -8035,7 +8040,7 @@ function renderStrumTrainer(inst){inst=inst||"guitar";if(toneRAF)cancelAnimation
       '<div class="rrow2"><span class="rlab">Bars</span><span class="rchips tight" id="stBars"></span></div>'+(function(){var pr=stProgChords();ST.lbo=Object.assign({n:0,s:0},load("mjk-stlb-"+ST.prog,{n:0,s:0}));return pr?lbHTML("stLB",ST.lbo,pr.length):"";})()+
       '<div class="rrow2"><span class="rlab">I play with</span><span class="rchips tight"><button class="rchip sm'+(ST.input==="touch"?" sel":"")+'" data-stin="touch">👆 Screen</button><button class="rchip sm'+(ST.input==="mic"?" sel":"")+'" data-stin="mic">🎸 My guitar (mic)</button></span></div>'+
       clickVolRow("stClickV",ST.clickVol)+volSlider("stVol")+'</div>';
-    $("#eBack").onclick=function(){stStop();FB.onSwipe=null;FB.onStringTap=null;FB.upright=false;fbRestore();window.removeEventListener("resize",onRs);renderStrings(ST.inst);};
+    $("#eBack").onclick=function(){stStop();FB.onSwipe=null;FB.onStringTap=null;FB.upright=false;fbRestore();window.removeEventListener("resize",onRs);window.removeEventListener("orientationchange",onRs);renderStrings(ST.inst);};
     SPATS.forEach(function(p,i){var b=document.createElement("button");b.className="rchip sm"+(i===ST.pi?" sel":"");b.textContent=p.name;b.onclick=function(){ST.pi=i;draw();};$("#stPats").appendChild(b);});
     [["watch","👀 Watch"],["play","🎸 I'll play"],["cr","🔁 Call & response"]].forEach(function(o){var b=document.createElement("button");b.className="rchip sm"+(ST.mode===o[0]?" sel":"");b.textContent=o[1];b.onclick=function(){ST.mode=o[0];draw();};$("#stModes").appendChild(b);});
     ST_PROGS.forEach(function(pr){if(pr.d&&!ks.length)return;var b=document.createElement("button");b.className="rchip sm"+(ST.prog===pr.id?" sel":"");b.innerHTML=esc(pr.n)+(pr.g?' <span style="opacity:.6;font-size:.75em">'+pr.g+'</span>':'');b.onclick=function(){ST.prog=pr.id;save("mjk-stprog",pr.id);draw();};$("#stProgs").appendChild(b);});
