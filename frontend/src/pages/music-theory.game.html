@@ -12032,6 +12032,33 @@ function gsFetch(v,key){var id=v+"/"+key;if(GS.buf[id])return GS.buf[id];GS.buf[
 function gsMine(key){return idbGet("gs-"+key).then(function(b){if(!b)return null;return (b.arrayBuffer?b.arrayBuffer():b);}).then(function(ab){return ab?new Promise(function(res,rej){ac().decodeAudioData(ab.slice(0),res,rej);}):null;}).catch(function(){return null;});}
 function gsClip(S,k){var key=typeof k==="string"?k:gsKey(S,k),v=gsVoiceOf(S);if(v==="mine")return gsMine(key).then(function(b){return b?{b:b,mine:true}:gsFetch(S.voice,key).then(function(x){return x?{b:x}:null;});});return gsFetch(v,key).then(function(x){return x?{b:x}:null;});}
 function gsPrefetch(){var S=GS.sess;if(!S)return;for(var i=GS.idx+1,n=0;i<S.steps.length&&n<2;i++){if(S.steps[i].s!=null){gsClip(S,S.steps[i].k);n++;}}}
+/* ---- Voice polish: makes a phone recording sound like a produced meditation voice ----
+   clean low rumble -> trim mud -> lift presence & air -> gentle compression -> level to a set loudness -> light warmth -> limiter -> room */
+var VPOL={nat:{n:"Natural"},warm:{n:"🕯️ Warm",sat:1.8,rv:[1.6,3.0],rw:0.12},temple:{n:"🏛️ Temple",sat:1.4,rv:[3.4,2.2],rw:0.22,dl:0.42,dw:0.08,fb:0.22}};
+function vpolPreset(){var k=load("mjk-gmvfx","warm");return VPOL[k]?k:"warm";}
+function vpolPlay(blob,onEnd,o){o=o||{};var st={stopped:false,src:null},ctl={pause:function(){st.stopped=true;try{if(st.src){st.src.onended=null;st.src.stop();}}catch(e){}}};
+  blob.arrayBuffer().then(function(ab){return ac().decodeAudioData(ab);}).then(function(buf){if(st.stopped)return;
+    var a=ac(),P=VPOL[o.preset||vpolPreset()]||VPOL.warm,sum=0,cnt=0,pk=0;
+    for(var c=0;c<buf.numberOfChannels;c++){var d=buf.getChannelData(c);for(var i=0;i<d.length;i+=4){var v=d[i];if(Math.abs(v)>0.003){sum+=v*v;cnt++;}if(Math.abs(v)>pk)pk=Math.abs(v);}}
+    var rms=Math.sqrt(sum/Math.max(1,cnt)),g=rms>0.0004?0.11/rms:1;g=Math.max(0.5,Math.min(10,g));
+    var src=a.createBufferSource();src.buffer=buf;st.src=src;
+    var hp=a.createBiquadFilter();hp.type="highpass";hp.frequency.value=85;hp.Q.value=0.7;
+    var mud=a.createBiquadFilter();mud.type="peaking";mud.frequency.value=280;mud.Q.value=1;mud.gain.value=-2.5;
+    var pres=a.createBiquadFilter();pres.type="peaking";pres.frequency.value=3200;pres.Q.value=0.9;pres.gain.value=2.5;
+    var air=a.createBiquadFilter();air.type="highshelf";air.frequency.value=9500;air.gain.value=2;
+    var ds=a.createBiquadFilter();ds.type="peaking";ds.frequency.value=6800;ds.Q.value=3;ds.gain.value=-2;
+    var cp=a.createDynamicsCompressor();cp.threshold.value=-22;cp.knee.value=10;cp.ratio.value=3;cp.attack.value=0.012;cp.release.value=0.22;
+    var mk=a.createGain();mk.gain.value=g*1.25;
+    var lim=a.createDynamicsCompressor();lim.threshold.value=-4;lim.knee.value=2;lim.ratio.value=16;lim.attack.value=0.002;lim.release.value=0.12;
+    var out=a.createGain();out.gain.value=o.vol==null?1:o.vol;
+    src.connect(hp);hp.connect(mud);mud.connect(pres);pres.connect(ds);ds.connect(air);air.connect(cp);cp.connect(mk);var nd=mk;
+    if(P.sat){var sh=a.createWaveShaper(),N=1024,cv=new Float32Array(N);for(var k=0;k<N;k++){var x=k/(N-1)*2-1;cv[k]=Math.tanh(P.sat*x)/Math.tanh(P.sat);}sh.curve=cv;sh.oversample="2x";nd.connect(sh);nd=sh;}
+    nd.connect(lim);lim.connect(out);out.connect(a.destination);
+    if(P.rw){var cl=a.createConvolver(),sr=a.sampleRate,L=Math.floor(sr*P.rv[0]),bu=a.createBuffer(2,L,sr);for(var ch=0;ch<2;ch++){var d2=bu.getChannelData(ch);for(var j=0;j<L;j++)d2[j]=(Math.random()*2-1)*Math.pow(1-j/L,P.rv[1]);}cl.buffer=bu;var rw=a.createGain();rw.gain.value=P.rw;lim.connect(cl);cl.connect(rw);rw.connect(out);}
+    if(P.dw){var dl=a.createDelay(2);dl.delayTime.value=P.dl;var fb=a.createGain();fb.gain.value=P.fb;var dw=a.createGain();dw.gain.value=P.dw;lim.connect(dl);dl.connect(fb);fb.connect(dl);dl.connect(dw);dw.connect(out);}
+    src.onended=function(){if(!st.stopped&&onEnd)onEnd();};src.start();if(o.started)o.started(buf.duration);
+  }).catch(function(){if(st.stopped)return;try{var u=URL.createObjectURL(blob),el=new Audio(u);ctl.pause=function(){st.stopped=true;try{el.pause();}catch(e){}};el.onended=function(){try{URL.revokeObjectURL(u);}catch(e){}if(onEnd)onEnd();};el.play();}catch(e){if(onEnd)onEnd();}});
+  return ctl;}
 var TTS_BAD=/albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|fred|junior|ralph|kathy|grandma|grandpa|rocko|shelley|sandy|flo|eddy|reed/i;
 function ttsVoices(){try{var vs=speechSynthesis.getVoices().filter(function(v){return /^en/i.test(v.lang)&&!TTS_BAD.test(v.name);});
   var sc=function(v){var n=v.name,x=0;if(/premium/i.test(n))x+=50;else if(/enhanced/i.test(n))x+=40;if(/siri/i.test(n))x+=30;if(/neural|natural|online/i.test(n))x+=35;
@@ -12411,7 +12438,7 @@ function gmSeedHeads(){try{
   gmSave(L);save(mk("gmed","heads1"),true);
 }catch(e){}}
 function renderGuidedStudio(doc){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);gmSeedHeads();
-  var GMR={mr:null};teardown=function(){try{if(GMR.mr)GMR.mr.stop();}catch(e){}};
+  var GMR={mr:null,pv:null};teardown=function(){try{if(GMR.mr)GMR.mr.stop();}catch(e){}try{if(GMR.pv)GMR.pv.pause();}catch(e){}try{speechSynthesis.cancel();}catch(e){}};
   var D=(doc&&doc.id)?doc:{id:"gm"+Date.now().toString(36),title:"",stages:[{hz:8,min:5},{hz:4,min:10},{hz:8,min:5}],ps:[{txt:"",at:null,key:null}]};
   function totMin(){return D.stages.reduce(function(x,s2){return x+s2.min;},0);}
   function autoAt(i){var n=D.ps.length,t=totMin()*60;return Math.round((t*(i+0.3)/Math.max(1,n))/30)*30;}
@@ -12428,11 +12455,11 @@ function renderGuidedStudio(doc){if(toneRAF)cancelAnimationFrame(toneRAF);medSto
      +D.ps.map(function(ps,i){var at=ps.at==null?autoAt(i):ps.at;
        return '<div data-nocz style="border:1px solid var(--line);border-radius:12px;padding:8px;margin:0 0 8px">'
         +'<textarea data-gtx="'+i+'" placeholder="Passage '+(i+1)+' — up to 8 lines or so…" style="width:100%;box-sizing:border-box;min-height:96px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:8px;color:inherit;padding:8px;font:600 .92rem system-ui">'+esc(ps.txt||"")+'</textarea>'
-        +'<div class="rrow" style="margin:6px 0 0;gap:6px"><button class="rchip sm'+(ps.key?"":"")+'" data-grec="'+i+'">'+(ps.key?"🎙 Re-record":"🎙 Record")+'</button>'+(ps.key?'<button class="rchip sm" data-gpl="'+i+'">▶</button>':'')
+        +'<div class="rrow" style="margin:6px 0 0;gap:6px"><button class="rchip sm'+(ps.key?"":"")+'" data-grec="'+i+'">'+(ps.key?"🎙 Re-record":"🎙 Record")+'</button>'+(ps.key?'<button class="rchip sm" data-gpl="'+i+'">▶</button><button class="rchip sm" data-gcmp="'+i+'">\u2696\ufe0f You vs AI</button>':'')
         +'<span class="rchips tight" style="margin-left:auto"><button class="rchip sm" data-gat="'+i+':-30">−</button><span class="rbpm" style="min-width:44px;text-align:center">'+fmtM(at)+'</span><button class="rchip sm" data-gat="'+i+':30">+</button></span>'
         +(D.ps.length>1?'<button class="rchip sm" data-gdel="'+i+'">🗑</button>':'')+'</div>'
         +'<div class="site-note" style="margin:4px 0 0;font-size:.72rem" id="gmSt'+i+'">'+(ps.key?"voice saved ✓ · plays at "+fmtM(at):(ps.txt&&ps.txt.trim()?"no recording — the device voice will read it · plays at "+fmtM(at):"empty · plays at "+fmtM(at)))+'</div></div>';}).join("")
-     +'<div class="actions" style="margin:0 0 10px;flex-wrap:wrap"><button class="rchip" id="gmAddP">➕ Add a passage</button><button class="rchip" id="gmPaste">\ud83d\udcdc Paste a long text</button></div>'+'<div class="rrow" style="gap:6px;flex-wrap:wrap;margin:0 0 10px"><span class="rlab">\ud83d\udde3\ufe0f Reading voice</span><select id="gmTtsV" style="flex:1;min-width:150px;padding:6px;border-radius:8px;background:var(--panel);color:inherit;border:1px solid var(--line)"></select><span class="rlab">Speed</span><input type="range" id="gmTtsR" min="55" max="95" value="'+Math.round(ttsRate()*100)+'" style="width:110px"><button class="rchip sm" id="gmTtsP">\u25b6 Preview</button></div>'+'<div id="gmPasteW" style="display:none"><textarea id="gmPasteT" placeholder="Paste a chapter or teaching here — it becomes passages spread across the journey. Passages without a recording are read aloud in the device\u2019s voice (record over any of them to use yours)." style="width:100%;box-sizing:border-box;min-height:140px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:8px;color:inherit;padding:8px"></textarea><div class="actions" style="margin:6px 0 10px"><button class="btn" id="gmSplit">\u2702\ufe0f Split into passages</button></div></div>'
+     +'<div class="actions" style="margin:0 0 10px;flex-wrap:wrap"><button class="rchip" id="gmAddP">➕ Add a passage</button><button class="rchip" id="gmPaste">\ud83d\udcdc Paste a long text</button></div>'+'<div class="rrow" style="gap:6px;flex-wrap:wrap;margin:0 0 10px"><span class="rlab">\ud83d\udde3\ufe0f Reading voice</span><select id="gmTtsV" style="flex:1;min-width:150px;padding:6px;border-radius:8px;background:var(--panel);color:inherit;border:1px solid var(--line)"></select><span class="rlab">Speed</span><input type="range" id="gmTtsR" min="55" max="95" value="'+Math.round(ttsRate()*100)+'" style="width:110px"><button class="rchip sm" id="gmTtsP">\u25b6 Preview</button></div>'+'<div class="rrow" style="gap:6px;flex-wrap:wrap;margin:0 0 10px"><span class="rlab">\ud83c\udf99 Your recorded voice</span><span class="rchips tight">'+Object.keys(VPOL).map(function(k){return '<button class="rchip sm'+(vpolPreset()===k?" sel":"")+'" data-gvfx="'+k+'">'+VPOL[k].n+'</button>';}).join("")+'</span><span class="site-note" style="font-size:.72rem;margin:0">cleaned, leveled and warmed on playback</span></div>'+'<div id="gmPasteW" style="display:none"><textarea id="gmPasteT" placeholder="Paste a chapter or teaching here — it becomes passages spread across the journey. Passages without a recording are read aloud in the device\u2019s voice (record over any of them to use yours)." style="width:100%;box-sizing:border-box;min-height:140px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:8px;color:inherit;padding:8px"></textarea><div class="actions" style="margin:6px 0 10px"><button class="btn" id="gmSplit">\u2702\ufe0f Split into passages</button></div></div>'
      +'<div class="actions"><button class="btn" id="gmGo" style="flex:1 1 60%">▶ Save &amp; begin</button><button class="btn ghost" id="gmSv" style="flex:1 1 30%">💾 Save</button></div>'
      +(gmList().length?'<div class="rlab" style="display:block;margin:14px 0 4px">My meditations</div>'+gmList().map(function(m2){return '<div class="rrow" style="border-top:1px solid var(--line);padding:8px 0;gap:6px"><div style="flex:1;min-width:0"><b style="font-size:.9rem">'+esc(m2.title||"Untitled")+'</b><div class="site-note" style="margin:0;font-size:.72rem">'+m2.stages.reduce(function(x,s3){return x+s3.min;},0)+' min · '+m2.ps.length+' passage'+(m2.ps.length>1?"s":"")+'</div></div><button class="rchip sm" data-mgo="'+m2.id+'">▶</button><button class="rchip sm" data-med="'+m2.id+'">✏️</button><button class="rchip sm" data-mdel="'+m2.id+'">🗑</button></div>';}).join(""):'')
      +'</div>';
@@ -12459,7 +12486,13 @@ function renderGuidedStudio(doc){if(toneRAF)cancelAnimationFrame(toneRAF);medSto
       D.ps=(fresh?[]:D.ps).concat(parts.map(function(t3){return {txt:t3,at:null,key:null};}));draw();};
     view.querySelectorAll("[data-gdel]").forEach(function(b){b.onclick=function(){keep();var i2=+b.dataset.gdel;var k=D.ps[i2].key;if(k)try{idbDel(k);}catch(e){}D.ps.splice(i2,1);draw();};});
     view.querySelectorAll("[data-gat]").forEach(function(b){b.onclick=function(){keep();var q=b.dataset.gat.split(":"),i2=+q[0];var cur=D.ps[i2].at==null?autoAt(i2):D.ps[i2].at;D.ps[i2].at=Math.max(0,Math.min(totMin()*60-5,cur+ +q[1]));draw();};});
-    view.querySelectorAll("[data-gpl]").forEach(function(b){b.onclick=function(){idbGet(D.ps[+b.dataset.gpl].key).then(function(bl){if(!bl)return;var u=URL.createObjectURL(bl),el=new Audio(u);el.onended=function(){URL.revokeObjectURL(u);};el.play();});};});
+    var gmStopAud=function(){try{if(GMR.pv)GMR.pv.pause();}catch(e){}GMR.pv=null;try{speechSynthesis.cancel();}catch(e){}};
+    view.querySelectorAll("[data-gpl]").forEach(function(b){b.onclick=function(){gmStopAud();unlockAudio();idbGet(D.ps[+b.dataset.gpl].key).then(function(bl){if(!bl)return;GMR.pv=vpolPlay(bl,function(){GMR.pv=null;});});};});
+    view.querySelectorAll("[data-gcmp]").forEach(function(b){b.onclick=function(){var i3=+b.dataset.gcmp,pp=D.ps[i3],stt=$("#gmSt"+i3);gmStopAud();unlockAudio();
+      idbGet(pp.key).then(function(bl){if(!bl)return;var tx=(pp.txt||"").trim();if(stt)stt.textContent="\u25b6 Your voice ("+VPOL[vpolPreset()].n.replace(/^\S+\s/,"")+")\u2026";
+        GMR.pv=vpolPlay(bl,function(){if(!tx){if(stt)stt.textContent="Add the passage text to compare with the AI voice.";return;}if(stt)stt.textContent="\u25b6 AI voice ("+((ttsPick()||{}).name||"device")+")\u2026";
+          setTimeout(function(){GMR.pv=ttsSay(tx.slice(0,700),function(){GMR.pv=null;if(stt)stt.textContent="Which sounded better? Your voice plays in the meditation wherever you've recorded.";});},900);});});};});
+    view.querySelectorAll("[data-gvfx]").forEach(function(b){b.onclick=function(){save("mjk-gmvfx",b.dataset.gvfx);view.querySelectorAll("[data-gvfx]").forEach(function(x){x.classList.toggle("sel",x===b);});};});
     view.querySelectorAll("[data-grec]").forEach(function(b){b.onclick=function(){keep();var i2=+b.dataset.grec,stt=$("#gmSt"+i2);
       if(GMR.mr){try{GMR.mr.stop();}catch(e){}return;}
       ensureMic().then(function(ok){if(!ok){if(stt)stt.textContent=micHelp();return;}
@@ -12592,7 +12625,7 @@ function renderJourney(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(to
       var show=function(){var tb=$("#jTeach");if(tb&&cl.text){tb.style.display="";tb.textContent=cl.text;}};
       var dip=function(){if(MED.master)MED.master.gain.setTargetAtTime(vol*0.45,ac().currentTime,0.4);};
       var back=function(){if(done)return;done=true;if(wd)clearTimeout(wd);MED.vclip=null;if(MED.master)MED.master.gain.setTargetAtTime(vol,ac().currentTime,0.8);setTimeout(function(){var tb2=$("#jTeach");if(tb2&&!MED.vclip)tb2.style.display="none";},6000);};
-      if(cl.key){idbGet(cl.key).then(function(bl){if(!bl||!playing)return;try{var u=URL.createObjectURL(bl),el=new Audio(u);MED.vclip=el;dip();show();el.onended=function(){try{URL.revokeObjectURL(u);}catch(e){}back();};el.play();}catch(e){}});}
+      if(cl.key){idbGet(cl.key).then(function(bl){if(!bl||!playing)return;try{dip();show();MED.vclip=vpolPlay(bl,back);}catch(e){back();}});}
       else if(cl.text&&window.speechSynthesis){try{dip();show();MED.vclip=ttsSay(cl.text,back);wd=setTimeout(back,Math.min(420,ttsEstSec(cl.text))*1000);}catch(e){back();}}
     })(opts.voice[GMV.i]);GMV.i++;}}if(jType==="focus")fsPaint("fsBox");
     var hz=$("#jHz"),bl=$("#jBandL"),ph=$("#jPhase"),lf=$("#jLeft"),mp=$("#jMap");
