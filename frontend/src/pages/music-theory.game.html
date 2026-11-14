@@ -9440,7 +9440,7 @@ function hrFresh(){return HR.connected&&performance.now()-(HR.updated||0)<8000;}
 var RPX=null;
 var BRPH=null; /* live breath-pacer phase {n,d,at} — recorded into sessions, cleared on medStop */
 function bioHR(){if(RPX)return RPX.hr;if(hrFresh()){if(HR.rr&&HR.rr.length>=4){var arr=rrClean(HR.rr.slice(-12));if(arr.length>=4){var s=arr.slice(-8).slice().sort(function(a,b){return a-b;});return Math.round(60000/s[s.length>>1]);}}if(HR.bpm)return HR.bpm;}if(M.connected&&M.hr)return M.hr;return null;}
-function bioHRSrc(){if(RPX)return "the recording";if(hrFresh())return HR.src==="camera"?"camera pulse":"heart sensor";if(M.connected&&M.hr)return "Muse pulse (optical — less reliable"+(M.ppgHzMeas?" · "+Math.round(M.ppgHzMeas)+" Hz":"")+")";return null;}
+function bioHRSrc(){if(RPX)return "the recording";if(hrFresh())return HR.src==="camera"?"camera pulse":"heart sensor";if(M.connected&&M.hr)return "Muse pulse (optical — less reliable"+(M.ppgHzMeas?" · "+Math.round(M.ppgHzMeas)+" Hz":"")+(M.ppgDrop&&M.ppgSeqU?" · "+Math.round(100*M.ppgDrop/(M.ppgSeqU+1))+"% lost":"")+")";return null;}
 function bioHRV(){if(RPX)return RPX.hrv;if(hrFresh()&&HR.rr&&HR.rr.length>=6)return hrv();if(M.connected&&M.rmssd)return M.rmssd;return null;}
 function bioCoherence(){if(RPX)return RPX.co;let rr=rrClean(hrFresh()&&HR.rr&&HR.rr.length?HR.rr.slice():(M.connected&&M.ibis?M.ibis.map(x=>x.ibi):[]));if(rr.length<40)return null;
   let s=0,st=rr.length;while(st>0&&s<64000){st--;s+=rr[st];}rr=rr.slice(st);let t=0;const pts=rr.map(v=>{t+=v/1000;return [t,v];}),T=pts[pts.length-1][0];if(T<45)return null;
@@ -9539,14 +9539,19 @@ function fsPaint(id){var el=document.getElementById(id);if(!el)return;var now=Da
 function fsSummary(){if(!FS.total)return "";var pct=Math.round(100*FS.inZone/FS.total);try{var all=load("mjk-fshist",[]);all.push({m:FS.mode,at:Date.now(),pct:pct,best:Math.round(FS.best/60),mins:Math.round(FS.total/60)});save("mjk-fshist",all.slice(-60));}catch(e){}
   return '<div class="site-note" style="margin-top:6px">'+(FS.mode==="create"?"Creative zone":"Focus zone")+': <b>'+pct+'%</b> of '+Math.round(FS.total/60)+' min · best stretch <b>'+Math.round(FS.best/60)+' min</b></div>';}
 /* ---- Nervous-system journey: shift from fight-or-flight toward rest-and-restore, relative to the start of the session (HR + RMSSD) ---- */
-function ansCalc(){const L=(RPX?RPX.log.filter(p=>p.t<=RPX.nowMs):BIO.log.filter(p=>p.t>=BIO.t0)).filter(p=>p.hr>0&&p.hrv>0);if(L.length<45)return null;const med=a=>{const b=a.slice().sort((x,y)=>x-y);return b[b.length>>1];};
+function ansCalc(){const L0=(RPX?RPX.log.filter(p=>p.t<=RPX.nowMs):BIO.log.filter(p=>p.t>=BIO.t0)).filter(p=>p.hr>0&&p.hrv>0);
+  /* resting physiology only: a 183 bpm or 400 ms reading is a sensor glitch, not a nervous-system state */
+  const ok=L0.filter(p=>p.hr>=35&&p.hr<=150&&p.hrv>=5&&p.hrv<=250);ansCalc.bad=L0.length>=30&&ok.length<L0.length*0.6;
+  /* skip the first 30 s while the sensor settles, so the baseline isn't a warm-up artifact */
+  const t00=ok.length?ok[0].t:0,L=ok.filter(p=>p.t-t00>=30000);if(L.length<45)return null;const med=a=>{const b=a.slice().sort((x,y)=>x-y);return b[b.length>>1];};
   const base=L.slice(0,Math.min(60,Math.floor(L.length/2))),hb=med(base.map(p=>p.hr)),vb=med(base.map(p=>p.hrv));
-  const sc=(hr,hv)=>Math.max(-100,Math.min(100,Math.round(50*Math.log(hv/vb)/0.7+50*(hb-hr)/15)));
+  /* each signal can move the needle at most 60 — reaching ±100 takes heart rate AND HRV agreeing */
+  const cl=(x)=>Math.max(-60,Math.min(60,x)),sc=(hr,hv)=>Math.max(-100,Math.min(100,Math.round(cl(50*Math.log(hv/vb)/0.7)+cl(50*(hb-hr)/15))));
   const ser=[];for(let i=0;i<L.length;i+=10){const w=L.slice(Math.max(0,i-15),i+15);ser.push({t:(L[i].t-L[0].t)/1000,v:sc(med(w.map(p=>p.hr)),med(w.map(p=>p.hrv)))});}
   const now=L.slice(-20),hn=med(now.map(p=>p.hr)),vn=med(now.map(p=>p.hrv));return {v:sc(hn,vn),hb:hb,vb:vb,hn:hn,vn:vn,ser:ser,dur:(L[L.length-1].t-L[0].t)/1000};}
 function ansHTML(id){return '<div id="'+id+'" style="margin:10px 0"></div>';}
 function ansPaint(id){const el=document.getElementById(id);if(!el)return;const A=ansCalc();
-  if(!A){el.innerHTML=(HR.connected||M.connected)?'<div class="site-note" style="font-size:.78rem">🫀 Nervous system: measuring your starting point (about a minute)…</div>':'';return;}
+  if(!A){el.innerHTML=(HR.connected||M.connected)?'<div class="site-note" style="font-size:.78rem">'+(ansCalc.bad?'🫀 Nervous system: the heart signal doesn\u2019t look right (heart rate or HRV out of resting range) \u2014 '+(hrFresh()?'check the strap is snug and wet':'the Muse forehead pulse is unreliable; a chest strap fixes this'):'🫀 Nervous system: measuring your starting point (about a minute and a half)\u2026')+'</div>':'';return;}
   const FZ=!!window.MJK_FOCUS,pos=50+A.v/2,word=FZ?(A.v>40?"Drifting toward sleep \u2014 sit up, eyes open":A.v>=0?"In the focus zone":A.v>-20?"A little tense \u2014 breathe low and slow":"Stress rising"):(A.v>=40?"Deep rest":A.v>=15?"Shifting to rest":A.v>-15?"Steady":A.v>-40?"Slightly activated":"Activated");
   el.innerHTML='<div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:4px"><b>Nervous system</b><span><b style="color:'+(FZ?(A.v>=0&&A.v<=40?'#7ff0d6':'#e9c46a'):(A.v>=0?'#5fd38d':'#ef6262'))+'">'+(A.v>0?"+":"")+A.v+'</b> · '+word+'</span></div>'+
    '<div style="position:relative;height:14px;border-radius:7px;background:linear-gradient(90deg,rgba(239,98,98,.55),rgba(233,196,106,.45) 50%,rgba(95,211,141,.6))"><div style="position:absolute;left:calc(50% - 1px);top:-3px;width:2px;height:20px;background:rgba(255,255,255,.55)"></div>'+(FZ?'<div title="focus zone" style="position:absolute;left:50%;width:20%;top:-2px;height:18px;border-radius:5px;background:rgba(127,240,214,.28);box-shadow:inset 0 0 0 1px rgba(127,240,214,.7)"></div>':'')+(function(){try{if(FZ)return '';var G=tgtGoal();return '<div title="your target" style="position:absolute;left:calc('+(50+G.ns/2)+'% - 2px);top:-5px;width:4px;height:24px;border-radius:2px;background:#e9c46a"></div>';}catch(e){return '';}})()+'<div style="position:absolute;top:-3px;left:calc('+pos+'% - 10px);width:20px;height:20px;border-radius:50%;background:#fff;border:3px solid '+(A.v>=0?'#5fd38d':'#ef6262')+';transition:left .8s"></div></div>'+
@@ -13420,11 +13425,21 @@ function museBands(){
     if(buf.length>2048)buf.splice(0,buf.length-2048);}
   if(used){const s=M.theta==null?1:0.3;M.theta=(M.theta==null?0:M.theta*(1-s))+s*100*T/used;M.alpha=(M.alpha==null?0:M.alpha*(1-s))+s*100*A/used;M.beta=(M.beta==null?0:M.beta*(1-s))+s*100*B/used;M.gamma=(M.gamma==null?0:M.gamma*(1-s))+s*100*G/used;}
 }
-function musePpgIn(s,nowSec){
-      const nw=nowSec!=null?nowSec:performance.now()/1000;if(!M.ppgW0){M.ppgW0=nw;M.ppgN0=M.ppgN;}
-      if(!M.ppgHzOk&&nw-M.ppgW0>8){const meas=(M.ppgN-M.ppgN0)/(nw-M.ppgW0);let hz=meas;[32,64,128].forEach(c=>{if(Math.abs(meas-c)/c<0.15)hz=c;});
-        M.ppgHz=hz;M.ppgHzOk=true;M.ppgHzMeas=Math.round(meas*10)/10;const off=M.ppgN-M.ppg.length;M.ppg.forEach((x,i)=>{x.t=(off+i)/hz;});M.ibis=[];M.lastPeakT=0;M.acT=0;M.acPer=0;M.acR=0;}
-      const hz=M.ppgHz||64;for(const v of s){M.ppg.push({v,t:M.ppgN/hz});M.ppgN++;}}
+function musePpgIn(s,nowSec,seq){
+  const nw=nowSec!=null?nowSec:performance.now()/1000,K=s.length||6;
+  if(seq!=null){/* unwrap the 16-bit packet counter */
+    if(M.ppgSeqL==null){M.ppgSeqL=seq;M.ppgSeqU=0;M.ppgSeqW0=nw;M.ppgIdx0=M.ppgN;}
+    else{let d=(seq-M.ppgSeqL+65536)%65536;if(d===0||d>32768)return;/* duplicate or out-of-order */M.ppgSeqU+=d;M.ppgSeqL=seq;}
+    const pos=M.ppgIdx0+M.ppgSeqU*K,gap=pos-M.ppgN;
+    if(gap>0){if(gap>3*64){M.ppg=[];M.ppgN=pos;M.ibis=[];M.lastPeakT=0;M.acT=0;}
+      else{const last=M.ppg.length?M.ppg[M.ppg.length-1].v:s[0],hz0=M.ppgHz||64;for(let g=1;g<=gap;g++){M.ppg.push({v:last+(s[0]-last)*g/(gap+1),t:M.ppgN/hz0,fill:1});M.ppgN++;}}
+      M.ppgDrop=(M.ppgDrop||0)+gap/K;}
+    if(!M.ppgHzOk&&nw-M.ppgSeqW0>8){const meas=((M.ppgSeqU+1)*K)/(nw-M.ppgSeqW0);let hz=meas;[32,64,128].forEach(c=>{if(Math.abs(meas-c)/c<0.15)hz=c;});
+      M.ppgHz=hz;M.ppgHzOk=true;M.ppgHzMeas=Math.round(meas*10)/10;const off=M.ppgN-M.ppg.length;M.ppg.forEach((x,k)=>{x.t=(off+k)/hz;});M.ibis=[];M.lastPeakT=0;M.acT=0;M.acPer=0;M.acR=0;}}
+  else{if(!M.ppgW0){M.ppgW0=nw;M.ppgN0=M.ppgN;}
+    if(!M.ppgHzOk&&nw-M.ppgW0>8){const meas=(M.ppgN-M.ppgN0)/(nw-M.ppgW0);let hz=meas;[32,64,128].forEach(c=>{if(Math.abs(meas-c)/c<0.15)hz=c;});
+      M.ppgHz=hz;M.ppgHzOk=true;M.ppgHzMeas=Math.round(meas*10)/10;const off=M.ppgN-M.ppg.length;M.ppg.forEach((x,k)=>{x.t=(off+k)/hz;});M.ibis=[];M.lastPeakT=0;M.acT=0;M.acPer=0;M.acR=0;}}
+  const hz=M.ppgHz||64;for(const v of s){M.ppg.push({v,t:M.ppgN/hz});M.ppgN++;}}
 function musePPG(){
   const HZ=M.ppgHz||64,buf=M.ppg;if(buf.length<Math.round(1.5*HZ))return;
   const win=buf.slice(Math.max(0,buf.length-Math.round(10*HZ))); // ~10 s at the measured rate
@@ -13452,7 +13467,9 @@ function musePPG(){
   else{const arr=rrClean(M.ibis.map(x=>x.ibi));
     if(arr.length>=4){let ss=0,n=0;for(let i=1;i<arr.length;i++){const d=arr[i]-arr[i-1];ss+=d*d;n++;}M.rmssd=Math.round(Math.sqrt(ss/n));}
     const rec=arr.slice(-8).slice().sort((a,b)=>a-b);if(rec.length)M.hr=Math.round(60000/rec[rec.length>>1]);
-    if(M.acPer&&M.acR>0.3){const hAc=Math.round(60/M.acPer);if(!M.hr||Math.abs(M.hr-hAc)/hAc>0.2){M.hr=hAc;M.rmssd=0;}}}
+    if(M.acPer&&M.acR>0.3){const hAc=Math.round(60/M.acPer);if(!M.hr||Math.abs(M.hr-hAc)/hAc>0.2){M.hr=hAc;M.rmssd=0;}}
+    /* lost Bluetooth packets are bridged for heart rate, but beat-to-beat variability can't be trusted across them */
+    let nf=0;for(const x of win)if(x.fill)nf++;if(nf>win.length*0.08)M.rmssd=0;}
   if(buf.length>Math.round(19*HZ))buf.splice(0,buf.length-Math.round(19*HZ));
 }
 async function museWrite(s){try{await M.ctrl.writeValue(museCmd(s));}catch(e){try{await M.ctrl.writeValueWithoutResponse(museCmd(s));}catch(e2){}}}
@@ -13482,10 +13499,10 @@ async function museConnect(statusEl,all){
     c.addEventListener("characteristicvaluechanged",e=>{const d=e.target.value;const s=dec12(new Uint8Array(d.buffer).subarray(2)).map(n=>0.48828125*(n-0x800));
       const buf=M.eeg[ch];for(const v of s)buf.push(v);if(PLR&&PLR.on)plrEEG(ch,s);});}
   // PPG — use infrared (index 1); subscribe all 3 so the stream flows
-  M.ppgW0=0;M.ppgHzOk=false;M.ppgHz=0;
+  M.ppgW0=0;M.ppgHzOk=false;M.ppgHz=0;M.ppgSeqL=null;M.ppgDrop=0;
   for(let pi=0;pi<3;pi++){let c;try{c=await TO(svc.getCharacteristic(MUSE_PPG[pi]),5000,"PPG");await TO(c.startNotifications(),5000,"PPG");}catch(e){break;}
-    if(pi===1)c.addEventListener("characteristicvaluechanged",e=>{const d=e.target.value;const s=dec24(new Uint8Array(d.buffer).subarray(2));
-      musePpgIn(s);});}
+    if(pi===1)c.addEventListener("characteristicvaluechanged",e=>{const d=e.target.value;const u8=new Uint8Array(d.buffer,d.byteOffset,d.byteLength);const s=dec24(u8.subarray(2));const sq=(u8[0]<<8)|u8[1];
+      musePpgIn(s,null,sq);});}
   statusEl.textContent="Starting stream…";
   await TO(museWrite("h"),8000,"start command");await museSleep(60);await museWrite("p50");await museSleep(60);await museWrite("s");await museSleep(60);await museWrite("d");
   M.connected=true;
