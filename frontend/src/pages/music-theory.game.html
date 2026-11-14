@@ -2946,7 +2946,7 @@ function swNoteName(m){return ["C","C#","D","D#","E","F","F#","G","G#","A","A#",
 /* ---- keys & chord progressions: each key offers classic progressions; chords are optional per section ---- */
 const SW_SHARPN=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"],SW_FLATN=["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"];
 function swKey(song){return song.key||{root:0,minor:false};}
-function swKeyNames(song){return [1,3,5,8,10].indexOf(swKey(song).root)>=0?SW_FLATN:SW_SHARPN;}
+function swKeyNames(song){const k=swKey(song),r=k.minor?(k.root+3)%12:k.root;return [1,3,5,8,10].indexOf(r)>=0?SW_FLATN:SW_SHARPN;}
 function swKeyName(song){const k=swKey(song);return swKeyNames(song)[k.root]+(k.minor?" minor":" major");}
 const SW_PROGS={
  maj:[{l:"Pop anthem",r:["I","V","vi","IV"],c:[[0,1],[7,1],[9,0],[5,1]]},
@@ -2961,6 +2961,8 @@ const SW_PROGS={
       {l:"Night drive",r:["i","VI","iv","v"],c:[[0,0],[8,1],[5,0],[7,0]]}]};
 function swProgList(song){return SW_PROGS[swKey(song).minor?"min":"maj"];}
 const SW_FEELS=[{l:"☀️ Uplifting",q:0,p:0},{l:"💛 Heartfelt",q:0,p:1},{l:"🎸 Classic",q:0,p:2},{l:"🍦 Sweet",q:0,p:3},{l:"🍹 Smooth",q:0,p:4},{l:"🌧️ Moody",q:1,p:0},{l:"🌙 Haunting",q:1,p:1},{l:"⚡ Gritty",q:1,p:2},{l:"🔥 Spanish",q:1,p:3},{l:"🚘 Night drive",q:1,p:4}];
+function swFeelDesc(song,F){const root=swKey(song).root,rel=F.q?(root+3)%12:root,N=[1,3,5,8,10].indexOf(rel)>=0?SW_FLATN:SW_SHARPN,P=SW_PROGS[F.q?"min":"maj"][F.p];
+  return N[root]+(F.q?" minor":" major")+" · "+P.c.map(c=>N[(root+c[0])%12]+(c[1]?"":"m")).join("–");}
 function swFeelSel(song){const k=swKey(song),tags=[...new Set(song.sections.map(x=>x.tag))];if(!tags.length||!song.prog)return -1;
   for(let i=0;i<SW_FEELS.length;i++){const F=SW_FEELS[i];if(!!k.minor!==!!F.q)continue;if(tags.every(t=>song.prog[t]===F.p))return i;}return -1;}
 function swProgOf(song,tag){const i=song.prog?song.prog[tag]:null;const L=swProgList(song);return (i==null||i<0||i>=L.length)?null:L[i];}
@@ -3102,7 +3104,7 @@ function swDraw(){const D=swData(),song=swSong();if(SW.lib){swLibDraw();return;}
     let chRow="";if(firstOfTag&&!tgt){const pr=swProgOf(song,sec.tag);
       if(SW.cp===sec.tag){const cur=song.prog?song.prog[sec.tag]:null;
         chRow='<div class="sw-mp">'+swProgList(song).map((p,i)=>'<button class="sw-form'+(cur===i?" sel":"")+'" data-chp="'+i+'">'+p.l+' — '+p.r.join("–")+'<small style="display:block;opacity:.8;font-weight:700">'+p.c.map(c=>swChName(song,c)).join(" · ")+'</small></button>').join("")+'<div class="row"><button data-chp="-1">No chords</button><button data-ch="close">Close</button></div><div class="sw-sub" style="margin-top:4px">Chords repeat bar by bar under every '+sec.tag.toLowerCase()+'. Tap a chord on any line to see why the melody fits it.</div></div>';}
-      else chRow='<div class="sw-melbar" style="color:var(--gold,#f4b740)"><span>🎹 '+(pr?pr.r.join("–")+" · "+pr.c.map(c=>swChName(song,c)).join(" "):"No chords yet")+'</span><button data-ch="hear"'+(pr?"":" disabled")+' aria-label="Hear chords">▶</button><button data-ch="open">'+(pr?"Change":"Pick chords")+'</button></div>';}
+      else chRow='<div class="sw-melbar" style="color:var(--gold,#f4b740)"><span>🎹 '+(pr?swKeyName(song)+" · "+pr.r.join("–")+" · "+pr.c.map(c=>swChName(song,c)).join(" "):"No chords yet")+'</span><button data-ch="hear"'+(pr?"":" disabled")+' aria-label="Hear chords">▶</button><button data-ch="open">'+(pr?"Change":"Pick chords")+'</button></div>';}
     else melRow='<div class="sw-melbar"><span>🎵 '+(mel?"Same melody as the first "+sec.tag.toLowerCase():"Melody comes from the first "+sec.tag.toLowerCase())+'</span>'+(tgt?'':'<button data-m="singsec">'+(SW.rec&&SW.rec.sec===sec.id?"■ Stop":"🎤 Sing it in")+'</button>')+'</div>';
     if(tgt)return '<div class="sw-sec" data-sec="'+sec.id+'">'+hd+melRow+chRow+(tgt.lines.some(l=>l.t.trim())?tgt.lines.filter(l=>l.t.trim()).map(l=>'<div class="sw-lnk">'+swEsc(l.t)+'</div>').join(""):'<div class="sw-lnk">Repeats the first '+sec.tag.toLowerCase()+' — the words fill in as you write it.</div>')+'<button class="sw-addl" data-sa="unlink">✎ Write different words for this one</button></div>';
     const lines=sec.lines.map((ln,li)=>{const on=act&&act.s===sec.id&&act.l===li,syl=llSylN(ln.t);let fit="";const lch=swLineCh(song,sec.tag,li);
@@ -3126,7 +3128,7 @@ function swDraw(){const D=swData(),song=swSong();if(SW.lib){swLibDraw();return;}
       <div class="rrow2"><span class="rlab">Melody sound</span><span class="rchips tight">${[["piano","Piano"],["keys","Keys"],["voice","Voice"]].map(v=>'<button class="rchip sm'+((D.voice||"piano")===v[0]?" sel":"")+'" data-voice="'+v[0]+'">'+v[1]+'</button>').join("")}</span></div>
       <div class="rrow2"><span class="rlab">Key</span><span class="rchips tight" style="flex-wrap:wrap">${SW_SHARPN.map((nm,i)=>'<button class="rchip sm'+(swKey(song).root===i?" sel":"")+'" data-kr="'+i+'">'+nm+'</button>').join("")}<button class="rchip sm${swKey(song).minor?"":" sel"}" data-kq="0">Major</button><button class="rchip sm${swKey(song).minor?" sel":""}" data-kq="1">Minor</button></span></div>
       <div class="rrow2"><span class="rlab">Chords play as</span><span class="rchips tight">${[["off","Off"],["block","Block chords"],["arp","Arpeggio"]].map(v=>'<button class="rchip sm'+((D.acc||"block")===v[0]?" sel":"")+'" data-acc="'+v[0]+'">'+v[1]+'</button>').join("")}</span></div>
-      <div class="rrow2"><span class="rlab">Chords by feel</span><span class="rchips tight" style="flex-wrap:wrap">${SW_FEELS.map((F,i)=>'<button class="rchip sm'+(swFeelSel(song)===i?" sel":"")+'" data-feel="'+i+'">'+F.l+'</button>').join("")}</span></div>
+      <div class="rrow2"><span class="rlab">Chords by feel</span><span class="rchips tight" style="flex-wrap:wrap">${SW_FEELS.map((F,i)=>'<button class="rchip sm'+(swFeelSel(song)===i?" sel":"")+'" data-feel="'+i+'">'+F.l+'<small style="display:block;opacity:.8;font-weight:700">'+swFeelDesc(song,F)+'</small></button>').join("")}</span></div>
       <div class="rrow2"><span class="rlab">Syllable counts</span><span class="rchips tight"><button class="rchip sm${D.syl?" sel":""}" id="swSyl">${D.syl?"On":"Off"}</button></span></div>
       <div class="actions"><button class="btn ghost" id="swCopy">Copy lyrics</button><button class="btn ghost" id="swDelSong">Delete this song</button></div>
     </details>
