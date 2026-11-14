@@ -3028,6 +3028,8 @@ const SW_CSS=`<style>
  .sw-t{flex:1;min-width:0;background:transparent;border:0;border-bottom:1px solid rgba(255,255,255,.1);color:inherit;font:600 1.05rem system-ui;padding:9px 2px;outline:none}.sw-line.on .sw-t{border-bottom-color:rgba(244,183,64,.5)}
  .sw-syl{font:800 .74rem system-ui;min-width:1.5em;text-align:right;color:var(--muted,#9BA1AC)}.sw-syl.ok{color:#7ff0d6}.sw-syl.lo,.sw-syl.hi{color:#f4b740}.sw-syl.bad{color:#ff7a7a}
  .sw-fit{display:flex;flex-wrap:wrap;gap:3px;margin:4px 0 0 1.6em}.sw-fit span{display:inline-flex;flex-direction:column;align-items:center;padding:2px 5px;border-radius:7px;background:rgba(127,240,214,.08);font:700 .74rem system-ui}.sw-fit i{font:800 .62rem ui-monospace,monospace;color:#7ff0d6;font-style:normal}
+ .sw-fit span[data-nk]{cursor:pointer}.sw-fit span.nsel{background:rgba(244,183,64,.25);box-shadow:0 0 0 1px var(--gold,#f4b740)}
+ .sw-nedit{align-items:center}.sw-nedit .nnm{opacity:.78;font-size:.74rem}
  .sw-tools{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0 1.6em}.sw-line:not(.on) .sw-tools,.sw-line:not(.on) .sw-fit,.sw-line:not(.on) .sw-ideas,.sw-line:not(.on) .sw-msg{display:none!important}
  .sw-msg{font:700 .78rem system-ui;color:var(--muted,#9BA1AC);margin:4px 0 0 1.6em}.sw-addl{background:transparent;border:0;color:var(--muted,#9BA1AC);font:800 .82rem system-ui;padding:8px 2px}
  .sw-ideas{background:#1A1D23;border:1px solid rgba(244,183,64,.35);border-radius:12px;padding:10px;margin:8px 0 0}
@@ -3101,7 +3103,7 @@ function swDraw(){const D=swData(),song=swSong();if(SW.lib){swLibDraw();return;}
     else melRow='<div class="sw-melbar"><span>🎵 '+(mel?"Same melody as the first "+sec.tag.toLowerCase():"Melody comes from the first "+sec.tag.toLowerCase())+'</span>'+(tgt?'':'<button data-m="singsec">'+(SW.rec&&SW.rec.sec===sec.id?"■ Stop":"🎤 Sing it in")+'</button>')+'</div>';
     if(tgt)return '<div class="sw-sec" data-sec="'+sec.id+'">'+hd+melRow+chRow+(tgt.lines.some(l=>l.t.trim())?tgt.lines.filter(l=>l.t.trim()).map(l=>'<div class="sw-lnk">'+swEsc(l.t)+'</div>').join(""):'<div class="sw-lnk">Repeats the first '+sec.tag.toLowerCase()+' — the words fill in as you write it.</div>')+'<button class="sw-addl" data-sa="unlink">✎ Write different words for this one</button></div>';
     const lines=sec.lines.map((ln,li)=>{const on=act&&act.s===sec.id&&act.l===li,syl=llSylN(ln.t);let fit="";const lch=swLineCh(song,sec.tag,li);
-      if(mel&&syl){const sy=lyricSyllables(ln.t),ns=swLineNotes(song,sec.tag,li,ln.t);fit='<div class="sw-fit">'+sy.map((x,k)=>'<span>'+swEsc(x)+'<i'+(ns[k]&&swChTone(song,sec.tag,li,ns[k])?' class="ct"':'')+'>'+(ns[k]?swNoteName(ns[k].midi):"·")+'</i></span>').join("")+'</div>';}
+      if(mel&&syl){fit='<div class="sw-fit">'+swFitHTML(song,sec,li)+'</div>'+swNEditHTML(song,sec,li);}
       return '<div class="sw-line'+(on?" on":"")+'" data-s="'+sec.id+'" data-l="'+li+'"><div class="sw-row"><span class="sw-n">'+(li+1)+'</span>'+(function(){var sch=swScheme(song,sec);if(sch==="free")return "";var L2=sch[li%sch.length];return '<span style="font:900 .72rem system-ui;color:'+(SW_RCOL[L2]||"#cfd4de")+';min-width:1.1em">'+L2+'</span>';})()+'<input class="sw-t" value="'+swEsc(ln.t)+'" placeholder="'+(li===0?"Write line 1…":"")+'" enterkeyhint="next" autocomplete="off">'+(lch?'<button class="sw-chd" data-why="1" aria-label="Why these chords fit">'+lch+'</button>':'')+(D.syl?'<span class="sw-syl '+swSylClass(syl,mel)+'">'+(syl||"")+'</span>':'')+'</div>'+fit+
         '<div class="sw-tools"><button data-a="play"'+(mel&&syl?"":" disabled")+' aria-label="Play line with melody">▶</button><button data-a="ideas">💡 Next-line ideas</button><button data-a="del" aria-label="Delete line">✕</button></div><div class="sw-msg"></div><div class="sw-ideas" style="display:none"></div></div>';}).join("");
     return '<div class="sw-sec" data-sec="'+sec.id+'">'+hd+melRow+chRow+lines+'<button class="sw-addl" data-sa="addl">+ Line</button></div>';}).join("");
@@ -3146,7 +3148,9 @@ function swWire(D,song){
     inp.onfocus=()=>{SW.active={s:sec.id,l:li};view.querySelectorAll(".sw-line.on").forEach(x=>{if(x!==el)x.classList.remove("on");});el.classList.add("on");};
     inp.oninput=()=>{ln.t=inp.value;const n=llSylN(ln.t),sy=el.querySelector(".sw-syl");if(sy){sy.textContent=n||"";sy.className="sw-syl "+swSylClass(n,song.mel[sec.tag]);}if(song.mel[sec.tag])swRefit(song,sec,li,el);swSave();};
     inp.onkeydown=e=>{if(e.key==="Enter"&&!e.isComposing){e.preventDefault();if(li===sec.lines.length-1)sec.lines.push(swLine());SW.active={s:sec.id,l:li+1};swSave();swDraw();swFocus();}};
-    el.querySelectorAll("[data-a]").forEach(b=>{b.onmousedown=e=>e.preventDefault();b.onclick=()=>swLineAct(b.dataset.a,sec,li,el);});});
+    el.querySelectorAll("[data-a]").forEach(b=>{b.onmousedown=e=>e.preventDefault();b.onclick=()=>swLineAct(b.dataset.a,sec,li,el);});
+    el.querySelectorAll("[data-nk]").forEach(sp=>{sp.onmousedown=e=>e.preventDefault();sp.onclick=()=>swNSel(sec,li,+sp.dataset.nk);});
+    el.querySelectorAll("[data-ne]").forEach(b=>{b.onmousedown=e=>e.preventDefault();b.onclick=()=>swNoteEdit(b.dataset.ne,sec,li);});});
   view.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{const tag=b.dataset.add,sec=swSec(tag);const prev=(tag==="Chorus"||tag==="Pre-Chorus")&&song.sections.find(x=>x.tag===tag&&!x.same&&x.lines.some(l=>l.t.trim()));if(prev){sec.same=prev.id;sec.lines=[];}song.sections.push(sec);if(!prev)SW.active={s:sec.id,l:0};swSave();swDraw();if(!prev)swFocus();});
   $("#swPlay").onclick=()=>{if(SW.stopT){swStopPlay();return;}swPlaySecs(song.sections);};
   const tset=v=>{song.bpm=Math.max(50,Math.min(160,v));$("#swTv").textContent=song.bpm+" BPM";const r=$("#swBpm");if(r){r.value=song.bpm;$("#swBpmV").textContent=song.bpm+" BPM";}swSave();};
@@ -3172,8 +3176,27 @@ function swWire(D,song){
   $("#swDelSong").onclick=e=>{const b=e.target;if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Tap again to delete";return;}D.songs=D.songs.filter(s=>s.id!==song.id);if(!D.songs.length)D.songs.push(swNewSong(""));D.cur=D.songs[0].id;SW.active=null;swSave();swDraw();};
   if(SW.ideas){const el=view.querySelector('.sw-line[data-s="'+SW.ideas.s+'"][data-l="'+SW.ideas.l+'"]');if(el)swIdeas(song,song.sections.find(x=>x.id===SW.ideas.s),SW.ideas.l,el);else SW.ideas=null;}}
 /* refresh the syllable→note row of a line after editing, without redrawing the page */
-function swRefit(song,sec,li,el){const ln=sec.lines[li],box=el.querySelector(".sw-fit"),syl=llSylN(ln.t);const ns=swLineNotes(song,sec.tag,li,ln.t),html=syl?lyricSyllables(ln.t).map((x,k)=>{return '<span>'+swEsc(x)+'<i'+(ns[k]&&swChTone(song,sec.tag,li,ns[k])?' class="ct"':'')+'>'+(ns[k]?swNoteName(ns[k].midi):"·")+'</i></span>';}).join(""):"";
-  if(box)box.innerHTML=html;else if(html){const d=document.createElement("div");d.className="sw-fit";d.innerHTML=html;el.querySelector(".sw-row").after(d);}const pb=el.querySelector('[data-a="play"]');if(pb)pb.disabled=!syl;}
+function swNSel(sec,li,k){const c=SW.noteSel;SW.noteSel=(c&&c.sec===sec.id&&c.l===li&&c.k===k)?null:{sec:sec.id,l:li,k:k};swDraw();}
+function swFitHTML(song,sec,li){const ln=sec.lines[li];if(!llSylN(ln.t))return "";const sel=SW.noteSel,on=sel&&sel.sec===sec.id&&sel.l===li,ns=swLineNotes(song,sec.tag,li,ln.t);
+  return lyricSyllables(ln.t).map((x,k)=>'<span data-nk="'+k+'"'+(on&&sel.k===k?' class="nsel"':'')+'>'+swEsc(x)+'<i'+(ns[k]&&swChTone(song,sec.tag,li,ns[k])?' class="ct"':'')+'>'+(ns[k]?swNoteName(ns[k].midi):"·")+'</i></span>').join("");}
+function swNEditHTML(song,sec,li){const sel=SW.noteSel;if(!sel||sel.sec!==sec.id||sel.l!==li)return "";const ln=sec.lines[li],ns=swLineNotes(song,sec.tag,li,ln.t),fn=ns[sel.k];if(!fn)return "";
+  const sy=lyricSyllables(ln.t)[sel.k]||"";
+  return '<div class="sw-tools sw-nedit"><button data-ne="dn">♭ half step</button><button data-ne="up">♯ half step</button><button data-ne="hear">▶ Hear</button><button data-ne="x">Done</button><span class="nnm">“'+swEsc(sy)+'” · '+swNoteName(fn.midi)+'</span></div>';}
+function swNoteEdit(op,sec,li){const song=swSong(),sel=SW.noteSel;if(!song||!sel)return;const tag=sec.tag;
+  if(op==="x"){SW.noteSel=null;swDraw();return;}
+  const ln=sec.lines[li],ns=swLineNotes(song,tag,li,ln.t),fn=ns[sel.k];if(!fn)return;const vc=swData().voice||"piano";
+  if(op==="hear"){swStopPlay();unlockAudio();melNote(fn.midi,0,0.5,vc);return;}
+  let m=song.mel[tag];if(!m)return;
+  if(!m._ed)m=song.mel[tag]=Object.assign({},m,{a:(m.a||[]).map(n=>Object.assign({},n)),b:(m.b||[]).map(n=>Object.assign({},n)),_ed:true,label:(m.label||"Melody").replace(" · edited","")+" · edited"});
+  const arr=(li%2?m.b:m.a)||[];if(!arr.length)return;
+  const f=(m.S||16)/swSteps(),t=fn.step*f;let si=0,bd=1e9;arr.forEach((n,i)=>{const d=Math.abs(n.step-t);if(d<bd){bd=d;si=i;}});
+  arr[si].midi=Math.max(40,Math.min(88,arr[si].midi+(op==="up"?1:-1)));
+  swSave();swStopPlay();unlockAudio();melNote(arr[si].midi,0,0.5,vc);swDraw();}
+function swRefit(song,sec,li,el){const ln=sec.lines[li],box=el.querySelector(".sw-fit"),syl=llSylN(ln.t);const sl=SW.noteSel;if(sl&&sl.sec===sec.id&&sl.l===li&&!(swLineNotes(song,sec.tag,li,ln.t)[sl.k])){SW.noteSel=null;const ed=el.querySelector(".sw-nedit");if(ed)ed.remove();}
+  const html=syl?swFitHTML(song,sec,li):"";
+  if(box)box.innerHTML=html;else if(html){const d=document.createElement("div");d.className="sw-fit";d.innerHTML=html;el.querySelector(".sw-row").after(d);}
+  el.querySelectorAll(".sw-fit [data-nk]").forEach(sp=>{sp.onmousedown=e=>e.preventDefault();sp.onclick=()=>swNSel(sec,li,+sp.dataset.nk);});
+  const pb=el.querySelector('[data-a="play"]');if(pb)pb.disabled=!syl;}
 function swFocus(atStart){const a=SW.active;if(!a)return;const el=view.querySelector('.sw-line[data-s="'+a.s+'"][data-l="'+a.l+'"] .sw-t');if(el){el.focus();const p=atStart?0:el.value.length;try{el.setSelectionRange(p,p);}catch(e){}el.scrollIntoView({block:"nearest"});}}
 function swLineAct(a,sec,li,el){const song=swSong(),ln=sec.lines[li],msg=el.querySelector(".sw-msg"),say=t=>{if(msg)msg.textContent=t;};
   if(a==="play"){swStopPlay();unlockAudio();const D2=swData(),nb=D2.bars||1,s16=swS16(),ev=[];
@@ -3186,8 +3209,17 @@ function swLineAct(a,sec,li,el){const song=swSong(),ln=sec.lines[li],msg=el.quer
 function swMelAct(a,sec,el){const song=swSong(),tag=sec.tag,msg=el.querySelector(".sw-mp .sw-msg"),say=t=>{if(msg)msg.textContent=t;};let i=SW.pi[tag]||0;
   if(a==="take"){const bar=el.querySelector(".sw-melbar span"),tell=t=>{if(bar)bar.textContent=t;};
     if(SW.takeAud){try{SW.takeAud.pause();}catch(e){}SW.takeAud=null;SW.takeOn=null;swDraw();return;}
-    const key=song.id+":"+tag,go=bl=>{try{unlockAudio();const u=URL.createObjectURL(bl),au=new Audio(u);SW.takeAud=au;SW.takeOn=tag;
-      au.onended=au.onerror=()=>{SW.takeAud=null;SW.takeOn=null;try{URL.revokeObjectURL(u);}catch(e){}swDraw();};au.play().catch(()=>{SW.takeAud=null;SW.takeOn=null;tell("Couldn't play the recording here.");});swDraw();}catch(e){tell("Couldn't play the recording here.");}};
+    const key=song.id+":"+tag,goOld=bl=>{try{unlockAudio();const u=URL.createObjectURL(bl),au=new Audio(u);SW.takeAud=au;SW.takeOn=tag;
+      au.onended=au.onerror=()=>{SW.takeAud=null;SW.takeOn=null;try{URL.revokeObjectURL(u);}catch(e){}swDraw();};au.play().catch(()=>{SW.takeAud=null;SW.takeOn=null;tell("Couldn't play the recording here.");});swDraw();}catch(e){tell("Couldn't play the recording here.");}},
+      go=bl=>{unlockAudio();bl.arrayBuffer().then(ab=>ac().decodeAudioData(ab)).then(buf=>{
+        let sum=0,pk=0,cnt=0;for(let c=0;c<buf.numberOfChannels;c++){const d=buf.getChannelData(c);for(let i=0;i<d.length;i+=4){const v=d[i],av=v<0?-v:v;sum+=v*v;cnt++;if(av>pk)pk=av;}}
+        const rms=Math.sqrt(sum/Math.max(1,cnt));let g=rms>0.0004?0.16/rms:1;if(g<1)g=1;if(g>9)g=9;if(pk*g>2.4)g=Math.max(1,2.4/pk);
+        const a=ac(),src=a.createBufferSource();src.buffer=buf;const gn=a.createGain();gn.gain.value=g;
+        const cp=a.createDynamicsCompressor();cp.threshold.value=-10;cp.knee.value=8;cp.ratio.value=8;cp.attack.value=0.003;cp.release.value=0.25;
+        src.connect(gn);gn.connect(cp);cp.connect(a.destination);
+        SW.takeAud={pause(){try{src.onended=null;src.stop();}catch(e){}}};SW.takeOn=tag;
+        src.onended=()=>{SW.takeAud=null;SW.takeOn=null;swDraw();};src.start();swDraw();
+      }).catch(()=>goOld(bl));};
     const bl=(SW.takeBlob||{})[key];if(bl)go(bl);else idbGet("swtake:"+key).then(b2=>{if(b2){SW.takeBlob=SW.takeBlob||{};SW.takeBlob[key]=b2;go(b2);}else tell("No recording saved yet — tap 🎤 Sing it in first.");});
     return;}
   if(a==="open"){SW.mp=tag;const m=song.mel[tag];SW.pi[tag]=m?(m.src==="sung"?0:(m.seed||1)-1+swCands(song,tag)):0;swDraw();return;}
