@@ -12021,7 +12021,26 @@ function gsFetch(v,key){var id=v+"/"+key;if(GS.buf[id])return GS.buf[id];GS.buf[
 function gsMine(key){return idbGet("gs-"+key).then(function(b){if(!b)return null;return (b.arrayBuffer?b.arrayBuffer():b);}).then(function(ab){return ab?new Promise(function(res,rej){ac().decodeAudioData(ab.slice(0),res,rej);}):null;}).catch(function(){return null;});}
 function gsClip(S,k){var key=typeof k==="string"?k:gsKey(S,k),v=gsVoiceOf(S);if(v==="mine")return gsMine(key).then(function(b){return b?{b:b,mine:true}:gsFetch(S.voice,key).then(function(x){return x?{b:x}:null;});});return gsFetch(v,key).then(function(x){return x?{b:x}:null;});}
 function gsPrefetch(){var S=GS.sess;if(!S)return;for(var i=GS.idx+1,n=0;i<S.steps.length&&n<2;i++){if(S.steps[i].s!=null){gsClip(S,S.steps[i].k);n++;}}}
-function gsDevice(text,go){try{var u=new SpeechSynthesisUtterance(text);var vs=speechSynthesis.getVoices().filter(function(v){return /^en/i.test(v.lang);});var v=vs.find(function(x){return /Enhanced|Premium/.test(x.name);})||vs[0];if(v)u.voice=v;u.rate=0.86;u.pitch=0.95;u.onend=go;u.onerror=go;speechSynthesis.speak(u);}catch(e){}GS.timers.push(setTimeout(go,(text.split(/\s+/).length/2+3)*1000));}
+var TTS_BAD=/albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|fred|junior|ralph|kathy|grandma|grandpa|rocko|shelley|sandy|flo|eddy|reed/i;
+function ttsVoices(){try{var vs=speechSynthesis.getVoices().filter(function(v){return /^en/i.test(v.lang)&&!TTS_BAD.test(v.name);});
+  var sc=function(v){var n=v.name,x=0;if(/premium/i.test(n))x+=50;else if(/enhanced/i.test(n))x+=40;if(/siri/i.test(n))x+=30;if(/neural|natural|online/i.test(n))x+=35;
+    if(/ava|zoe|evan|nathan|samantha|daniel|serena|karen|moira|tessa|arthur|martha|aria|jenny|guy|libby|ryan|sonia/i.test(n))x+=12;if(/google uk english male|google us english/i.test(n))x+=8;if(!v.localService)x+=2;return x;};
+  return vs.sort(function(a,b){return sc(b)-sc(a);});}catch(e){return [];}}
+function ttsPick(){var vs=ttsVoices(),nm=load("mjk-ttsv","");return vs.filter(function(v){return v.name===nm;})[0]||vs[0]||null;}
+function ttsRate(){return load("mjk-ttsr",0.74);}
+function ttsChunks(text){var t=String(text||"").replace(/\s+/g," ").trim(),out=[],m=t.match(/[^.!?;:]+[.!?;:]+["'”’)]*|[^.!?;:]+$/g)||[t];
+  m.forEach(function(sn){sn=sn.trim();if(!sn)return;if(sn.length<=120){out.push({t:sn,gap:/[;:]$/.test(sn)?450:850});return;}
+    var parts=sn.split(/,\s+/),cur="";parts.forEach(function(pp,i){var nx=cur?cur+", "+pp:pp;if(nx.length>100&&cur){out.push({t:cur+",",gap:320});cur=pp;}else cur=nx;});if(cur)out.push({t:cur,gap:850});});
+  return out;}
+function ttsEstSec(text){var w=String(text||"").split(/\s+/).length,c=ttsChunks(text).length;return (w/(2.5*ttsRate()/0.84))+c*0.9+6;}
+/* speak calmly: one sentence at a time with a breath between, best installed voice, slow rate. returns {pause()} */
+function ttsSay(text,done){var ch=ttsChunks(text),i=0,stop=false,tm=null,v=ttsPick(),r=ttsRate(),fin=function(){if(stop)return;stop=true;if(done)done();};
+  var next=function(){if(stop)return;if(i>=ch.length){fin();return;}var c=ch[i++],u=new SpeechSynthesisUtterance(c.t);if(v)u.voice=v;u.rate=r;u.pitch=0.94;u.volume=1;
+    var nx=function(){if(stop)return;tm=setTimeout(next,c.gap);};u.onend=nx;u.onerror=nx;try{speechSynthesis.speak(u);}catch(e){nx();}};
+  try{speechSynthesis.cancel();}catch(e){}tm=setTimeout(next,120);
+  return {pause:function(){stop=true;if(tm)clearTimeout(tm);try{speechSynthesis.cancel();}catch(e){}}};}
+try{if(window.speechSynthesis)speechSynthesis.onvoiceschanged=function(){};}catch(e){}
+function gsDevice(text,go){try{var h=ttsSay(text,go);GS.ttsH=h;}catch(e){}GS.timers.push(setTimeout(go,ttsEstSec(text)*1000));}
 function gsSay(text,done,k){if(!GS.run)return;gsCaption(text);var fin=false,go=function(){if(fin)return;fin=true;gsBedLevel(GS.bedVol*0.9,1.2);done();};gsBedLevel(GS.bedVol*0.55,0.4);
   var S=GS.sess;gsClip(S,k).then(function(c){if(fin||!GS.run)return;if(!c){gsDevice(text,go);return;}var a=ac(),src=a.createBufferSource(),g=a.createGain(),t0=0,dur=c.b.duration;
     if(c.mine){var tr=vjTrim(c.b);t0=tr.ts;dur=tr.te-tr.ts;}src.buffer=c.b;g.gain.value=c.mine?1:0.9;src.connect(g);g.connect(a.destination);src.start(a.currentTime+0.05,t0,dur);GS.src=src;src.onended=go;GS.timers.push(setTimeout(go,(dur+2)*1000));});
@@ -12402,7 +12421,7 @@ function renderGuidedStudio(doc){if(toneRAF)cancelAnimationFrame(toneRAF);medSto
         +'<span class="rchips tight" style="margin-left:auto"><button class="rchip sm" data-gat="'+i+':-30">−</button><span class="rbpm" style="min-width:44px;text-align:center">'+fmtM(at)+'</span><button class="rchip sm" data-gat="'+i+':30">+</button></span>'
         +(D.ps.length>1?'<button class="rchip sm" data-gdel="'+i+'">🗑</button>':'')+'</div>'
         +'<div class="site-note" style="margin:4px 0 0;font-size:.72rem" id="gmSt'+i+'">'+(ps.key?"voice saved ✓ · plays at "+fmtM(at):(ps.txt&&ps.txt.trim()?"no recording — the device voice will read it · plays at "+fmtM(at):"empty · plays at "+fmtM(at)))+'</div></div>';}).join("")
-     +'<div class="actions" style="margin:0 0 10px;flex-wrap:wrap"><button class="rchip" id="gmAddP">➕ Add a passage</button><button class="rchip" id="gmPaste">\ud83d\udcdc Paste a long text</button></div>'+'<div id="gmPasteW" style="display:none"><textarea id="gmPasteT" placeholder="Paste a chapter or teaching here — it becomes passages spread across the journey. Passages without a recording are read aloud in the device\u2019s voice (record over any of them to use yours)." style="width:100%;box-sizing:border-box;min-height:140px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:8px;color:inherit;padding:8px"></textarea><div class="actions" style="margin:6px 0 10px"><button class="btn" id="gmSplit">\u2702\ufe0f Split into passages</button></div></div>'
+     +'<div class="actions" style="margin:0 0 10px;flex-wrap:wrap"><button class="rchip" id="gmAddP">➕ Add a passage</button><button class="rchip" id="gmPaste">\ud83d\udcdc Paste a long text</button></div>'+'<div class="rrow" style="gap:6px;flex-wrap:wrap;margin:0 0 10px"><span class="rlab">\ud83d\udde3\ufe0f Reading voice</span><select id="gmTtsV" style="flex:1;min-width:150px;padding:6px;border-radius:8px;background:var(--panel);color:inherit;border:1px solid var(--line)"></select><span class="rlab">Speed</span><input type="range" id="gmTtsR" min="55" max="95" value="'+Math.round(ttsRate()*100)+'" style="width:110px"><button class="rchip sm" id="gmTtsP">\u25b6 Preview</button></div>'+'<div id="gmPasteW" style="display:none"><textarea id="gmPasteT" placeholder="Paste a chapter or teaching here — it becomes passages spread across the journey. Passages without a recording are read aloud in the device\u2019s voice (record over any of them to use yours)." style="width:100%;box-sizing:border-box;min-height:140px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:8px;color:inherit;padding:8px"></textarea><div class="actions" style="margin:6px 0 10px"><button class="btn" id="gmSplit">\u2702\ufe0f Split into passages</button></div></div>'
      +'<div class="actions"><button class="btn" id="gmGo" style="flex:1 1 60%">▶ Save &amp; begin</button><button class="btn ghost" id="gmSv" style="flex:1 1 30%">💾 Save</button></div>'
      +(gmList().length?'<div class="rlab" style="display:block;margin:14px 0 4px">My meditations</div>'+gmList().map(function(m2){return '<div class="rrow" style="border-top:1px solid var(--line);padding:8px 0;gap:6px"><div style="flex:1;min-width:0"><b style="font-size:.9rem">'+esc(m2.title||"Untitled")+'</b><div class="site-note" style="margin:0;font-size:.72rem">'+m2.stages.reduce(function(x,s3){return x+s3.min;},0)+' min · '+m2.ps.length+' passage'+(m2.ps.length>1?"s":"")+'</div></div><button class="rchip sm" data-mgo="'+m2.id+'">▶</button><button class="rchip sm" data-med="'+m2.id+'">✏️</button><button class="rchip sm" data-mdel="'+m2.id+'">🗑</button></div>';}).join(""):'')
      +'</div>';
@@ -12414,6 +12433,12 @@ function renderGuidedStudio(doc){if(toneRAF)cancelAnimationFrame(toneRAF);medSto
     view.querySelectorAll("[data-sdel]").forEach(function(b){b.onclick=function(){keep();D.stages.splice(+b.dataset.sdel,1);draw();};});
     $("#gmAddS").onclick=function(){keep();D.stages.push({hz:6,min:5});draw();};
     $("#gmAddP").onclick=function(){keep();D.ps.push({txt:"",at:null,key:null});draw();};
+    var fillV=function(){var sel=$("#gmTtsV");if(!sel)return;var vs=ttsVoices(),cur=(ttsPick()||{}).name;sel.innerHTML=vs.length?vs.map(function(v){return '<option'+(v.name===cur?' selected':'')+'>'+v.name.replace(/</g,"")+'</option>';}).join(""):'<option>Device default</option>';};
+    fillV();try{speechSynthesis.onvoiceschanged=fillV;}catch(e){}
+    var tv=$("#gmTtsV");if(tv)tv.onchange=function(){save("mjk-ttsv",tv.value);};
+    var tr=$("#gmTtsR");if(tr)tr.oninput=function(){save("mjk-ttsr",(+tr.value)/100);};
+    var tp=$("#gmTtsP");if(tp)tp.onclick=function(){if(GS.ttsPrev){GS.ttsPrev.pause();GS.ttsPrev=null;tp.textContent="\u25b6 Preview";return;}tp.textContent="\u25a0 Stop";
+      GS.ttsPrev=ttsSay("Breathe in slowly. Let your shoulders soften, and let the words settle, one at a time.",function(){GS.ttsPrev=null;tp.textContent="\u25b6 Preview";});};
     var pw2=$("#gmPaste");if(pw2)pw2.onclick=function(){var w2=$("#gmPasteW");if(w2)w2.style.display=w2.style.display==="none"?"":"none";};
     var sp2=$("#gmSplit");if(sp2)sp2.onclick=function(){keep();var tx=($("#gmPasteT")||{}).value||"";tx=tx.replace(/\s+/g," ").trim();if(tx.length<40)return;
       var re2=null;try{re2=new RegExp("(?<=[.!?\u2026;:])\\s+");}catch(e){}
@@ -12557,11 +12582,7 @@ function renderJourney(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(to
       var dip=function(){if(MED.master)MED.master.gain.setTargetAtTime(vol*0.45,ac().currentTime,0.4);};
       var back=function(){if(done)return;done=true;if(wd)clearTimeout(wd);MED.vclip=null;if(MED.master)MED.master.gain.setTargetAtTime(vol,ac().currentTime,0.8);setTimeout(function(){var tb2=$("#jTeach");if(tb2&&!MED.vclip)tb2.style.display="none";},6000);};
       if(cl.key){idbGet(cl.key).then(function(bl){if(!bl||!playing)return;try{var u=URL.createObjectURL(bl),el=new Audio(u);MED.vclip=el;dip();show();el.onended=function(){try{URL.revokeObjectURL(u);}catch(e){}back();};el.play();}catch(e){}});}
-      else if(cl.text&&window.speechSynthesis){try{var ut=new SpeechSynthesisUtterance(cl.text);ut.rate=0.84;ut.pitch=0.96;
-        try{var vs=speechSynthesis.getVoices().filter(function(v2){return v2.lang&&v2.lang.indexOf("en")===0;});var pf=vs.filter(function(v2){return /siri|premium|enhanced|ava|samantha|daniel|serena/i.test(v2.name);})[0]||vs[0];if(pf)ut.voice=pf;}catch(e){}
-        MED.vclip={pause:function(){try{speechSynthesis.cancel();}catch(e){}}};dip();show();
-        ut.onend=back;ut.onerror=back;wd=setTimeout(back,Math.min(240,cl.text.split(/\s+/).length/1.7+8)*1000);
-        speechSynthesis.speak(ut);}catch(e){back();}}
+      else if(cl.text&&window.speechSynthesis){try{dip();show();MED.vclip=ttsSay(cl.text,back);wd=setTimeout(back,Math.min(420,ttsEstSec(cl.text))*1000);}catch(e){back();}}
     })(opts.voice[GMV.i]);GMV.i++;}}if(jType==="focus")fsPaint("fsBox");
     var hz=$("#jHz"),bl=$("#jBandL"),ph=$("#jPhase"),lf=$("#jLeft"),mp=$("#jMap");
     if(hz)hz.textContent=cur.hz.toFixed(1)+" Hz";if(bl)bl.textContent=jBand(cur.hz)+({Beta:cur.hz>=15?" · alert & energized":" · everyday thinking",Alpha:" · calm, relaxed",Theta:" · deep, dreamy",Delta:" · deepest rest"})[jBand(cur.hz)];
