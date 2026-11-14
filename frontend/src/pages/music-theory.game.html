@@ -8278,7 +8278,7 @@ function hfxHitLine(c,x0,x1,y,flash,now){const gr=c.createLinearGradient(x0,0,x1
 const HWYP={lbl:load("mjk-hwylbl","note"),neck:load("mjk-hwyneck",false),grid:load("mjk-hwygrid",true),dir:load("mjk-hwydir","auto")};
 /* string instruments lie sideways (like you hold them) on computers; phones keep the upright neck unless you choose otherwise */
 function FBR(){return fbHoriz()?7:4;}
-function fbHoriz(){if(FB.upright)return false;var d=HWYP.dir||"auto";if(d==="across")return true;var land=window.innerWidth>window.innerHeight;if(d==="down")return land&&!!(window.matchMedia&&matchMedia("(pointer:coarse)").matches);/* Upright holds, except a phone turned sideways */return land;}
+function fbHoriz(){if(FB.upright){if(document.getElementById("stNeck"))return false;FB.upright=false;}/* upright pin belongs to the strum screen only — never leaks */var d=HWYP.dir||"auto";if(d==="across")return true;var land=window.innerWidth>window.innerHeight;if(d==="down")return land&&!!(window.matchMedia&&matchMedia("(pointer:coarse)").matches);/* Upright holds, except a phone turned sideways */return land;}
 function gtrRotHint(){try{if(window.innerWidth>window.innerHeight||!("ontouchstart" in window))return "";}catch(e){return "";}
   return '<div class="site-note" style="border:1px solid rgba(244,183,64,.45);border-radius:10px;padding:7px 10px;margin:0 0 8px;color:#f4b740">\ud83d\udd04 Turn your phone sideways \u2014 guitar plays full-width in landscape.</div>';}
 /* chord as a little fretboard window riding the highway: strings = lanes, fret rows top (nut) → bottom (body), like the neck below */
