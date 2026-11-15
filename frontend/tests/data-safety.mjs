@@ -299,8 +299,9 @@ export async function run() {
       unlockAudio(); await ac().resume(); document.getElementById("jPlay").click(); await new Promise((z) => setTimeout(z, 2500));
       const o = document.getElementById("lgtScr"); let flips = 0, last = null; const t0 = performance.now();
       await new Promise((res) => { const f = () => { const on = o && o.style.background !== "rgb(0, 0, 0)" && o.style.background !== "#000"; if (on !== last) { flips++; last = on; } if (performance.now() - t0 < 3000) requestAnimationFrame(f); else res(); }; f(); });
-      const hz = MED.planHz(), meas = flips / 2 / 3; medStop(); return { warn, hz, meas, gone: !document.getElementById("lgtScr") }; });
-    assert(r.warn, "light came on without the safety warning"); assert(Math.abs(r.meas - r.hz) < 0.6, "light rate " + r.meas + " vs journey " + r.hz); assert(r.gone, "light kept going after the journey stopped");
+      const hz = MED.planHz(), mul = LGT.run && LGT.run.mul, meas = flips / 2 / 3; medStop(); return { warn, hz, mul, meas, gone: !document.getElementById("lgtScr") }; });
+    assert(r.warn, "light came on without the safety warning"); assert(r.mul >= 2 && r.hz * r.mul >= 8, "Auto did not lift the slow stage into the pattern range: ×" + r.mul);
+    assert(Math.abs(r.meas - r.hz * r.mul) < 1.2, "light rate " + r.meas + " vs journey " + r.hz + " × " + r.mul); assert(r.gone, "light kept going after the journey stopped");
     await ctx.close();
   });
 

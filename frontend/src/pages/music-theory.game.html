@@ -3760,7 +3760,9 @@ function renderLightTest(){if(teardown){try{teardown();}catch(e){}}home.hidden=t
 function alertLT(t){const r=$("#ltRes");if(r)r.textContent=t;}
 
 /* ===== JOURNEY LIGHT — flashlight / screen flicker that follows the journey's brainwave rate, eases between stages, and flashes with the shatter ===== */
-var LGT={mode:load("mjk-jlight","off"),run:null};
+var LGT={mode:load("mjk-jlight","off"),run:null,mult:load("mjk-jlmult","auto"),music:load("mjk-jlmusic",true)};
+/* which harmonic of the beat to flicker at: Auto lifts slow stages (delta/theta) up into 8–16 Hz, the range where closed-eye mandala patterns are strongest */
+function lgtMult(hz,cap){const m=LGT.mult;let k;if(m==="auto"){k=1;while(k<4&&hz*k<8)k++;}else k=+m||1;while(k>1&&hz*k>cap)k--;return k;}
 function lgtTorchMax(){const v=+load("mjk-torchmax",0);return v>0?Math.min(60,v):8;}
 function lgtHz(){try{if(LGT.src)return LGT.src();const J=MED.jSess;if(J&&J.paused)return null;return MED.planHz?MED.planHz():null;}catch(e){return null;}}
 function lgtStop(msg){const R=LGT.run;LGT.run=null;if(R){R.stop=true;clearTimeout(R.tm);if(R.raf)cancelAnimationFrame(R.raf);}const o=document.getElementById("lgtScr");if(o)o.remove();
@@ -3771,15 +3773,24 @@ async function lgtStart(){if(LGT.run||LGT.mode==="off")return;const useT=LGT.mod
   if(useS){const o=document.createElement("div");o.id="lgtScr";o.style.cssText="position:fixed;inset:0;z-index:2147483500;background:#000;";
     o.innerHTML='<div style="position:absolute;left:0;right:0;bottom:calc(18px + env(safe-area-inset-bottom));text-align:center"><span style="display:inline-block;padding:10px 18px;border-radius:999px;background:#000;color:#f4b740;border:1px solid #f4b740;font:800 .9rem system-ui">Tap anywhere to stop the light</span></div>';
     o.onclick=()=>{if(LS.on){lsStop(false);return;}LGT.mode="off";save("mjk-jlight","off");lgtStop("Light off.");try{const b=document.querySelectorAll("[data-jl]");b.forEach(x=>x.classList.toggle("sel",x.dataset.jl==="off"));}catch(e){}};document.body.appendChild(o);}
-  /* one clock for both lights: phases advance with the journey's rate, so changes glide instead of jumping */
+  /* the light rides a HARMONIC of the journey's beat (×2/×3/×4, or Auto → into the 8–16 Hz range where closed-eye patterns bloom),
+     and its brightness follows the music's loudness — so the light is mixed with the track, not just timed to it */
+  const env={v:0,peak:0.02,buf:null,an:null};
+  const level=()=>{try{const M=MED.master;if(!M)return 0.7;if(!env.an||env.an.ctx!==M.context){const an=M.context.createAnalyser();an.fftSize=1024;M.connect(an);env.an=an;an.ctx=M.context;env.buf=new Float32Array(1024);}
+    env.an.getFloatTimeDomainData(env.buf);let q=0;for(let k=0;k<1024;k+=2)q+=env.buf[k]*env.buf[k];const r=Math.sqrt(q/512);env.peak=Math.max(r,env.peak*0.9995,0.004);
+    const x=Math.min(1,r/env.peak);env.v+=(x-env.v)*(x>env.v?0.35:0.06);return env.v;}catch(e){return 0.7;}};
   const step=()=>{if(R.stop)return;const now=performance.now(),dt=(now-R.last)/1000;R.last=now;const hz=lgtHz();
     if(now-R.t0>LIMIT){LGT.mode="off";save("mjk-jlight","off");lgtStop("Light stopped after 45 minutes — give your eyes a rest.");return;}
     if(!hz){const o=document.getElementById("lgtScr");if(o)o.style.background="#000";if(R.torchOn&&LT.track){R.torchOn=false;LT.track.applyConstraints({advanced:[{torch:false}]}).catch(()=>{});}R.raf=requestAnimationFrame(step);return;}
-    R.hz+= (hz-R.hz)*Math.min(1,dt*0.5);if(!R.hz||R.hz<0.5)R.hz=hz;const ramp=Math.min(1,(now-R.t0)/20000); /* 20 s gentle start */
-    let ft=R.hz,mt=lgtTorchMax();while(ft>mt)ft/=2; /* above what the flashlight can hold: ride the half-rate, still in sync */
-    const fs=LGT.mode==="both"&&R.hz*PHI<=30?R.hz*PHI:Math.min(R.hz,30);if(LGT.mode==="both"&&R.hz*PHI>30&&R.hz*PHI<=mt){ft=R.hz*PHI;} /* screen can't hold the harmony step: the flashlight takes it */R.phT=(R.phT+ft*dt)%1;R.phS=(R.phS+fs*dt)%1;
-    const o=document.getElementById("lgtScr");if(o){const burst=now<R.burst;const on=burst||R.phS<0.5,lv=burst?235:Math.round(205*ramp)+20;o.style.background=on?"rgb("+lv+","+lv+","+lv+")":"#000";}
-    if(useT&&LT.track&&!R.busy&&ramp>0.25){const want=now<R.burst||R.phT<0.5;if(want!==R.torchOn){R.busy=true;R.torchOn=want;LT.track.applyConstraints({advanced:[{torch:want}]}).catch(()=>{}).then(()=>{R.busy=false;});}}
+    R.hz+=(hz-R.hz)*Math.min(1,dt*0.5);if(!R.hz||R.hz<0.5)R.hz=hz;const ramp=Math.min(1,(now-R.t0)/20000);
+    let mt=lgtTorchMax(),cap=(useT?mt:30),mul=LGT.src?1:lgtMult(R.hz,cap);R.mul=mul;
+    let ft=R.hz*mul;while(ft>mt)ft/=2;
+    let fs=Math.min(R.hz*mul,30);if(LGT.mode==="both"&&R.hz*mul*PHI<=30)fs=R.hz*mul*PHI;if(LGT.mode==="both"&&R.hz*mul*PHI>30&&R.hz*mul*PHI<=mt)ft=R.hz*mul*PHI;
+    R.ft=ft;R.fs=fs;R.phT=(R.phT+ft*dt)%1;R.phS=(R.phS+fs*dt)%1;
+    const lv=LGT.music&&!LGT.src?level():0.8;R.lv=lv; /* loudness → brightness (screen) and on-time (flashlight) */
+    const o=document.getElementById("lgtScr");if(o){const burst=now<R.burst,duty=0.5;const on=burst||R.phS<duty,b=burst?240:Math.round((60+180*lv)*ramp)+15;o.style.background=on?"rgb("+b+","+b+","+b+")":"#000";}
+    if(useT&&LT.track&&!R.busy&&ramp>0.25){const duty=LGT.music&&!LGT.src?0.3+0.4*lv:0.5,want=now<R.burst||R.phT<duty;if(want!==R.torchOn){R.busy=true;R.torchOn=want;LT.track.applyConstraints({advanced:[{torch:want}]}).catch(()=>{}).then(()=>{R.busy=false;});}}
+    if(now-(R.paintAt||0)>500){R.paintAt=now;const n=document.getElementById("jLightNow");if(n)n.textContent="Light "+(useT?ft:fs).toFixed(1)+" Hz = journey "+R.hz.toFixed(1)+" Hz × "+mul+(LGT.music&&!LGT.src?" · brightness "+Math.round(lv*100)+"%":"");}
     R.raf=requestAnimationFrame(step);};
   R.raf=requestAnimationFrame(step);}
 function lgtBurst(atAudioTime){const R=LGT.run;if(!R)return;const ms=Math.max(0,(atAudioTime-ac().currentTime)*1000);setTimeout(()=>{if(LGT.run===R)R.burst=performance.now()+450;},ms);}
@@ -13171,6 +13182,7 @@ function renderJourney(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(to
       (opts.note?'':'<div class="actions" style="flex-wrap:wrap">'+(playing?'<button class="btn" id="jPause" style="flex:1 1 55%">'+(paused?"▶ Resume":"⏸ Pause")+'</button><button class="btn ghost" id="jPlay" style="flex:1 1 35%">⏹ End</button>':'<button class="btn" id="jPlay" style="flex:1 1 100%">▶ Begin journey</button>')+'</div>')+(paused?'<div class="site-note" style="text-align:center">Paused at '+fmt(pausedAt)+' — tap Resume to pick up right here.</div>':'')+
       bioPanelHTML()+
       '<div class="rrow2" data-nocz style="margin-top:6px"><span class="rlab">🔦 Light</span><span class="rchips tight">'+[["off","Off"],["torch","Flashlight"],["screen","Screen"],["both","Both"]].map(function(x){return '<button class="rchip sm'+(LGT.mode===x[0]?" sel":"")+'" data-jl="'+x[0]+'">'+x[1]+'</button>';}).join("")+'</span></div>'+
+      (LGT.mode!=="off"?'<div class="rrow2" data-nocz><span class="rlab">Light speed</span><span class="rchips tight">'+[["auto","Auto"],["1","×1"],["2","×2"],["3","×3"],["4","×4"]].map(function(x){return '<button class="rchip sm'+(String(LGT.mult)===x[0]?" sel":"")+'" data-jlm="'+x[0]+'">'+x[1]+'</button>';}).join("")+'<button class="rchip sm'+(LGT.music?" sel":"")+'" id="jlMusic">'+(LGT.music?"🎵 Follows the music":"🎵 Steady brightness")+'</button></span></div><div class="site-note" id="jLightNow" data-nocz style="margin:0 0 4px;font-size:.78rem;color:#7ff0d6"></div>':'')+
       '<div class="site-note" id="jLightNote" data-nocz style="margin:0 0 6px;font-size:.78rem">'+(LGT.mode==="off"?"Flicker light that follows the journey\u2019s brainwave rate. Eyes closed.":LGT.mode==="torch"?"Flashlight follows the journey (holds up to "+lgtTorchMax()+" Hz here; above that it rides the half-rate). Lay the phone face-down near you, eyes closed.":LGT.mode==="screen"?"The screen flickers with the journey. Hold it a little away from closed eyes. Tap the screen to stop the light.":"Flashlight on the journey\u2019s rate, screen one golden-ratio step above \u2014 a light harmony.")+(load("mjk-torchmax",0)?"":" Run 🔦 Light Test once so I know your flashlight\u2019s real speed.")+'</div>'+
       '<div id="jLightWarn"></div>'+
       '<div class="site-note">'+(MEDSPK.on?'🔈 Speaker mode on — no headphones needed.':'🎧 Binaural beats need headphones — or switch to 🔈 Speaker.')+'</div></div>';
@@ -13190,6 +13202,8 @@ function renderJourney(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(to
     $("#jBody").onclick=function(){body=!body;save("mjk-bwbody",body);if(playing)medBodyWave(body,vol);draw();};
     var jsb=$("#jSub");if(jsb)jsb.oninput=function(){MEDSUB=+jsb.value;save("mjk-jsub",MEDSUB);if(MED.subG)MED.subG.gain.setTargetAtTime(MEDSUB*1.667,ac().currentTime,0.1);};
     view.querySelectorAll("#jVibs [data-vib]").forEach(function(b){b.onclick=function(){jVib=b.dataset.vib;save("mjk-jvib",jVib);if(playing){if(jVib==="off")medVibroStop();else medVibroStart(jVib,jVibP,jVibL,carrier);}draw();};});
+    view.querySelectorAll("[data-jlm]").forEach(function(b){b.onclick=function(){LGT.mult=b.dataset.jlm==="auto"?"auto":+b.dataset.jlm;save("mjk-jlmult",LGT.mult);draw();};});
+    var jlm=$("#jlMusic");if(jlm)jlm.onclick=function(){LGT.music=!LGT.music;save("mjk-jlmusic",LGT.music);draw();};
     view.querySelectorAll("[data-jl]").forEach(function(b){b.onclick=function(){var m=b.dataset.jl;
       var go=function(){LT.ack=true;LGT.mode=m;save("mjk-jlight",m);lgtStop();if(m!=="off"&&playing)lgtStart();draw();};
       if(m!=="off"&&!LT.ack){var w=$("#jLightWarn");if(w){w.innerHTML='<div class="lt-warn" style="padding:12px;border-radius:12px;background:rgba(255,110,110,.1);border:1px solid rgba(255,110,110,.45);font:700 .85rem/1.5 system-ui;margin:4px 0 8px"><b>⚠️ Flicker safety</b><br>Flashing light between about 3 and 30 flashes a second can trigger seizures in people with photosensitive epilepsy, sometimes with no history. Don\u2019t use it if you or anyone nearby has had a seizure or light-triggered migraine, or for children. Eyes closed; stop if you feel unwell. It starts gently and stops on its own after 45 minutes.<div class="actions" style="margin-top:8px"><button class="btn" id="jLightOk">I understand — turn it on</button><button class="btn ghost" id="jLightNo">Cancel</button></div></div>';$("#jLightOk").onclick=go;$("#jLightNo").onclick=function(){w.innerHTML="";};}return;}
