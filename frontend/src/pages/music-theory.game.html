@@ -11760,7 +11760,7 @@ const JOURNEYS=[
   samples:[{key:"drone",url:"/sounds/user/maj-drone-e.mp3",root:82.4069,lvl:0.6,mix:[0.85,0.8,0.65,1,0.7]},
    {key:"pad",url:"/sounds/user/maj-pad-e.mp3",root:657.2,lvl:0.85,mix:[0.4,0.85,0.6,0.55,1]},
    {key:"perc",url:"/sounds/user/maj-perc-theta.mp3",noTune:true,exact:111.172,grid:true,lvl:1.5,lp:12000,shelf:[7000,-1.5],mix:[0.0001,0.35,1,0.0001,0.3]},
-   {key:"lead",url:"/sounds/user/maj-pluck-e.mp3",noTune:true,exact:111.172,grid:true,lvl:0.9,peak:[3000,0.9,3],mix:[0.0001,0.0001,0.85,0.0001,0.55]},{key:"air",url:"/sounds/user/maj-air-v2.mp3",noTune:true,rate:0.85,lvl:0.3,mix:[0.6,0.45,0.3,1,0.5]}],bells:{3:3},bell:{url:"/sounds/user/maj-bell-fs.mp3",lvl:0.55,low:-2},
+   {key:"lead",url:"/sounds/user/maj-pluck-e-v2.mp3",noTune:true,exact:111.172,grid:true,lvl:0.9,peak:[3000,0.9,3],mix:[0.0001,0.0001,0.85,0.0001,0.55]},{key:"air",url:"/sounds/user/maj-air-v2.mp3",noTune:true,rate:0.85,lvl:0.3,mix:[0.6,0.45,0.3,1,0.5]}],bells:{3:3},bell:{url:"/sounds/user/maj-bell-fs.mp3",lvl:0.55,low:-2},shatter:{key:"lead",stages:[2,4],every:[60,120],beat:0.66174},
   segs:[[0,.13,10,10,"Arrival \u2014 drone and pad, find your breath"],[.13,.3,10,4.533,"Descent \u2014 the drum stirs, sinking down"],[.3,.57,4.533,4.533,"The ride \u2014 drum and melody carry you"],[.57,.77,4.533,4.533,"Stillness \u2014 the rhythm falls away, stay in theta"],[.77,1,4.533,11,"Return \u2014 the pad lifts you, rhythm returns softly"]],end:"\ud83d\udd2e Come back slowly \u2014 the note stays with you."},
  {id:"dive",ic:"\ud83c\udf00",name:"Down & Back",when:"Any time \u00b7 pick your depth",desc:"The classic: from everyday thinking (~14 Hz) down to the depth you choose, rests there, then brings you back up to calm, clear waking (~10 Hz).",def:30,segs:null,end:"\u2705 Journey complete \u2014 take a slow breath, wiggle your fingers, open your eyes when ready."}];
 function jPlanFor(id,total,depth){const J=JOURNEYS.find(j=>j.id===id)||JOURNEYS.find(j=>j.id==="dive")||JOURNEYS[0];if(!J.segs)return jPlan(total,depth);const P=(J.segsFor?J.segsFor(total):J.segs).map(s=>({t0:s[0]*total*60,t1:s[1]*total*60,h0:s[2],h1:s[3],label:s[4],hum:!!s[5]}));if(J.layers)P.layers=J.layers.map(w=>[w[0]*total*60,w[1]*total*60]);return P;}
@@ -12436,15 +12436,32 @@ function medSampStart(L,carrier){if(!MED.master||!L||!L.url)return;MED.sampL=MED
     if(L.lp){var lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=L.lp;lp.Q.value=0.5;src.connect(lp);nd=lp;}
     if(L.shelf){var sh=a.createBiquadFilter();sh.type="highshelf";sh.frequency.value=L.shelf[0];sh.gain.value=L.shelf[1];nd.connect(sh);nd=sh;}
     if(L.peak){var pq=a.createBiquadFilter();pq.type="peaking";pq.frequency.value=L.peak[0];pq.Q.value=L.peak[1];pq.gain.value=L.peak[2];nd.connect(pq);nd=pq;}
-    nd.connect(g);g.connect(MED.master);var when=a.currentTime+0.08,off=0;
+    var dk=a.createGain();dk.gain.value=1;nd.connect(g);g.connect(dk);dk.connect(MED.master);var when=a.currentTime+0.08,off=0;
     /* rhythmic layers share one grid clock, so drum and melody stay locked however they load */
     if(L.grid){if(!MED.gridT0)MED.gridT0=when;var len=src.loopEnd-src.loopStart;off=((when-MED.gridT0)%len+len)%len;}
     src.start(when,src.loopStart+off);g.gain.setTargetAtTime(Math.max(0.0001,base*k0),a.currentTime+0.05,2.2);
-    MED.sampL[key]={src:src,g:g,base:base,rate:r,seg:-1,L:L,when:when,off:off};MED.sampSt[key]="on";if(key==="drone")MED.samp=MED.sampL[key];}).catch(function(){MED.sampSt=MED.sampSt||{};MED.sampSt[key]="fail";});}
+    MED.sampL[key]={src:src,g:g,dk:dk,buf:buf,base:base,rate:r,seg:-1,L:L,when:when,off:off};MED.sampSt[key]="on";if(key==="drone")MED.samp=MED.sampL[key];}).catch(function(){MED.sampSt=MED.sampSt||{};MED.sampSt[key]="fail";});}
 function medShot(url,rate,lvl,delay){if(!MED.master||!url)return;var get=SAMPBUF[url]?Promise.resolve(SAMPBUF[url]):fetch(url).then(function(r){if(!r.ok)throw 0;return r.arrayBuffer();}).then(function(ab){return ac().decodeAudioData(ab);}).then(function(b){SAMPBUF[url]=b;return b;});
   get.then(function(buf){if(!MED.master)return;var a=ac(),s=a.createBufferSource(),g=a.createGain();s.buffer=buf;s.playbackRate.value=rate||1;g.gain.value=lvl==null?0.7:lvl;s.connect(g);g.connect(MED.master);s.start(a.currentTime+(delay||0.05));}).catch(function(){});}
+/* SHATTER — on the last beat of a bar, the melody breaks into hundreds of grains that scatter in time,
+   pitch and space, then dissolve into the pad. Used now and then, never on a schedule you can predict. */
+function medShatter(key,tb,bpmBeat,carrier){var S=MED.sampL&&MED.sampL[key];if(!S||!MED.master)return false;var a=ac(),buf=S.buf,len=S.src.loopEnd-S.src.loopStart;
+  var pos=S.src.loopStart+(((tb-S.when+S.off)%len)+len)%len,sl=bpmBeat,sr=buf.sampleRate,c0=buf.getChannelData(0),i0=Math.floor(pos*sr),i1=Math.min(c0.length,i0+Math.floor(sl*sr)),e=0;
+  for(var i=i0;i<i1;i+=8)e+=c0[i]*c0[i];if(Math.sqrt(e/Math.max(1,(i1-i0)/8))<0.012)return false;/* nothing playing on that beat */
+  if(!MED.shRv){var cv=a.createConvolver(),L=Math.floor(sr*4.5),b=a.createBuffer(2,L,sr);for(var ch=0;ch<2;ch++){var d=b.getChannelData(ch);for(var j=0;j<L;j++)d[j]=(Math.random()*2-1)*Math.pow(1-j/L,2.4);}cv.buffer=b;
+    var hp=a.createBiquadFilter();hp.type="highpass";hp.frequency.value=320;var wet=a.createGain();wet.gain.value=0.55;hp.connect(cv);cv.connect(wet);wet.connect(MED.master);MED.shRv=hp;MED.shDry=a.createGain();MED.shDry.gain.value=0.5;MED.shDry.connect(MED.master);}
+  var steps=[0,0,12,7,19,24,-5,12,0,7],N=120+Math.floor(Math.random()*60),T=3.2+Math.random()*2.2,lvl=S.base*0.55;
+  for(var k=0;k<N;k++){var u=k/N,t=tb+sl*0.6+Math.pow(u,1.6)*T+Math.random()*0.05,dur=0.025+Math.random()*0.07+u*0.06,src=a.createBufferSource(),g=a.createGain(),pn=a.createStereoPanner?a.createStereoPanner():null;
+    src.buffer=buf;var st=steps[Math.floor(Math.random()*steps.length)]*(u>0.25?1:0)+(Math.random()-0.5)*0.4;src.playbackRate.value=S.rate*Math.pow(2,st/12);
+    var o=pos+Math.random()*Math.max(0.01,sl-dur),pk=lvl*(1-u)*(0.6+0.4*Math.random());g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(pk,t+dur*0.45);g.gain.linearRampToValueAtTime(0.0001,t+dur);
+    src.connect(g);var out=g;if(pn){pn.pan.value=Math.max(-1,Math.min(1,(Math.random()*2-1)*(0.3+u)));g.connect(pn);out=pn;}out.connect(MED.shRv);if(u<0.5)out.connect(MED.shDry);
+    src.start(t,o,dur+0.02);}
+  /* the melody steps back while it scatters, then returns; the pad leans in to catch the pieces */
+  try{S.dk.gain.cancelScheduledValues(tb);S.dk.gain.setValueAtTime(1,tb+sl*0.85);S.dk.gain.linearRampToValueAtTime(0.12,tb+sl*1.05);S.dk.gain.setTargetAtTime(1,tb+sl+T*0.75,1.2);}catch(e){}
+  var P=MED.sampL.pad;if(P&&P.dk){try{P.dk.gain.cancelScheduledValues(tb);P.dk.gain.setTargetAtTime(1.3,tb+sl,1.0);P.dk.gain.setTargetAtTime(1,tb+sl+T,2.5);}catch(e){}}
+  return true;}
 function medSampLevel(k,tc,key){var S=MED.sampL&&MED.sampL[key||"drone"];if(!S)return;try{S.g.gain.setTargetAtTime(Math.max(0.0001,S.base*k),ac().currentTime,tc||4);}catch(e){}}
-function medSampStop(fast,key){var all=MED.sampL||{},ks=key?[key]:Object.keys(all);if(!key){MED.sampSt={};MED.gridT0=0;}ks.forEach(function(k){var S=all[k];if(!S)return;delete all[k];try{var a=ac();S.g.gain.setTargetAtTime(0.0001,a.currentTime,fast?0.15:1.2);S.src.stop(a.currentTime+(fast?0.6:5));}catch(e){}});if(!key||key==="drone")MED.samp=null;}
+function medSampStop(fast,key){var all=MED.sampL||{},ks=key?[key]:Object.keys(all);if(!key){MED.sampSt={};MED.gridT0=0;MED.shNext=0;MED.shRv=null;}ks.forEach(function(k){var S=all[k];if(!S)return;delete all[k];try{var a=ac();S.g.gain.setTargetAtTime(0.0001,a.currentTime,fast?0.15:1.2);S.src.stop(a.currentTime+(fast?0.6:5));}catch(e){}});if(!key||key==="drone")MED.samp=null;}
 function medPrgStop(){MEDPRG.on=false;if(MEDPRG.t){clearInterval(MEDPRG.t);MEDPRG.t=null;}if(MEDPRG.g){try{MEDPRG.g.gain.setTargetAtTime(0.0001,ac().currentTime,1.2);}catch(e){}MEDPRG.g=null;}}
 function medPrgStart(id,voice,lvl,carrier){medPrgStop();var P2=MED_PROGS.filter(function(m){return m.id===id;})[0];if(!P2||!MED.master)return;var a=ac();
  MEDPRG.on=true;MEDPRG.prg=P2;MEDPRG.voice=voice||"pad";MEDPRG.lvl=lvl==null?0.5:lvl;MEDPRG.ci=0;MEDPRG.next=a.currentTime+0.4;MEDPRG.root=melRoot(carrier)/2;
@@ -12676,7 +12693,11 @@ function renderJourney(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(to
     var nowMs=Date.now();if(mp&&nowMs-lastMap>1500){lastMap=nowMs;mp.innerHTML=jSVG(plan,total,t);}
     if(nowMs-(window.__ljAt||0)>3000){window.__ljAt=nowMs;try{localStorage.setItem("mjk-livej",JSON.stringify({ty:jType,ln:jLen,el:Math.round(t),ti:opts.title||null,no:opts.note||null,pl:opts.plan||null,vo:opts.voice||null,at:Date.now()}));}catch(e){}}
     var seg=null;for(var i=0;i<plan.length;i++){if(t>=plan[i].t0&&t<plan[i].t1){seg=plan[i];break;}}var hb=$("#jHum");
-    if(MED.sampL&&seg){var _JM=JOURNEYS.find(function(x){return x.id===jType;}),si=plan.indexOf(seg),rang=false;
+    if(MED.sampL&&seg){var _JSh=JOURNEYS.find(function(x){return x.id===jType;});if(_JSh&&_JSh.shatter&&MED.gridT0&&_JSh.shatter.stages.indexOf(plan.indexOf(seg))>=0){var SH=_JSh.shatter,_a2=ac();
+        if(!MED.shNext)MED.shNext=_a2.currentTime+SH.every[0]*0.5+Math.random()*SH.every[0]*0.5;
+        if(_a2.currentTime>=MED.shNext){var bt=SH.beat,bl=bt*4,ph=((_a2.currentTime-MED.gridT0)%bl+bl)%bl,tb=_a2.currentTime-ph+bt*3;while(tb<_a2.currentTime+1.3)tb+=bl;
+          var ok=medShatter(SH.key,tb,bt,carrier);MED.shNext=_a2.currentTime+(ok?SH.every[0]+Math.random()*(SH.every[1]-SH.every[0]):8);}}
+    var _JM=JOURNEYS.find(function(x){return x.id===jType;}),si=plan.indexOf(seg),rang=false;
       if(_JM&&_JM.samples)Object.keys(MED.sampL).forEach(function(k){var S=MED.sampL[k],mx=S.L&&S.L.mix;if(!mx||si===S.seg)return;var first=S.seg<0;S.seg=si;medSampLevel(mx[si]==null?1:mx[si],first?2.5:(k==="perc"?6:5),k);
         if(!first&&!rang&&MED.master){rang=true;try{var _a=ac(),bm=_JM.bells&&_JM.bells[si];
           if(_JM.bell){medShot(_JM.bell.url,1,_JM.bell.lvl,0.1);if(bm)medShot(_JM.bell.url,Math.pow(2,(_JM.bell.low||-2)/12),_JM.bell.lvl,2.2);}
