@@ -3178,6 +3178,19 @@ function swVoxIn(){const a=ac(),fx=swData().vfx||"warm";let C=SW.voxCh;if(C&&C.c
   SW.voxCh={ctx:a,fx:fx,inp:inp};return inp;}
 function swMixApply(){const m=swMix();try{Object.keys(SW.bus||{}).forEach(k=>{SW.bus[k].gain.value=m[k]||0;});}catch(e){}try{if(SW.voxCh)SW.voxCh.inp.gain.value=m.vox||0;}catch(e){}try{if(BK.play&&BK.bus)BK.bus.gain.value=m.ch||0;}catch(e){}}
 /* ---- record a vocal take over the loop (or the section): hear melody / chords / click at the levels you set ---- */
+/* ---- undo: deleting a section or a line can be taken back for a few seconds ---- */
+function swSnap(song,label){SW.undo={id:song.id,json:JSON.stringify(song),label:label,t:Date.now()};}
+function swUndoToast(){let el=document.getElementById("swUndo");if(!el){el=document.createElement("div");el.id="swUndo";el.style.cssText="position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:2147482600;display:flex;gap:10px;align-items:center;padding:10px 14px;border-radius:999px;background:#1d1533;border:1px solid #f4b740;color:#e8e3f5;font:800 .9rem system-ui;box-shadow:0 8px 24px rgba(0,0,0,.5)";document.body.appendChild(el);}
+  const U=SW.undo;if(!U){el.remove();return;}el.innerHTML='<span>'+swEsc(U.label)+'</span><button style="background:#f4b740;color:#2a1a00;border:0;border-radius:999px;padding:8px 14px;font:900 .9rem system-ui">↶ Undo</button>';
+  el.querySelector("button").onclick=()=>{const D=swData(),U2=SW.undo;if(!U2)return;const ix=D.songs.findIndex(x=>x.id===U2.id);const back=JSON.parse(U2.json);back.at=Date.now();if(ix>=0)D.songs[ix]=back;else D.songs.push(back);SW.undo=null;swSave();swDraw();el.remove();};
+  clearTimeout(swUndoToast.t);swUndoToast.t=setTimeout(()=>{if(SW.undo===U){SW.undo=null;}el.remove();},10000);}
+/* ---- throw out the take you just recorded (only the take — words, melody and chords stay) ---- */
+function swThrowLast(){const song=swSong(),L=SW.lastRec||[];let n=0;
+  L.forEach(r=>{if(r.song!==song.id||+((song.takes||{})[r.tag])!==r.tn)return;const key=swTakeKey(song,r.tag,r.tn);idbDel("swtake:"+key).catch(()=>{});
+    if(SW.takeBlob)delete SW.takeBlob[key];if(SW.voxBuf)delete SW.voxBuf[key];if(song.takeMeta)delete song.takeMeta[key];
+    if(r.tn>1)song.takes[r.tag]=r.tn-1;else delete song.takes[r.tag];if(song.takeSel){if(r.tn>1)song.takeSel[r.tag]=r.tn-1;else delete song.takeSel[r.tag];}n++;});
+  SW.lastRec=null;SW.recNote=n?"Take thrown out — tap ● Record to try again.":"That take was already changed — use ✕ Delete this take on the section.";swSave();swDraw();}
+function swRecNoteHTML(){if(!SW.recNote)return "";return SW.recNote+(SW.lastRec&&SW.lastRec.length?' <button class="rchip sm" id="swThrow" style="margin-left:6px">🗑 Throw out this take</button>':"");}
 function swRecTake(){const song=swSong(),D=swData(),b=$("#swRecB");if(SW.vrec){SW.vrec.finish(true);return;}
   let k=swLoopKeys();if(!k){const act=SW.active,sec=(act&&song.sections.find(x=>x.id===act.s))||song.sections[0];k=new Set();if(sec)swLinesOf(song,sec).forEach((ln,li)=>{if(ln.t.trim())k.add(sec.id+":"+li);});}
   if(!k.size){if(b)b.textContent="Write a line first";return;}
@@ -3197,8 +3210,8 @@ function swRecTake(){const song=swSong(),D=swData(),b=$("#swRecB");if(SW.vrec){S
         const blob=new Blob([buf],{type:"audio/wav"}),lat=Math.max(0.01,Math.min(0.3,(a.outputLatency||0)+(a.baseLatency||0))),dur=n/sr,byTag={};
         lines.forEach(L=>{const off=T0+L.at-R.t0+lat;if(off<0||off>dur-0.2)return;const sec=song.sections.find(x=>x.id===L.sec);if(!sec)return;(byTag[sec.tag]=byTag[sec.tag]||{})[L.li]=+off.toFixed(4);});
         const tags=Object.keys(byTag);song.takes=song.takes||{};song.takeSel=song.takeSel||{};song.takeMeta=song.takeMeta||{};SW.takeBlob=SW.takeBlob||{};
-        tags.forEach(tag=>{const tn=(+song.takes[tag]||0)+1,key=swTakeKey(song,tag,tn);song.takes[tag]=tn;song.takeSel[tag]=tn;song.takeMeta[key]={bpm:song.bpm||90,at:byTag[tag]};SW.takeBlob[key]=blob;idbPut("swtake:"+key,blob).catch(()=>{});});
-        swSave();swDraw();const m=$("#swRecMsg");if(m)m.textContent=tags.length?"Take saved — ▶ Play to hear your voice with the music.":"Nothing recorded — try again.";},400);};
+        SW.lastRec=[];tags.forEach(tag=>{const tn=(+song.takes[tag]||0)+1,key=swTakeKey(song,tag,tn);SW.lastRec.push({song:song.id,tag:tag,tn:tn});song.takes[tag]=tn;song.takeSel[tag]=tn;song.takeMeta[key]={bpm:song.bpm||90,at:byTag[tag]};SW.takeBlob[key]=blob;idbPut("swtake:"+key,blob).catch(()=>{});});
+        SW.recNote=tags.length?"Take saved — ▶ Play to hear it with the music.":"Nothing recorded — try again.";swSave();swDraw();},400);};
     if(b)b.textContent="■ Stop recording";const m=$("#swRecMsg");if(m)m.textContent="Count-in… sing on the next bar. 🎧 Headphones keep the music out of your take.";
     swPlaySecs(song.sections,{pick:(sec,li)=>k.has(sec.id+":"+li),rec:true,noVox:true,onEnd:()=>R.finish(false)});
     if(!SW.stopT)R.finish(true);});}
@@ -3324,7 +3337,7 @@ function swDraw(){const D=swData(),song=swSong();swFindBar();swGuardBanner();if(
     <div class="rchips tight" style="justify-content:center;margin:6px 0">${["Verse","Pre-Chorus","Chorus","Bridge","Outro"].map(t=>'<button class="rchip sm" data-add="'+t+'">+ '+t+'</button>').join("")}</div>
     <div id="swCtl"><div class="sw-tempo"><button id="swTm" aria-label="Slower">−</button><span id="swTv">${song.bpm||90} BPM</span><button id="swTp" aria-label="Faster">+</button><button id="swClk" class="${D.click?"sel":""}">Click ${D.click?"on":"off"}</button></div>
     <div class="actions"><button class="btn" id="swPlay">${SW.stopT?"■ Stop":swPlayLbl()}</button><button class="btn ghost" id="swRecB">${SW.vrec?"■ Stop recording":"● Record"}</button><button class="btn ghost" id="swVoice" style="display:none">${SW.voiceQ?"■ Stop voice":"🎤 My voice"}</button></div>
-    <div class="sw-sub" id="swRecMsg" data-nocz style="text-align:center;margin:2px 0 4px"></div>
+    <div class="sw-sub" id="swRecMsg" data-nocz style="text-align:center;margin:2px 0 4px">${swRecNoteHTML()}</div>
     <div class="sw-mix" data-nocz>${[["mel","🎵 Melody"],["ch","🎹 Chords"],["vox","🎤 My voice"],["clk","🥁 Click"]].map(x=>{const v=Math.round((+swMix()[x[0]]||0)*100);return '<label><span>'+x[1]+'</span><input type="range" min="0" max="100" value="'+v+'" data-mix="'+x[0]+'"><b>'+(v?v+"%":"off")+'</b></label>';}).join("")}</div>
     <div class="rrow2" data-nocz style="justify-content:center;margin-top:6px"><span class="rlab">Play with</span><span class="rchips tight">${[["off","Melody only"],["block","Chords"],["band","🥁 Backing"]].map(v=>{const cur=D.acc||"block",on=v[0]==="block"?(cur==="block"||cur==="arp"):cur===v[0];return '<button class="rchip sm'+(on?" sel":"")+'" data-acc="'+(v[0]==="block"&&cur==="arp"?"arp":v[0])+'">'+v[1]+'</button>';}).join("")}</span></div>
     <div class="rrow2" data-nocz style="justify-content:center;margin-top:4px"><span class="rlab">Loop</span><span class="rchips tight">${[["0","Off"],["1","1 bar"],["2","2"],["4","4"],["8","8"],["16","16"],["sec","Section"]].map(v=>'<button class="rchip sm'+(String(D.loop||0)===v[0]?" sel":"")+'" data-loop="'+v[0]+'">'+v[1]+'</button>').join("")}</span></div>
@@ -3363,7 +3376,7 @@ function swWire(D,song){
       else if(a==="down"&&i<song.sections.length-1){song.sections.splice(i,1);song.sections.splice(i+1,0,sec);swSave();swDraw();}
       else if(a==="unlink"){const t=swTarget(song,sec);sec.same=null;sec.lines=t?t.lines.map(l=>swLine(l.t)):Array.from({length:SW_LINES},()=>swLine());SW.active={s:sec.id,l:0};swSave();swDraw();swFocus();}
       else if(a==="del"){if(sec.lines.some(l=>l.t.trim())&&b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Delete?";setTimeout(()=>{if(b.isConnected){b.dataset.sure="";b.textContent="✕";}},2500);return;}
-        song.sections.forEach(x=>{if(x.same===sec.id){x.same=null;x.lines=sec.lines.map(l=>swLine(l.t));}});song.sections.splice(i,1);SW.active=null;swSave();swDraw();}
+        swSnap(song,sec.tag+" deleted");song.sections.forEach(x=>{if(x.same===sec.id){x.same=null;x.lines=sec.lines.map(l=>swLine(l.t));}});song.sections.splice(i,1);SW.active=null;swSave();swDraw();swUndoToast();}
       else if(a==="addl"){sec.lines.push(swLine());SW.active={s:sec.id,l:sec.lines.length-1};swSave();swDraw();swFocus();}});});
   view.querySelectorAll(".sw-line").forEach(el=>{const sec=song.sections.find(x=>x.id===el.dataset.s),li=+el.dataset.l,ln=sec.lines[li],inp=el.querySelector(".sw-t");
     inp.onfocus=()=>{SW.active={s:sec.id,l:li};swCtlMove(sec.id);swLoopMark();view.querySelectorAll(".sw-line .sw-rollbox").forEach(x=>{if(!el.contains(x))x.remove();});if(!el.querySelector(".sw-rollbox")){const fe=el.querySelector(".sw-fit"),h=swLineRoll(song,sec,li);if(fe&&h)fe.insertAdjacentHTML("beforebegin",h);}view.querySelectorAll(".sw-line.on").forEach(x=>{if(x!==el)x.classList.remove("on");});el.classList.add("on");};
@@ -3374,7 +3387,7 @@ function swWire(D,song){
     el.querySelectorAll("[data-ne]").forEach(b=>{b.onmousedown=e=>e.preventDefault();b.onclick=()=>swNoteEdit(b.dataset.ne,sec,li);});});
   view.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{const tag=b.dataset.add,sec=swSec(tag);const prev=(tag==="Chorus"||tag==="Pre-Chorus")&&song.sections.find(x=>x.tag===tag&&!x.same&&x.lines.some(l=>l.t.trim()));if(prev){sec.same=prev.id;sec.lines=[];}song.sections.push(sec);if(!prev)SW.active={s:sec.id,l:0};swSave();swDraw();if(!prev)swFocus();});
   $("#swPlay").onclick=()=>{if(SW.vrec){SW.vrec.finish(true);return;}if(SW.stopT){SW.loopOn=false;swStopPlay();return;}swPlayMain();};
-  if($("#swRecB"))$("#swRecB").onclick=swRecTake;
+  if($("#swRecB"))$("#swRecB").onclick=()=>{SW.recNote="";swRecTake();};if($("#swThrow"))$("#swThrow").onclick=swThrowLast;
   view.querySelectorAll("[data-mix]").forEach(r=>{const k=r.dataset.mix;r.oninput=()=>{const m=swMix();m[k]=r.value/100;if(k==="clk")D.click=m.clk>0;const l=r.nextElementSibling;if(l)l.textContent=+r.value?r.value+"%":"off";swMixApply();};r.onchange=()=>swSave();});
   view.querySelectorAll("[data-loop]").forEach(x=>x.onclick=()=>{const v=x.dataset.loop;D.loop=v==="0"?0:(v==="sec"?"sec":+v);swSave();if(SW.stopT){SW.loopOn=false;swStopPlay();}swDraw();});
   if($("#swBounce"))$("#swBounce").onclick=swBounce;swBncPaint();swLoopMark();
@@ -3441,7 +3454,7 @@ function swLineAct(a,sec,li,el){const song=swSong(),ln=sec.lines[li],msg=el.quer
     if((D2.acc||"block")!=="off")for(let b=0;b<nb;b++){const c=swChord(song,sec.tag,li*nb+b);if(c)c.midis.forEach(mm=>ev.push({k:"n",at:0.05+b*16*s16,midi:mm,dur:16*s16*0.9}));}
     swRun(ev);}
   else if(a==="ideas"){const box=el.querySelector(".sw-ideas");if(SW.ideas&&SW.ideas.s===sec.id&&SW.ideas.l===li){SW.ideas=null;box.style.display="none";return;}SW.ideas={s:sec.id,l:li,w:null};swIdeas(song,sec,li,el);}
-  else if(a==="del"){sec.lines.splice(li,1);if(!sec.lines.length)sec.lines.push(swLine());SW.active=null;SW.ideas=null;swSave();swDraw();}}
+  else if(a==="del"){swSnap(song,"Line "+(li+1)+" deleted");sec.lines.splice(li,1);if(!sec.lines.length)sec.lines.push(swLine());SW.active=null;SW.ideas=null;swSave();swDraw();swUndoToast();}}
 /* ---- melody picker: one at a time, flip, listen, choose; or sing your own ---- */
 function swTakeN(song,tag){return (song.takes&&+song.takes[tag])||0;}
 function swTakeSel(song,tag){const n=swTakeN(song,tag);if(!n)return 0;const x=song.takeSel?+song.takeSel[tag]:0;return (x>=1&&x<=n)?x:n;}
