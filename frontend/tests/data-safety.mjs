@@ -244,6 +244,28 @@ export async function run() {
     await ctx.close();
   });
 
+  await S.test("Change key from the backing options (letter + major/minor): key, chords and melody follow; words untouched", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "Only One", ["am I the only one"], { key: { root: 0, minor: false }, prog: { Verse: 1 } })], cur: "a1" } });
+    await open(pg); const r = await pg.evaluate(() => { SW.lib = false; const sg = swSong(); sg.mel.Verse = swCand(sg, "Verse", 0); swSave(); swDraw(); const m0 = sg.mel.Verse.a[0].midi;
+      document.querySelector('[data-bkk="2"]').click(); const k1 = JSON.stringify(swSong().key), m1 = swSong().mel.Verse.a[0].midi, ch1 = bkChords(swSong()).map((c) => c.name).join(" ");
+      document.querySelector('[data-bkm="1"]').click(); return { k1, k2: JSON.stringify(swSong().key), d: m1 - m0, ch1, lyr: swSong().sections[0].lines[0].t, sub: document.querySelector(".sw-sub").textContent }; });
+    assert(r.k1 === '{"root":2,"minor":false}' && r.d === 2, "key letter change failed " + JSON.stringify(r)); assert(r.k2 === '{"root":2,"minor":true}', "minor switch failed " + r.k2);
+    assert(/^D /.test(r.ch1) || r.ch1.indexOf("D") >= 0, "chords did not move to D: " + r.ch1); assert(r.lyr === "am I the only one" && /D minor/.test(r.sub), "words changed or key not shown " + r.sub); await ctx.close();
+  });
+
+  await S.test("Sing it in: notes are found where they were sung, and the saved take carries per-line timing on the same clock", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "T", [""], { bpm: 120, prog: { Verse: 1 } })], cur: "a1" } });
+    await open(pg); const r = await pg.evaluate(async () => { SW.lib = false; swDraw(); unlockAudio(); const a = ac(); await a.resume();
+      const d = a.createMediaStreamDestination(), g = a.createGain(); g.gain.value = 0; const o = a.createOscillator(); o.frequency.value = 220; o.connect(g); g.connect(d); o.start(); micStream = d.stream; window.ensureMic = () => Promise.resolve(true);
+      toneAnalyser = a.createAnalyser(); toneAnalyser.fftSize = 2048; a.createMediaStreamSource(d.stream).connect(toneAnalyser);
+      const s16 = 60 / 120 / 4, start = a.currentTime + 0.2, t0 = start + 16 * s16; for (const st of [0, 8, 16, 24]) { const T = t0 + st * s16; g.gain.setValueAtTime(0.5, T); g.gain.setValueAtTime(0, T + 3 * s16); }
+      let FR = null; const of = window.swSingFill; window.swSingFill = function (sg, sec, R, S, s) { FR = swGridNotes(R.frames, S * 3, s).map((n) => n.step); return of.apply(this, arguments); };
+      document.querySelector('[data-m="singsec"]').click(); await new Promise((z) => setTimeout(z, 5200)); if (SW.rec && SW.rec.done) SW.rec.done(); await new Promise((z) => setTimeout(z, 1800));
+      const sg = swSong(), key = swTakeKey(sg, "Verse", (sg.takes && sg.takes.Verse) || 1); return { FR, meta: sg.takeMeta && sg.takeMeta[key] }; });
+    assert(JSON.stringify(r.FR) === "[0,8,16,24]", "notes not where sung: " + JSON.stringify(r.FR)); assert(r.meta && r.meta.at && r.meta.at[0] != null && r.meta.at[1] != null, "take has no line timing " + JSON.stringify(r.meta));
+    assert(Math.abs((r.meta.at[1] - r.meta.at[0]) - 2) < 0.01, "line timing spacing wrong " + JSON.stringify(r.meta.at)); await ctx.close();
+  });
+
   await S.test("the app never throws while opening Lyric Lab", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); await open(pg);
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
