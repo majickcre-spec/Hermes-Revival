@@ -314,6 +314,15 @@ export async function run() {
     assert(Math.abs(r.b - 4.84) < 0.01 && Math.abs(r.c - 12.67) < 0.01, "cascade steps wrong " + JSON.stringify(r)); assert(r.off, "Stop did not end the show"); await ctx.close();
   });
 
+  await S.test("Light harmony: Both + octave puts the screen at 2× the flashlight; φ Alternate glides between the rate and its golden partner", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(async () => { renderJourney(); await new Promise((z) => setTimeout(z, 300)); LT.ack = true;
+      LGT.mode = "both"; LGT.harm = "octave"; LGT.mult = 1; unlockAudio(); await ac().resume(); document.getElementById("jPlay").click(); await new Promise((z) => setTimeout(z, 2600));
+      const oct = { ft: LGT.run.ft, fs: LGT.run.fs }; lgtStop(); LGT.mode = "screen"; LGT.harm = "phiAlt"; lgtStart(); await new Promise((z) => setTimeout(z, 300)); const R = LGT.run; const lo = R.fs;
+      R.t0 -= 5000; await new Promise((z) => setTimeout(z, 200)); const hi = R.fs; const B = R.hz * R.mul; medStop(); return { oct, lo, hi, B }; });
+    assert(Math.abs(r.oct.fs - 2 * r.oct.ft) < 0.05, "octave harmony off " + JSON.stringify(r.oct)); assert(Math.abs(r.lo - r.B) < 0.3, "φ Alternate should start on the rate " + JSON.stringify(r));
+    assert(Math.abs(r.hi - r.B * 1.618) < 0.3 || Math.abs(r.hi - r.B / 1.618) < 0.3, "φ Alternate did not reach the golden partner " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("the app never throws while opening Lyric Lab", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); await open(pg);
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();

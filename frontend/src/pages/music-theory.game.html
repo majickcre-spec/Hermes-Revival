@@ -3735,6 +3735,7 @@ function renderLightTest(){if(teardown){try{teardown();}catch(e){}}home.hidden=t
   <div class="rrow2" data-nocz><span class="rlab">Length</span><span class="rchips tight">${[5,10,15,20].map(n=>'<button class="rchip sm'+(LS.len===n?" sel":"")+'" data-lsl="'+n+'">'+n+' min</button>').join("")}</span></div>
   <div class="rrow2" data-nocz><span class="rlab">Cascade</span><span class="rchips tight">${Object.entries(lsPaths()).map(([k,P])=>'<button class="rchip sm'+(LS.path===k?" sel":"")+'" data-lsp="'+k+'">'+P.n+'</button>').join("")}</span></div>
   <div class="site-note" style="margin:0 0 6px">${(lsPaths()[LS.path]||lsPaths().climb).d} · ${(lsPaths()[LS.path]||lsPaths().climb).s.join(" → ")} Hz</div>
+  <div class="rrow2" data-nocz><span class="rlab">Harmony</span><span class="rchips tight">${((LT.mode||"torch")==="both"?[["unison","Unison"],["octave","Octave"],["fifth","Fifth"],["phi","φ Golden"],["phiAlt","φ Alternate"]]:[["phi","Steady"],["phiAlt","φ Alternate"]]).map(x=>'<button class="rchip sm'+(LGT.harm===x[0]||((LT.mode||"torch")!=="both"&&x[0]==="phi"&&LGT.harm!=="phiAlt")?" sel":"")+'" data-lsh="'+x[0]+'">'+x[1]+'</button>').join("")}</span></div>
   <div class="rrow2" data-nocz><span class="rlab">Sound</span><span class="rchips tight">${[["off","Silent"],["pulse","Pulse tone"]].map(x=>'<button class="rchip sm'+(LS.snd===x[0]?" sel":"")+'" data-lss="'+x[0]+'">'+x[1]+'</button>').join("")}</span></div>
   <div class="actions"><button class="btn" id="lsGo">${LS.on?"■ Stop light show":"▶ Start light show"}</button></div><div id="lsLive"></div>`:""}
   </div>`;
@@ -3752,6 +3753,7 @@ function renderLightTest(){if(teardown){try{teardown();}catch(e){}}home.hidden=t
   view.querySelectorAll("[data-lt]").forEach(b=>b.onclick=async()=>{const t=T[+b.dataset.lt],m=LT.mode||"torch";if(m!=="screen"&&!LT.track){const ok=await ltTorchOn();if(!ok&&m==="torch"){alertLT("Flashlight isn't available here — switch Play on to Screen.");return;}}ltRun(t.hz,m,10,t.n+" · "+t.hz+" Hz");});
   view.querySelectorAll("[data-lsl]").forEach(b=>b.onclick=()=>{LS.len=+b.dataset.lsl;save("mjk-lslen",LS.len);renderLightTest();});
   view.querySelectorAll("[data-lsp]").forEach(b=>b.onclick=()=>{LS.path=b.dataset.lsp;save("mjk-lspath",LS.path);renderLightTest();});
+  view.querySelectorAll("[data-lsh]").forEach(b=>b.onclick=()=>{LGT.harm=b.dataset.lsh;save("mjk-jlharm",LGT.harm);renderLightTest();});
   view.querySelectorAll("[data-lss]").forEach(b=>b.onclick=()=>{LS.snd=b.dataset.lss;save("mjk-lssnd",LS.snd);renderLightTest();});
   $("#lsGo").onclick=async()=>{if(LS.on){lsStop(false);renderLightTest();return;}ltStopAll();LGT.mode=LT.mode||"torch";if(LGT.mode!=="screen"&&!LT.track)await ltTorchOn();lsStart();const b=$("#lsGo");if(b)b.textContent="■ Stop light show";};
   $("#ltCas").onclick=async()=>{const m=LT.mode||"torch";if(m!=="screen"&&!LT.track)await ltTorchOn();ltCascade(m);};
@@ -3760,7 +3762,7 @@ function renderLightTest(){if(teardown){try{teardown();}catch(e){}}home.hidden=t
 function alertLT(t){const r=$("#ltRes");if(r)r.textContent=t;}
 
 /* ===== JOURNEY LIGHT — flashlight / screen flicker that follows the journey's brainwave rate, eases between stages, and flashes with the shatter ===== */
-var LGT={mode:load("mjk-jlight","off"),run:null,mult:load("mjk-jlmult","auto"),music:load("mjk-jlmusic",true)};
+var LGT={mode:load("mjk-jlight","off"),run:null,mult:load("mjk-jlmult","auto"),music:load("mjk-jlmusic",true),harm:load("mjk-jlharm","phi")};
 /* which harmonic of the beat to flicker at: Auto lifts slow stages (delta/theta) up into 8–16 Hz, the range where closed-eye mandala patterns are strongest */
 function lgtMult(hz,cap){const m=LGT.mult;let k;if(m==="auto"){k=1;while(k<4&&hz*k<8)k++;}else k=+m||1;while(k>1&&hz*k>cap)k--;return k;}
 function lgtTorchMax(){const v=+load("mjk-torchmax",0);return v>0?Math.min(60,v):8;}
@@ -3784,13 +3786,17 @@ async function lgtStart(){if(LGT.run||LGT.mode==="off")return;const useT=LGT.mod
     if(!hz){const o=document.getElementById("lgtScr");if(o)o.style.background="#000";if(R.torchOn&&LT.track){R.torchOn=false;LT.track.applyConstraints({advanced:[{torch:false}]}).catch(()=>{});}R.raf=requestAnimationFrame(step);return;}
     R.hz+=(hz-R.hz)*Math.min(1,dt*0.5);if(!R.hz||R.hz<0.5)R.hz=hz;const ramp=Math.min(1,(now-R.t0)/20000);
     let mt=lgtTorchMax(),cap=(useT?mt:30),mul=LGT.src?1:lgtMult(R.hz,cap);R.mul=mul;
-    let ft=R.hz*mul;while(ft>mt)ft/=2;
-    let fs=Math.min(R.hz*mul,30);if(LGT.mode==="both"&&R.hz*mul*PHI<=30)fs=R.hz*mul*PHI;if(LGT.mode==="both"&&R.hz*mul*PHI>30&&R.hz*mul*PHI<=mt)ft=R.hz*mul*PHI;
+    /* harmony between the light rates: unison, octave, fifth, golden ratio — or φ Alternate, gliding between the rate and its golden partner */
+    const B=R.hz*mul,H=LGT.harm||"phi",both=LGT.mode==="both",RAT={unison:1,octave:2,fifth:1.5,phi:PHI};let tA=B,sA=B;
+    if(H==="phiAlt"){const per=8,g=2.5,tt=((now-R.t0)/1000)%(2*per),sm=x=>x*x*(3-2*x),w=tt<per?(tt<g?sm(tt/g):1):(tt-per<g?1-sm((tt-per)/g):0),lim=Math.min(cap,both?Math.max(mt,30):cap),hi=B*PHI<=lim?B*PHI:B/PHI;R.w=w;tA=B+(hi-B)*w;sA=both?B+(hi-B)*(1-w):tA;}
+    else if(both){sA=B*(RAT[H]||PHI);}
+    let ft=tA,fs=Math.min(sA,30);if(both&&H!=="phiAlt"&&sA>30&&sA<=mt){ft=sA;fs=Math.min(B,30);} /* screen can't hold the upper rate: the flashlight takes it */
+    while(ft>mt)ft/=2;
     R.ft=ft;R.fs=fs;R.phT=(R.phT+ft*dt)%1;R.phS=(R.phS+fs*dt)%1;
     const lv=LGT.music&&!LGT.src?level():0.8;R.lv=lv; /* loudness → brightness (screen) and on-time (flashlight) */
     const o=document.getElementById("lgtScr");if(o){const burst=now<R.burst,duty=0.5;const on=burst||R.phS<duty,b=burst?240:Math.round((60+180*lv)*ramp)+15;o.style.background=on?"rgb("+b+","+b+","+b+")":"#000";}
     if(useT&&LT.track&&!R.busy&&ramp>0.25){const duty=LGT.music&&!LGT.src?0.3+0.4*lv:0.5,want=now<R.burst||R.phT<duty;if(want!==R.torchOn){R.busy=true;R.torchOn=want;LT.track.applyConstraints({advanced:[{torch:want}]}).catch(()=>{}).then(()=>{R.busy=false;});}}
-    if(now-(R.paintAt||0)>500){R.paintAt=now;const n=document.getElementById("jLightNow");if(n)n.textContent="Light "+(useT?ft:fs).toFixed(1)+" Hz = journey "+R.hz.toFixed(1)+" Hz × "+mul+(LGT.music&&!LGT.src?" · brightness "+Math.round(lv*100)+"%":"");}
+    if(now-(R.paintAt||0)>500){R.paintAt=now;const n=document.getElementById("jLightNow");if(n)n.textContent="Light "+(LGT.mode==="both"?"🔦 "+ft.toFixed(1)+" + 📱 "+fs.toFixed(1):(useT?ft:fs).toFixed(1))+" Hz = journey "+R.hz.toFixed(1)+" Hz × "+mul+(LGT.harm==="phiAlt"?" · φ glide":"")+(LGT.music&&!LGT.src?" · brightness "+Math.round(lv*100)+"%":"");}
     R.raf=requestAnimationFrame(step);};
   R.raf=requestAnimationFrame(step);}
 function lgtBurst(atAudioTime){const R=LGT.run;if(!R)return;const ms=Math.max(0,(atAudioTime-ac().currentTime)*1000);setTimeout(()=>{if(LGT.run===R)R.burst=performance.now()+450;},ms);}
@@ -13182,7 +13188,7 @@ function renderJourney(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(to
       (opts.note?'':'<div class="actions" style="flex-wrap:wrap">'+(playing?'<button class="btn" id="jPause" style="flex:1 1 55%">'+(paused?"▶ Resume":"⏸ Pause")+'</button><button class="btn ghost" id="jPlay" style="flex:1 1 35%">⏹ End</button>':'<button class="btn" id="jPlay" style="flex:1 1 100%">▶ Begin journey</button>')+'</div>')+(paused?'<div class="site-note" style="text-align:center">Paused at '+fmt(pausedAt)+' — tap Resume to pick up right here.</div>':'')+
       bioPanelHTML()+
       '<div class="rrow2" data-nocz style="margin-top:6px"><span class="rlab">🔦 Light</span><span class="rchips tight">'+[["off","Off"],["torch","Flashlight"],["screen","Screen"],["both","Both"]].map(function(x){return '<button class="rchip sm'+(LGT.mode===x[0]?" sel":"")+'" data-jl="'+x[0]+'">'+x[1]+'</button>';}).join("")+'</span></div>'+
-      (LGT.mode!=="off"?'<div class="rrow2" data-nocz><span class="rlab">Light speed</span><span class="rchips tight">'+[["auto","Auto"],["1","×1"],["2","×2"],["3","×3"],["4","×4"]].map(function(x){return '<button class="rchip sm'+(String(LGT.mult)===x[0]?" sel":"")+'" data-jlm="'+x[0]+'">'+x[1]+'</button>';}).join("")+'<button class="rchip sm'+(LGT.music?" sel":"")+'" id="jlMusic">'+(LGT.music?"🎵 Follows the music":"🎵 Steady brightness")+'</button></span></div><div class="site-note" id="jLightNow" data-nocz style="margin:0 0 4px;font-size:.78rem;color:#7ff0d6"></div>':'')+
+      (LGT.mode!=="off"?'<div class="rrow2" data-nocz><span class="rlab">Light speed</span><span class="rchips tight">'+[["auto","Auto"],["1","×1"],["2","×2"],["3","×3"],["4","×4"]].map(function(x){return '<button class="rchip sm'+(String(LGT.mult)===x[0]?" sel":"")+'" data-jlm="'+x[0]+'">'+x[1]+'</button>';}).join("")+'<button class="rchip sm'+(LGT.music?" sel":"")+'" id="jlMusic">'+(LGT.music?"🎵 Follows the music":"🎵 Steady brightness")+'</button></span></div><div class="rrow2" data-nocz><span class="rlab">Harmony</span><span class="rchips tight">'+(LGT.mode==="both"?[["unison","Unison"],["octave","Octave ×2"],["fifth","Fifth ×1.5"],["phi","φ Golden ×1.618"],["phiAlt","φ Alternate"]]:[["phi","Steady"],["phiAlt","φ Alternate"]]).map(function(x){return '<button class="rchip sm'+(LGT.harm===x[0]||(LGT.mode!=="both"&&x[0]==="phi"&&LGT.harm!=="phiAlt")?" sel":"")+'" data-jlh="'+x[0]+'">'+x[1]+'</button>';}).join("")+'</span></div><div class="site-note" data-nocz style="margin:0 0 4px;font-size:.74rem">'+(LGT.harm==="phiAlt"?(LGT.mode==="both"?"The two lights trade places every 8 s — one on the rate, the other on its golden-ratio partner — gliding between them.":"The light glides to its golden-ratio partner and back every 8 s."):LGT.mode==="both"?"Flashlight on the rate, screen on the chosen interval above it.":"")+'</div><div class="site-note" id="jLightNow" data-nocz style="margin:0 0 4px;font-size:.78rem;color:#7ff0d6"></div>':'')+
       '<div class="site-note" id="jLightNote" data-nocz style="margin:0 0 6px;font-size:.78rem">'+(LGT.mode==="off"?"Flicker light that follows the journey\u2019s brainwave rate. Eyes closed.":LGT.mode==="torch"?"Flashlight follows the journey (holds up to "+lgtTorchMax()+" Hz here; above that it rides the half-rate). Lay the phone face-down near you, eyes closed.":LGT.mode==="screen"?"The screen flickers with the journey. Hold it a little away from closed eyes. Tap the screen to stop the light.":"Flashlight on the journey\u2019s rate, screen one golden-ratio step above \u2014 a light harmony.")+(load("mjk-torchmax",0)?"":" Run 🔦 Light Test once so I know your flashlight\u2019s real speed.")+'</div>'+
       '<div id="jLightWarn"></div>'+
       '<div class="site-note">'+(MEDSPK.on?'🔈 Speaker mode on — no headphones needed.':'🎧 Binaural beats need headphones — or switch to 🔈 Speaker.')+'</div></div>';
@@ -13202,6 +13208,7 @@ function renderJourney(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(to
     $("#jBody").onclick=function(){body=!body;save("mjk-bwbody",body);if(playing)medBodyWave(body,vol);draw();};
     var jsb=$("#jSub");if(jsb)jsb.oninput=function(){MEDSUB=+jsb.value;save("mjk-jsub",MEDSUB);if(MED.subG)MED.subG.gain.setTargetAtTime(MEDSUB*1.667,ac().currentTime,0.1);};
     view.querySelectorAll("#jVibs [data-vib]").forEach(function(b){b.onclick=function(){jVib=b.dataset.vib;save("mjk-jvib",jVib);if(playing){if(jVib==="off")medVibroStop();else medVibroStart(jVib,jVibP,jVibL,carrier);}draw();};});
+    view.querySelectorAll("[data-jlh]").forEach(function(b){b.onclick=function(){LGT.harm=b.dataset.jlh;save("mjk-jlharm",LGT.harm);draw();};});
     view.querySelectorAll("[data-jlm]").forEach(function(b){b.onclick=function(){LGT.mult=b.dataset.jlm==="auto"?"auto":+b.dataset.jlm;save("mjk-jlmult",LGT.mult);draw();};});
     var jlm=$("#jlMusic");if(jlm)jlm.onclick=function(){LGT.music=!LGT.music;save("mjk-jlmusic",LGT.music);draw();};
     view.querySelectorAll("[data-jl]").forEach(function(b){b.onclick=function(){var m=b.dataset.jl;
