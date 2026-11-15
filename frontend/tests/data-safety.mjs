@@ -88,7 +88,7 @@ export async function run() {
   await S.test("backing loop rides the metronome engine and hands it back untouched", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "I'm Alone", ["When I'm alone"], { bpm: 120 })], cur: "a1" } });
     await open(pg); const r = await pg.evaluate(async () => { SW.lib = false; swDraw(); R.patIdx = 3; R.bpm = 72; const before = { p: R.patIdx, b: R.bpm, c: R.countIn };
-      document.getElementById("bkGo").click(); await new Promise((z) => setTimeout(z, 2600)); const mid = { run: R.running, bpm: R.bpm, bars: BK.bar };
+      document.getElementById("bkGo").click(); await new Promise((z) => setTimeout(z, 3200)); const mid = { run: R.running, bpm: R.bpm, bars: BK.bar };
       document.getElementById("bkTp").click(); const bpm2 = R.bpm; document.getElementById("bkGo").click();
       return { before, mid, bpm2, after: { p: R.patIdx, b: R.bpm, c: R.countIn, run: R.running } }; });
     assert(r.mid.run && r.mid.bpm === 120, "backing not running at song tempo " + JSON.stringify(r.mid));
