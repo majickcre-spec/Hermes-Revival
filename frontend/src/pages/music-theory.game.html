@@ -3088,11 +3088,14 @@ function swGen(n,seed,tag,key){const r=swRng(seed*31+n*7+SW_TAGS.indexOf(tag)*10
   return {a:mk(A),b:mk(B),n:m,S:16,src:"auto",sh:shape};}
 /* fit a melody bar to a line's syllables: merge the shortest notes or split the longest ones */
 function swFit(tpl,s){let ns=(tpl||[]).map(n=>({midi:n.midi,step:n.step,len:n.len}));if(!s||!ns.length)return [];
-  while(ns.length>s){let bi=ns.length>1?1:0;for(let i=1;i<ns.length-1;i++)if(ns[i].len<ns[bi].len)bi=i;if(ns.length===1)break;ns[bi-1].len+=ns[bi].len;ns.splice(bi,1);}
+  const wk=n=>n.len+(n.step%4===0?3:0)+(n.step%8===0?3:0);
+  while(ns.length>s){if(ns.length<=2){ns.splice(0,1);continue;}let bi=1;for(let i=1;i<ns.length-1;i++)if(wk(ns[i])<wk(ns[bi]))bi=i;const gap=ns[bi].len;ns.splice(bi,1);if(bi>0&&ns[bi-1]&&ns[bi-1].len<3)ns[bi-1].len=Math.min(ns[bi-1].len+gap,4);}
   while(ns.length<s){let bi=-1;ns.forEach((n,i)=>{if(n.len>=2&&(bi<0||n.len>ns[bi].len))bi=i;});if(bi<0)break;const n=ns[bi],h=Math.floor(n.len/2);ns.splice(bi,1,{midi:n.midi,step:n.step,len:h},{midi:n.midi,step:n.step+h,len:n.len-h});}
   return ns;}
 function swScale(ns,S){const f=swSteps()/(S||16);return ns.map(n=>({midi:n.midi,step:Math.round(n.step*f),len:Math.max(1,Math.round(n.len*f))}));}
-function swLineNotes(song,tag,li,text){const m=song.mel[tag];if(!m)return [];const s=llSylN(text);return swScale(swFit(li%2?m.b:m.a,s),m.S);}
+function swLineNotes(song,tag,li,text){const m=song.mel[tag];if(!m)return [];const s=llSylN(text);
+  const own=song.lnotes&&song.lnotes[tag+"|"+(text||"").trim()];if(own&&own.n&&own.n.length&&(!m.src||m.src==="sung"))return swScale(swFit(own.n,s),own.S);
+  return swScale(swFit(li%2?m.b:m.a,s),m.S);}
 function swTagN(song,tag){const c=[];song.sections.forEach(sec=>{if(sec.tag===tag&&!swTarget(song,sec))sec.lines.forEach(l=>{const n=llSylN(l.t);if(n)c.push(n);});});if(!c.length)return 6;c.sort((p,q)=>p-q);return Math.max(SW_SYL_LO,Math.min(SW_SYL_HI,c[c.length>>1]));}
 function swCands(song,tag){return song.sung[tag]?1:0;}
 function swCand(song,tag,i){const hs=swCands(song,tag);if(hs&&i===0){const m=song.sung[tag];return Object.assign({},m,{label:"Your sung melody"});}const k=i-hs+1;const m=swGen(swTagN(song,tag),k,tag,swKey(song));m.label=(["Arc","Falling","Rising","Wave"][m.sh]||"Shaped")+" melody "+k+" in "+swKeyName(song);m.seed=k;return m;}
@@ -3504,13 +3507,13 @@ function swMelAct(a,sec,el){const song=swSong(),tag=sec.tag,msg=el.querySelector
   if(a==="sing"){swSingMel(song,sec,say);}
   if(a==="singsec"){swSingSec(song,sec);}}
 /* ---- step-sequencer view: where each note sits (pitch × time) and how long it lasts; gold = a note of the chord under it ---- */
-function swRollSvg(ns,S,chordAt,cmp,key){if(!ns||!ns.length)return "";const all=ns.concat(cmp||[]),lo=Math.min(...all.map(n=>n.midi))-1,hi=Math.max(...all.map(n=>n.midi))+1,rows=hi-lo+1,rh=Math.max(6,Math.min(10,72/rows)),H=rows*rh,W=320,cw=W/S;
+function swRollSvg(ns,S,chordAt,cmp,key){if(!ns||!ns.length)return "";const all=ns.concat(cmp||[]),lo=Math.min(...all.map(n=>n.midi))-1,hi=Math.max(...all.map(n=>n.midi))+1,rows=hi-lo+1,rh=Math.max(6,Math.min(10,72/rows)),H=rows*rh,W=320,off=Math.min(0,...all.map(n=>n.step)),cw=W/(S-off);
   const N=key?swKeyNames(key):SW_SHARPN,SC=key&&swKey(key).minor?[0,2,3,5,7,8,10]:[0,2,4,5,7,9,11],root=key?swKey(key).root:0;let g="";
   for(let m=lo;m<=hi;m++){const y=(hi-m)*rh,inKey=SC.indexOf(((m-root)%12+12)%12)>=0;g+='<rect x="0" y="'+y+'" width="'+W+'" height="'+rh+'" fill="'+(inKey?"rgba(255,255,255,.035)":"rgba(0,0,0,.18)")+'"/>';}
-  for(let st=0;st<=S;st++){if(st%4)continue;g+='<line x1="'+st*cw+'" y1="0" x2="'+st*cw+'" y2="'+H+'" stroke="rgba(255,255,255,'+(st%16===0?.35:.12)+')" stroke-width="'+(st%16===0?1:.6)+'"/>';}
-  (cmp||[]).forEach(n=>{g+='<rect x="'+(n.step*cw+.5)+'" y="'+((hi-n.midi)*rh+.5)+'" width="'+Math.max(2,n.len*cw-1)+'" height="'+(rh-1)+'" rx="1.5" fill="none" stroke="rgba(255,255,255,.35)" stroke-dasharray="2 2"/>';});
+  for(let st=0;st<=S;st++){if(st%4)continue;g+='<line x1="'+(st-off)*cw+'" y1="0" x2="'+(st-off)*cw+'" y2="'+H+'" stroke="rgba(255,255,255,'+(st%16===0?.35:.12)+')" stroke-width="'+(st%16===0?1:.6)+'"/>';}
+  (cmp||[]).forEach(n=>{g+='<rect x="'+((n.step-off)*cw+.5)+'" y="'+((hi-n.midi)*rh+.5)+'" width="'+Math.max(2,n.len*cw-1)+'" height="'+(rh-1)+'" rx="1.5" fill="none" stroke="rgba(255,255,255,.35)" stroke-dasharray="2 2"/>';});
   ns.forEach(n=>{const c=chordAt&&chordAt(n.step),ct=c&&c.pcs.indexOf(((n.midi%12)+12)%12)>=0,moved=cmp&&!cmp.some(o=>o.step===n.step&&o.midi===n.midi);
-    g+='<rect x="'+(n.step*cw+.5)+'" y="'+((hi-n.midi)*rh+.5)+'" width="'+Math.max(2,n.len*cw-1)+'" height="'+(rh-1)+'" rx="1.5" fill="'+(ct?"#f4b740":"#b9b2d8")+'"'+(moved?' stroke="#7ff0d6" stroke-width="2"':'')+'/>';});
+    g+='<rect x="'+((n.step-off)*cw+.5)+'" y="'+((hi-n.midi)*rh+.5)+'" width="'+Math.max(2,n.len*cw-1)+'" height="'+(rh-1)+'" rx="1.5" fill="'+(ct?"#f4b740":"#b9b2d8")+'"'+(moved?' stroke="#7ff0d6" stroke-width="2"':'')+'/>';});
   const lab='<text x="2" y="'+(rh-1)+'" font-size="'+Math.min(8,rh)+'" fill="rgba(255,255,255,.55)" font-family="system-ui" font-weight="800">'+N[((hi%12)+12)%12]+'</text><text x="2" y="'+(H-1)+'" font-size="'+Math.min(8,rh)+'" fill="rgba(255,255,255,.55)" font-family="system-ui" font-weight="800">'+N[((lo%12)+12)%12]+'</text>';
   return '<div class="sw-rollwrap"><span class="hi">'+N[(((hi-1)%12)+12)%12]+'</span><svg class="sw-roll" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="height:'+Math.round(H)+'px">'+g+'</svg><span class="lo">'+N[(((lo+1)%12)+12)%12]+'</span></div>';}
 function swLineRoll(song,sec,li){const ln=sec.lines[li];if(!song.mel[sec.tag]||!llSylN(ln.t))return "";const nb=swData().bars||1,ns=swLineNotes(song,sec.tag,li,ln.t);
@@ -3685,14 +3688,17 @@ function swSingSec(song,sec){if(SW.rec){const R=SW.rec;R.done&&R.done();return;}
       if(bi>=maxBars||quiet>=2){R.done();return;}R.raf=requestAnimationFrame(tick);};R.raf=requestAnimationFrame(tick);});}
 /* turn a sung take into lines: notes per bar ≈ syllables per bar; the words are dealt out by syllables, one line per sung bar */
 function swSingFill(song,sec,R,S,s16){const nb=Math.ceil((R.frames.length?R.frames[R.frames.length-1].t:0)/(S*s16));const ns=swGridNotes(R.frames,nb*S,s16);
-  const bars=[];for(let b=0;b<nb;b++){const bn=ns.filter(n=>n.step>=b*S&&n.step<(b+1)*S);if(bn.length)bars.push({b:b,notes:bn.map(n=>({midi:n.midi,step:n.step-b*S,len:Math.min(n.len,(b+1)*S-n.step)}))});}
+  /* a line = a sung phrase: notes split where you breathe (a rest of 3+ sixteenths); a pickup in the last beat of a bar belongs to the next line */
+  const ph=[];let cur=[];ns.forEach(n=>{if(cur.length){const pv=cur[cur.length-1];if(n.step-(pv.step+pv.len)>=3){ph.push(cur);cur=[];}}cur.push(n);});if(cur.length)ph.push(cur);
+  const bars=[];ph.forEach(p=>{const s0=p[0].step;let b=Math.floor(s0/S);if(s0-b*S>=S-3)b++;const notes=p.map(n=>({midi:n.midi,step:n.step-b*S,len:n.len})).filter(n=>n.step>=-4&&n.step<S).map(n=>({midi:n.midi,step:n.step,len:Math.max(1,Math.min(n.len,S-n.step))}));
+    if(!notes.length)return;const last=bars[bars.length-1];if(last&&last.b===b)last.notes=last.notes.concat(notes);else bars.push({b:b,notes:notes});});
   if(!bars.length){SW.data&&swDraw();const e=view.querySelector('.sw-sec[data-sec="'+sec.id+'"] .sw-melbar span');if(e)e.textContent="I couldn't pick out notes — sing louder, closer to the phone."+(song.takes&&song.takes[sec.tag]?" Your voice is saved though — ▶ Take plays it.":"");return;}
   const words=(R.words||"").split(/\s+/).filter(Boolean),wsy=words.map(w=>Math.max(1,llSylN(w))),tot=bars.reduce((x,b)=>x+b.notes.length,0),wt=wsy.reduce((x,y)=>x+y,0);
   const lines=bars.map(()=>[]);let wi=0,cumT=0,cumW=0;bars.forEach((b,k)=>{cumT+=b.notes.length;const goal=k===bars.length-1?wt:Math.round(cumT/tot*wt);while(wi<words.length&&(cumW+wsy[wi]<=goal||(lines[k].length===0&&cumW<goal))){lines[k].push(words[wi]);cumW+=wsy[wi];wi++;}});
   while(wi<words.length)lines[lines.length-1].push(words[wi++]);
   for(let k=0;k<lines.length-1;k++){while(lines[k].length>1&&SW_WEAK[lines[k][lines[k].length-1].toLowerCase().replace(/[^a-z']/g,"")])lines[k+1].unshift(lines[k].pop());}
   let st=sec.lines.findIndex(l=>!l.t.trim());if(st<0)st=sec.lines.length;if(sec.lines.every(l=>!l.t.trim()))st=0;
-  lines.forEach((ws,k)=>{const i=st+k;while(sec.lines.length<=i)sec.lines.push(swLine());if(ws.length)sec.lines[i].t=ws.join(" ");});
+  song.lnotes=song.lnotes||{};lines.forEach((ws,k)=>{const i=st+k;while(sec.lines.length<=i)sec.lines.push(swLine());if(ws.length){sec.lines[i].t=ws.join(" ");song.lnotes[sec.tag+"|"+sec.lines[i].t.trim()]={S:S,n:bars[k].notes};}});
   const A=bars[0].notes,B=(bars[1]||bars[0]).notes;song.sung[sec.tag]={a:A,b:B,n:A.length,S:S,src:"sung"};if(!song.mel[sec.tag])song.mel[sec.tag]=Object.assign({},song.sung[sec.tag],{label:"Your sung melody"});
   SW.active={s:sec.id,l:st};swSave();swDraw();try{unlockAudio();swPlayNotes(A,0.15);}catch(e){}
   const e=view.querySelector('.sw-sec[data-sec="'+sec.id+'"] .sw-melbar span');if(e)e.textContent=(words.length?"Filled "+bars.length+" bar"+(bars.length>1?"s":"")+" from your take ✓":"Got your melody ("+bars.length+" bars) — type the words in.")+" ▶ playing what I heard — ▶ Take replays your voice.";}

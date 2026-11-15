@@ -229,6 +229,21 @@ export async function run() {
     assert(r.undone.takes === 1 && r.undone.mel === r.mid.mel, "undo did not restore the take " + JSON.stringify(r.undone)); await ctx.close();
   });
 
+  await S.test("Sung take → lines follow your phrases (pickups join the next line) and each line plays back where you sang it", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "Only One", [""], { bpm: 90 })], cur: "a1" } });
+    await open(pg); const r = await pg.evaluate(() => { SW.lib = false; swDraw(); const sg = swSong(), sec = sg.sections[0], S = swSteps(), s16 = swS16(), fr = [];
+      const sing = (st, len, m) => { for (let k = 0; k < len * 4; k++) fr.push({ t: (st + k / 4) * s16, m }); };
+      sing(0, 3, 60); sing(4, 4, 62);                       // "it's time" in bar 1
+      sing(14, 1, 64); sing(15, 1, 65); sing(16, 2, 67); sing(18, 2, 65); sing(20, 2, 64); sing(22, 4, 62); // pickup + "I know it's been too long"
+      fr.sort((a, b) => a.t - b.t); for (let t = 26 * s16; t < 32 * s16; t += s16 / 4) fr.push({ t, m: null });
+      swSingFill(sg, sec, { frames: fr, words: "it's time I know it's been too long" }, S, s16);
+      const L = sec.lines.map((l) => l.t).filter(Boolean), n2 = swLineNotes(sg, sec.tag, 1, L[1] || "");
+      return { L, first2: n2.slice(0, 2).map((n) => n.step), n1: swLineNotes(sg, sec.tag, 0, L[0] || "").map((n) => n.step) }; });
+    assert(JSON.stringify(r.L) === JSON.stringify(["it's time", "I know it's been too long"]), "lines split wrong: " + JSON.stringify(r.L));
+    assert(r.first2[0] < 0, "pickup notes lost — line 2 starts at " + JSON.stringify(r.first2)); assert(JSON.stringify(r.n1) === "[0,4]", "line 1 timing moved: " + JSON.stringify(r.n1));
+    await ctx.close();
+  });
+
   await S.test("the app never throws while opening Lyric Lab", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); await open(pg);
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
