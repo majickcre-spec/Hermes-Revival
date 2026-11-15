@@ -794,7 +794,9 @@ function czHTML(id,title,body){return '<div class="czBack" id="'+id+'Bk"></div><
 function czWire(id,isOpen,setOpen,onMode){var sh=document.getElementById(id),bk=document.getElementById(id+"Bk");if(!sh)return;var show=function(v){sh.classList.toggle("on",v);bk.classList.toggle("on",v);setOpen(v);};if(isOpen())show(true);
   var ob=document.getElementById(id+"Btn");if(ob)ob.onclick=function(){show(true);};document.getElementById(id+"X").onclick=function(){show(false);};bk.onclick=function(){show(false);};
   document.querySelectorAll("#"+id+"Mode button").forEach(function(b){b.onclick=function(){setUiMode(b.getAttribute("data-m"));if(onMode)onMode();};});}
-function save(k,v){try{if(k==="majick-active")_AID=v;var p=_pk(k);localStorage.setItem(p||k,JSON.stringify(v));}catch(e){}try{if(typeof cloudPush==="function")cloudPush();}catch(e){}}
+var KTS=null;function ktsGet(){if(!KTS){try{KTS=JSON.parse(localStorage.getItem("majick-kts")||"{}")||{};}catch(e){KTS={};}}return KTS;}
+function ktsTouch(k){ktsGet()[k]=Date.now();try{localStorage.setItem("majick-kts",JSON.stringify(KTS));}catch(e){}}
+function save(k,v){try{if(k==="majick-active")_AID=v;var p=_pk(k);localStorage.setItem(p||k,JSON.stringify(v));if(k!=="majick-active")ktsTouch(p||k);}catch(e){}try{if(typeof cloudPush==="function")cloudPush();}catch(e){}}
 function activeId(){return load("majick-active",null);}
 function activeName(){try{const p=load("majick-profiles",[]).find(x=>x.id===activeId());return p?p.name:null;}catch(e){return null;}}
 function getBeans(){const id=activeId();return id?(load("majick-p-"+id+"-beans",0)||0):0;}
@@ -2975,7 +2977,10 @@ function swData(){if(!SW.data){SW.data=load("mjk-sw",null);
     try{var G=load("mjk-guard",null),now=(SW.data&&SW.data.songs||[]).map(function(x){return x.id;});if(G&&Array.isArray(G.ids)){var miss=G.ids.filter(function(id){return now.indexOf(id)<0;});SW.missing=miss.length;}}catch(e){}}
   let D=SW.data;if(D&&D.click==null)D.click=true;if(!D||!D.songs||!D.songs.length){const old=swFromOld();D=SW.data={v:2,songs:[old||swNewSong("")],cur:null,voice:"piano",bars:1,syl:true,click:true};D.cur=D.songs[0].id;swSave();}else swFix(D);return D;}
 function swSong(){const D=swData();let s=D.songs.find(x=>x.id===D.cur);if(!s){s=D.songs[0];D.cur=s.id;}return s;}
-function swSave(){try{var D=SW.data;if(!D||!D.songs)return;var s=D.songs.find(x=>x.id===D.cur);if(s)s.at=Date.now();var del=SW.deleted||{};
+function swSave(){try{var D=SW.data;if(!D||!D.songs)return;var s=D.songs.find(x=>x.id===D.cur);if(s)s.at=Date.now();D.del=D.del||{};Object.keys(SW.deleted||{}).forEach(function(i){if(!D.del[i])D.del[i]=Date.now();});
+      var disk0=load("mjk-sw",null);if(disk0&&disk0.del)Object.keys(disk0.del).forEach(function(i){if(!D.del[i]||disk0.del[i]>D.del[i])D.del[i]=disk0.del[i];});
+      D.songs=D.songs.filter(function(x){return !(D.del[x.id]&&D.del[x.id]>=(x.at||0));});if(!D.songs.length)D.songs.push(swNewSong(""));if(!D.songs.find(function(x){return x.id===D.cur;}))D.cur=D.songs[0].id;
+      var del=Object.assign({},D.del,SW.deleted||{});
   /* SAFETY 1: another window (e.g. the full-page tab) may have saved songs this window has never seen — keep them */
   var disk=load("mjk-sw",null);if(disk&&Array.isArray(disk.songs))disk.songs.forEach(function(ds){if(!ds||del[ds.id])return;var mine=D.songs.find(x=>x.id===ds.id);
     if(!mine){if(swReal(ds))D.songs.push(ds);}else if(mine!==s&&(ds.at||0)>(mine.at||0)){var ix=D.songs.indexOf(mine);D.songs[ix]=ds;}});
@@ -14579,10 +14584,51 @@ function _api(path,opts){opts=opts||{};opts.headers=opts.headers||{};var t=acctT
 function acctRegister(u,c){return _api("/api/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,code:c})});}
 function acctLogin(u,c){return _api("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,code:c})});}
 function acctLoad(){return _api("/api/state",{});}
-function acctSaveNow(){if(!syncOn()||!acctTok())return Promise.resolve();return _api("/api/state",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:_snapshot()})}).catch(function(){});}
+/* Sync never overwrites: each device pulls the cloud copy, merges it with what it has, and pushes the merged copy.
+   Songs merge song by song (newest edit wins, deletions stick); other settings: newest save wins; missing keys are added, never dropped. */
+function _jp(x){try{return JSON.parse(x);}catch(e){return null;}}
+function _mergeSongs(a,b){a=a||{};b=b||{};var A=a.songs||[],B=b.songs||[],del={};[a.del||{},b.del||{}].forEach(function(d){Object.keys(d).forEach(function(i){if(!del[i]||d[i]>del[i])del[i]=d[i];});});
+  var by={};A.concat(B).forEach(function(s){if(!s||!s.id)return;var o=by[s.id];if(!o||(s.at||0)>(o.at||0))by[s.id]=s;});
+  var songs=Object.keys(by).map(function(i){return by[i];}).filter(function(s){return !(del[s.id]&&del[s.id]>=(s.at||0));});
+  var real=songs.filter(function(s){return typeof swReal==="function"?swReal(s):true;});if(real.length)songs=songs.filter(function(s){return real.indexOf(s)>=0||s.id===a.cur;});
+  var out=Object.assign({},b,a,{songs:songs,del:del});if(!songs.some(function(s){return s.id===out.cur;})&&songs.length)out.cur=songs[0].id;return out;}
+function _mergeState(L,C){L=L||{};C=C||{};var M={},lt=_jp(L["majick-kts"])||{},ct=_jp(C["majick-kts"])||{},kt={};
+  Object.keys(ct).forEach(function(k){kt[k]=ct[k];});Object.keys(lt).forEach(function(k){if(!kt[k]||lt[k]>kt[k])kt[k]=lt[k];});
+  var pdel={};[_jp(L["majick-pdel"])||{},_jp(C["majick-pdel"])||{}].forEach(function(d){Object.keys(d).forEach(function(i){if(!pdel[i]||d[i]>pdel[i])pdel[i]=d[i];});});
+  var pm={};[_jp(C["majick-pmerge"])||{},_jp(L["majick-pmerge"])||{}].forEach(function(d){Object.keys(d).forEach(function(i){pm[i]=d[i];});});
+  /* players: union by id; two players with the same name on one account are the same person — combine them */
+  var pl=[],seen={};(_jp(L["majick-profiles"])||[]).concat(_jp(C["majick-profiles"])||[]).forEach(function(p){if(!p||!p.id||seen[p.id]||pdel[p.id])return;seen[p.id]=1;pl.push(p);});
+  var byName={};pl.forEach(function(p){var n=String(p.name||"").trim().toLowerCase();if(!n)return;if(!byName[n]||p.id<byName[n].id)byName[n]=p;});
+  pl.forEach(function(p){var n=String(p.name||"").trim().toLowerCase(),k=byName[n];if(k&&k.id!==p.id)pm[p.id]=k.id;});
+  var root=function(id){var g=0;while(pm[id]&&g++<10)id=pm[id];return id;};
+  pl=pl.filter(function(p){return root(p.id)===p.id;});
+  var remap=function(k){var m=/^(music-|majick-p-)([^-]+)-(.*)$/.exec(k);if(!m)return k;if(pdel[m[2]])return null;var r=root(m[2]);return r===m[2]?k:m[1]+r+"-"+m[3];};
+  var put=function(k,v,t){var o=M[k];if(o===undefined){M[k]=v;if(t)kt[k]=Math.max(kt[k]||0,t);return;}
+    if(/:mjk-sw$/.test(k)){M[k]=JSON.stringify(_mergeSongs(_jp(o),_jp(v)));return;}
+    if(/:mjk-guard$/.test(k)){var x=_jp(o)||{},y=_jp(v)||{};M[k]=JSON.stringify({ids:Array.from(new Set((x.ids||[]).concat(y.ids||[]))),at:Math.max(x.at||0,y.at||0)});return;}
+    if((t||0)>(M.__t[k]||0)){M[k]=v;}};
+  M.__t={};
+  var feed=function(S,T,local){Object.keys(S).forEach(function(k0){if(!_syncable(k0)||k0==="majick-kts"||k0==="majick-pdel"||k0==="majick-pmerge"||k0==="majick-profiles")return;if(k0==="majick-active"&&!local)return;
+    var k=remap(k0);if(!k)return;var t=T[k0]||0;if(M[k]===undefined)M.__t[k]=t;put(k,S[k0],t);if((t||0)>=(M.__t[k]||0))M.__t[k]=t;});};
+  feed(L,lt,true);feed(C,ct,false);delete M.__t;
+  if(M["majick-active"]){var a=_jp(M["majick-active"]);if(a&&root(a)!==a)M["majick-active"]=JSON.stringify(root(a));if(a&&pdel[a])delete M["majick-active"];}
+  M["majick-profiles"]=JSON.stringify(pl);M["majick-kts"]=JSON.stringify(kt);M["majick-pdel"]=JSON.stringify(pdel);M["majick-pmerge"]=JSON.stringify(pm);return M;}
+function _applyMerged(M){var changed=[];Object.keys(M).forEach(function(k){if(!_syncable(k))return;var cur=null;try{cur=localStorage.getItem(k);}catch(e){}if(cur!==M[k]){try{localStorage.setItem(k,M[k]);changed.push(k);}catch(e){}}});
+  _syncKeys().forEach(function(k){if(M[k]===undefined&&/^(music-|majick-p-)/.test(k)){var m=/^(music-|majick-p-)([^-]+)-/.exec(k),pm=_jp(M["majick-pmerge"])||{},pd=_jp(M["majick-pdel"])||{};if(m&&(pm[m[2]]||pd[m[2]])){try{localStorage.removeItem(k);changed.push(k);}catch(e){}}}});
+  KTS=null;_AID=undefined;
+  try{if(typeof SW!=="undefined"&&SW.data&&changed.some(function(k){return /:mjk-sw$/.test(k);})){var disk=load("mjk-sw",null);if(disk&&disk.songs){var D=SW.data,cur=D.cur;var mg=_mergeSongs(D,disk);mg.cur=cur;SW.data=Object.assign(D,mg);if(!view.hidden&&SW.lib&&typeof swDraw==="function")swDraw();}}}catch(e){}
+  return changed;}
+var _syncing=null,_syncAgain=false;
+function acctSync(){if(!syncOn()||!acctTok())return Promise.resolve();if(_syncing){_syncAgain=true;return _syncing;}
+  _syncing=acctLoad().then(function(st){var M=_mergeState(_snapshot(),(st&&st.data)||{});_applyMerged(M);
+    return _api("/api/state",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:M})});}).catch(function(){}).then(function(){_syncing=null;if(_syncAgain){_syncAgain=false;return acctSync();}});
+  return _syncing;}
+function acctSaveNow(){return acctSync();}
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")setTimeout(function(){try{acctSync();}catch(e){}},400);});
+setTimeout(function(){try{acctSync();}catch(e){}},1500);
 var _pushT=null;
 function cloudPush(){if(!syncOn()||!acctTok())return;if(_pushT)clearTimeout(_pushT);_pushT=setTimeout(function(){_pushT=null;acctSaveNow();},1600);}
-function acctSignIn(mode,u,c){var p=(mode==="register")?acctRegister(u,c):acctLogin(u,c);return p.then(function(res){setAcct(res.token,res.username||u);return acctLoad().then(function(st){var data=(st&&st.data)?st.data:{};if(data&&Object.keys(data).length){_restore(data);return {name:res.username||u,pulled:true};}return acctSaveNow().then(function(){return {name:res.username||u,pulled:false};});});});}
+function acctSignIn(mode,u,c){var p=(mode==="register")?acctRegister(u,c):acctLogin(u,c);return p.then(function(res){setAcct(res.token,res.username||u);return acctLoad().then(function(st){var data=(st&&st.data)?st.data:{},had=!!(data&&Object.keys(data).length);return acctSync().then(function(){return {name:res.username||u,pulled:had};});});});}
 (function(){try{var s=document.createElement("style");s.textContent="#cloudBar{margin:20px auto 0;max-width:420px}.cloudnote{font-size:.82rem;color:var(--muted);text-align:center;line-height:1.55}.cloudnote a{color:var(--muted)}.cloudtabs{display:flex;gap:6px;margin-bottom:10px}.ctab{flex:1;padding:.5rem;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:transparent;color:var(--muted);cursor:pointer;font-size:.86rem}.ctab.sel{background:rgba(52,224,198,.18);color:#fff;border-color:rgba(52,224,198,.5)}";document.head.appendChild(s);}catch(e){}})();
 function renderCloudBar(){var el=$("#cloudBar");if(!el)return;
   if(!syncOn()){el.innerHTML='<div class="cloudnote">On the full site you can create an account to sync your players across devices.</div>';return;}
@@ -14638,7 +14684,7 @@ function renderGate(){
   add.onclick=showCreate;list.appendChild(add);
   renderCloudBar();
 }
-function deletePlayer(id){const keep=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&(k.indexOf("majick-p-"+id+"-")===0||k.indexOf("music-"+id+"-")===0))keep.push(k);}keep.forEach(k=>{try{localStorage.removeItem(k);}catch(e){}});
+function deletePlayer(id){try{const pd=load("majick-pdel",{});pd[id]=Date.now();save("majick-pdel",pd);}catch(e){}const keep=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&(k.indexOf("majick-p-"+id+"-")===0||k.indexOf("music-"+id+"-")===0))keep.push(k);}keep.forEach(k=>{try{localStorage.removeItem(k);}catch(e){}});
   setProfiles(getProfiles().filter(x=>x.id!==id));if(activeId()===id){try{localStorage.removeItem("majick-active");}catch(e){}_AID=undefined;}try{cloudPush();}catch(e){}}
 function confirmDeletePlayer(p){const f=$("#gateForm");if(!f)return;
   f.innerHTML=`<div class="unlock"><div class="ulabel">Remove <b>${esc(p.name)}</b>?</div><div class="site-note" style="text-align:center;margin:4px 0 10px">This deletes ${esc(p.name)}'s progress and beans on this device${acctTok&&acctTok()?" and in your synced account":""}. It can't be undone.</div><div class="actions"><button class="btn ghost" id="pdNo">Cancel</button><button class="btn" id="pdYes" style="background:#e2554f;border-color:#e2554f">Remove ${esc(p.name)}</button></div></div>`;
