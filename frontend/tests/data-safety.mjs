@@ -304,6 +304,15 @@ export async function run() {
     await ctx.close();
   });
 
+  await S.test("Light show: cascades through the chosen rates for the chosen length, gliding between steps; Stop ends it", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(async () => { renderLightTest(); document.getElementById("ltAck").click(); LT.mode = "screen"; renderLightTest();
+      document.querySelector('[data-lsl="5"]').click(); document.querySelector('[data-lsp="climb"]').click(); document.getElementById("lsGo").click(); await new Promise((z) => setTimeout(z, 400));
+      const a = lsHz(), ov = !!document.getElementById("lgtScr"); LS.t0 -= 66000; const mid = lsHz(); LS.t0 -= 10000; const b = lsHz(); LS.t0 -= 120000; const c = lsHz();
+      document.getElementById("lsStopB").click(); return { a, ov, mid, b, c, off: !LS.on && !document.getElementById("lgtScr") }; });
+    assert(r.ov && Math.abs(r.a - 2.99) < 0.01, "show did not start on the first rate " + JSON.stringify(r)); assert(r.mid > 2.99 && r.mid < 4.84, "no glide between steps " + r.mid);
+    assert(Math.abs(r.b - 4.84) < 0.01 && Math.abs(r.c - 12.67) < 0.01, "cascade steps wrong " + JSON.stringify(r)); assert(r.off, "Stop did not end the show"); await ctx.close();
+  });
+
   await S.test("the app never throws while opening Lyric Lab", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); await open(pg);
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();

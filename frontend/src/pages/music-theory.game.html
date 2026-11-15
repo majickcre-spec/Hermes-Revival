@@ -3678,7 +3678,7 @@ function ltTargets(){const car=(typeof eresCar==="function"?eresCar():163.5),T=[
   [32,16,8].forEach(d=>T.push({hz:+(car/d).toFixed(2),g:"Your heart note "+car+" Hz",n:"÷"+d}));
   T.push({hz:10,g:"Classic",n:"alpha 10"},{hz:40,g:"Classic",n:"gamma 40"});return T;}
 function ltStopAll(){const R=LT.run;LT.run=null;if(R){R.stop=true;clearTimeout(R.tm);if(R.raf)cancelAnimationFrame(R.raf);}const sc=document.getElementById("ltScreen");if(sc)sc.remove();if(LT.track)try{LT.track.applyConstraints({advanced:[{torch:false}]});}catch(e){}ltPaintRun();}
-function ltRelease(){ltStopAll();try{if(LT.track){LT.track.stop();}}catch(e){}LT.track=null;}
+function ltRelease(){try{lsStop(false);}catch(e){}ltStopAll();try{if(LT.track){LT.track.stop();}}catch(e){}LT.track=null;}
 async function ltTorchOn(){if(LT.track)return true;try{const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},frameRate:{ideal:60},width:{ideal:320}}});const tr=st.getVideoTracks()[0];LT.track=tr;LT.stream=st;
     let caps={};try{caps=tr.getCapabilities?tr.getCapabilities():{};}catch(e){}LT.capTorch=!!caps.torch;await tr.applyConstraints({advanced:[{torch:true}]});return true;}catch(e){LT.err=String(e&&e.message||e);return false;}}
 /* toggle speed: how long one on/off request takes, measured over 24 switches */
@@ -3729,8 +3729,14 @@ function renderLightTest(){if(teardown){try{teardown();}catch(e){}}home.hidden=t
   <h4 style="margin:10px 0 4px">What it can match</h4>
   <table class="lt-tab"><tr><th>Rate</th><th>Target</th><th>🔦</th><th>📱</th><th></th></tr>${rows}</table>
   <div class="actions" style="margin-top:10px"><button class="btn ghost" id="ltCas">🌀 Cascade 4.84 → 7.83 → 12.67</button><button class="btn ghost" id="ltHar">✨ Harmony: 🔦 7.83 + 📱 12.67</button></div>
-  <div class="rrow2" style="margin-top:6px"><span class="rlab">Play on</span><span class="rchips tight">${[["torch","🔦 Flashlight"],["screen","📱 Screen"],["both","Both"]].map(x=>'<button class="rchip sm'+((LT.mode||"torch")===x[0]?" sel":"")+'" data-ltm="'+x[0]+'">'+x[1]+'</button>').join("")}</span></div>
-  <div class="site-note" style="margin-top:6px">Each try runs 10 seconds. Tap ■ Stop (or anywhere on the flashing screen) to end it.</div>`:""}
+  <div class="rrow2" data-nocz style="margin-top:6px"><span class="rlab">Play on</span><span class="rchips tight">${[["torch","🔦 Flashlight"],["screen","📱 Screen"],["both","Both"]].map(x=>'<button class="rchip sm'+((LT.mode||"torch")===x[0]?" sel":"")+'" data-ltm="'+x[0]+'">'+x[1]+'</button>').join("")}</span></div>
+  <div class="site-note" style="margin-top:6px">Each try runs 10 seconds. Tap ■ Stop (or anywhere on the flashing screen) to end it.</div>
+  <h4 style="margin:16px 0 4px">✨ Light show</h4><div class="site-note" style="margin:0 0 6px">A cascade of light on its own — no meditation. Lie back, eyes closed. Uses the light you picked above (${{torch:"🔦 Flashlight",screen:"📱 Screen",both:"Both"}[LT.mode||"torch"]}).</div>
+  <div class="rrow2" data-nocz><span class="rlab">Length</span><span class="rchips tight">${[5,10,15,20].map(n=>'<button class="rchip sm'+(LS.len===n?" sel":"")+'" data-lsl="'+n+'">'+n+' min</button>').join("")}</span></div>
+  <div class="rrow2" data-nocz><span class="rlab">Cascade</span><span class="rchips tight">${Object.entries(lsPaths()).map(([k,P])=>'<button class="rchip sm'+(LS.path===k?" sel":"")+'" data-lsp="'+k+'">'+P.n+'</button>').join("")}</span></div>
+  <div class="site-note" style="margin:0 0 6px">${(lsPaths()[LS.path]||lsPaths().climb).d} · ${(lsPaths()[LS.path]||lsPaths().climb).s.join(" → ")} Hz</div>
+  <div class="rrow2" data-nocz><span class="rlab">Sound</span><span class="rchips tight">${[["off","Silent"],["pulse","Pulse tone"]].map(x=>'<button class="rchip sm'+(LS.snd===x[0]?" sel":"")+'" data-lss="'+x[0]+'">'+x[1]+'</button>').join("")}</span></div>
+  <div class="actions"><button class="btn" id="lsGo">${LS.on?"■ Stop light show":"▶ Start light show"}</button></div><div id="lsLive"></div>`:""}
   </div>`;
   $("#ltBack").onclick=()=>{ltRelease();goHome();};
   if($("#ltAck"))$("#ltAck").onclick=()=>{LT.ack=true;renderLightTest();};
@@ -3744,6 +3750,10 @@ function renderLightTest(){if(teardown){try{teardown();}catch(e){}}home.hidden=t
   $("#ltScr").onclick=async()=>{LT.refresh=await ltMeasureRefresh();renderLightTest();};
   view.querySelectorAll("[data-ltm]").forEach(b=>b.onclick=()=>{LT.mode=b.dataset.ltm;renderLightTest();});
   view.querySelectorAll("[data-lt]").forEach(b=>b.onclick=async()=>{const t=T[+b.dataset.lt],m=LT.mode||"torch";if(m!=="screen"&&!LT.track){const ok=await ltTorchOn();if(!ok&&m==="torch"){alertLT("Flashlight isn't available here — switch Play on to Screen.");return;}}ltRun(t.hz,m,10,t.n+" · "+t.hz+" Hz");});
+  view.querySelectorAll("[data-lsl]").forEach(b=>b.onclick=()=>{LS.len=+b.dataset.lsl;save("mjk-lslen",LS.len);renderLightTest();});
+  view.querySelectorAll("[data-lsp]").forEach(b=>b.onclick=()=>{LS.path=b.dataset.lsp;save("mjk-lspath",LS.path);renderLightTest();});
+  view.querySelectorAll("[data-lss]").forEach(b=>b.onclick=()=>{LS.snd=b.dataset.lss;save("mjk-lssnd",LS.snd);renderLightTest();});
+  $("#lsGo").onclick=async()=>{if(LS.on){lsStop(false);renderLightTest();return;}ltStopAll();LGT.mode=LT.mode||"torch";if(LGT.mode!=="screen"&&!LT.track)await ltTorchOn();lsStart();const b=$("#lsGo");if(b)b.textContent="■ Stop light show";};
   $("#ltCas").onclick=async()=>{const m=LT.mode||"torch";if(m!=="screen"&&!LT.track)await ltTorchOn();ltCascade(m);};
   $("#ltHar").onclick=async()=>{if(!LT.track)await ltTorchOn();ltHarmony();};
   ltPaintRun();}
@@ -3752,7 +3762,7 @@ function alertLT(t){const r=$("#ltRes");if(r)r.textContent=t;}
 /* ===== JOURNEY LIGHT — flashlight / screen flicker that follows the journey's brainwave rate, eases between stages, and flashes with the shatter ===== */
 var LGT={mode:load("mjk-jlight","off"),run:null};
 function lgtTorchMax(){const v=+load("mjk-torchmax",0);return v>0?Math.min(60,v):8;}
-function lgtHz(){try{const J=MED.jSess;if(J&&J.paused)return null;return MED.planHz?MED.planHz():null;}catch(e){return null;}}
+function lgtHz(){try{if(LGT.src)return LGT.src();const J=MED.jSess;if(J&&J.paused)return null;return MED.planHz?MED.planHz():null;}catch(e){return null;}}
 function lgtStop(msg){const R=LGT.run;LGT.run=null;if(R){R.stop=true;clearTimeout(R.tm);if(R.raf)cancelAnimationFrame(R.raf);}const o=document.getElementById("lgtScr");if(o)o.remove();
   try{if(LT.track)LT.track.applyConstraints({advanced:[{torch:false}]});}catch(e){}if(msg){const n=document.getElementById("jLightNote");if(n)n.textContent=msg;}}
 async function lgtStart(){if(LGT.run||LGT.mode==="off")return;const useT=LGT.mode==="torch"||LGT.mode==="both",useS=LGT.mode==="screen"||LGT.mode==="both";
@@ -3760,7 +3770,7 @@ async function lgtStart(){if(LGT.run||LGT.mode==="off")return;const useT=LGT.mod
   const R=LGT.run={stop:false,t0:performance.now(),phT:0,phS:0,last:performance.now(),torchOn:false,busy:false,burst:0,hz:0};const LIMIT=45*60*1000;
   if(useS){const o=document.createElement("div");o.id="lgtScr";o.style.cssText="position:fixed;inset:0;z-index:2147483500;background:#000;";
     o.innerHTML='<div style="position:absolute;left:0;right:0;bottom:calc(18px + env(safe-area-inset-bottom));text-align:center"><span style="display:inline-block;padding:10px 18px;border-radius:999px;background:#000;color:#f4b740;border:1px solid #f4b740;font:800 .9rem system-ui">Tap anywhere to stop the light</span></div>';
-    o.onclick=()=>{LGT.mode="off";save("mjk-jlight","off");lgtStop("Light off.");try{const b=document.querySelectorAll("[data-jl]");b.forEach(x=>x.classList.toggle("sel",x.dataset.jl==="off"));}catch(e){}};document.body.appendChild(o);}
+    o.onclick=()=>{if(LS.on){lsStop(false);return;}LGT.mode="off";save("mjk-jlight","off");lgtStop("Light off.");try{const b=document.querySelectorAll("[data-jl]");b.forEach(x=>x.classList.toggle("sel",x.dataset.jl==="off"));}catch(e){}};document.body.appendChild(o);}
   /* one clock for both lights: phases advance with the journey's rate, so changes glide instead of jumping */
   const step=()=>{if(R.stop)return;const now=performance.now(),dt=(now-R.last)/1000;R.last=now;const hz=lgtHz();
     if(now-R.t0>LIMIT){LGT.mode="off";save("mjk-jlight","off");lgtStop("Light stopped after 45 minutes — give your eyes a rest.");return;}
@@ -3773,7 +3783,23 @@ async function lgtStart(){if(LGT.run||LGT.mode==="off")return;const useT=LGT.mod
     R.raf=requestAnimationFrame(step);};
   R.raf=requestAnimationFrame(step);}
 function lgtBurst(atAudioTime){const R=LGT.run;if(!R)return;const ms=Math.max(0,(atAudioTime-ac().currentTime)*1000);setTimeout(()=>{if(LGT.run===R)R.burst=performance.now()+450;},ms);}
-document.addEventListener("visibilitychange",()=>{if(document.hidden&&LGT.run)lgtStop();else if(!document.hidden&&LGT.mode!=="off"&&MED.jSess&&!LGT.run)lgtStart();});
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&LGT.run)lgtStop();else if(!document.hidden&&LGT.mode!=="off"&&(MED.jSess||LS.on)&&!LGT.run)lgtStart();});
+/* ===== LIGHT SHOW — a cascade of light rates on its own, no meditation; optional pulse tone at the same rate ===== */
+var LS={on:false,len:load("mjk-lslen",5),path:load("mjk-lspath","climb"),snd:load("mjk-lssnd","off"),t0:0,steps:null,tm:null,au:null};
+function lsPaths(){const mx=lgtTorchMax();return {climb:{n:"φ climb",d:"Rises up the golden-ratio ladder: theta → Schumann → alpha → beta",s:[2.99,4.84,7.83,12.67,20.5].concat(mx>=33?[33.17]:[])},
+  descent:{n:"φ descent",d:"Winds down: beta → alpha → Schumann → theta → deep",s:[20.5,12.67,7.83,4.84,2.99]},
+  wave:{n:"Wave",d:"Up and back down twice, settling on Schumann",s:[7.83,12.67,20.5,12.67,7.83,4.84,7.83]},
+  gamma:{n:"Gamma peak",d:mx>=40?"Climbs to gamma 40 on the flashlight, then eases back to alpha":"Needs a flashlight verified to 40 Hz — climbs as high as yours can",s:[7.83,12.67,20.5].concat(mx>=40?[40]:mx>=30?[30]:[]).concat([20.5,10])}};}
+function lsHz(){if(!LS.on)return null;const el=(performance.now()-LS.t0)/1000,D=LS.len*60,S=LS.steps,seg=D/S.length,i=Math.min(S.length-1,Math.floor(el/seg)),inn=el-i*seg,gl=Math.min(12,seg*0.25);
+  if(el>=D){lsStop(true);return null;}if(i>0&&inn<gl){const a=S[i-1],b=S[i],x=inn/gl;return a+(b-a)*(x*x*(3-2*x));}return S[i];}
+function lsSound(on){try{if(LS.au){const A=LS.au;A.g.gain.setTargetAtTime(0,ac().currentTime,0.3);setTimeout(()=>{try{A.o.stop();A.l.stop();}catch(e){}},900);LS.au=null;}if(!on)return;
+  const a=ac(),car=(typeof eresCar==="function"?eresCar():163.5),o=a.createOscillator(),l=a.createOscillator(),lg=a.createGain(),vca=a.createGain(),g=a.createGain();o.frequency.value=car;l.type="square";l.frequency.value=4;lg.gain.value=0.5;vca.gain.value=0.5;
+  l.connect(lg);lg.connect(vca.gain);o.connect(vca);vca.connect(g);g.gain.value=0;g.connect(a.destination);o.start();l.start();g.gain.setTargetAtTime(0.18,a.currentTime,2);LS.au={o:o,l:l,g:g};}catch(e){}}
+function lsStart(){if(LS.on)return;const P=lsPaths()[LS.path]||lsPaths().climb;LS.steps=P.s;LS.on=true;LS.t0=performance.now();LGT.src=lsHz;if(LGT.mode==="off")LGT.mode=LT.mode||"torch";lgtStop();lgtStart();
+  if(LS.snd==="pulse"){unlockAudio();lsSound(true);}const upd=()=>{if(!LS.on)return;const hz=lsHz();if(LS.au&&hz)LS.au.l.frequency.setTargetAtTime(hz,ac().currentTime,0.2);lsPaint();LS.tm=setTimeout(upd,250);};upd();}
+function lsStop(done){if(!LS.on)return;LS.on=false;clearTimeout(LS.tm);LGT.src=null;lgtStop();lsSound(false);try{LGT.mode=load("mjk-jlight","off");}catch(e){}const el=document.getElementById("lsLive");if(el)el.innerHTML=done?'<div class="lt-res">✨ Light show complete.</div>':"";}
+function lsPaint(){const el=document.getElementById("lsLive");if(!el||!LS.on)return;const D=LS.len*60,e=(performance.now()-LS.t0)/1000,hz=lsHz(),f=s=>Math.floor(s/60)+":"+String(Math.floor(s%60)).padStart(2,"0");
+  el.innerHTML='<div class="lt-live"><span>✨ <b>'+(hz?hz.toFixed(2):"–")+' Hz</b> · '+f(Math.max(0,D-e))+' left</span><button class="rchip sm" id="lsStopB">■ Stop</button></div>';const b=document.getElementById("lsStopB");if(b)b.onclick=()=>lsStop(false);}
 function swShareFile(blob,name){try{const f=new File([blob],name,{type:blob.type});if(navigator.canShare&&navigator.canShare({files:[f]})&&/iPhone|iPad|Android/i.test(navigator.userAgent)){navigator.share({files:[f],title:name}).catch(()=>{});return;}}catch(e){}
   const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);}
 /* sing a whole section in: count-in, click on every beat, it listens bar by bar (stop when done, or it stops after
