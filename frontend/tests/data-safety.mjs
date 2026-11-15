@@ -293,6 +293,17 @@ export async function run() {
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
   });
 
+  await S.test("Journey light: safety warning first, screen flicker follows the journey's rate, stops with the journey", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(async () => { renderJourney(); await new Promise((z) => setTimeout(z, 300));
+      document.querySelector('[data-jl="screen"]').click(); const warn = !!document.getElementById("jLightOk") && !document.getElementById("lgtScr"); document.getElementById("jLightOk").click();
+      unlockAudio(); await ac().resume(); document.getElementById("jPlay").click(); await new Promise((z) => setTimeout(z, 2500));
+      const o = document.getElementById("lgtScr"); let flips = 0, last = null; const t0 = performance.now();
+      await new Promise((res) => { const f = () => { const on = o && o.style.background !== "rgb(0, 0, 0)" && o.style.background !== "#000"; if (on !== last) { flips++; last = on; } if (performance.now() - t0 < 3000) requestAnimationFrame(f); else res(); }; f(); });
+      const hz = MED.planHz(), meas = flips / 2 / 3; medStop(); return { warn, hz, meas, gone: !document.getElementById("lgtScr") }; });
+    assert(r.warn, "light came on without the safety warning"); assert(Math.abs(r.meas - r.hz) < 0.6, "light rate " + r.meas + " vs journey " + r.hz); assert(r.gone, "light kept going after the journey stopped");
+    await ctx.close();
+  });
+
   await S.test("the app never throws while opening Lyric Lab", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); await open(pg);
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
