@@ -285,6 +285,14 @@ export async function run() {
     assert(r.on === 7 && r.off === 0, "groove pattern toggle wrong " + JSON.stringify(r)); assert(r.key === "G major" && /^G/.test(r.bar), "key change failed " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Light Test: safety warning first; screen flicker hits the asked rate; Stop ends it", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(async () => { renderLightTest(); const warn = !!document.getElementById("ltAck") && !document.getElementById("ltTorch");
+      document.getElementById("ltAck").click(); LT.mode = "screen"; renderLightTest(); document.querySelector('[data-lt="4"]').click(); await new Promise((z) => setTimeout(z, 2500));
+      const R = LT.run, hz = R.flips / 2 / ((performance.now() - R.t0) / 1000); document.querySelector("#ltScreen button").click(); return { warn, hz, gone: !document.getElementById("ltScreen") && !LT.run }; });
+    assert(r.warn, "flicker started without the safety warning"); assert(Math.abs(r.hz - 12.67) < 0.8, "screen flicker rate off: " + r.hz); assert(r.gone, "Stop did not end the flicker");
+    assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
+  });
+
   await S.test("the app never throws while opening Lyric Lab", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); await open(pg);
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
