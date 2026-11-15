@@ -47,6 +47,9 @@ More get added as Travis finds issues (keep this file and the project doc `claud
 When asked to revise an instrument, revise the whole section — every screen and practice mode inside it — not just the main screen.
 
 ## How to test before calling a build done
+0. **Pre-flight (required before every push):** `cd frontend && npm run preflight` — builds, syntax-checks every inline script, writes a state baseline, runs the smoke suite (every main screen, portrait + landscape) and the data-safety regression suite (user work is never lost). If it fails, do not push.
+   **Post-flight (after Railway deploys):** `cd frontend && npm run postflight` — confirms the live site serves the pushed commit and key screens open without errors.
+   **Never ship a change that can overwrite or drop user data without a test in `frontend/tests/data-safety.mjs` proving it can't.**
 1. Syntax-check the built app (`node --check` on the inline script) before every push.
 2. Screenshot every screen touched at phone size (390×844 portrait and 844×390 landscape), as the player.
 3. Answer all 27 questions for each screen; fix what fails before reporting.
