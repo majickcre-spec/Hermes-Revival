@@ -276,6 +276,15 @@ export async function run() {
     assert(!r.after, "groove kept going after Stop"); await ctx.close();
   });
 
+  await S.test("Backing options: any key, 11 progressions with numbers, and a groove pattern you can show/hide", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "T", ["x"], { key: { root: 0, minor: false }, prog: { Verse: 0 }, bk: { g: "g_funk" } })], cur: "a1" } });
+    await open(pg); const r = await pg.evaluate(() => { SW.lib = false; swDraw(); const n = document.querySelectorAll("[data-bkp]").length, nums = (document.querySelector("[data-bkp]") || {}).textContent || "";
+      document.getElementById("bkGInfo").click(); const on = document.querySelectorAll(".bk-ggr span.on").length; document.getElementById("bkGInfo").click(); const off = document.querySelectorAll(".bk-ggr").length;
+      document.querySelector('[data-bkk="7"]').click(); return { n, nums, on, off, key: swKeyName(swSong()), bar: document.getElementById("bkCh").textContent }; });
+    assert(r.n === 11, "progression choices: " + r.n); assert(/I–V–vi–IV · 1-5-6-4/.test(r.nums), "numbers missing: " + r.nums);
+    assert(r.on === 7 && r.off === 0, "groove pattern toggle wrong " + JSON.stringify(r)); assert(r.key === "G major" && /^G/.test(r.bar), "key change failed " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("the app never throws while opening Lyric Lab", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); await open(pg);
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
