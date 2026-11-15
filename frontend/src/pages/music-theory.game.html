@@ -2964,7 +2964,29 @@ function swFromOld(){try{const o=load("mjk-llsong",null);if(!o||!Array.isArray(o
 function swFix(D){(D.songs||[]).forEach(s=>{if(!s.key)s.key={root:0,minor:false};if(!s.prog)s.prog={};if(!s.rhyme)s.rhyme={};if(s.rhymeAll==null)s.rhymeAll="free";});if(D.v===2)return D;(D.songs||[]).forEach(s=>{s.topic=s.topic||"";s.mel=s.mel||{};s.sung=s.sung||{};if(s.setup==null)s.setup=true;(s.sections||[]).forEach(sec=>{sec.same=sec.same||null;sec.lines=(sec.lines||[]).map(l=>swLine(l&&l.t));});});D.bars=1;D.v=2;delete D.alt;return D;}
 function swData(){if(!SW.data)SW.data=load("mjk-sw",null);let D=SW.data;if(D&&D.click==null)D.click=true;if(!D||!D.songs||!D.songs.length){const old=swFromOld();D=SW.data={v:2,songs:[old||swNewSong("")],cur:null,voice:"piano",bars:1,syl:true,click:true};D.cur=D.songs[0].id;swSave();}else swFix(D);return D;}
 function swSong(){const D=swData();let s=D.songs.find(x=>x.id===D.cur);if(!s){s=D.songs[0];D.cur=s.id;}return s;}
-function swSave(){try{var D=SW.data;if(D&&D.songs){var s=D.songs.find(x=>x.id===D.cur);if(s)s.at=Date.now();}save("mjk-sw",SW.data);}catch(e){}}
+function swSave(){try{var D=SW.data;if(D&&D.songs){var s=D.songs.find(x=>x.id===D.cur);if(s)s.at=Date.now();}save("mjk-sw",SW.data);swBackup();}catch(e){}}
+function swReal(s){return !!(s&&(s.title||(s.sections||[]).some(sec=>(sec.lines||[]).some(l=>l&&l.t&&l.t.trim()))));}
+var _swBakT=null;
+function swBackup(){clearTimeout(_swBakT);_swBakT=setTimeout(function(){try{var D=SW.data;if(!D||!D.songs)return;var real=D.songs.filter(swReal);if(!real.length)return;var snap=JSON.stringify(real);
+  idbGet("swbak").then(function(arr){arr=Array.isArray(arr)?arr:[];if(arr.length&&arr[arr.length-1].j===snap)return;arr.push({at:Date.now(),prof:(typeof activeId==="function"?activeId():""),j:snap});while(arr.length>20)arr.shift();return idbPut("swbak",arr);}).catch(function(){});}catch(e){}},2500);
+  try{if(navigator.storage&&navigator.storage.persist&&!swBackup.p){swBackup.p=1;navigator.storage.persist();}}catch(e){}}
+/* FIND MY SONGS — searches every profile saved on this device, older Lyric Lab saves, and the automatic backups */
+function swScanAll(){var found=[],seen={},profs={};try{(JSON.parse(localStorage.getItem("majick-profiles")||"[]")||[]).forEach(function(p){profs[p.id]=p.name;});}catch(e){}
+  var add=function(song,where,at){if(!swReal(song))return;var sig=(song.title||"")+"|"+JSON.stringify((song.sections||[]).map(x=>(x.lines||[]).map(l=>l.t)));if(seen[sig])return;seen[sig]=1;found.push({song:song,where:where,at:song.at||at||0});};
+  for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i),m=k&&k.match(/^music-(.+)-set:mjk-(sw|llsong)$/);if(!(m||k==="mjk-sw"||k==="mjk-llsong"))continue;
+    var who=m?("profile \u201c"+(profs[m[1]]||m[1])+"\u201d"):"this device";try{var v=JSON.parse(localStorage.getItem(k));
+      if(v&&v.songs)v.songs.forEach(function(sg){add(sg,who);});else if(v&&Array.isArray(v.sections)){var D0=SW.data;add({id:"old"+i,title:v.title||"Older song",topic:"",sections:v.sections.map(function(x){return {id:"o"+Math.random().toString(36).slice(2,7),tag:x.type||"Verse",lines:(x.lines||[]).map(function(t){return {t:typeof t==="string"?t:(t&&t.t)||""};})};})},who+" (older save)");}}catch(e){}}
+  return idbGet("swbak").then(function(arr){(arr||[]).slice().reverse().forEach(function(b){try{JSON.parse(b.j).forEach(function(sg){add(sg,"backup from "+new Date(b.at).toLocaleString(),b.at);});}catch(e){}});return found;}).catch(function(){return found;});}
+function swFindUI(){var ov=document.createElement("div");ov.id="swFindOv";ov.style.cssText="position:fixed;inset:0;z-index:300;background:rgba(5,4,12,.82);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 12px";
+  ov.innerHTML='<div class="panel" style="max-width:560px;width:100%"><div style="display:flex;justify-content:space-between;align-items:center"><b>\ud83d\udd0e Find my songs</b><button class="rchip sm" id="swFindX">\u2715</button></div><div id="swFindL" class="site-note">Searching every profile on this device\u2026</div></div>';
+  document.body.appendChild(ov);ov.querySelector("#swFindX").onclick=function(){ov.remove();};
+  swScanAll().then(function(F){var L=ov.querySelector("#swFindL"),D=swData(),here=D.songs.map(function(x){return x.id;});F.sort(function(a,b){return b.at-a.at;});
+    if(!F.length){L.innerHTML="No songs found on this device \u2014 not in any profile, older save, or backup. If you wrote it on another phone or browser, open Lyric Lab there and tap \ud83d\udd0e Find my songs, or use Copy lyrics. If you\u2019re signed in to an account, sign in here to pull it down.";return;}
+    L.innerHTML=F.map(function(f,i){var s=f.song,first="";(s.sections||[]).some(function(x){return (x.lines||[]).some(function(l){if(l&&l.t&&l.t.trim()){first=l.t.trim();return true;}});});
+      var n=(s.sections||[]).reduce(function(a,x){return a+(x.lines||[]).filter(function(l){return l&&l.t&&l.t.trim();}).length;},0),dup=here.indexOf(s.id)>=0;
+      return '<div style="border:1px solid var(--line,#333);border-radius:12px;padding:10px;margin:8px 0"><b>'+swEsc(s.title||"Untitled")+'</b> <span style="opacity:.7;font-size:.78rem">\u00b7 '+n+' lines \u00b7 '+swEsc(f.where)+(f.at?' \u00b7 edited '+new Date(f.at).toLocaleDateString():'')+'</span><div style="opacity:.8;font-size:.85rem;margin:4px 0">\u201c'+swEsc(first.slice(0,90))+'\u201d</div>'+(dup?'<span class="site-note" style="font-size:.75rem">Already in this profile</span>':'<button class="rchip sm sel" data-rest="'+i+'">\u21a9\ufe0f Restore here</button>')+'</div>';}).join("");
+    L.querySelectorAll("[data-rest]").forEach(function(b){b.onclick=function(){var f=F[+b.dataset.rest],cp=JSON.parse(JSON.stringify(f.song)),D2=swData();if(D2.songs.some(function(x){return x.id===cp.id;}))cp.id="s"+Date.now().toString(36);cp.setup=true;cp.at=Date.now();swFix({songs:[cp],v:2});
+      D2.songs=D2.songs.filter(function(x){return swReal(x)||x.setup;});D2.songs.unshift(cp);D2.cur=cp.id;SW.lib=false;SW.form=null;swSave();ov.remove();swDraw();};});});}
 function swEsc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");}
 function swTarget(song,sec){if(!sec.same)return null;const t=song.sections.find(x=>x.id===sec.same&&!x.same);if(!t){sec.same=null;return null;}return t;}
 function swLinesOf(song,sec){const t=swTarget(song,sec);return t?t.lines:sec.lines;}
@@ -3111,13 +3133,14 @@ function swSetupDraw(){const D=swData(),song=swSong();SW.form=SW.form==null?0:SW
    <div class="rchips tight" style="margin-top:4px"><button class="rchip sm${swKey(song).minor?"":" sel"}" data-kq="0">Major — bright</button><button class="rchip sm${swKey(song).minor?" sel":""}" data-kq="1">Minor — moody</button></div>
    <div class="rrow" style="margin-top:8px"><span class="rlab">Tempo</span><input type="range" id="swSBpm" min="50" max="160" value="${song.bpm||90}" style="flex:1"><span class="rbpm" id="swSBpmV">${song.bpm||90} BPM</span></div>
    <div class="sw-sub" style="margin-top:6px">Each section starts with ${SW_LINES} lines, one bar each. Aim for ${SW_SYL_LO}–${SW_SYL_HI} syllables a line.</div>
-   <div class="actions"><button class="btn" id="swStart">Start writing</button>${D.songs.length>1?'<button class="btn ghost" id="swCancel">Cancel</button>':""}</div></div>`;
+   <div class="actions"><button class="btn" id="swStart">Start writing</button>${D.songs.length>1?'<button class="btn ghost" id="swCancel">Cancel</button>':""}<button class="btn ghost" id="swFind">\ud83d\udd0e Find my songs</button></div></div>`;
   $("#eBack").onclick=()=>{const others=D.songs.filter(s=>s.id!==song.id);if(others.some(s=>s.setup)){if(!song.title&&!song.sections.length)D.songs=others;if(!D.songs.find(s=>s.id===D.cur))D.cur=D.songs[0].id;SW.lib=true;SW.form=null;swSave();swDraw();}else goHome();};
   view.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{SW.form=+b.dataset.f;view.querySelectorAll("[data-f]").forEach(x=>x.classList.toggle("sel",x===b));});
   view.querySelectorAll("[data-rs]").forEach(b=>b.onclick=()=>{song.rhymeAll=b.dataset.rs;song.rhyme={};swSave();view.querySelectorAll("[data-rs]").forEach(x=>x.classList.toggle("sel",x===b));});
   const bp=$("#swSBpm");bp.oninput=()=>{$("#swSBpmV").textContent=bp.value+" BPM";};
   view.querySelectorAll("[data-kr]").forEach(b=>b.onclick=()=>{song.key={root:+b.dataset.kr,minor:swKey(song).minor};swSave();view.querySelectorAll("[data-kr]").forEach(x=>x.classList.toggle("sel",x===b));});
   view.querySelectorAll("[data-kq]").forEach(b=>b.onclick=()=>{song.key={root:swKey(song).root,minor:b.dataset.kq==="1"};swSave();view.querySelectorAll("[data-kq]").forEach(x=>x.classList.toggle("sel",(x.dataset.kq==="1")===song.key.minor));});
+  if($("#swFind"))$("#swFind").onclick=swFindUI;
   if($("#swCancel"))$("#swCancel").onclick=()=>{D.songs=D.songs.filter(s=>s.id!==song.id);D.cur=D.songs[0].id;SW.lib=D.songs.some(s=>s.setup);SW.form=null;swSave();swDraw();};
   $("#swStart").onclick=()=>{song.title=$("#swSTitle").value.trim()||"Untitled song";song.topic=$("#swSTopic").value.trim();song.bpm=+bp.value;
     const first={};song.sections=SW_FORMS[SW.form].map(tag=>{const s=swSec(tag);if((tag==="Chorus"||tag==="Pre-Chorus")&&first[tag]){s.same=first[tag];s.lines=[];}else first[tag]=s.id;return s;});
@@ -3160,7 +3183,7 @@ function swDraw(){const D=swData(),song=swSong();if(SW.lib){swLibDraw();return;}
       <div class="rrow2"><span class="rlab">Chords play as</span><span class="rchips tight">${[["off","Off"],["block","Block chords"],["arp","Arpeggio"]].map(v=>'<button class="rchip sm'+((D.acc||"block")===v[0]?" sel":"")+'" data-acc="'+v[0]+'">'+v[1]+'</button>').join("")}</span></div>
       <div class="rrow2"><span class="rlab">Chords by feel</span><span class="rchips tight" style="flex-wrap:wrap">${SW_FEELS.map((F,i)=>'<button class="rchip sm'+(swFeelSel(song)===i?" sel":"")+'" data-feel="'+i+'">'+F.l+'<small style="display:block;opacity:.8;font-weight:700">'+swFeelDesc(song,F)+'</small></button>').join("")}</span></div>
       <div class="rrow2"><span class="rlab">Syllable counts</span><span class="rchips tight"><button class="rchip sm${D.syl?" sel":""}" id="swSyl">${D.syl?"On":"Off"}</button></span></div>
-      <div class="actions"><button class="btn ghost" id="swCopy">Copy lyrics</button><button class="btn ghost" id="swDelSong">Delete this song</button></div>
+      <div class="actions"><button class="btn ghost" id="swCopy">Copy lyrics</button><button class="btn ghost" id="swFind2">\ud83d\udd0e Find my songs</button><button class="btn ghost" id="swDelSong">Delete this song</button></div>
     </details>
   </div>`;
   swWire(D,song);}
@@ -3220,6 +3243,7 @@ function swWire(D,song){
     if(ev.length)swRun(ev);swDraw();});
   view.querySelectorAll("[data-why]").forEach(b=>{b.onmousedown=e=>e.preventDefault();b.onclick=()=>{const el=b.closest(".sw-line"),sec=song.sections.find(x=>x.id===el.dataset.s),li=+el.dataset.l;el.classList.add("on");const msg=el.querySelector(".sw-msg");if(msg)msg.textContent=swWhy(song,sec,li);};});
   $("#swCopy").onclick=()=>{const txt=(song.title||"Untitled")+"\n\n"+song.sections.map(s=>"["+swSecName(song,s)+"]\n"+swLinesOf(song,s).map(l=>l.t).filter(Boolean).join("\n")).join("\n\n");try{navigator.clipboard.writeText(txt);$("#swCopy").textContent="Copied ✓";}catch(e){}};
+  if($("#swFind2"))$("#swFind2").onclick=swFindUI;
   $("#swDelSong").onclick=e=>{const b=e.target;if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Tap again to delete";return;}D.songs=D.songs.filter(s=>s.id!==song.id);if(!D.songs.length)D.songs.push(swNewSong(""));D.cur=D.songs[0].id;SW.active=null;swSave();swDraw();};
   if(SW.ideas){const el=view.querySelector('.sw-line[data-s="'+SW.ideas.s+'"][data-l="'+SW.ideas.l+'"]');if(el)swIdeas(song,song.sections.find(x=>x.id===SW.ideas.s),SW.ideas.l,el);else SW.ideas=null;}}
 /* refresh the syllable→note row of a line after editing, without redrawing the page */
