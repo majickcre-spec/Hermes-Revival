@@ -3659,15 +3659,19 @@ function swSingSec(song,sec){if(SW.rec){const R=SW.rec;R.done&&R.done();return;}
     try{const mt=window.MediaRecorder?(MediaRecorder.isTypeSupported("audio/mp4")?"audio/mp4":MediaRecorder.isTypeSupported("audio/webm")?"audio/webm":""):"";
       if(mt&&micStream){R.mime=mt;R.mr=new MediaRecorder(micStream,{mimeType:mt});R.mr.ondataavailable=e=>{if(e.data&&e.data.size)R.chunks.push(e.data);};R.mr.start(500);}}catch(e){}
     /* click: count-in bar + every beat while singing, fed ahead in small chunks so Stop halts it */
-    let nextClick=0;const clk=()=>{if(SW.rec!==R)return;const now=a.currentTime;while(start+nextClick*beat<now+0.3&&nextClick<4+maxBars*S/4){click(start+nextClick*beat,nextClick%4?"beat":"accent",0.6);nextClick++;}SW.tm.push(setTimeout(clk,60));};clk();
+    /* the section's chords play under you while you sing (Chords slider sets the level), with the click */
+    const hasCh=!!swProgOf(song,sec.tag),clkV=Math.max(0.35,+swMix().clk||0);let nextClick=0,nextBar=0;
+    const clk=()=>{if(SW.rec!==R)return;const now=a.currentTime;while(start+nextClick*beat<now+0.3&&nextClick<4+maxBars*S/4){click(start+nextClick*beat,nextClick%4?"beat":"accent",clkV);nextClick++;}
+      while(hasCh&&t0+nextBar*16*s16<now+0.3&&nextBar<maxBars*(S/16)){const c=swChord(song,sec.tag,nextBar),bt=t0+nextBar*16*s16;if(c){const v=bkVoice(c.pcs);[v.bass].concat(v.up).forEach(m=>swNote(m,Math.max(0,bt-now),16*s16*0.95,"ch"));swNowChord(c,swChord(song,sec.tag,nextBar+1));}nextBar++;}
+      SW.tm.push(setTimeout(clk,60));};clk();
     if(SRC){try{const sr=new SRC();sr.continuous=true;sr.interimResults=true;sr.lang="en-US";sr.onresult=e=>{let t="";for(let i=0;i<e.results.length;i++)t+=e.results[i][0].transcript+" ";R.words=(R.base+" "+t).replace(/\s+/g," ").trim();};
       sr.onend=()=>{if(SW.rec===R&&!R.stopped){R.base=R.words;try{sr.start();}catch(e){}}};sr.start();R.sr=sr;}catch(e){}}
     const buf=new Float32Array(toneAnalyser.fftSize);let quiet=0,lastBar=-1,sang=false;
-    R.done=()=>{if(R.stopped)return;R.stopped=true;try{R.sr&&R.sr.stop();}catch(e){}try{if(R.mr&&R.mr.state!=="inactive")R.mr.stop();}catch(e){}if(R.raf)cancelAnimationFrame(R.raf);
+    R.done=()=>{if(R.stopped)return;R.stopped=true;bkChRestore();try{R.sr&&R.sr.stop();}catch(e){}try{if(R.mr&&R.mr.state!=="inactive")R.mr.stop();}catch(e){}if(R.raf)cancelAnimationFrame(R.raf);
       setTimeout(()=>{SW.rec=null;try{stopMic();}catch(e){}SW.tm.forEach(clearTimeout);SW.tm=[];
         try{if(R.chunks.length){const bl=new Blob(R.chunks,{type:R.mime||"audio/mp4"});if(bl.size>2000){const tn=((song.takes&&+song.takes[sec.tag])||0)+1;SW.takeBlob=SW.takeBlob||{};SW.takeBlob[swTakeKey(song,sec.tag,tn)]=bl;song.takes=song.takes||{};song.takes[sec.tag]=tn;song.takeSel=song.takeSel||{};song.takeSel[sec.tag]=tn;swSave();idbPut("swtake:"+swTakeKey(song,sec.tag,tn),bl).catch(()=>{});}}}catch(e){}
         swSingFill(song,sec,R,S,s16);},R.sr?700:0);};
-    const tick=()=>{if(SW.rec!==R||R.stopped)return;const now=a.currentTime;if(now<t0){say("Sing in "+Math.ceil((t0-now)/beat)+"…"+(R.sr?"":" (I'll catch the tune — type the words after)"));R.raf=requestAnimationFrame(tick);return;}
+    const tick=()=>{if(SW.rec!==R||R.stopped)return;const now=a.currentTime;if(now<t0){say("Sing in "+Math.ceil((t0-now)/beat)+"…"+(hasCh?" · chords: "+swLineCh(song,sec.tag,0):" (no chords picked — tap Pick chords first to sing over them)")+(R.sr?"":" (I'll catch the tune — type the words after)"));R.raf=requestAnimationFrame(tick);return;}
       toneAnalyser.getFloatTimeDomainData(buf);let rms=0;for(let i=0;i<buf.length;i++)rms+=buf[i]*buf[i];rms=Math.sqrt(rms/buf.length);if(rms>R.maxRms)R.maxRms=rms;const f=rms>0.01?autoCorrelate(buf,a.sampleRate):-1;
       const t=now-t0,m=f>70&&f<1200?69+12*Math.log2(f/440):null;R.frames.push({t:t,m:m});const bi=Math.floor(t/barT);
       if(bi!==lastBar){if(lastBar>=0){const fr=R.frames.filter(x=>x.t>=lastBar*barT&&x.t<(lastBar+1)*barT),v=fr.filter(x=>x.m!=null).length;if(v>fr.length*0.08){quiet=0;sang=true;}else if(sang)quiet++;}lastBar=bi;}
