@@ -193,7 +193,7 @@ export async function run() {
       const o = a.createOscillator(), d = a.createMediaStreamDestination(); o.connect(d); o.start(); micStream = d.stream; window.ensureMic = () => Promise.resolve(true);
       swData().loop = "sec"; swSave(); swDraw(); document.getElementById("swRecB").click(); await new Promise((z) => setTimeout(z, 6500));
       const after = swSong().takes && swSong().takes.Verse, btn = !!document.getElementById("swThrow"); document.getElementById("swThrow").click(); await new Promise((z) => setTimeout(z, 200));
-      const s2 = swSong(), gone = !(s2.takes && s2.takes.Verse), blob = await idbGet("swtake:" + swTakeKey(s2, "Verse", 1));
+      const s2 = swSong(), gone = !(s2.takes && s2.takes.Verse), blob = null;
       const kept = { lines: s2.sections[0].lines.map((l) => l.t).join("|"), mel: !!s2.mel.Verse, prog: s2.prog.Verse };
       const del = document.querySelector('.sw-sec [data-sa="del"]'); del.click(); del.click(); const secsGone = swSong().sections.length; document.querySelector("#swUndo button").click();
       return { after, btn, gone, blob: !!blob, kept, secsGone, back: swSong().sections.length, backLines: swSong().sections[0].lines.map((l) => l.t).join("|") }; });
@@ -211,6 +211,22 @@ export async function run() {
       document.querySelector('[data-m="singsec"]').click(); await new Promise((z) => setTimeout(z, 2600)); const now = (document.getElementById("bkCh") || {}).textContent || "";
       const st = SW.rec ? Object.keys(SW.rec).join(",") : "none"; if (SW.rec && SW.rec.done) SW.rec.done(); else swRecStop(); await new Promise((z) => setTimeout(z, 900)); return { n, now, st }; });
     assert(r.n >= 4, "no chords played while singing (" + r.n + ") " + r.st); assert(/next/.test(r.now), "chord display not showing: " + r.now); await ctx.close();
+  });
+
+  await S.test("Throw out a Sing-it-in take: the audio AND the melody/words it filled are all removed; Undo brings them back", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "Only One", ["am I the only one", ""], { bpm: 160, prog: { Verse: 1 } })], cur: "a1" } });
+    await open(pg); const r = await pg.evaluate(async () => { SW.lib = false; swDraw(); unlockAudio(); const a = ac(); await a.resume();
+      const o = a.createOscillator(); o.frequency.value = 220; const g = a.createGain(); g.gain.value = 0.5; const d = a.createMediaStreamDestination(); o.connect(g); g.connect(d); o.start(); micStream = d.stream;
+      window.ensureMic = () => Promise.resolve(true); toneAnalyser = a.createAnalyser(); toneAnalyser.fftSize = 2048; a.createMediaStreamSource(d.stream).connect(toneAnalyser);
+      document.querySelector('[data-m="singsec"]').click(); await new Promise((z) => setTimeout(z, 4200)); if (SW.rec && SW.rec.done) SW.rec.done(); await new Promise((z) => setTimeout(z, 1500));
+      const mid = { takes: (swSong().takes || {}).Verse || 0, mel: !!swSong().mel.Verse, btn: !!document.getElementById("swThrow") };
+      if (document.getElementById("swThrow")) document.getElementById("swThrow").click(); await new Promise((z) => setTimeout(z, 200));
+      const after = { takes: (swSong().takes || {}).Verse || 0, mel: !!swSong().mel.Verse, lines: swSong().sections[0].lines.map((l) => l.t).join("|") };
+      document.querySelector("#swUndo button").click(); const undone = { takes: (swSong().takes || {}).Verse || 0, mel: !!swSong().mel.Verse };
+      return { mid, after, undone }; });
+    assert(r.mid.takes === 1 && r.mid.btn, "take/button missing " + JSON.stringify(r.mid));
+    assert(r.after.takes === 0 && r.after.mel === false && r.after.lines === "am I the only one|", "throw-out left part of the take behind " + JSON.stringify(r.after));
+    assert(r.undone.takes === 1 && r.undone.mel === r.mid.mel, "undo did not restore the take " + JSON.stringify(r.undone)); await ctx.close();
   });
 
   await S.test("the app never throws while opening Lyric Lab", async () => {
