@@ -34,7 +34,7 @@ export async function browser() {
 }
 
 // A page with one profile ("Travis") already chosen, and optional seeded localStorage.
-export async function profilePage(ctx, base, seed = {}, name = "Travis") {
+export async function profilePage(ctx, base, seed = {}, name = "Travis", query = "") {
   const pg = await ctx.newPage();
   const errors = [];
   pg.on("pageerror", (e) => errors.push(String(e.message || e)));
@@ -47,7 +47,7 @@ export async function profilePage(ctx, base, seed = {}, name = "Travis") {
     }
     for (const [k, v] of Object.entries(seed)) localStorage.setItem(k, typeof v === "string" ? v : JSON.stringify(v));
   }, [seed, name]);
-  await pg.goto(base + "/app.html");
+  await pg.goto(base + "/app.html" + query);
   await pg.waitForTimeout(400);
   const card = await pg.$(".pcard:not(.add)");
   if (card) { await card.click(); await pg.waitForTimeout(300); }

@@ -8,7 +8,10 @@ const S = suite("Post-flight " + live);
 const b = await browser();
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 let pg;
-await S.test("live site loads", async () => { pg = await profilePage(ctx, live + "?pf=" + Date.now()); });
+await S.test("live site loads", async () => {
+  try { pg = await profilePage(ctx, live, {}, "Travis", "?pf=" + Date.now()); }
+  catch (e) { if (/TUNNEL|ERR_NAME|ERR_CONNECTION|403/.test(e.message)) { console.log("\n  Can't reach " + live + " from this machine (network blocked). Run post-flight from a computer with normal internet: cd frontend && npm run postflight\n"); await b.close(); process.exit(2); } throw e; }
+});
 await S.test("live build matches pushed commit " + head, async () => {
   const build = await pg.evaluate(() => window.__MJK_BUILD__ || null);
   assert(build && head.startsWith(build.slice(0, 7)), "live is serving build " + build + " (expected " + head + ") — deploy not finished or cached");
