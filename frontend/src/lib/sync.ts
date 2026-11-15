@@ -8,7 +8,9 @@
 const API = import.meta.env.VITE_API_URL || '';
 const TOKEN_KEY = 'mjk-auth-token';
 const USER_KEY = 'mjk-auth-user';
-const SYNCED = /^(majick|music-|mjk|hermetic-|heads-|learning-)/;
+/* The music game (majick* / music-* / mjk*) runs its own merge sync with this same sign-in, song by song.
+   This file only syncs the other pages' keys, and it MERGES: it never deletes local data and never overwrites the game's keys. */
+const SYNCED = /^(hermetic-|heads-|learning-)/;
 const SKIP = new Set([TOKEN_KEY, USER_KEY]);
 
 export function syncEnabled(): boolean { return !!API; }
@@ -35,16 +37,9 @@ function snapshot(): Record<string, string> {
   } catch {}
   return o;
 }
-function applySnapshot(data: Record<string, string>) {
-  try {
-    const remove: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && SYNCED.test(k) && !SKIP.has(k)) remove.push(k);
-    }
-    remove.forEach((k) => localStorage.removeItem(k));
-    Object.keys(data || {}).forEach((k) => { try { localStorage.setItem(k, data[k]); } catch {} });
-  } catch {}
+/** add what this device is missing from the cloud copy; never removes or replaces local data */
+function pullMissing(data: Record<string, string>) {
+  try { Object.keys(data || {}).forEach((k) => { if (SYNCED.test(k) && !SKIP.has(k) && localStorage.getItem(k) == null) localStorage.setItem(k, data[k]); }); } catch {}
 }
 
 async function call(path: string, opts: RequestInit = {}): Promise<any> {
@@ -66,13 +61,9 @@ export async function register(username: string, code: string) {
 export async function login(username: string, code: string) {
   const r = await call('/api/auth/login', { method: 'POST', body: JSON.stringify({ username, code }) });
   setAuth(r.token, r.username);
-  const st = await call('/api/state', { headers: { Authorization: 'Bearer ' + r.token } });
-  if (st && st.data && Object.keys(st.data).length) {
-    applySnapshot(st.data);
-    location.reload(); // let the game iframes pick up the restored data
-  } else {
-    await push(true); // account is empty — seed it from this device
-  }
+  try { const st = await call('/api/state', { headers: { Authorization: 'Bearer ' + r.token } }); pullMissing((st && st.data) || {}); } catch {}
+  await push(true);
+  location.reload(); // the game merges its own songs and players with the account on load
   return r;
 }
 
@@ -83,8 +74,14 @@ export async function push(force = false) {
   const snap = snapshot();
   const h = JSON.stringify(snap);
   if (!force && h === lastHash) return;
+  // read-merge-write: keep everything already in the account (the game's songs included), add/refresh this page's keys
+  const st = await call('/api/state', { headers: { Authorization: 'Bearer ' + t } });
+  const cloud: Record<string, string> = (st && st.data) || {};
+  pullMissing(cloud);
+  const data: Record<string, string> = { ...cloud, ...snap };
+  Object.keys(data).forEach((k) => { if (SKIP.has(k)) delete data[k]; });
+  await call('/api/state', { method: 'PUT', headers: { Authorization: 'Bearer ' + t }, body: JSON.stringify({ data }) });
   lastHash = h;
-  await call('/api/state', { method: 'PUT', headers: { Authorization: 'Bearer ' + t }, body: JSON.stringify({ data: snap }) });
 }
 
 let started = false;

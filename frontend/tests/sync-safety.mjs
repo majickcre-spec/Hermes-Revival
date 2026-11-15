@@ -81,6 +81,19 @@ export async function run() {
     assert(JSON.stringify(r.p) === '["t1"]' && !r.k.length, "removed player came back " + JSON.stringify(r)); await ph.__ctx.close();
   });
 
+  await S.test("signed in with the site's 👤 account (Travis) the game syncs too, and the sign-in itself is never uploaded", async () => {
+    const cloud = { data: { "majick-profiles": JSON.stringify([{ id: "t1", name: "Travis" }]), "music-t1-set:mjk-sw": JSON.stringify(sw([song("a1", "Only One", ["x"])])) }, puts: 0 };
+    const ctx = await b.newContext(); const pg = await ctx.newPage();
+    await pg.route(API + "/**", async (r) => { const q = r.request(); if (q.method() === "GET") return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: cloud.data }) });
+      cloud.data = JSON.parse(q.postData()).data; cloud.puts++; return r.fulfill({ status: 200, contentType: "application/json", body: "{}" }); });
+    await pg.addInitScript((API) => { Object.defineProperty(window, "__MJK_API__", { get: () => API, set: () => {} }); if (sessionStorage.getItem("__s")) return; sessionStorage.setItem("__s", "1");
+      localStorage.setItem("mjk-auth-token", "tok"); localStorage.setItem("mjk-auth-user", "Travis"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "p9", name: "Trav" }])); localStorage.setItem("majick-active", JSON.stringify("p9")); }, API);
+    await pg.goto(url + "/app.html"); await pg.waitForTimeout(400); await pg.evaluate(() => acctSync());
+    const names = await pg.evaluate(() => JSON.parse(localStorage.getItem("majick-profiles")).map((p) => p.name).sort());
+    assert(JSON.stringify(names) === '["Trav","Travis"]', "phone did not get the account's players: " + JSON.stringify(names));
+    assert(!("mjk-auth-token" in cloud.data) && !("mjk-auth-user" in cloud.data), "sign-in was uploaded"); await ctx.close();
+  });
+
   await b.close(); srv.close();
   return S.done();
 }

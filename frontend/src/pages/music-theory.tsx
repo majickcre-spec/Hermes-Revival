@@ -25,7 +25,7 @@ export default function MusicTheory() {
   try {
     const apiBase = ((import.meta.env.VITE_API_URL as string) || "").replace(/\/+$/, "");
     const apiInj = "<script>window.__MJK_API__=" + JSON.stringify(apiBase) + ";</scr" + "ipt>";
-    html = html.replace("</head>", apiInj + "</head>");
+    html = html.indexOf("</head>") >= 0 ? html.replace("</head>", apiInj + "</head>") : apiInj + html;
   } catch (e) {
     /* no api base */
   }
@@ -40,7 +40,7 @@ export default function MusicTheory() {
         ";window.__MJK_FOCUS__=" +
         JSON.stringify(focus || "") +
         ";</scr" + "ipt>";
-      html = html.replace("</head>", inj + "</head>");
+      html = html.indexOf("</head>") >= 0 ? html.replace("</head>", inj + "</head>") : inj + html;
     }
   } catch (e) {
     /* no params — plain app */

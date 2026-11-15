@@ -14605,11 +14605,12 @@ function renderSongQuiz(){
 /* ===== Cloud account — sync players & progress across devices ===== */
 var MMU_API=(typeof window!=="undefined"&&window.__MJK_API__?String(window.__MJK_API__):"").replace(/\/+$/,"");
 function syncOn(){return !!MMU_API;}
-function acctTok(){try{return localStorage.getItem("majick-token")||null;}catch(e){return null;}}
-function acctName(){try{return localStorage.getItem("majick-acct")||null;}catch(e){return null;}}
+/* one sign-in for the whole site: the game also uses the 👤 account chip's sign-in */
+function acctTok(){try{return localStorage.getItem("majick-token")||localStorage.getItem("mjk-auth-token")||null;}catch(e){return null;}}
+function acctName(){try{return localStorage.getItem("majick-acct")||localStorage.getItem("mjk-auth-user")||null;}catch(e){return null;}}
 function setAcct(tok,name){try{localStorage.setItem("majick-token",tok);localStorage.setItem("majick-acct",name||"");}catch(e){}}
-function clearAcct(){try{localStorage.removeItem("majick-token");localStorage.removeItem("majick-acct");}catch(e){}}
-function _syncable(k){return !!k&&(k.indexOf("music-")===0||k.indexOf("majick-")===0||k.indexOf("mjk-")===0)&&k!=="majick-token"&&k!=="majick-acct"&&k!=="majick-lastacct";}
+function clearAcct(){try{localStorage.removeItem("majick-token");localStorage.removeItem("majick-acct");localStorage.removeItem("mjk-auth-token");localStorage.removeItem("mjk-auth-user");}catch(e){}}
+function _syncable(k){return !!k&&(k.indexOf("music-")===0||k.indexOf("majick-")===0||k.indexOf("mjk-")===0)&&k!=="majick-token"&&k!=="majick-acct"&&k!=="majick-lastacct"&&k!=="mjk-auth-token"&&k!=="mjk-auth-user";}
 function _syncKeys(){var a=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(_syncable(k))a.push(k);}return a;}
 function _snapshot(){var o={};_syncKeys().forEach(function(k){try{o[k]=localStorage.getItem(k);}catch(e){}});return o;}
 function _restore(d){if(!d)return;_AID=undefined;Object.keys(d).forEach(function(k){if(_syncable(k)&&typeof d[k]==="string"){try{localStorage.setItem(k,d[k]);}catch(e){}}});}
