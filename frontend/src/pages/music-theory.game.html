@@ -3191,6 +3191,8 @@ function swLibDraw(){const D=swData();const songs=D.songs.filter(s=>s.setup||s.t
    <div style="font:900 1.15rem system-ui">My songs</div>
    <div class="sw-sub">Songs save themselves as you write.</div>
    <div class="actions" style="margin:10px 0 4px"><button class="btn" id="swLibNew">＋ New song</button></div>
+   <div class="actions" style="margin:0 0 6px"><button class="btn ghost" id="swXOut">📤 Send songs to another device</button><button class="btn ghost" id="swXIn">📥 Add songs from a file</button><input type="file" id="swXFile" accept=".json,application/json" hidden></div>
+   <div class="sw-sub" id="swXMsg" style="text-align:center"></div>
    <div id="swLibList">${songs.map(s=>{const n=s.sections.length,mel=Object.keys(s.mel||{}).length;
      return '<div class="sw-sec" data-open="'+s.id+'" role="button" tabindex="0" style="cursor:pointer;display:flex;align-items:center;gap:10px">'
      +'<div style="flex:1;min-width:0"><div style="font:900 1.02rem system-ui;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+swEsc(s.title||"Untitled song")+'</div>'
@@ -3199,6 +3201,7 @@ function swLibDraw(){const D=swData();const songs=D.songs.filter(s=>s.setup||s.t
      +'<button data-del="'+s.id+'" aria-label="Delete song" style="flex:none;background:rgba(255,255,255,.07);color:inherit;border:1px solid rgba(255,255,255,.12);border-radius:9px;padding:8px 11px;font:800 .8rem system-ui">✕</button></div>';}).join("")||'<div class="sw-sub" style="margin-top:8px">No songs yet — tap ＋ New song.</div>'}
    </div></div>`;
   $("#eBack").onclick=goHome;
+  $("#swXOut").onclick=()=>swExport();$("#swXIn").onclick=()=>$("#swXFile").click();$("#swXFile").onchange=e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)swImport(f);};
   $("#swLibNew").onclick=()=>{const s=swNewSong("");D.songs.push(s);D.cur=s.id;SW.lib=false;SW.active=null;SW.ideas=null;SW.mp=null;SW.cp=null;SW.form=null;swSave();swDraw();};
   view.querySelectorAll("[data-open]").forEach(c=>{const open=()=>{D.cur=c.dataset.open;SW.lib=false;SW.active=null;SW.ideas=null;SW.mp=null;SW.cp=null;swSave();swDraw();};
     c.onclick=e=>{if(e.target.closest("[data-del]"))return;open();};c.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();open();}};});
@@ -3494,6 +3497,21 @@ function swBounceName(song,k){const nb=swData().bars||1,secName=sec=>{const same
   const secs=[];let lines=0;song.sections.forEach(sec=>{let used=0;swLinesOf(song,sec).forEach((ln,li)=>{if(!ln.t.trim())return;if(k&&!k.has(sec.id+":"+li))return;used++;});if(used){lines+=used;secs.push(secName(sec));}});
   const where=!k?"Full song":(secs.length>2?secs[0]+" to "+secs[secs.length-1]:secs.join(" + ")),bars=lines*nb;
   return ((song.title||"Untitled")+" - "+where+" - "+bars+(bars===1?" bar":" bars")).replace(/[\\/:*?"<>|]/g,"")+".wav";}
+/* ---- move songs between devices without an account: a song file (lyrics, melodies, chords, settings and voice takes) ---- */
+function _b64(bl){return new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(String(fr.result));fr.onerror=()=>r(null);fr.readAsDataURL(bl);});}
+async function swExport(){const D=swData(),m=$("#swXMsg"),songs=D.songs.filter(swReal);if(!songs.length){if(m)m.textContent="No songs to send yet.";return;}
+  if(m)m.textContent="Packing your songs…";const takes={};
+  for(const sg of songs)for(const tag of Object.keys(sg.takes||{}))for(let i=1;i<=(+sg.takes[tag]||0);i++){const k=swTakeKey(sg,tag,i);try{const bl=(SW.takeBlob||{})[k]||await idbGet("swtake:"+k);if(bl){const u=await _b64(bl);if(u)takes[k]=u;}}catch(e){}}
+  const who=(typeof activeName==="function"&&activeName())||"me",day=new Date().toISOString().slice(0,10);
+  const blob=new Blob([JSON.stringify({mmu:"songs",v:1,from:who,at:Date.now(),songs:songs,takes:takes})],{type:"application/json"});
+  swShareFile(blob,"MMU songs - "+who+" - "+day+".json");if(m)m.textContent="Saved "+songs.length+" song"+(songs.length>1?"s":"")+". On the other device: Lyric Lab → My songs → 📥 Add songs from a file.";}
+async function swImport(file){const m=$("#swXMsg"),say=t=>{if(m)m.textContent=t;};let J=null;try{J=JSON.parse(await file.text());}catch(e){}
+  if(!J||J.mmu!=="songs"||!Array.isArray(J.songs)){say("That file isn't an MMU songs file.");return;}
+  const D=swData(),before={};D.songs.forEach(x=>before[x.id]=x.at||0);const inc=J.songs.filter(x=>x&&x.id&&Array.isArray(x.sections));
+  const mg=_mergeSongs(D,{songs:inc,del:{}});const cur=D.cur;Object.assign(D,mg);D.cur=D.songs.some(x=>x.id===cur)?cur:D.cur;
+  let added=0,updated=0;inc.forEach(x=>{if(!(x.id in before))added++;else if((x.at||0)>before[x.id])updated++;});
+  for(const k of Object.keys(J.takes||{})){try{if(!(await idbGet("swtake:"+k))){const bl=await (await fetch(J.takes[k])).blob();await idbPut("swtake:"+k,bl);}}catch(e){}}
+  swSave();swDraw();const m2=$("#swXMsg");if(m2)m2.textContent=added||updated?("Added "+added+" new song"+(added===1?"":"s")+(updated?", updated "+updated:"")+" — nothing on this device was removed."):"You already have all of these songs.";}
 function swShareFile(blob,name){try{const f=new File([blob],name,{type:blob.type});if(navigator.canShare&&navigator.canShare({files:[f]})&&/iPhone|iPad|Android/i.test(navigator.userAgent)){navigator.share({files:[f],title:name}).catch(()=>{});return;}}catch(e){}
   const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);}
 /* sing a whole section in: count-in, click on every beat, it listens bar by bar (stop when done, or it stops after

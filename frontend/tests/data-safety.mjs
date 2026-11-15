@@ -139,6 +139,18 @@ export async function run() {
     await ctx.close();
   });
 
+  await S.test("songs move between devices by file: lyrics and voice takes arrive, nothing on the other device is removed", async () => {
+    const A = await profilePage(await fresh(), url, { [SWKEY]: { v: 2, songs: [song("a1", "Only One", ["am I the only one"], { takes: { Verse: 1 } })], cur: "a1" } });
+    await open(A); const file = await A.evaluate(async () => { await idbPut("swtake:a1:Verse", new Blob([new Uint8Array(3000)], { type: "audio/mp4" }));
+      let blob = null, name = ""; window.swShareFile = (b, n) => { blob = b; name = n; }; await swExport(); return { name, text: await blob.text() }; });
+    assert(/^MMU songs - .*\.json$/.test(file.name), "bad export name " + file.name);
+    const B = await profilePage(await fresh(), url, { [SWKEY]: { v: 2, songs: [song("p1", "Phone Idea", ["when I'm alone"])], cur: "p1" } });
+    await open(B); const r = await B.evaluate(async (t) => { await swImport(new File([t], "x.json")); const tk = await idbGet("swtake:a1:Verse");
+      return { titles: swData().songs.map((s) => s.title).sort(), take: tk ? tk.size : 0, msg: document.getElementById("swXMsg") ? document.getElementById("swXMsg").textContent : "" }; }, file.text);
+    assert(JSON.stringify(r.titles) === '["Only One","Phone Idea"]', "songs after import: " + JSON.stringify(r.titles)); assert(r.take === 3000, "voice take did not arrive");
+    const d = await disk(B); assert(d.songs.length === 2, "import not saved"); await A.context().close(); await B.context().close();
+  });
+
   await S.test("the app never throws while opening Lyric Lab", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); await open(pg);
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
