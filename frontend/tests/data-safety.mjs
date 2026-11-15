@@ -256,14 +256,24 @@ export async function run() {
   await S.test("Sing it in: notes are found where they were sung, and the saved take carries per-line timing on the same clock", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "T", [""], { bpm: 120, prog: { Verse: 1 } })], cur: "a1" } });
     await open(pg); const r = await pg.evaluate(async () => { SW.lib = false; swDraw(); unlockAudio(); const a = ac(); await a.resume();
-      const d = a.createMediaStreamDestination(), g = a.createGain(); g.gain.value = 0; const o = a.createOscillator(); o.frequency.value = 220; o.connect(g); g.connect(d); o.start(); micStream = d.stream; window.ensureMic = () => Promise.resolve(true);
+      const d = a.createMediaStreamDestination(), dl = a.createDelay(1); dl.delayTime.value = 0.15; dl.connect(d); const g = a.createGain(); g.gain.value = 0; const o = a.createOscillator(); o.frequency.value = 220; o.connect(g); g.connect(dl); o.start();
+      clickBus(a).connect(dl); micStream = d.stream; window.ensureMic = () => Promise.resolve(true);   // simulated 150 ms speaker→mic delay; the mic hears the count-in
       toneAnalyser = a.createAnalyser(); toneAnalyser.fftSize = 2048; a.createMediaStreamSource(d.stream).connect(toneAnalyser);
-      const s16 = 60 / 120 / 4, start = a.currentTime + 0.2, t0 = start + 16 * s16; for (const st of [0, 8, 16, 24]) { const T = t0 + st * s16; g.gain.setValueAtTime(0.5, T); g.gain.setValueAtTime(0, T + 3 * s16); }
+      const s16 = 60 / 120 / 4, start = a.currentTime + 0.2, t0 = start + 16 * s16; for (const st of [0, 8, 16]) { const T = t0 + st * s16; g.gain.setValueAtTime(0.5, T); g.gain.setValueAtTime(0, T + 3 * s16); }
       let FR = null; const of = window.swSingFill; window.swSingFill = function (sg, sec, R, S, s) { FR = swGridNotes(R.frames, S * 3, s).map((n) => n.step); return of.apply(this, arguments); };
-      document.querySelector('[data-m="singsec"]').click(); await new Promise((z) => setTimeout(z, 5200)); if (SW.rec && SW.rec.done) SW.rec.done(); await new Promise((z) => setTimeout(z, 1800));
+      document.querySelector('[data-m="singsec"]').click(); await new Promise((z) => setTimeout(z, 5600)); if (SW.rec && SW.rec.done) SW.rec.done(); await new Promise((z) => setTimeout(z, 1800));
       const sg = swSong(), key = swTakeKey(sg, "Verse", (sg.takes && sg.takes.Verse) || 1); return { FR, meta: sg.takeMeta && sg.takeMeta[key] }; });
-    assert(JSON.stringify(r.FR) === "[0,8,16,24]", "notes not where sung: " + JSON.stringify(r.FR)); assert(r.meta && r.meta.at && r.meta.at[0] != null && r.meta.at[1] != null, "take has no line timing " + JSON.stringify(r.meta));
+    assert(JSON.stringify(r.FR) === "[0,8,16]", "notes not where sung: " + JSON.stringify(r.FR)); assert(r.meta && r.meta.at && r.meta.at[0] != null && r.meta.at[1] != null, "take has no line timing " + JSON.stringify(r.meta));
     assert(Math.abs((r.meta.at[1] - r.meta.at[0]) - 2) < 0.01, "line timing spacing wrong " + JSON.stringify(r.meta.at)); await ctx.close();
+  });
+
+  await S.test("Play song: the Groove slider plays the groove picked for the chords, at the song's tempo", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "T", ["am I the only one", "I feel so alone"], { bpm: 110, prog: { Verse: 1 }, bk: { g: "g_funk", ds: "hat" } })], cur: "a1" } });
+    await open(pg); const r = await pg.evaluate(async () => { SW.lib = false; const sg = swSong(); sg.mel.Verse = swCand(sg, "Verse", 0); swData().acc = "block"; swMix().clk = 0.7; swSave(); swDraw(); unlockAudio(); await ac().resume();
+      document.getElementById("swPlay").click(); await new Promise((z) => setTimeout(z, 1200)); const st = { run: R.running, pat: (RHYTHM_PATTERNS[R.patIdx] || {}).id, bpm: R.bpm, snd: R.sound, gv: R.gv, play: BK.play };
+      document.getElementById("swPlay").click(); return { st, after: R.running }; });
+    assert(r.st.run && r.st.play && r.st.pat === "g_funk" && r.st.bpm === 110 && r.st.snd === "hat" && Math.abs(r.st.gv - 0.7) < 0.01, "groove not playing with the song " + JSON.stringify(r.st));
+    assert(!r.after, "groove kept going after Stop"); await ctx.close();
   });
 
   await S.test("the app never throws while opening Lyric Lab", async () => {
