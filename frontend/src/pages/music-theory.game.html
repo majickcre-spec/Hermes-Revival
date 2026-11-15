@@ -3512,6 +3512,21 @@ async function swImport(file){const m=$("#swXMsg"),say=t=>{if(m)m.textContent=t;
   let added=0,updated=0;inc.forEach(x=>{if(!(x.id in before))added++;else if((x.at||0)>before[x.id])updated++;});
   for(const k of Object.keys(J.takes||{})){try{if(!(await idbGet("swtake:"+k))){const bl=await (await fetch(J.takes[k])).blob();await idbPut("swtake:"+k,bl);}}catch(e){}}
   swSave();swDraw();const m2=$("#swXMsg");if(m2)m2.textContent=added||updated?("Added "+added+" new song"+(added===1?"":"s")+(updated?", updated "+updated:"")+" — nothing on this device was removed."):"You already have all of these songs.";}
+/* ---- whole-device backup: every player, song, voice take and setting in one file; restore merges, never deletes ---- */
+function idbAll(){return idb().then(db=>new Promise((res)=>{const out={},t=db.transaction(IDB_STORE,"readonly"),st=t.objectStore(IDB_STORE),rq=st.openCursor();rq.onsuccess=()=>{const c=rq.result;if(c){if(c.value instanceof Blob)out[c.key]=c.value;c.continue();}else res(out);};rq.onerror=()=>res(out);})).catch(()=>({}));}
+async function devBackup(){const m=$("#devMsg"),say=t=>{if(m)m.textContent=t;};say("Packing everything…");
+  const blobs=await idbAll(),files={};for(const k of Object.keys(blobs)){const u=await _b64(blobs[k]);if(u)files[k]=u;}
+  const ps=getProfiles(),day=new Date().toISOString().slice(0,10);
+  const blob=new Blob([JSON.stringify({mmu:"device",v:1,at:Date.now(),players:ps.map(p=>p.name),data:_snapshot(),files:files})],{type:"application/json"});
+  swShareFile(blob,"MMU backup - "+(ps.map(p=>p.name).join(", ")||"device")+" - "+day+".json");
+  say("Saved "+ps.length+" player"+(ps.length===1?"":"s")+" ("+ps.map(p=>p.name).join(", ")+") with "+Object.keys(files).length+" recording"+(Object.keys(files).length===1?"":"s")+". Keep this file — open it on any device with 📂 Restore.");}
+async function devRestore(file){const m=$("#devMsg"),say=t=>{const e=$("#devMsg");if(e)e.textContent=t;};let J=null;try{J=JSON.parse(await file.text());}catch(e){}
+  if(J&&J.mmu==="songs"){say("That's a songs file — open a player, then Lyric Lab → My songs → 📥 Add songs from a file.");return;}
+  if(!J||J.mmu!=="device"||!J.data){say("That file isn't an MMU backup.");return;}
+  const before=getProfiles().map(p=>p.id),M=_mergeState(_snapshot(),J.data);if(!M["majick-active"]){try{const a=localStorage.getItem("majick-active");if(a)M["majick-active"]=a;}catch(e){}}
+  _applyMerged(M);let n=0;for(const k of Object.keys(J.files||{})){try{if(!(await idbGet(k))){const bl=await (await fetch(J.files[k])).blob();await idbPut(k,bl);n++;}}catch(e){}}
+  try{cloudPush();}catch(e){}const ps=getProfiles(),added=ps.filter(p=>before.indexOf(p.id)<0).map(p=>p.name);renderGate();
+  say("Restored: "+ps.map(p=>p.name).join(", ")+(added.length?" (new here: "+added.join(", ")+")":"")+(n?" · "+n+" recording"+(n===1?"":"s"):"")+". Nothing on this device was removed.");}
 function swShareFile(blob,name){try{const f=new File([blob],name,{type:blob.type});if(navigator.canShare&&navigator.canShare({files:[f]})&&/iPhone|iPad|Android/i.test(navigator.userAgent)){navigator.share({files:[f],title:name}).catch(()=>{});return;}}catch(e){}
   const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);}
 /* sing a whole section in: count-in, click on every beat, it listens bar by bar (stop when done, or it stops after
@@ -14687,6 +14702,8 @@ function renderGate(){
       <p>Each player keeps their own progress and Beans. Pick yours, or start a new one.</p></div>
       <div class="profiles" id="profiles"></div><div id="gateForm"></div><div id="cloudBar"></div>`;
   }
+  gate.insertAdjacentHTML("beforeend",'<div id="devBak" style="max-width:420px;margin:16px auto 0;text-align:center"><div class="actions" style="justify-content:center"><button class="btn ghost" id="devSave">💾 Save everything on this device</button><button class="btn ghost" id="devLoad">📂 Restore from a saved file</button></div><input type="file" id="devFile" accept=".json,application/json" hidden><div class="cloudnote" id="devMsg">Every player, song, voice take and setting — in one file you keep. Restoring adds to this device; it never deletes anything.</div></div>');
+  $("#devSave").onclick=devBackup;$("#devLoad").onclick=()=>$("#devFile").click();$("#devFile").onchange=e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)devRestore(f);};
   const list=$("#profiles");
   if(lp.name&&!ps.some(p=>(p.name||"").toLowerCase()===lp.name.toLowerCase())){
     const start=document.createElement("button");start.className="pcard add";

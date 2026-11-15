@@ -22,5 +22,6 @@ step("state baseline written", () => {
 const smoke = await import("./smoke.mjs"); if (!(await smoke.run())) ok = false;
 const data = await import("./data-safety.mjs"); if (!(await data.run())) ok = false;
 const syncs = await import("./sync-safety.mjs"); if (!(await syncs.run())) ok = false;
+const baks = await import("./backup-safety.mjs"); if (!(await baks.run())) ok = false;
 console.log(ok ? "\nPRE-FLIGHT PASSED — safe to push" : "\nPRE-FLIGHT FAILED — do not push");
 process.exit(ok ? 0 : 1);
