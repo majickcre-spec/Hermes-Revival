@@ -3481,9 +3481,14 @@ function bncStop(){BNC.rec=false;const a=BNC.ctx,sr=a?a.sampleRate:44100;try{BNC
 function swBounce(){const b=$("#swBounce");if(BNC.rec){return;}const song=swSong(),k=swLoopKeys(),D=swData();
   if(k&&!k.size){if(b)b.textContent="Write a line first";return;}
   unlockAudio();bncStart();if(b){b.textContent="● Bouncing… (plays once)";b.disabled=true;}
-  const done=()=>{setTimeout(()=>{const blob=bncStop(),name=(song.title||"Song").replace(/[^\w \-']/g,"")+" - "+(k?(D.loop==="sec"?"section":D.loop+" bars"):"song")+" "+(song.bpm||90)+"bpm.wav";swShareFile(blob,name);
+  const done=()=>{setTimeout(()=>{const blob=bncStop(),name=swBounceName(song,k);swShareFile(blob,name);
     const bb=$("#swBounce");if(bb){bb.disabled=false;bb.textContent="⬇ Bounce saved — attach it in our chat";}},1500);};
   swPlaySecs(song.sections,{pick:k?(sec,li)=>k.has(sec.id+":"+li):null,onEnd:done});if(!SW.stopT){bncStop();if(b){b.disabled=false;b.textContent="Pick a melody first";}}}
+/* file name: song · section(s) · how many bars, e.g. "Only One - Verse 2 - 4 bars.wav" */
+function swBounceName(song,k){const nb=swData().bars||1,secName=sec=>{const same=song.sections.filter(x=>x.tag===sec.tag);return sec.tag+(same.length>1?" "+(same.indexOf(sec)+1):"");};
+  const secs=[];let lines=0;song.sections.forEach(sec=>{let used=0;swLinesOf(song,sec).forEach((ln,li)=>{if(!ln.t.trim())return;if(k&&!k.has(sec.id+":"+li))return;used++;});if(used){lines+=used;secs.push(secName(sec));}});
+  const where=!k?"Full song":(secs.length>2?secs[0]+" to "+secs[secs.length-1]:secs.join(" + ")),bars=lines*nb;
+  return ((song.title||"Untitled")+" - "+where+" - "+bars+(bars===1?" bar":" bars")).replace(/[\\/:*?"<>|]/g,"")+".wav";}
 function swShareFile(blob,name){try{const f=new File([blob],name,{type:blob.type});if(navigator.canShare&&navigator.canShare({files:[f]})&&/iPhone|iPad|Android/i.test(navigator.userAgent)){navigator.share({files:[f],title:name}).catch(()=>{});return;}}catch(e){}
   const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);}
 /* sing a whole section in: count-in, click on every beat, it listens bar by bar (stop when done, or it stops after
