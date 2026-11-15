@@ -14702,7 +14702,7 @@ function renderGate(){
       <p>Each player keeps their own progress and Beans. Pick yours, or start a new one.</p></div>
       <div class="profiles" id="profiles"></div><div id="gateForm"></div><div id="cloudBar"></div>`;
   }
-  gate.insertAdjacentHTML("beforeend",'<div id="devBak" style="max-width:420px;margin:16px auto 0;text-align:center"><div class="actions" style="justify-content:center"><button class="btn ghost" id="devSave">💾 Save everything on this device</button><button class="btn ghost" id="devLoad">📂 Restore from a saved file</button></div><input type="file" id="devFile" accept=".json,application/json" hidden><div class="cloudnote" id="devMsg">Every player, song, voice take and setting — in one file you keep. Restoring adds to this device; it never deletes anything.</div></div>');
+  gate.insertAdjacentHTML("beforeend",'<div id="devBak" style="max-width:420px;margin:16px auto 0;text-align:center"><div style="display:flex;flex-direction:column;gap:8px"><button class="btn ghost" id="devSave" style="width:100%">💾 Save everything on this device</button><button class="btn ghost" id="devLoad" style="width:100%">📂 Restore from a saved file</button></div><input type="file" id="devFile" accept=".json,application/json" hidden><div class="cloudnote" id="devMsg">Every player, song, voice take and setting — in one file you keep. Restoring adds to this device; it never deletes anything.</div></div>');
   $("#devSave").onclick=devBackup;$("#devLoad").onclick=()=>$("#devFile").click();$("#devFile").onchange=e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)devRestore(f);};
   const list=$("#profiles");
   if(lp.name&&!ps.some(p=>(p.name||"").toLowerCase()===lp.name.toLowerCase())){
