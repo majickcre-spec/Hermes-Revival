@@ -3679,11 +3679,25 @@ function ltTargets(){const car=(typeof eresCar==="function"?eresCar():163.5),T=[
   T.push({hz:10,g:"Classic",n:"alpha 10"},{hz:40,g:"Classic",n:"gamma 40"});return T;}
 function ltStopAll(){const R=LT.run;LT.run=null;if(R){R.stop=true;clearTimeout(R.tm);if(R.raf)cancelAnimationFrame(R.raf);}const sc=document.getElementById("ltScreen");if(sc)sc.remove();if(LT.track)try{LT.track.applyConstraints({advanced:[{torch:false}]});}catch(e){}ltPaintRun();}
 function ltRelease(){ltStopAll();try{if(LT.track){LT.track.stop();}}catch(e){}LT.track=null;}
-async function ltTorchOn(){if(LT.track)return true;try{const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}});const tr=st.getVideoTracks()[0];LT.track=tr;
+async function ltTorchOn(){if(LT.track)return true;try{const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},frameRate:{ideal:60},width:{ideal:320}}});const tr=st.getVideoTracks()[0];LT.track=tr;LT.stream=st;
     let caps={};try{caps=tr.getCapabilities?tr.getCapabilities():{};}catch(e){}LT.capTorch=!!caps.torch;await tr.applyConstraints({advanced:[{torch:true}]});return true;}catch(e){LT.err=String(e&&e.message||e);return false;}}
 /* toggle speed: how long one on/off request takes, measured over 24 switches */
 async function ltMeasureTorch(){const tr=LT.track;if(!tr)return null;const ts=[];let on=false;for(let i=0;i<24;i++){on=!on;const t0=performance.now();try{await tr.applyConstraints({advanced:[{torch:on}]});}catch(e){return null;}ts.push(performance.now()-t0);}
   try{await tr.applyConstraints({advanced:[{torch:false}]});}catch(e){}ts.sort((a,b)=>a-b);const med=ts[ts.length>>1],p90=ts[Math.floor(ts.length*0.9)];return {med:med,p90:p90,maxHz:+(1000/(2*p90)).toFixed(1)};}
+/* the honest test: the back camera watches the wall while the flashlight flickers at rising rates;
+   the flicker counts as real only if the camera sees the brightness actually swinging at that rate */
+async function ltVerify(say){const tr=LT.track,st=LT.stream;if(!tr||!st)return null;const v=document.createElement("video");v.muted=true;v.playsInline=true;v.setAttribute("playsinline","");v.srcObject=st;v.style.cssText="position:fixed;left:-9999px;width:32px;height:24px";document.body.appendChild(v);
+  try{await v.play();}catch(e){}const cv=document.createElement("canvas");cv.width=32;cv.height=24;const g=cv.getContext("2d",{willReadFrequently:true});
+  const sample=()=>{try{g.drawImage(v,0,0,32,24);const d=g.getImageData(0,0,32,24).data;let s=0;for(let i=0;i<d.length;i+=4)s+=d[i]+d[i+1]+d[i+2];return s/(d.length/4*3);}catch(e){return null;}};
+  const rates=[2,4,6,8,10,12.67,15,20],res=[];let fps=0;
+  for(const hz of rates){say("Watching the light at "+hz+" Hz…");const S=[];let stop=false;const t0=performance.now();
+    const grab=()=>{if(stop)return;const b=sample();if(b!=null)S.push({t:(performance.now()-t0)/1000,b:b});if(v.requestVideoFrameCallback)v.requestVideoFrameCallback(grab);else requestAnimationFrame(grab);};grab();
+    let on=false,k=0;const half=500/hz;await new Promise(done=>{const tick=async()=>{on=!on;k++;try{await tr.applyConstraints({advanced:[{torch:on}]});}catch(e){}const el=performance.now()-t0;if(el>2400){done();return;}setTimeout(tick,Math.max(0,t0+k*half-performance.now()));};tick();});
+    stop=true;try{await tr.applyConstraints({advanced:[{torch:false}]});}catch(e){}await new Promise(z=>setTimeout(z,250));
+    const W=S.filter(x=>x.t>0.4&&x.t<2.4);if(W.length<8){res.push({hz:hz,amp:0,n:W.length});continue;}fps=Math.max(fps,W.length/2);
+    const m=W.reduce((a,x)=>a+x.b,0)/W.length;let re=0,im=0;W.forEach(x=>{const ph=2*Math.PI*hz*x.t;re+=(x.b-m)*Math.cos(ph);im+=(x.b-m)*Math.sin(ph);});res.push({hz:hz,amp:2*Math.sqrt(re*re+im*im)/W.length,n:W.length});}
+  v.remove();const base=res[0]&&res[0].amp;if(!base||base<3)return {seen:false,fps:Math.round(fps),res:res};
+  let max=0;res.forEach(r=>{if(r.hz<fps/2&&r.amp>=base*0.35)max=r.hz;});return {seen:true,fps:Math.round(fps),res:res,maxHz:max,limit:+(fps/2).toFixed(1)};}
 function ltMeasureRefresh(){return new Promise(res=>{let n=0,t0=0;const f=t=>{if(!t0)t0=t;n++;if(t-t0<1000)requestAnimationFrame(f);else res(Math.round(n*1000/(t-t0)));};requestAnimationFrame(f);});}
 function ltCan(hz){const fl=LT.rt&&LT.ok?hz<=LT.rt.maxHz:false,sc=LT.refresh?hz<=LT.refresh/2:hz<=30;return {fl:fl,sc:sc};}
 /* run a flicker: flashlight paced on the clock (drift-corrected), screen paced per frame; counts the real rate */
@@ -3708,7 +3722,7 @@ function renderLightTest(){if(teardown){try{teardown();}catch(e){}}home.hidden=t
   <div class="play-top"><button class="back" id="ltBack">←</button><span class="ttitle">🔦 Light Test</span></div><div class="panel">
   ${ack?"":`<div class="lt-warn"><b>⚠️ Flicker safety</b><br>Flashing light between about 3 and 30 flashes a second can trigger seizures in people with photosensitive epilepsy, sometimes with no history. Don't use this if you or anyone watching has had a seizure, migraine with aura from lights, or is a child. Keep eyes closed, hold the light a little away, and stop if you feel unwell.<div class="actions" style="margin-top:8px"><button class="btn" id="ltAck">I understand — continue</button></div></div>`}
   ${ack?`<div class="actions"><button class="btn" id="ltTorch">${LT.rt?"↻ Test flashlight again":"🔦 Test the flashlight"}</button><button class="btn ghost" id="ltScr">📱 Test the screen</button></div>
-  <div class="lt-res" id="ltRes">${LT.err&&!LT.ok?"Flashlight: not available here ("+swEsc(LT.err)+"). The screen still works.":LT.rt?(LT.ok?"Flashlight: one switch takes about <b>"+Math.round(LT.rt.med)+" ms</b> (slowest 10%: "+Math.round(LT.rt.p90)+" ms) → steady flicker up to about <b>"+LT.rt.maxHz+" Hz</b>.":"Flashlight responded but you said it didn't blink — this browser can't drive it."):"Tap Test the flashlight, then point the back of the phone at a wall."}${LT.refresh?"<br>Screen: <b>"+LT.refresh+" Hz</b> display → flicker up to <b>"+(LT.refresh/2)+" Hz</b>.":""}</div>
+  <div class="lt-res" id="ltRes">${LT.err&&!LT.ok?"Flashlight: not available here ("+swEsc(LT.err)+"). The screen still works.":LT.rt?(LT.ok?(LT.rt.verified?"Flashlight, <b>checked by the camera</b>: the light really flickers cleanly up to about <b>"+LT.rt.maxHz+" Hz</b>"+(LT.ver&&LT.ver.maxHz>=LT.ver.limit-2.5?" (that's as high as the camera can check — it may go higher)":"")+".<br><small>"+LT.ver.res.map(x=>x.hz+" Hz: "+(x.amp>=LT.ver.res[0].amp*0.35?"✓":"✗")).join(" · ")+" · camera "+LT.ver.fps+" fps</small>":(LT.ver?"The camera couldn't see the light change (point it at a pale wall, closer, in a dim room) — assuming up to 8 Hz to be safe. Try again for an exact number.":"Flashlight responds — checking…")):"Flashlight responded but you said it didn't blink — this browser can't drive it."):"Tap Test the flashlight, then point the back of the phone at a wall."}${LT.refresh?"<br>Screen: <b>"+LT.refresh+" Hz</b> display → flicker up to <b>"+(LT.refresh/2)+" Hz</b>.":""}</div>
   <div id="ltConfirm"></div><div id="ltRun"></div>
   <h4 style="margin:10px 0 4px">What it can match</h4>
   <table class="lt-tab"><tr><th>Rate</th><th>Target</th><th>🔦</th><th>📱</th><th></th></tr>${rows}</table>
@@ -3721,7 +3735,10 @@ function renderLightTest(){if(teardown){try{teardown();}catch(e){}}home.hidden=t
   if(!ack)return;
   $("#ltTorch").onclick=async()=>{const r=$("#ltRes");r.textContent="Asking for the camera (needed to control the flashlight)…";LT.err=null;const ok=await ltTorchOn();if(!ok){LT.ok=false;LT.rt=null;renderLightTest();return;}
     r.textContent="Measuring how fast it can switch…";LT.rt=await ltMeasureTorch();if(!LT.rt){LT.err="it wouldn't switch";LT.ok=false;renderLightTest();return;}
-    const c=$("#ltConfirm");LT.ok=true;renderLightTest();const c2=$("#ltConfirm");if(c2){c2.innerHTML='<div class="lt-res">Did the flashlight actually blink? <button class="rchip sm" id="ltY">Yes</button> <button class="rchip sm" id="ltN">No</button></div>';$("#ltY").onclick=()=>{c2.innerHTML="";};$("#ltN").onclick=()=>{LT.ok=false;renderLightTest();};}};
+    LT.ok=true;r.textContent="Point the back of the phone at a wall about a foot away — the camera is checking what the light really does…";
+    LT.ver=await ltVerify(t=>{const e=$("#ltRes");if(e)e.textContent=t+" (keep it pointed at the wall)";});
+    if(LT.ver&&LT.ver.seen){LT.rt.maxHz=LT.ver.maxHz;LT.rt.verified=true;}else if(LT.ver){LT.rt.maxHz=Math.min(LT.rt.maxHz,8);LT.rt.verified=false;}
+    renderLightTest();};
   $("#ltScr").onclick=async()=>{LT.refresh=await ltMeasureRefresh();renderLightTest();};
   view.querySelectorAll("[data-ltm]").forEach(b=>b.onclick=()=>{LT.mode=b.dataset.ltm;renderLightTest();});
   view.querySelectorAll("[data-lt]").forEach(b=>b.onclick=async()=>{const t=T[+b.dataset.lt],m=LT.mode||"torch";if(m!=="screen"&&!LT.track){const ok=await ltTorchOn();if(!ok&&m==="torch"){alertLT("Flashlight isn't available here — switch Play on to Screen.");return;}}ltRun(t.hz,m,10,t.n+" · "+t.hz+" Hz");});
