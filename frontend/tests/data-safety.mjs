@@ -339,6 +339,13 @@ export async function run() {
     assert(Math.abs(r.hz - 20) < 3.2, "flashlight switched at " + r.hz + " Hz instead of 20"); await ctx.close();
   });
 
+  await S.test("Light Test: when the camera can't confirm fast flicker, the speed you saw sets what journeys use", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(() => { LT.ack = true; LT.ok = true; LT.rt = { med: 1, p90: 2, maxHz: 25, verified: true };
+      LT.ver = { seen: true, fps: 60, maxHz: 25, driverMax: 100, limit: 100, res: [2, 10, 25, 30, 50, 100].map((h) => ({ hz: h, amp: h <= 25 ? 10 : 0, flips: h })) }; localStorage.setItem("mjk-torchmax", "25"); renderLightTest();
+      const n = document.querySelectorAll("[data-ltsaw]").length; document.querySelector('[data-ltsaw="50"]').click(); return { n, max: lgtTorchMax(), cam: /up to about 25 Hz/.test(document.getElementById("ltRes").textContent) }; });
+    assert(r.n >= 2 && r.max === 50 && r.cam, "saw-it choice not applied " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("the app never throws while opening Lyric Lab", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); await open(pg);
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
