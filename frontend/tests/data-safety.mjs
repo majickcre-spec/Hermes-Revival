@@ -363,6 +363,15 @@ export async function run() {
     assert(r.burstAfter >= r.drops - 1, "no burst after drops " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Leaving Lyric Lab mid-take stops the recorder (no background build-up that freezes the app)", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "T", ["x"], { prog: { Verse: 1 } })], cur: "a1" } });
+    await open(pg); const r = await pg.evaluate(async () => { SW.lib = false; swDraw(); unlockAudio(); const a = ac(); await a.resume(); const o = a.createOscillator(), d = a.createMediaStreamDestination(); o.connect(d); o.start(); micStream = d.stream;
+      window.ensureMic = () => Promise.resolve(true); toneAnalyser = a.createAnalyser(); a.createMediaStreamSource(d.stream).connect(toneAnalyser);
+      document.querySelector('[data-m="singsec"]').click(); await new Promise((z) => setTimeout(z, 1500)); const cap = SW.rec && SW.rec.cap; teardown && teardown(); goHome();
+      await new Promise((z) => setTimeout(z, 400)); const n0 = cap ? cap.chunks.length : 0; await new Promise((z) => setTimeout(z, 1500)); return { n0, n1: cap ? cap.chunks.length : 0, had: !!cap }; });
+    assert(r.had && r.n1 === r.n0, "recorder kept running after leaving: " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("the app never throws while opening Lyric Lab", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); await open(pg);
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();

@@ -94,6 +94,15 @@ export async function run() {
     assert(!("mjk-auth-token" in cloud.data) && !("mjk-auth-user" in cloud.data), "sign-in was uploaded"); await ctx.close();
   });
 
+  await S.test("a background sync never swaps out the song you're typing in (no frozen screen, no lost edits)", async () => {
+    const cloud = { data: { "majick-profiles": JSON.stringify([{ id: "t1", name: "Travis" }]), "music-t1-set:mjk-sw": JSON.stringify(sw([song("a1", "Only One", ["old"], { at: 1 }), song("b1", "Other", ["x"], { at: Date.now() + 99999 })])) }, puts: 0 };
+    const ph = await device(cloud, { "majick-profiles": [{ id: "t1", name: "Travis" }], "music-t1-set:mjk-sw": sw([song("a1", "Only One", ["mine"], { at: 5 })]) }, "t1");
+    const r = await ph.evaluate(async () => { renderIdeaLab(); SW.lib = false; swDraw(); const before = swSong(); await acctSync(); const same = swSong() === before; const inp = document.querySelector(".sw-t"); inp.value = "typed after sync"; inp.dispatchEvent(new Event("input"));
+      const d = JSON.parse(localStorage.getItem("music-t1-set:mjk-sw")); return { same, saved: d.songs.find((s) => s.id === "a1").sections[0].lines[0].t, other: d.songs.some((s) => s.id === "b1") }; });
+    assert(r.same, "the open song object was replaced by sync"); assert(r.saved === "typed after sync", "edit after sync was lost: " + r.saved); assert(r.other, "synced song not added");
+    await ph.__ctx.close();
+  });
+
   await b.close(); srv.close();
   return S.done();
 }

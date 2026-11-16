@@ -3247,7 +3247,7 @@ function swRecTake(){const song=swSong(),D=swData(),b=$("#swRecB");if(SW.vrec){S
 function swNowChord(c,nx){const el=$("#bkCh");if(!el)return;el.classList.add("now");el.innerHTML='<b class="on" title="'+c.pcs.map(p=>swKeyNames(swSong())[p]).join(" ")+'">'+c.name+'<small>'+c.roman+' · '+c.pcs.map(p=>swKeyNames(swSong())[p]).join(" ")+'</small></b>'+(nx?'<b class="nx">next '+nx.name+'</b>':'');}
 function bkChRestore(){const el=$("#bkCh");if(!el||!el.classList.contains("now"))return;el.classList.remove("now");try{el.innerHTML=bkChords(swSong()).map(c=>'<b>'+c.name+'<small class="rn">'+c.roman+'</small></b>').join("");}catch(e){}}
 function swStopPlay(){bkChRestore();if(BK.play)bkStop();(SW.voxSrc||[]).forEach(x=>{try{x.stop();}catch(e){}});SW.voxSrc=[];const pb=$("#swPlay");setTimeout(()=>{if(pb&&pb.isConnected&&!SW.stopT)pb.textContent=swPlayLbl();},0);SW.voiceQ=null;if(SW.stopT){clearTimeout(SW.stopT);SW.stopT=null;}SW.tm.forEach(clearTimeout);SW.tm=[];if(SW.takeAud){try{SW.takeAud.pause();}catch(e){}SW.takeAud=null;SW.takeOn=null;}view.querySelectorAll(".sw-line.pl").forEach(x=>x.classList.remove("pl"));const b=$("#swPlay");if(b)b.textContent="▶ Play song";}
-function swRecStop(){if(SW.rec){SW.rec.stopped=true;try{SW.rec.sr&&SW.rec.sr.stop();}catch(e){}if(SW.rec.raf)cancelAnimationFrame(SW.rec.raf);SW.rec=null;try{stopMic();}catch(e){}}}
+function swRecStop(){if(SW.vrec){try{SW.vrec.done=true;if(SW.vrec.cap&&SW.vrec.cap.stop)SW.vrec.cap.stop();}catch(e){}SW.vrec=null;}if(SW.rec){SW.rec.stopped=true;try{if(SW.rec.cap&&SW.rec.cap.stop)SW.rec.cap.stop();}catch(e){}try{SW.rec.sr&&SW.rec.sr.stop();}catch(e){}if(SW.rec.raf)cancelAnimationFrame(SW.rec.raf);SW.rec=null;try{stopMic();}catch(e){}}}
 function renderIdeaLab(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);SW.ideas=null;SW.mp=null;teardown=()=>{swStopPlay();swRecStop();bkStop();};SW.lib=swData().songs.some(s=>s.setup);swDraw();}
 const SW_CSS=`<style>
  .sw-title{width:100%;box-sizing:border-box;background:transparent;border:0;border-bottom:1px solid rgba(255,255,255,.15);color:inherit;font:900 1.3rem system-ui;padding:6px 2px 8px;margin-bottom:4px}
@@ -3910,13 +3910,13 @@ function swSingSec(song,sec){if(SW.rec){const R=SW.rec;R.done&&R.done();return;}
 /* ---- sample-exact mic capture: an AudioWorklet knows the exact audio-clock frame of every block it records ---- */
 var CAPW=null;
 function swCapture(a,stream){const src=a.createMediaStreamSource(stream),mute=a.createGain();mute.gain.value=0;const C={chunks:[],t0:null,stop:null};
-  const viaSP=()=>{const sp=a.createScriptProcessor(1024,1,1);sp.onaudioprocess=e=>{if(C.done)return;if(C.t0==null)C.t0=e.playbackTime-1024/a.sampleRate;C.chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));};
+  const viaSP=()=>{const sp=a.createScriptProcessor(1024,1,1);sp.onaudioprocess=e=>{if(C.done)return;if(C.chunks.length*1024>a.sampleRate*600){C.stop();return;}if(C.t0==null)C.t0=e.playbackTime-1024/a.sampleRate;C.chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));};
     src.connect(sp);sp.connect(mute);mute.connect(a.destination);C.stop=()=>{C.done=true;try{src.disconnect();sp.disconnect();mute.disconnect();}catch(e){}return Promise.resolve();};};
   if(!a.audioWorklet||!window.AudioWorkletNode){viaSP();return Promise.resolve(C);}
   const code='class C extends AudioWorkletProcessor{constructor(){super();this.b=[];this.n=0;this.f=-1;this.port.onmessage=e=>{if(e.data==="flush")this.fl(true);};}fl(end){if(this.n){const o=new Float32Array(this.n);let p=0;for(const x of this.b){o.set(x,p);p+=x.length;}this.port.postMessage({f:this.f,pcm:o},[o.buffer]);this.b=[];this.n=0;}if(end)this.port.postMessage({end:1,f:this.f});}process(i){const c=i[0]&&i[0][0];if(this.f<0){if(!c)return true;this.f=currentFrame;}this.b.push(c?new Float32Array(c):new Float32Array(128));this.n+=128;if(this.n>=8192)this.fl(false);return true;}}registerProcessor("mjk-cap",C);';
   const ready=(CAPW&&CAPW.ctx===a)?CAPW.p:(CAPW={ctx:a,p:a.audioWorklet.addModule(URL.createObjectURL(new Blob([code],{type:"application/javascript"})))}).p;
   return ready.then(()=>{const nd=new AudioWorkletNode(a,"mjk-cap",{numberOfInputs:1,numberOfOutputs:1,channelCount:1,channelCountMode:"explicit"});
-    let endRes=null;nd.port.onmessage=e=>{const d=e.data;if(d.f>=0&&C.t0==null)C.t0=d.f/a.sampleRate;if(d.pcm)C.chunks.push(d.pcm);if(d.end&&endRes){endRes();endRes=null;}};
+    let endRes=null;nd.port.onmessage=e=>{const d=e.data;if(d.f>=0&&C.t0==null)C.t0=d.f/a.sampleRate;if(d.pcm&&!C.done)C.chunks.push(d.pcm);if(C.chunks.length*8192>a.sampleRate*600&&C.stop&&!C.done)C.stop();if(d.end&&endRes){endRes();endRes=null;}};
     src.connect(nd);nd.connect(mute);mute.connect(a.destination);
     C.stop=()=>new Promise(res=>{if(C.done)return res();C.done=true;endRes=()=>{try{src.disconnect();nd.disconnect();mute.disconnect();}catch(e){}res();};nd.port.postMessage("flush");setTimeout(()=>{if(endRes){endRes();endRes=null;}},800);});
     return C;}).catch(()=>{viaSP();return C;});}
@@ -15052,7 +15052,10 @@ function _mergeState(L,C){L=L||{};C=C||{};var M={},lt=_jp(L["majick-kts"])||{},c
 function _applyMerged(M){var changed=[];Object.keys(M).forEach(function(k){if(!_syncable(k))return;var cur=null;try{cur=localStorage.getItem(k);}catch(e){}if(cur!==M[k]){try{localStorage.setItem(k,M[k]);changed.push(k);}catch(e){}}});
   _syncKeys().forEach(function(k){if(M[k]===undefined&&/^(music-|majick-p-)/.test(k)){var m=/^(music-|majick-p-)([^-]+)-/.exec(k),pm=_jp(M["majick-pmerge"])||{},pd=_jp(M["majick-pdel"])||{};if(m&&(pm[m[2]]||pd[m[2]])){try{localStorage.removeItem(k);changed.push(k);}catch(e){}}}});
   KTS=null;_AID=undefined;
-  try{if(typeof SW!=="undefined"&&SW.data&&changed.some(function(k){return /:mjk-sw$/.test(k);})){var disk=load("mjk-sw",null);if(disk&&disk.songs){var D=SW.data,cur=D.cur;var mg=_mergeSongs(D,disk);mg.cur=cur;SW.data=Object.assign(D,mg);if(!view.hidden&&SW.lib&&typeof swDraw==="function")swDraw();}}}catch(e){}
+  try{if(typeof SW!=="undefined"&&SW.data&&changed.some(function(k){return /:mjk-sw$/.test(k);})){var disk=load("mjk-sw",null);if(disk&&disk.songs){var D=SW.data,cur=D.cur,mg=_mergeSongs(D,disk),ids={};
+      /* merge IN PLACE: the song open on screen keeps its objects (so typing and buttons stay live); other songs update if the synced copy is newer */
+      mg.songs.forEach(function(sg){ids[sg.id]=1;var ix=D.songs.findIndex(function(x){return x.id===sg.id;});if(ix<0)D.songs.push(sg);else if(sg.id!==cur&&(sg.at||0)>(D.songs[ix].at||0))D.songs[ix]=sg;});
+      D.songs=D.songs.filter(function(x){return ids[x.id]||x.id===cur;});D.del=mg.del;if(!view.hidden&&SW.lib&&typeof swDraw==="function")swDraw();}}}catch(e){}
   return changed;}
 var _syncing=null,_syncAgain=false;
 function acctSync(){if(!syncOn()||!acctTok())return Promise.resolve();if(_syncing){_syncAgain=true;return _syncing;}
