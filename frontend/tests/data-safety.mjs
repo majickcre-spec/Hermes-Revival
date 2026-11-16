@@ -346,6 +346,16 @@ export async function run() {
     assert(r.n >= 2 && r.max === 50 && r.cam, "saw-it choice not applied " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Light Mix at 100 Hz: reaches the top through golden-ratio cascades, mostly lives in the mid-high range", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(() => { const R = {}; let now = 0; const dt = 0.05, hz = 4; let maxR = 0, steps = [], lastTo = null, t50 = 0, T = 0;
+      for (let i = 0; i < 4 * 60 * 20; i++) { now += dt * 1000; const t = now / 1000, lv = Math.max(0, Math.min(1, 0.5 + 0.45 * Math.sin(t / 9) * Math.sin(t / 31 + 1))); const rate = lgtMixStep(R, lv, dt, now, 100, hz) * hz;
+        maxR = Math.max(maxR, rate); T += dt; if (rate <= 55) t50 += dt; if (R.mode === "cascade" && R.to !== lastTo) { steps.push(R.to); } lastTo = R.to; }
+      let phi = 0, n = 0; for (let i = 1; i < steps.length; i++) { const q = steps[i] / steps[i - 1]; if (q > 1.3 && q < 2) { phi += q; n++; } }
+      return { maxR, ratio: n ? phi / n : 0, mid: t50 / T, cascades: steps.length }; });
+    assert(r.maxR >= 80, "never reached the top: " + r.maxR); assert(r.cascades > 6 && Math.abs(r.ratio - 1.618) < 0.2, "cascade steps not golden: " + JSON.stringify(r));
+    assert(r.mid > 0.55, "spent too long at the weak top end: " + r.mid); await ctx.close();
+  });
+
   await S.test("the app never throws while opening Lyric Lab", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); await open(pg);
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
