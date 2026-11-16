@@ -308,7 +308,7 @@ export async function run() {
   await S.test("Light show: cascades through the chosen rates for the chosen length, gliding between steps; Stop ends it", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(async () => { renderLightTest(); document.getElementById("ltAck").click(); LT.mode = "screen"; renderLightTest();
       document.querySelector('[data-lsl="5"]').click(); document.querySelector('[data-lsp="climb"]').click(); document.getElementById("lsGo").click(); await new Promise((z) => setTimeout(z, 400));
-      const a = lsHz(), ov = !!document.getElementById("lgtScr"); LS.t0 -= 66000; const mid = lsHz(); LS.t0 -= 10000; const b = lsHz(); LS.t0 -= 120000; const c = lsHz();
+      const a = lsHz(), ov = !!document.getElementById("lgtScr"), seg = LS.len * 60 / LS.steps.length * 1000; LS.t0 -= seg + 6000; const mid = lsHz(); LS.t0 -= 10000; const b = lsHz(); LS.t0 -= 2 * seg; const c = lsHz();
       document.getElementById("lsStopB").click(); return { a, ov, mid, b, c, off: !LS.on && !document.getElementById("lgtScr") }; });
     assert(r.ov && Math.abs(r.a - 2.99) < 0.01, "show did not start on the first rate " + JSON.stringify(r)); assert(r.mid > 2.99 && r.mid < 4.84, "no glide between steps " + r.mid);
     assert(Math.abs(r.b - 4.84) < 0.01 && Math.abs(r.c - 12.67) < 0.01, "cascade steps wrong " + JSON.stringify(r)); assert(r.off, "Stop did not end the show"); await ctx.close();
@@ -334,16 +334,14 @@ export async function run() {
 
   await S.test("Journey flashlight runs on its own clock like the Light Test: 20 Hz asked → ~20 Hz switched", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(async () => { let n = 0; LT.track = { applyConstraints: () => { n++; return Promise.resolve(); }, stop() {} }; LT.ack = true;
-      localStorage.setItem("mjk-torchmax", "60"); LGT.mode = "torch"; LGT.src = () => 20; LGT.harm = "phi"; await lgtStart(); const R = LGT.run; R.t0 -= 21000; await new Promise((z) => setTimeout(z, 600)); n = 0; const t0 = performance.now();
+      localStorage.setItem("mjk-torchmax2", "60"); LGT.mode = "torch"; LGT.src = () => 20; LGT.harm = "phi"; await lgtStart(); const R = LGT.run; R.t0 -= 21000; await new Promise((z) => setTimeout(z, 600)); n = 0; const t0 = performance.now();
       await new Promise((z) => setTimeout(z, 2000)); const hz = n / 2 / ((performance.now() - t0) / 1000); LGT.src = null; lgtStop(); return { hz }; });
     assert(Math.abs(r.hz - 20) < 3.2, "flashlight switched at " + r.hz + " Hz instead of 20"); await ctx.close();
   });
 
-  await S.test("Light Test: when the camera can't confirm fast flicker, the speed you saw sets what journeys use", async () => {
-    const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(() => { LT.ack = true; LT.ok = true; LT.rt = { med: 1, p90: 2, maxHz: 25, verified: true };
-      LT.ver = { seen: true, fps: 60, maxHz: 25, driverMax: 100, limit: 100, res: [2, 10, 25, 30, 50, 100].map((h) => ({ hz: h, amp: h <= 25 ? 10 : 0, flips: h })) }; localStorage.setItem("mjk-torchmax", "25"); renderLightTest();
-      const n = document.querySelectorAll("[data-ltsaw]").length; document.querySelector('[data-ltsaw="50"]').click(); return { n, max: lgtTorchMax(), cam: /up to about 25 Hz/.test(document.getElementById("ltRes").textContent) }; });
-    assert(r.n >= 2 && r.max === 50 && r.cam, "saw-it choice not applied " + JSON.stringify(r)); await ctx.close();
+  await S.test("Flashlight max is simply 80 Hz (lower only if the phone couldn't switch that fast)", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(() => { const a = lgtTorchMax(); localStorage.setItem("mjk-torchmax2", "40"); const b = lgtTorchMax(); localStorage.setItem("mjk-torchmax2", "100"); const c = lgtTorchMax(); return { a, b, c }; });
+    assert(r.a === 80 && r.b === 40 && r.c === 80, "flashlight max rule wrong " + JSON.stringify(r)); await ctx.close();
   });
 
   await S.test("Light Mix at 100 Hz: reaches the top through golden-ratio cascades, mostly lives in the mid-high range", async () => {
