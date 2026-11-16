@@ -3692,14 +3692,14 @@ async function ltVerify(say){const tr=LT.track,st=LT.stream;if(!tr||!st)return n
   const rates=[2,4,6,8,10,12.67,15,20,25,30,35,40,50,60],res=[];let fps=0;
   for(const hz of rates){say("Watching the light at "+hz+" Hz…");const S=[];let stop=false;const t0=performance.now();
     const grab=()=>{if(stop)return;const b=sample();if(b!=null)S.push({t:(performance.now()-t0)/1000,b:b});if(v.requestVideoFrameCallback)v.requestVideoFrameCallback(grab);else requestAnimationFrame(grab);};grab();
-    let on=false,k=0;const half=500/hz;await new Promise(done=>{const tick=async()=>{on=!on;k++;try{await tr.applyConstraints({advanced:[{torch:on}]});}catch(e){}const el=performance.now()-t0;if(el>2400){done();return;}setTimeout(tick,Math.max(0,t0+k*half-performance.now()));};tick();});
+    let on=false,k=0,tEnd=0;const half=500/hz;await new Promise(done=>{const tick=async()=>{on=!on;k++;try{await tr.applyConstraints({advanced:[{torch:on}]});}catch(e){}const el=performance.now()-t0;if(el>2400){tEnd=el;done();return;}setTimeout(tick,Math.max(0,t0+k*half-performance.now()));};tick();});
     stop=true;try{await tr.applyConstraints({advanced:[{torch:false}]});}catch(e){}await new Promise(z=>setTimeout(z,250));
     const W=S.filter(x=>x.t>0.4&&x.t<2.4);if(W.length<8){res.push({hz:hz,amp:0,n:W.length});continue;}fps=Math.max(fps,W.length/2);
     const f0=W.length/((W[W.length-1].t-W[0].t)||1),fa=hz<f0/2?hz:Math.abs(hz-Math.round(hz/f0)*f0);
     const m=W.reduce((a,x)=>a+x.b,0)/W.length,amp=f=>{let re=0,im=0;W.forEach(x=>{const ph=2*Math.PI*f*x.t;re+=(x.b-m)*Math.cos(ph);im+=(x.b-m)*Math.sin(ph);});return 2*Math.sqrt(re*re+im*im)/W.length;};
-    res.push({hz:hz,amp:fa>0.6?amp(fa):0,alias:hz>=f0/2?+fa.toFixed(1):null,n:W.length,flips:k/((performance.now()-t0)/1000)/2});}
+    res.push({hz:hz,amp:fa>0.6?amp(fa):0,alias:hz>=f0/2?+fa.toFixed(1):null,n:W.length,flips:k/((tEnd||2400)/1000)/2});}
   v.remove();const base=res[0]&&res[0].amp;if(!base||base<3)return {seen:false,fps:Math.round(fps),res:res};
-  let max=0;for(const r of res){if(r.amp>=base*0.3&&Math.abs(r.flips-r.hz)<=Math.max(1,r.hz*0.08))max=r.hz;else break;}return {seen:true,fps:Math.round(fps),res:res,maxHz:max,limit:60};}
+  let max=0;for(const r of res){if(r.amp>=base*0.3&&r.flips>=r.hz*0.85)max=r.hz;else break;}return {seen:true,fps:Math.round(fps),res:res,maxHz:max,limit:60};}
 function ltMeasureRefresh(){return new Promise(res=>{let n=0,t0=0;const f=t=>{if(!t0)t0=t;n++;if(t-t0<1000)requestAnimationFrame(f);else res(Math.round(n*1000/(t-t0)));};requestAnimationFrame(f);});}
 function ltCan(hz){const fl=LT.rt&&LT.ok?hz<=LT.rt.maxHz:false,sc=LT.refresh?hz<=LT.refresh/2:hz<=30;return {fl:fl,sc:sc};}
 /* run a flicker: flashlight paced on the clock (drift-corrected), screen paced per frame; counts the real rate */
@@ -3724,7 +3724,7 @@ function renderLightTest(){if(teardown){try{teardown();}catch(e){}}home.hidden=t
   <div class="play-top"><button class="back" id="ltBack">←</button><span class="ttitle">🔦 Light Test</span></div><div class="panel">
   ${ack?"":`<div class="lt-warn"><b>⚠️ Flicker safety</b><br>Flashing light between about 3 and 30 flashes a second can trigger seizures in people with photosensitive epilepsy, sometimes with no history. Don't use this if you or anyone watching has had a seizure, migraine with aura from lights, or is a child. Keep eyes closed, hold the light a little away, and stop if you feel unwell.<div class="actions" style="margin-top:8px"><button class="btn" id="ltAck">I understand — continue</button></div></div>`}
   ${ack?`<div class="actions"><button class="btn" id="ltTorch">${LT.rt?"↻ Test flashlight again":"🔦 Test the flashlight"}</button><button class="btn ghost" id="ltScr">📱 Test the screen</button></div>
-  <div class="lt-res" id="ltRes">${LT.err&&!LT.ok?"Flashlight: not available here ("+swEsc(LT.err)+"). The screen still works.":LT.rt?(LT.ok?(LT.rt.verified?"Flashlight, <b>checked by the camera</b>: the light really flickers cleanly up to about <b>"+LT.rt.maxHz+" Hz</b>"+(LT.ver.maxHz>=60?" — every rate tested, all the way to 60 Hz":"")+".<br><small>"+LT.ver.res.map(x=>x.hz+" Hz: "+(x.amp>=LT.ver.res[0].amp*0.3&&Math.abs(x.flips-x.hz)<=Math.max(1,x.hz*0.08)?"✓":"✗")).join(" · ")+" · camera "+LT.ver.fps+" fps (above "+Math.round(LT.ver.fps/2)+" Hz it checks the flicker's folded echo)</small>":(LT.ver?"The camera couldn't see the light change (point it at a pale wall, closer, in a dim room) — assuming up to 8 Hz to be safe. Try again for an exact number.":"Flashlight responds — checking…")):"Flashlight responded but you said it didn't blink — this browser can't drive it."):"Tap Test the flashlight, then point the back of the phone at a wall."}${LT.refresh?"<br>Screen: <b>"+LT.refresh+" Hz</b> display → flicker up to <b>"+(LT.refresh/2)+" Hz</b>.":""}</div>
+  <div class="lt-res" id="ltRes">${LT.err&&!LT.ok?"Flashlight: not available here ("+swEsc(LT.err)+"). The screen still works.":LT.rt?(LT.ok?(LT.rt.verified?"Flashlight, <b>checked by the camera</b>: the light really flickers cleanly up to about <b>"+LT.rt.maxHz+" Hz</b>"+(LT.ver.maxHz>=60?" — every rate tested, all the way to 60 Hz":"")+".<br><small>"+LT.ver.res.map(x=>x.hz+" Hz: "+(x.amp>=LT.ver.res[0].amp*0.3&&x.flips>=x.hz*0.85?"✓":"✗")).join(" · ")+" · camera "+LT.ver.fps+" fps (above "+Math.round(LT.ver.fps/2)+" Hz it checks the flicker's folded echo)</small>":(LT.ver?"The camera couldn't see the light change (point it at a pale wall, closer, in a dim room) — assuming up to 8 Hz to be safe. Try again for an exact number.":"Flashlight responds — checking…")):"Flashlight responded but you said it didn't blink — this browser can't drive it."):"Tap Test the flashlight, then point the back of the phone at a wall."}${LT.refresh?"<br>Screen: <b>"+LT.refresh+" Hz</b> display → flicker up to <b>"+(LT.refresh/2)+" Hz</b>.":""}</div>
   <div id="ltConfirm"></div><div id="ltRun"></div>
   <h4 style="margin:10px 0 4px">What it can match</h4>
   <table class="lt-tab"><tr><th>Rate</th><th>Target</th><th>🔦</th><th>📱</th><th></th></tr>${rows}</table>
@@ -3772,14 +3772,15 @@ var LGT={mode:load("mjk-jlight","off"),run:null,mult:load("mjk-jlmult","mix"),mu
 function lgtMixStep(R,lv,dt,now,cap,hz){R.slow=(R.slow==null?lv:R.slow+(lv-R.slow)*Math.min(1,dt/3));R.fast=(R.fast==null?lv:R.fast+(lv-R.fast)*Math.min(1,dt/0.2));
   R.hist=R.hist||[];if(now-(R.histAt||0)>500){R.histAt=now;R.hist.push(R.slow);if(R.hist.length>360)R.hist.shift();}
   const Hs=R.hist.slice().sort((a,b)=>a-b),p=Hs.length<6?0.5:Math.max(0,Hs.findIndex(x=>x>=R.fast))/Hs.length;
-  const lo=Math.min(6,cap),C=[];for(let k=1;k<=24;k++){const f=hz*k;if(f>=lo&&f<=cap)C.push(f);}if(!C.length)C.push(Math.min(hz,cap));
+  const lo=Math.min(8,cap),top=Math.min(cap,40),C=[];for(let k=1;k<=40;k++){const f=hz*k;if(f>=lo&&f<=top)C.push(f);}if(!C.length)C.push(Math.min(hz,cap));
+  const peak=[];for(let k=1;k<=60;k++){const f=hz*k;if(f>top&&f<=cap)peak.push(f);} /* bursts may reach past 40 Hz on a fast flashlight */
   if(R.rate==null){R.rate=C[Math.floor(C.length/2)];R.from=R.rate;R.to=R.rate;R.gStart=now;R.gLen=1;R.next=now+1500;R.sweepAt=now+20000;}
   const hit=R.fast-R.slow>0.22&&now-(R.hitAt||0)>2500;
   const go=(to,glide)=>{R.from=R.rate;R.to=to;R.gStart=now;R.gLen=glide;};
-  if(hit){R.hitAt=now;go(C[C.length-1],0.12);R.next=now+700+Math.random()*500;R.mode="burst";}
+  if(hit){R.hitAt=now;go(peak.length?peak[Math.min(peak.length-1,Math.floor(Math.random()*peak.length))]:C[C.length-1],0.12);R.next=now+700+Math.random()*500;R.mode="burst";}
   else if(now>=R.sweepAt){go(C[C.length-1],3.5);R.from=C[0];R.rate=C[0];R.next=now+4200;R.sweepAt=now+16000+Math.random()*10000;R.mode="sweep";}
   else if(now>=R.next){const center=p*(C.length-1),spread=Math.max(1,C.length*0.35);let idx;let tries=0;
-    do{idx=Math.round(center+(Math.random()*2-1)*spread);idx=Math.max(0,Math.min(C.length-1,idx));tries++;}while(Math.abs(C[idx]-R.to)<0.01&&tries<6&&C.length>1);
+    do{idx=Math.round(Math.max(center,(C.length-1)*0.35)+(Math.random()*2-1)*spread);idx=Math.max(0,Math.min(C.length-1,idx));tries++;}while(Math.abs(C[idx]-R.to)<0.01&&tries<6&&C.length>1);
     go(C[idx],Math.random()<0.45?0.08:0.4+Math.random()*1.2);R.next=now+(3500-2300*p)*(0.6+Math.random()*0.8);R.mode=R.gLen<0.2?"snap":"glide";}
   const x=Math.min(1,(now-R.gStart)/1000/R.gLen),sm=x*x*(3-2*x);R.rate=R.from+(R.to-R.from)*sm;R.k=Math.round(R.rate/hz);
   R.share=R.share||{};return R.rate/hz;}
@@ -3802,7 +3803,7 @@ async function lgtStart(){if(LGT.run||LGT.mode==="off")return;const useT=LGT.mod
     const x=Math.min(1,r/env.peak);env.v+=(x-env.v)*(x>env.v?0.35:0.06);return env.v;}catch(e){return 0.7;}};
   const step=()=>{if(R.stop)return;const now=performance.now(),dt=(now-R.last)/1000;R.last=now;const hz=lgtHz();
     if(now-R.t0>LIMIT){LGT.mode="off";save("mjk-jlight","off");lgtStop("Light stopped after 45 minutes — give your eyes a rest.");return;}
-    if(!hz){const o=document.getElementById("lgtScr");if(o)o.style.background="#000";if(R.torchOn&&LT.track){R.torchOn=false;LT.track.applyConstraints({advanced:[{torch:false}]}).catch(()=>{});}R.raf=requestAnimationFrame(step);return;}
+    if(!hz){const o=document.getElementById("lgtScr");if(o)o.style.background="#000";R.ft=0;R.raf=requestAnimationFrame(step);return;}
     R.hz+=(hz-R.hz)*Math.min(1,dt*0.5);if(!R.hz||R.hz<0.5)R.hz=hz;const ramp=Math.min(1,(now-R.t0)/20000);
     let mt=lgtTorchMax(),cap=(useT?mt:30);const lvRaw=!LGT.src?level():0.8;let mul=LGT.src?1:(LGT.mult==="mix"?lgtMixStep(R,lvRaw,dt,now,cap,R.hz):lgtMult(R.hz,cap));R.mul=mul;
     /* harmony between the light rates: unison, octave, fifth, golden ratio — or φ Alternate, gliding between the rate and its golden partner */
@@ -3811,13 +3812,18 @@ async function lgtStart(){if(LGT.run||LGT.mode==="off")return;const useT=LGT.mod
     else if(both){sA=B*(RAT[H]||PHI);}
     let ft=tA,fs=Math.min(sA,30);if(both&&H!=="phiAlt"&&sA>30&&sA<=mt){ft=sA;fs=Math.min(B,30);} /* screen can't hold the upper rate: the flashlight takes it */
     while(ft>mt)ft/=2;
-    R.ft=ft;R.fs=fs;R.phT=(R.phT+ft*dt)%1;R.phS=(R.phS+fs*dt)%1;
+    R.ft=ft;R.fs=fs;R.phS=(R.phS+fs*dt)%1;
     const lv=LGT.music&&!LGT.src?lvRaw:0.8;R.lv=lv; /* loudness → brightness (screen) and on-time (flashlight) */
     const o=document.getElementById("lgtScr");if(o){const burst=now<R.burst,duty=0.5;const on=burst||R.phS<duty,b=burst?240:Math.round((60+180*lv)*ramp)+15;o.style.background=on?"rgb("+b+","+b+","+b+")":"#000";}
-    if(useT&&LT.track&&!R.busy&&ramp>0.25){const duty=LGT.music&&!LGT.src?0.3+0.4*lv:0.5,want=now<R.burst||R.phT<duty;if(want!==R.torchOn){R.busy=true;R.torchOn=want;LT.track.applyConstraints({advanced:[{torch:want}]}).catch(()=>{}).then(()=>{R.busy=false;});}}
+    R.duty=LGT.music&&!LGT.src?0.3+0.4*lv:0.5;R.ramp=ramp;
     if(now-(R.paintAt||0)>500){R.paintAt=now;const n=document.getElementById("jLightNow");if(n)n.textContent="Light "+(LGT.mode==="both"?"🔦 "+ft.toFixed(1)+" + 📱 "+fs.toFixed(1):(useT?ft:fs).toFixed(1))+" Hz = journey "+R.hz.toFixed(1)+" Hz × "+(LGT.mult==="mix"?(R.k||1):mul)+(LGT.mult==="mix"&&R.mode?" · "+({burst:"⚡ burst",sweep:"〰 sweep",snap:"snap",glide:"glide"})[R.mode]:"")+(LGT.harm==="phiAlt"?" · φ glide":"")+(LGT.music&&!LGT.src?" · brightness "+Math.round(lv*100)+"%":"");}
     R.raf=requestAnimationFrame(step);};
-  R.raf=requestAnimationFrame(step);}
+  R.raf=requestAnimationFrame(step);
+  if(useT){let last=performance.now();const tick=async()=>{if(R.stop||!LT.track)return;const now=performance.now(),dtT=(now-last)/1000;last=now;const f=R.ft||0;
+      if(!f||(R.ramp||0)<0.25){if(R.torchOn){R.torchOn=false;try{await LT.track.applyConstraints({advanced:[{torch:false}]});}catch(e){}}R.tm=setTimeout(tick,60);return;}
+      R.phT=(R.phT+f*dtT)%1;const duty=R.duty||0.5,want=now<R.burst||R.phT<duty;
+      if(want!==R.torchOn){R.torchOn=want;try{await LT.track.applyConstraints({advanced:[{torch:want}]});}catch(e){}}
+      const ph=(R.phT+f*((performance.now()-last)/1000))%1,toEdge=(ph<duty?duty-ph:1-ph)/f*1000;R.tm=setTimeout(tick,Math.max(0,toEdge-0.5));};tick();}}
 function lgtBurst(atAudioTime){const R=LGT.run;if(!R)return;const ms=Math.max(0,(atAudioTime-ac().currentTime)*1000);setTimeout(()=>{if(LGT.run===R)R.burst=performance.now()+450;},ms);}
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&LGT.run)lgtStop();else if(!document.hidden&&LGT.mode!=="off"&&(MED.jSess||LS.on)&&!LGT.run)lgtStart();});
 /* ===== LIGHT SHOW — a cascade of light rates on its own, no meditation; optional pulse tone at the same rate ===== */

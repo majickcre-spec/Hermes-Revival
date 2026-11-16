@@ -332,6 +332,13 @@ export async function run() {
     assert(r.offGrid === 0, "targets not on beat harmonics"); assert(r.loud > r.quiet + 2, "louder music didn't push the rate up " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Journey flashlight runs on its own clock like the Light Test: 20 Hz asked → ~20 Hz switched", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(async () => { let n = 0; LT.track = { applyConstraints: () => { n++; return Promise.resolve(); }, stop() {} }; LT.ack = true;
+      localStorage.setItem("mjk-torchmax", "60"); LGT.mode = "torch"; LGT.src = () => 20; LGT.harm = "phi"; await lgtStart(); const R = LGT.run; R.t0 -= 21000; await new Promise((z) => setTimeout(z, 600)); n = 0; const t0 = performance.now();
+      await new Promise((z) => setTimeout(z, 2000)); const hz = n / 2 / ((performance.now() - t0) / 1000); LGT.src = null; lgtStop(); return { hz }; });
+    assert(Math.abs(r.hz - 20) < 3.2, "flashlight switched at " + r.hz + " Hz instead of 20"); await ctx.close();
+  });
+
   await S.test("the app never throws while opening Lyric Lab", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); await open(pg);
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
