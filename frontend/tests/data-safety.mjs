@@ -354,12 +354,12 @@ export async function run() {
     assert(r.mid > 0.55, "spent too long at the weak top end: " + r.mid); await ctx.close();
   });
 
-  await S.test("Light Mix drops to dark every so often (1.5–4 s) and comes back with a burst", async () => {
+  await S.test("Light Mix drops to dark every 1–2.5 min (4.5–12 s) and comes back with a burst", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(() => { const R = {}; let now = 0; const dt = 0.05, hz = 4; let drops = 0, inDrop = false, start = 0, lens = [], burstAfter = 0;
-      for (let i = 0; i < 6 * 60 * 20; i++) { now += dt * 1000; const t = now / 1000, lv = Math.max(0, Math.min(1, 0.5 + 0.45 * Math.sin(t / 9) * Math.sin(t / 31 + 1))); lgtMixStep(R, lv, dt, now, 80, hz);
+      for (let i = 0; i < 20 * 60 * 20; i++) { now += dt * 1000; const t = now / 1000, lv = Math.max(0, Math.min(1, 0.5 + 0.45 * Math.sin(t / 9) * Math.sin(t / 31 + 1))); lgtMixStep(R, lv, dt, now, 80, hz);
         if (R.drop && !inDrop) { drops++; start = now; } if (!R.drop && inDrop) { lens.push((now - start) / 1000); if (R.mode === "burst") burstAfter++; } inDrop = !!R.drop; }
-      return { drops, perMin: drops / 6, minL: Math.min(...lens), maxL: Math.max(...lens), burstAfter }; });
-    assert(r.drops >= 4 && r.perMin <= 3, "drop count off " + JSON.stringify(r)); assert(r.minL >= 1.4 && r.maxL <= 4.1, "drop length off " + JSON.stringify(r));
+      return { drops, perMin: drops / 20, minL: Math.min(...lens), maxL: Math.max(...lens), burstAfter }; });
+    assert(r.drops >= 6 && r.perMin <= 1, "drop count off " + JSON.stringify(r)); assert(r.minL >= 4.4 && r.maxL <= 12.1, "drop length off " + JSON.stringify(r));
     assert(r.burstAfter >= r.drops - 1, "no burst after drops " + JSON.stringify(r)); await ctx.close();
   });
 

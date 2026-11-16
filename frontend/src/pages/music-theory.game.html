@@ -3779,11 +3779,11 @@ function lgtMixStep(R,lv,dt,now,cap,hz){R.slow=(R.slow==null?lv:R.slow+(lv-R.slo
   const peak=C.filter(f=>f>=top*0.6); /* swell bursts go to the top of what the light can do */
   const snap=f=>C.reduce((b,x)=>Math.abs(x-f)<Math.abs(b-f)?x:b,C[0]);
   if(R.rate==null){R.rate=C[Math.floor(C.length/2)];R.from=R.rate;R.to=R.rate;R.gStart=now;R.gLen=1;R.next=now+1500;R.sweepAt=now+20000;}
-  /* DROP: every 25–70 s (sooner if the music dips) the light goes dark for 1.5–4 s, then slams back with a burst to the top */
-  if(R.dropAt==null)R.dropAt=now+25000+Math.random()*20000;
+  /* DROP: every 1–2.5 min (sooner if the music dips) the light goes dark for 4.5–12 s, then slams back with a burst to the top */
+  if(R.dropAt==null)R.dropAt=now+60000+Math.random()*30000;
   if(R.dropUntil&&now<R.dropUntil){R.drop=true;R.mode="drop";return R.rate/hz;}
-  if(R.dropUntil&&now>=R.dropUntil){R.dropUntil=0;R.drop=false;R.from=peak.length?peak[Math.floor(Math.random()*peak.length)]:C[C.length-1];R.rate=R.from;R.to=R.from;R.gStart=now;R.gLen=0.1;R.next=now+900;R.mode="burst";R.dropAt=now+25000+Math.random()*45000;}
-  if(!R.dropUntil&&now>=R.dropAt&&(p<0.35||now>=R.dropAt+15000)){R.dropUntil=now+1500+Math.random()*2500;R.drop=true;R.mode="drop";return R.rate/hz;}
+  if(R.dropUntil&&now>=R.dropUntil){R.dropUntil=0;R.drop=false;R.from=peak.length?peak[Math.floor(Math.random()*peak.length)]:C[C.length-1];R.rate=R.from;R.to=R.from;R.gStart=now;R.gLen=0.1;R.next=now+900;R.mode="burst";R.casc=null;R.sweepAt=Math.max(R.sweepAt,now+6000);R.dropAt=now+60000+Math.random()*90000;return R.rate/hz;}
+  if(!R.dropUntil&&now>=R.dropAt&&(p<0.35||now>=R.dropAt+15000)){R.dropUntil=now+4500+Math.random()*7500;R.drop=true;R.mode="drop";return R.rate/hz;}
   const hit=R.fast-R.slow>0.22&&now-(R.hitAt||0)>2500;
   const go=(to,glide)=>{R.from=R.rate;R.to=to;R.gStart=now;R.gLen=glide;};
   if(hit){R.hitAt=now;go(peak.length?peak[Math.min(peak.length-1,Math.floor(Math.random()*peak.length))]:C[C.length-1],0.12);R.next=now+700+Math.random()*500;R.mode="burst";}
