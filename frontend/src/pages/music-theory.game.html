@@ -3683,6 +3683,12 @@ function ltDropTrack(){try{if(LT.track)LT.track.stop();}catch(e){}try{if(LT.stre
 async function ltTorchOn(){if(LT.track&&LT.track.readyState==="live")return true;if(LT.track)ltDropTrack();try{const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},frameRate:{ideal:60},width:{ideal:320}}});const tr=st.getVideoTracks()[0];LT.track=tr;LT.stream=st;
     let caps={};try{caps=tr.getCapabilities?tr.getCapabilities():{};}catch(e){}LT.capTorch=!!caps.torch;await tr.applyConstraints({advanced:[{torch:true}]});return true;}catch(e){const m=String(e&&e.message||e);ltDropTrack();
     LT.err=/denied|NotAllowed|permission/i.test(m)?"camera permission is off — allow Camera for this site (Safari: aA → Website Settings → Camera)":/NotReadable|in use|busy|Could not start/i.test(m)?"the camera is busy — close the Camera app or any other app using it, then try again":m+" — if your iPhone is warm or low on battery, iOS turns the flashlight off until it cools or charges";return false;}}
+/* get the flashlight ready, but never hang: a stuck, muted or ended camera track is replaced, and after 4 s we give up (caller falls back to the screen) */
+function ltTimeout(p,ms){return Promise.race([p,new Promise(z=>setTimeout(()=>z("timeout"),ms))]);}
+async function ltTorchReady(){if(LT.track&&(LT.track.readyState!=="live"||LT.track.muted))ltDropTrack();
+  if(LT.track){const r=await ltTimeout(LT.track.applyConstraints({advanced:[{torch:false}]}).then(()=>true,()=>false),2000);if(r===true)return true;ltDropTrack();}
+  const r=await ltTimeout(ltTorchOn(),4000);if(r===true){try{await ltTimeout(LT.track.applyConstraints({advanced:[{torch:false}]}),1500);}catch(e){}return true;}
+  if(r==="timeout")ltDropTrack();return false;}
 /* toggle speed: how long one on/off request takes, measured over 24 switches */
 async function ltMeasureTorch(){const tr=LT.track;if(!tr)return null;const ts=[];let on=false;for(let i=0;i<24;i++){on=!on;const t0=performance.now();try{await tr.applyConstraints({advanced:[{torch:on}]});}catch(e){return null;}ts.push(performance.now()-t0);}
   try{await tr.applyConstraints({advanced:[{torch:false}]});}catch(e){}ts.sort((a,b)=>a-b);const med=ts[ts.length>>1],p90=ts[Math.floor(ts.length*0.9)];return {med:med,p90:p90,maxHz:+(1000/(2*p90)).toFixed(1)};}
@@ -3757,7 +3763,11 @@ function renderLightTest(){if(teardown){try{teardown();}catch(e){}}home.hidden=t
   view.querySelectorAll("[data-lsp]").forEach(b=>b.onclick=()=>{LS.path=b.dataset.lsp;save("mjk-lspath",LS.path);renderLightTest();});
   view.querySelectorAll("[data-lsh]").forEach(b=>b.onclick=()=>{LGT.harm=b.dataset.lsh;save("mjk-jlharm",LGT.harm);renderLightTest();});
   view.querySelectorAll("[data-lss]").forEach(b=>b.onclick=()=>{LS.snd=b.dataset.lss;save("mjk-lssnd",LS.snd);renderLightTest();});
-  $("#lsGo").onclick=async()=>{if(LS.on){lsStop(false);renderLightTest();return;}ltStopAll();LGT.mode=LT.mode||"torch";if(LGT.mode!=="screen"&&!LT.track)await ltTorchOn();lsStart();const b=$("#lsGo");if(b)b.textContent="■ Stop light show";};
+  $("#lsGo").onclick=async()=>{const btn=$("#lsGo");if(LS.on){lsStop(false);renderLightTest();return;}if(btn.dataset.busy)return;btn.dataset.busy="1";btn.textContent="Starting…";
+    try{ltStopAll();if(LGT.run)lgtStop();LGT.mode=LT.mode||"torch";let note="";
+      if(LGT.mode!=="screen"){const ok=await ltTorchReady();if(!ok){if(LGT.mode==="torch"){LGT.mode="screen";note="The flashlight didn't answer, so the light show is on the screen. Close other camera apps, or let the phone cool, then try the flashlight again.";}else{LGT.mode="screen";note="The flashlight didn't answer, so it's on the screen only.";}}}
+      lsStart();const b=$("#lsGo");if(b){delete b.dataset.busy;b.textContent="■ Stop light show";}if(note){const el=$("#lsLive");if(el)el.insertAdjacentHTML("afterend",'<div class="site-note" id="lsNote">'+note+'</div>');}}
+    catch(e){const b=$("#lsGo");if(b){delete b.dataset.busy;b.textContent="▶ Start light show";}const el=$("#lsLive");if(el)el.innerHTML='<div class="lt-res">Couldn\'t start: '+swEsc(String(e&&e.message||e))+'</div>';}};
   $("#ltFind").onclick=()=>renderLightFinder();
   $("#ltCas").onclick=async()=>{const m=LT.mode||"torch";if(m!=="screen"&&!LT.track)await ltTorchOn();ltCascade(m);};
   $("#ltHar").onclick=async()=>{if(!LT.track)await ltTorchOn();ltHarmony();};
@@ -3802,7 +3812,7 @@ function lgtHz(){try{if(LGT.src)return LGT.src();const J=MED.jSess;if(J&&J.pause
 function lgtStop(msg){const R=LGT.run;LGT.run=null;if(R){R.stop=true;clearTimeout(R.tm);if(R.raf)cancelAnimationFrame(R.raf);}const o=document.getElementById("lgtScr");if(o)o.remove();
   try{if(LT.track)LT.track.applyConstraints({advanced:[{torch:false}]});}catch(e){}if(msg){const n=document.getElementById("jLightNote");if(n)n.textContent=msg;}}
 async function lgtStart(){if(LGT.run||LGT.mode==="off")return;const useT=LGT.mode==="torch"||LGT.mode==="both",useS=LGT.mode==="screen"||LGT.mode==="both";
-  if(useT&&!LT.track){const ok=await ltTorchOn();if(!ok&&!useS){LGT.mode="screen";}}
+  if(useT&&!LT.track){const ok=(await ltTimeout(ltTorchOn(),4000))===true;if(!ok){ltDropTrack();if(!useS){LGT.mode="screen";LGT.run=null;return lgtStart();}}}
   const R=LGT.run={stop:false,t0:performance.now(),phT:0,phS:0,last:performance.now(),torchOn:false,busy:false,burst:0,hz:0};const LIMIT=45*60*1000;
   if(useS){const o=document.createElement("div");o.id="lgtScr";o.style.cssText="position:fixed;inset:0;z-index:2147483500;background:#000;";
     o.innerHTML='<div style="position:absolute;left:0;right:0;bottom:calc(18px + env(safe-area-inset-bottom));text-align:center"><span style="display:inline-block;padding:10px 18px;border-radius:999px;background:#000;color:#f4b740;border:1px solid #f4b740;font:800 .9rem system-ui">Tap anywhere to stop the light</span></div>';
@@ -3891,7 +3901,7 @@ function clfWin(si){const P=CLF.plan,s=P[si],pre=P[si-1];const pat=CLF.S.filter(
 function clfChime(){try{const a=ac(),o=a.createOscillator(),g=a.createGain();o.frequency.value=528;g.gain.setValueAtTime(0,a.currentTime);g.gain.linearRampToValueAtTime(0.1,a.currentTime+0.05);g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+2.5);o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+2.6);}catch(e){}}
 function clfHz(){if(!CLF.on||CLF.seg<0)return null;const s=CLF.plan[CLF.seg];if(!s||s.rest)return null;return clfPatHz(clfDef(s.id),((performance.now()-CLF.t0)/1000/CLF.k)-s.at);}
 async function clfStart(){if(CLF.on)return;unlockAudio();const pick=CLF.next||clfPick();CLF.next=null;CLF.plan=clfPlan(pick.ids);CLF.narrow=pick.narrow;CLF.S=[];CLF.seg=-1;CLF.why="";CLF.ses=Date.now();CLF.rate={};CLF.last=null;
-  const mode=LT.mode||"torch";if(mode!=="screen"&&!LT.track){const ok=await ltTorchOn();if(!ok&&mode==="torch"){LT.mode="screen";}}
+  const mode=LT.mode||"torch";if(mode!=="screen"){const ok=await ltTorchReady();if(!ok)LT.mode="screen";}
   try{lsStop(false);}catch(e){}ltStopAll();lgtStop();CLF.harm0=LGT.harm;LGT.harm="unison";LGT.mode=LT.mode||"torch";LGT.src=clfHz;CLF.on=true;CLF.t0=performance.now();try{medWake(true);}catch(e){}
   const tick=()=>{if(!CLF.on)return;const el=(performance.now()-CLF.t0)/1000/CLF.k,P=CLF.plan,end=P[P.length-1].at+P[P.length-1].len;
     if(el>=end){clfStop("done");return;}let si=0;for(let i=0;i<P.length;i++)if(el>=P[i].at)si=i;

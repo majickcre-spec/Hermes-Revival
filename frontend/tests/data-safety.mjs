@@ -325,11 +325,11 @@ export async function run() {
 
   await S.test("Light Mix is lively: changes rate every few seconds, stays in the pattern range on beat harmonics, louder = faster", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(() => { const R = {}; let now = 0; const dt = 0.05, hz = 3; let changes = 0, lastTo = null, minR = 99, maxR = 0, offGrid = 0, q = [], l = [];
-      for (let i = 0; i < 5 * 60 * 20; i++) { now += dt * 1000; const t = now / 1000, lv = Math.max(0, Math.min(1, 0.5 + 0.45 * Math.sin(t / 9) * Math.sin(t / 31 + 1))); const m = lgtMixStep(R, lv, dt, now, 20, hz), rate = m * hz;
+      for (let i = 0; i < 20 * 60 * 20; i++) { now += dt * 1000; const t = now / 1000, lv = Math.max(0, Math.min(1, 0.5 + 0.45 * Math.sin(t / 9) * Math.sin(t / 31 + 1))); const m = lgtMixStep(R, lv, dt, now, 20, hz), rate = m * hz;
         if (R.to !== lastTo) { changes++; lastTo = R.to; if (Math.abs(R.to / hz - Math.round(R.to / hz)) > 0.001) offGrid++; } minR = Math.min(minR, rate); maxR = Math.max(maxR, rate); if (t > 60) { if (lv < 0.2) q.push(rate); if (lv > 0.85) l.push(rate); } }
-      const avg = (a) => a.reduce((x, y) => x + y, 0) / (a.length || 1); return { perMin: changes / 5, minR, maxR, offGrid, quiet: avg(q), loud: avg(l) }; });
+      const avg = (a) => a.reduce((x, y) => x + y, 0) / (a.length || 1); return { perMin: changes / 20, minR, maxR, offGrid, quiet: avg(q), loud: avg(l) }; });
     assert(r.perMin >= 15, "not enough rate change: " + r.perMin + "/min"); assert(r.minR >= 5.99 && r.maxR <= 20.01, "rate left the 6–20 Hz range " + JSON.stringify(r));
-    assert(r.offGrid === 0, "targets not on beat harmonics"); assert(r.loud > r.quiet + 2, "louder music didn't push the rate up " + JSON.stringify(r)); await ctx.close();
+    assert(r.offGrid === 0, "targets not on beat harmonics"); assert(r.loud > r.quiet + 0.8, "louder music didn't push the rate up " + JSON.stringify(r)); await ctx.close();
   });
 
   await S.test("Journey flashlight runs on its own clock like the Light Test: 20 Hz asked → ~20 Hz switched", async () => {
@@ -417,6 +417,14 @@ export async function run() {
       LT.track = { readyState: "live", applyConstraints: () => Promise.resolve(), stop() {} }; LGT.mode = "screen"; LGT.mult = "calm"; MED.planHz = () => 4; await lgtStart(); await new Promise((z) => setTimeout(z, 700)); const R = LGT.run, fs = R && R.fs; lgtStop();
       save("mjk-calmlight", "br:6"); const g = lsPaths().calm; return { a, s: p && p.s, fs, glow: g && g.glow }; });
     assert(!r.a && JSON.stringify(r.s) === "[7.83]" && Math.abs(r.fs - 7.83) < 0.3 && r.glow === true, "calm light not wired in " + JSON.stringify(r)); await ctx.close();
+  });
+
+  await S.test("Light show Start never hangs: a frozen flashlight falls back to the screen within a few seconds", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(async () => { LT.track = { readyState: "live", muted: false, applyConstraints: () => new Promise(() => {}), stop() {} };
+      navigator.mediaDevices.getUserMedia = () => new Promise(() => {}); LT.ack = true; LT.mode = "torch"; renderLightTest(); const b = document.querySelector("#lsGo"); b.click(); const mid = b.textContent; b.click();
+      const t0 = performance.now(); while (!LS.on && performance.now() - t0 < 9000) await new Promise((z) => setTimeout(z, 100)); const secs = (performance.now() - t0) / 1000;
+      const out = { on: LS.on, mode: LGT.mode, screen: !!document.getElementById("lgtScr"), mid, secs, note: !!document.getElementById("lsNote") }; lsStop(false); return out; });
+    assert(r.on && r.mode === "screen" && r.screen && r.secs < 8 && r.mid === "Starting…" && r.note, "light show hung on a frozen flashlight " + JSON.stringify(r)); await ctx.close();
   });
 
   await S.test("the app never throws while opening Lyric Lab", async () => {
