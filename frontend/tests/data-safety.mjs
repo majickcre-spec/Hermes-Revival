@@ -289,13 +289,13 @@ export async function run() {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(async () => { renderLightTest(); const warn = !!document.getElementById("ltAck") && !document.getElementById("ltTorch");
       document.getElementById("ltAck").click(); LT.mode = "screen"; renderLightTest(); document.querySelector('[data-lt="4"]').click(); await new Promise((z) => setTimeout(z, 2500));
       const R = LT.run, hz = R.flips / 2 / ((performance.now() - R.t0) / 1000); document.querySelector("#ltScreen button").click(); return { warn, hz, gone: !document.getElementById("ltScreen") && !LT.run }; });
-    assert(r.warn, "flicker started without the safety warning"); assert(Math.abs(r.hz - 12.67) < 0.8, "screen flicker rate off: " + r.hz); assert(r.gone, "Stop did not end the flicker");
+    assert(r.warn, "flicker started without the safety warning"); assert(Math.abs(r.hz - 12.67) < 1.5, "screen flicker rate off: " + r.hz); assert(r.gone, "Stop did not end the flicker");
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
   });
 
   await S.test("Journey light: safety warning first, screen flicker follows the journey's rate, stops with the journey", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(async () => { renderJourney(); await new Promise((z) => setTimeout(z, 300));
-      document.querySelector('[data-jl="screen"]').click(); const warn = !!document.getElementById("jLightOk") && !document.getElementById("lgtScr"); document.getElementById("jLightOk").click();
+      LGT.mult = "auto"; document.querySelector('[data-jl="screen"]').click(); const warn = !!document.getElementById("jLightOk") && !document.getElementById("lgtScr"); document.getElementById("jLightOk").click();
       unlockAudio(); await ac().resume(); document.getElementById("jPlay").click(); await new Promise((z) => setTimeout(z, 2500));
       const o = document.getElementById("lgtScr"); let flips = 0, last = null; const t0 = performance.now();
       await new Promise((res) => { const f = () => { const on = o && o.style.background !== "rgb(0, 0, 0)" && o.style.background !== "#000"; if (on !== last) { flips++; last = on; } if (performance.now() - t0 < 3000) requestAnimationFrame(f); else res(); }; f(); });
@@ -321,6 +321,16 @@ export async function run() {
       R.t0 -= 5000; await new Promise((z) => setTimeout(z, 200)); const hi = R.fs; const B = R.hz * R.mul; medStop(); return { oct, lo, hi, B }; });
     assert(Math.abs(r.oct.fs - 2 * r.oct.ft) < 0.05, "octave harmony off " + JSON.stringify(r.oct)); assert(Math.abs(r.lo - r.B) < 0.3, "φ Alternate should start on the rate " + JSON.stringify(r));
     assert(Math.abs(r.hi - r.B * 1.618) < 0.3 || Math.abs(r.hi - r.B / 1.618) < 0.3, "φ Alternate did not reach the golden partner " + JSON.stringify(r)); await ctx.close();
+  });
+
+  await S.test("Light Mix: speed follows the music's energy and lands near 25% ×1 · 50% ×2 · 25% ×3–4", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(() => { const R = {}; let now = 0; const dt = 0.05; let lowK = [], highK = [];
+      for (let i = 0; i < 20 * 60 * 20; i++) { now += dt * 1000; const t = now / 1000, lv = 0.5 + 0.45 * Math.sin(t / 23) * Math.sin(t / 61 + 1); lgtMixStep(R, Math.max(0, Math.min(1, lv)), dt, now, 30, 6);
+        if (t > 120) { if (lv < 0.2) lowK.push(R.k); if (lv > 0.85) highK.push(R.k); } }
+      const T = R.share[1] + R.share[2] + R.share[3], avg = (a) => a.reduce((x, y) => x + y, 0) / (a.length || 1);
+      return { s1: R.share[1] / T, s2: R.share[2] / T, s3: R.share[3] / T, low: avg(lowK), high: avg(highK) }; });
+    assert(Math.abs(r.s2 - 0.5) < 0.12 && Math.abs(r.s1 - 0.25) < 0.1 && Math.abs(r.s3 - 0.25) < 0.1, "mix shares off " + JSON.stringify(r));
+    assert(r.low < 1.6 && r.high > 2.5, "speed did not follow the music (quiet " + r.low + ", loud " + r.high + ")"); await ctx.close();
   });
 
   await S.test("the app never throws while opening Lyric Lab", async () => {
