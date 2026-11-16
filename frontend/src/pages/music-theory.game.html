@@ -778,7 +778,7 @@ const KB=[
 /* ===== state (beans shared via active traveler) ===== */
 const $=s=>document.querySelector(s);
 /* settings ("mjk-" keys) are kept per player: each player's own copy lives under music-<player>-set:<key>; device-bound keys (recordings on this phone) stay shared */
-var _AID,MJK_DEVICE={"mjk-gsrec":1,"mjk-natuser":1,"mjk-vj":1,"mjk-vol":1};
+var _AID,MJK_DEVICE={"mjk-gsrec":1,"mjk-natuser":1,"mjk-vj":1,"mjk-vol":1,"mjk-torchmax":1};
 function _aid(){if(_AID===undefined){try{_AID=JSON.parse(localStorage.getItem("majick-active"));}catch(e){_AID=null;}}return _AID;}
 function _pk(k){if(k.charCodeAt(0)!==109||k.indexOf("mjk-")!==0||MJK_DEVICE[k])return null;var id=_aid();return id?"music-"+id+"-set:"+k:null;}
 function load(k,d){try{var p=_pk(k),r=p?localStorage.getItem(p):null;if(r==null)r=localStorage.getItem(k);return r?JSON.parse(r):d;}catch(e){return d;}}
@@ -3784,7 +3784,7 @@ function lgtMixStep(R,lv,dt,now,cap,hz){R.slow=(R.slow==null?lv:R.slow+(lv-R.slo
   const x=Math.min(1,(now-R.gStart)/1000/R.gLen),sm=x*x*(3-2*x);R.rate=R.from+(R.to-R.from)*sm;R.k=Math.round(R.rate/hz);
   R.share=R.share||{};return R.rate/hz;}
 function lgtMult(hz,cap){const m=LGT.mult;let k;if(m==="auto"){k=1;while(k<4&&hz*k<8)k++;}else k=+m||1;while(k>1&&hz*k>cap)k--;return k;}
-function lgtTorchMax(){const v=+load("mjk-torchmax",0);return v>0?Math.min(60,v):8;}
+function lgtTorchMax(){let v=+load("mjk-torchmax",0);if(!v){try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(/-set:mjk-torchmax$/.test(k)){v=Math.max(v,+JSON.parse(localStorage.getItem(k))||0);}}}catch(e){}}return v>0?Math.min(60,v):8;}
 function lgtHz(){try{if(LGT.src)return LGT.src();const J=MED.jSess;if(J&&J.paused)return null;return MED.planHz?MED.planHz():null;}catch(e){return null;}}
 function lgtStop(msg){const R=LGT.run;LGT.run=null;if(R){R.stop=true;clearTimeout(R.tm);if(R.raf)cancelAnimationFrame(R.raf);}const o=document.getElementById("lgtScr");if(o)o.remove();
   try{if(LT.track)LT.track.applyConstraints({advanced:[{torch:false}]});}catch(e){}if(msg){const n=document.getElementById("jLightNote");if(n)n.textContent=msg;}}
