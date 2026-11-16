@@ -372,6 +372,53 @@ export async function run() {
     assert(r.had && r.n1 === r.n0, "recorder kept running after leaving: " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Calm Light Finder scores: calmer body in the light → plus, tenser → minus, nothing measured and no rating → no score", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(() => { const mk = (hr, hv, co) => Array.from({ length: 20 }, () => ({ hr, hv, co, al: null }));
+      const calm = clfScore(mk(60, 60, 2), mk(66, 45, 1), null), tense = clfScore(mk(70, 40, 1), mk(66, 45, 1), null), none = clfScore(mk(null, null, null), mk(null, null, null), null), felt = clfScore(mk(null, null, null), mk(null, null, null), 5);
+      return { calm: calm.sc, tense: tense.sc, none: none.sc, felt: felt.sc, dHR: calm.dHR, dHRV: calm.dHRV }; });
+    assert(r.calm > 15 && r.tense < -5 && r.none === null && r.felt === 10 && r.dHR === -6 && r.dHRV === 33, "finder scoring wrong " + JSON.stringify(r)); await ctx.close();
+  });
+
+  await S.test("Calm Light Finder: a full session runs dark → 3 patterns → saves each one, finds the one that lowers heart rate, light ends off", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(async () => { let on = 0; LT.track = { readyState: "live", applyConstraints: (c) => { on = c.advanced[0].torch ? 1 : 0; return Promise.resolve(); }, stop() {} }; LT.ack = true; LT.mode = "torch";
+      HR.connected = true; window.hrFresh = () => true; const cur = () => { const s = CLF.plan && CLF.plan[CLF.seg]; return s && !s.rest ? s.id : null; };
+      window.bioHR = () => (cur() === "hz:7.83" ? 58 : 66); window.bioHRV = () => (cur() === "hz:7.83" ? 62 : 45); window.bioCoherence = () => ({ score: 1 });
+      CLF.next = { narrow: false, ids: ["hz:10", "hz:7.83", "dark"] }; CLF.k = 0.004; renderLightFinder(); await clfStart();
+      let lit = 0; const iv = setInterval(() => { if (LGT.run && clfHz() > 0) lit++; }, 20); while (CLF.on) await new Promise((z) => setTimeout(z, 100)); clearInterval(iv);
+      const D = JSON.parse(localStorage.getItem(Object.keys(localStorage).find((k) => k.endsWith("mjk-lfind"))) || "null"); const B = clfBoard();
+      return { stage: CLF.stage, n: D && D.runs.length, best: B[0] && B[0].id, bestSc: B[0] && B[0].sc, darkSc: (B.find((x) => x.id === "dark") || {}).sc, lit, onAfter: on, rateRows: document.querySelectorAll("[data-clfr]").length / 5 }; });
+    assert(r.stage === "rate" && r.n === 3, "session didn't save 3 results " + JSON.stringify(r)); assert(r.best === "hz:7.83" && r.bestSc > r.darkSc + 10, "didn't find the calming light " + JSON.stringify(r));
+    assert(r.lit > 5 && r.onAfter === 0, "light didn't run or was left on " + JSON.stringify(r)); assert(r.rateRows === 3, "rating step missing"); await ctx.close();
+  });
+
+  await S.test("Calm Light Finder never loses results: stopping or locking mid-session keeps finished patterns, ratings update without dropping others", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(async () => { LT.track = { readyState: "live", applyConstraints: () => Promise.resolve(), stop() {} }; LT.ack = true; LT.mode = "torch";
+      HR.connected = true; window.hrFresh = () => true; window.bioHR = () => 64; window.bioHRV = () => 50; window.bioCoherence = () => null;
+      save("mjk-lfind", { runs: [{ t: 1, ses: 1, si: 1, id: "hz:6", sc: 4, sens: true }] });
+      CLF.next = { narrow: false, ids: ["hz:10", "mix", "br:6"] }; CLF.k = 0.004; renderLightFinder(); await clfStart();
+      while (CLF.on && !(CLF.seg >= 2)) await new Promise((z) => setTimeout(z, 20)); clfStop("locked"); const after = clfData().runs.length, stage = CLF.stage, lastN = (CLF.last || []).length;
+      CLF.rate[CLF.last[0].si] = 5; clfSaveRatings(); const D = clfData().runs; const mine = D.find((x) => x.ses === CLF.ses);
+      return { after, stage, lastN, kept: D.some((x) => x.id === "hz:6" && x.sc === 4), rate: mine && mine.rate, sc: mine && mine.sc, light: !!LGT.run }; });
+    assert(r.after === 2 && r.lastN === 1 && r.stage === "rate", "finished pattern not kept " + JSON.stringify(r)); assert(r.kept, "older result was lost");
+    assert(r.rate === 5 && r.sc === 10, "rating not applied " + JSON.stringify(r)); assert(!r.light, "light still running after stop"); await ctx.close();
+  });
+
+  await S.test("Calm Light Finder narrows in once a winner is clear (and a winner must beat 'No light')", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(() => { const runs = []; let ses = 0;
+      CLF_BASE.forEach((id) => { for (let i = 0; i < 2; i++) runs.push({ ses: ++ses, si: 1, id, sc: id === "hz:7.83" ? 20 : id === "dark" ? 2 : 5 }); }); save("mjk-lfind", { runs });
+      const p = clfPick(), L = clfLeader(); save("mjk-lfind", { runs: runs.map((x) => (x.id === "dark" ? Object.assign({}, x, { sc: 25 }) : x)) }); const L2 = clfLeader();
+      return { narrow: p.narrow, ids: p.ids.slice().sort(), lead: L && L.id, lead2: L2 }; });
+    assert(r.narrow && r.lead === "hz:7.83" && JSON.stringify(r.ids) === JSON.stringify(["hz:7.05", "hz:7.83", "hz:8.61"]), "didn't narrow around the winner " + JSON.stringify(r));
+    assert(r.lead2 === null, "a pattern that doesn't beat 'No light' was called the winner"); await ctx.close();
+  });
+
+  await S.test("Your calm light appears in the Light show and drives the journey light when chosen", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(async () => { const a = !!lsPaths().calm; save("mjk-calmlight", "hz:7.83"); const p = lsPaths().calm;
+      LT.track = { readyState: "live", applyConstraints: () => Promise.resolve(), stop() {} }; LGT.mode = "screen"; LGT.mult = "calm"; MED.planHz = () => 4; await lgtStart(); await new Promise((z) => setTimeout(z, 700)); const R = LGT.run, fs = R && R.fs; lgtStop();
+      save("mjk-calmlight", "br:6"); const g = lsPaths().calm; return { a, s: p && p.s, fs, glow: g && g.glow }; });
+    assert(!r.a && JSON.stringify(r.s) === "[7.83]" && Math.abs(r.fs - 7.83) < 0.3 && r.glow === true, "calm light not wired in " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("the app never throws while opening Lyric Lab", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); await open(pg);
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
