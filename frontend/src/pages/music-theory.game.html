@@ -8644,7 +8644,7 @@ const SPATS=[
  {id:"ddu",name:"Down, down-up",genre:"Pop · rock",ts:"4/4",div:2,beats:4,pat:"D-DUDUDU",bpm:85},
  {id:"rock",name:"Driving rock",genre:"Rock",ts:"4/4",div:2,beats:4,pat:"DDDDDDDD",acc:[2,6],bpm:110},
  {id:"half",name:"Half-time ballad",genre:"Ballad",ts:"4/4",div:2,beats:4,pat:"D---D-DU",bpm:70},
- {id:"reggae",name:"Reggae / ska chop",genre:"Reggae · ska",ts:"4/4",div:2,beats:4,pat:"-u-u-u-u",bpm:80},
+ {id:"reggae",name:"Reggae / ska chop",genre:"Reggae · ska",ts:"4/4",div:2,beats:4,pat:"-U-U-U-U",chop:true,bpm:80},
  {id:"boom",name:"Country boom-chuck",genre:"Country · bluegrass · folk",ts:"4/4",div:1,beats:4,pat:"BDBD",bpm:100},
  {id:"waltz",name:"Waltz boom-chuck-chuck",genre:"Waltz · country",ts:"3/4",div:1,beats:3,pat:"BDD",bpm:90},
  {id:"68",name:"6/8 ballad",genre:"Ballad · folk",ts:"6/8",div:1,beats:6,pat:"DDUDDU",acc:[0,3],bpm:120},
@@ -8685,7 +8685,7 @@ function stHwyDraw(now){var cv=document.getElementById("stHwy");if(!cv)return;va
   var horiz=window.innerWidth>window.innerHeight;/* landscape: strums travel left → right into the strings */
   var c=cv.getContext("2d");c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);
   var g=horiz?c.createLinearGradient(0,0,W,0):c.createLinearGradient(0,0,0,H);g.addColorStop(0,"#0b0816");g.addColorStop(1,"#171028");c.fillStyle=g;c.fillRect(0,0,W,H);
-  var hitP=horiz?W-40:H-30,pxs=(hitP-6)/(barDur*1.3),base=ST.running?ST.firstT:now+0.12,rel=now-base,res={};ST.exp.forEach(function(x){if(x.res)res[x.bar*100+x.slot]=x.res;});
+  var hitP=horiz?W-40:H-30;if(horiz){try{var zr=document.getElementById("fbZone").getBoundingClientRect(),cr=cv.getBoundingClientRect();if(zr.width)hitP=Math.max(W*0.4,Math.min(W-40,zr.left+zr.width/2-cr.left));}catch(e){}}var pxs=(hitP-6)/(barDur*1.3),base=ST.running?ST.firstT:now+0.12,rel=now-base,res={};ST.exp.forEach(function(x){if(x.res)res[x.bar*100+x.slot]=x.res;});
   var insEl=document.getElementById("fbSvgWrap"),insW=(!horiz&&insEl&&insEl.offsetWidth&&ST.neck)?insEl.offsetWidth:0;
   var big=ST.neck?1:1.5,laneLen=horiz?Math.min(H*(ST.neck?0.6:0.8),ST.neck?230:380):Math.min((W-insW)*0.56,ST.neck?260:400),cL=horiz?H/2:(W-insW)/2,pD=cL-laneLen*0.2,pU=cL+laneLen*0.2;
   c.fillStyle="rgba(255,255,255,.04)";if(horiz)c.fillRect(0,cL-laneLen/2,W,laneLen);else c.fillRect(cL-laneLen/2,0,laneLen,H);
@@ -8699,10 +8699,10 @@ function stHwyDraw(now){var cv=document.getElementById("stHwy");if(!cv)return;va
         if(horiz)c.fillText(b%2===0?"LISTEN":"YOUR TURN",pb-6,H-8);else c.fillText(b%2===0?"LISTEN":"YOUR TURN",W-8,pb-8);}}
     for(var bt=1;bt<P.beats;bt++){var pbt=pos(bs+bt*bd);if(pbt>0&&pbt<(horiz?W:H)){c.fillStyle="rgba(255,255,255,.07)";if(horiz)c.fillRect(pbt,cL-laneLen/2,1,laneLen);else c.fillRect(cL-laneLen/2,pbt,laneLen,1);}}
     if(ST.test&&ST.running&&b>=1)continue;
-    for(var i=0;i<n;i++){var ch=P.pat[i];if(ch==="-")continue;var t=stSlotT(P,0,i,bd)+bs,pp=pos(t);if(pp<-24||pp>(horiz?W:H)+24)continue;
+    for(var i=0;i<n;i++){var ch=P.pat[i];if(ch==="-")continue;var t=stSlotT(P,0,i,bd)+bs,pp=pos(t),fade=1;if(pp<-24)continue;if(pp>hitP){var age=(pp-hitP)/pxs;if(age>0.25)continue;fade=1-age/0.25;pp=hitP;}
       var r=res[b*100+i],acc=P.acc&&P.acc.indexOf(i)>=0,mute=(ch==="d"||ch==="u"),down=(ch==="D"||ch==="d"),cross=ch==="B"?cL:(down?pD:pU),col=r==="hit"?"#3fcf7a":r==="wrong"?"#ff9f43":r==="miss"?"#ff5d5d":ch==="B"?"#b48cff":mute?"#9aa3ad":down?"#f4b740":"#49d6c0";
       var x=horiz?pp:cross,y=horiz?cross:pp;
-      var w=(acc?62:52)*big,h=(acc?30:26)*big;c.globalAlpha=r==="miss"?0.55:(ST.mode==="cr"&&b%2===0?0.5:1);c.fillStyle=col;c.beginPath();if(c.roundRect)c.roundRect(x-w/2,y-h/2,w,h,9);else c.rect(x-w/2,y-h/2,w,h);c.fill();if(acc){c.strokeStyle="#fff";c.lineWidth=2;c.stroke();}
+      var w=(acc?62:52)*big,h=(acc?30:26)*big;c.globalAlpha=(r==="miss"?0.55:(ST.mode==="cr"&&b%2===0?0.5:1))*fade;c.fillStyle=col;c.beginPath();if(c.roundRect)c.roundRect(x-w/2,y-h/2,w,h,9);else c.rect(x-w/2,y-h/2,w,h);c.fill();if(acc){c.strokeStyle="#fff";c.lineWidth=2;c.stroke();}
       c.fillStyle="#1a1206";c.font="900 "+Math.round((acc?20:17)*big)+"px system-ui";c.textAlign="center";c.textBaseline="middle";c.fillText(stGlyph(ch)+(mute?"✕":""),x,y+1);c.textBaseline="alphabetic";c.globalAlpha=1;
       c.fillStyle="rgba(255,255,255,.45)";c.font="700 "+Math.round(11*(big>1?1.35:1))+"px system-ui";c.textAlign="center";
       if(horiz)c.fillText(stCountLbl(P,i),pp,cL+laneLen/2+16);else c.fillText(stCountLbl(P,i),cL+laneLen/2+14,pp+4);}}
@@ -8716,7 +8716,7 @@ function stFrets(cn){return CHORDS[ST.inst]&&CHORDS[ST.inst][cn||ST.chord];}
 function stBassS(fr,alt){var first=-1,second=-1;for(var i=0;i<fr.length;i++){if(fr[i]>=0){if(first<0)first=i;else if(second<0){second=i;break;}}}return alt&&second>=0?second:first;}
 function stStrum(fr,t,down,g,dur){var notes=chordNotes(ST.inst,fr),ord=down?notes:notes.slice().reverse();ord.forEach(function(m,i){pluck(m,t+i*0.012,dur,g);});}
 function stPlay(ch,t,P,slot,cn){var fr=stFrets(cn);if(!fr)return;var acc=P.acc&&P.acc.indexOf(slot)>=0,sv=ST.strumVol==null?1:ST.strumVol;
-  if(ch==="D"||ch==="U")stStrum(fr,t,ch==="D",(acc?0.5:0.32)*sv,1.3);
+  if(ch==="D"||ch==="U")stStrum(fr,t,ch==="D",(acc?0.5:0.32)*sv,P.chop?0.16:1.3);
   else if(ch==="d"||ch==="u")stStrum(fr,t,ch==="d",0.26*sv,0.07);
   else if(ch==="B"){var s=stBassS(fr,slot>0);if(s>=0)pluck(STRING_INSTR[ST.inst].strings[s]+fr[s],t,1.1,0.45*sv);}}
 function stViz(ch,slot){var z=document.getElementById("fbZone"),fr=stFrets();if(!z||!fr)return;
@@ -8771,12 +8771,12 @@ function stFinish(){stStop(true);var P=stP(),total=ST.expN||ST.exp.length,pct=to
   var h=$("#stHud");if(h)h.innerHTML='<b style="font-size:1.15rem;color:'+(pct>=80?"#5fe0a8":pct>=50?"#f4b740":"#ff9f9a")+'">'+(pct>=95?"🌟 ":pct>=80?"🔥 ":"")+pct+"%</b> · ✓ "+ST.hit+" · ↺ "+ST.wrong+" wrong way · ✗ "+ST.miss+" missed"+(ms?" · ±"+ms+" ms":"");
   stTip((rec&&pct>0?"🏆 New best! ":"")+(bn?"+"+bn+" beans · ":"")+(pct>=80?"Locked in — try it faster.":pct>=50?"Close — slow it down and watch the lit arrow.":"Try 👀 Watch first, then slow the tempo.")+(ST.extra?" ("+ST.extra+" extra strums)":""));
   var inf=$("#stBest");if(inf)inf.textContent="best "+bests[key]+"%";}
-function stNeckRender(){var w=document.getElementById("fbSvgWrap");if(!w)return;FB.inst=ST.inst;FB.mode="chord";FB.adv=false;FB.chord=ST.chord;var sh=fbShapeFor(ST.chord);FB.win=sh?fbWinFor(sh):1;var sn=FB.showNotes;FB.showNotes=false;FB.pvHeld=true;w.innerHTML=fbSVG();FB.pvHeld=false;FB.showNotes=sn;}
+function stNeckRender(){var w=document.getElementById("fbSvgWrap");if(!w)return;FB.inst=ST.inst;FB.mode="chord";FB.adv=false;FB.chord=ST.chord;var sh=fbShapeFor(ST.chord);FB.win=sh?fbWinFor(sh):1;var sn=FB.showNotes;FB.showNotes=false;FB.pvHeld=true;w.innerHTML=fbSVG();FB.pvHeld=false;FB.showNotes=sn;if(ST._lay&&!ST._inLay){requestAnimationFrame(function(){requestAnimationFrame(function(){try{ST._inLay=true;ST._lay();}catch(e){}ST._inLay=false;});});}}
 function renderStrumTrainer(inst){inst=inst||"guitar";if(toneRAF)cancelAnimationFrame(toneRAF);try{prgStop();}catch(e){}home.hidden=true;view.hidden=false;window.scrollTo(0,0);try{sfLoadInst("guitar");}catch(e){}
   var fbSave={mode:FB.mode,chord:FB.chord,inst:FB.inst,win:FB.win,adv:FB.adv};function fbRestore(){FB.mode=fbSave.mode;FB.chord=fbSave.chord;FB.inst=fbSave.inst;FB.win=fbSave.win;FB.adv=fbSave.adv;}
   ST.inst=inst;if(!CHORDS[inst][ST.one])ST.one=Object.keys(CHORDS[inst])[0];var ks=stKeys(inst);if(ks.indexOf(ST.key)<0)ST.key=ks[0]||"C";if(!ks.length)ST.prog="one";
   FB.onSwipe=function(dir){stJudge(dir==="d"?"down":"up");};FB.onStringTap=function(){stJudge("pick");};
-  var stLayout=function(){var n=document.getElementById("stNeck");if(!n)return;var land=window.innerWidth>window.innerHeight;
+  var stLayout=ST._lay=function(){var n=document.getElementById("stNeck");if(!n)return;var land=window.innerWidth>window.innerHeight;
     if(FB.upright!==!land){FB.upright=!land;try{stNeckRender();}catch(e){}var z0=document.getElementById("fbZone");if(z0){z0.innerHTML=fbZoneSVG();fbBindZone(z0);}}
     n.classList.toggle("land",land);n.classList.toggle("nn",!ST.neck);var r=document.getElementById("stRight");if(r)r.style.flex="";var sw=document.getElementById("fbSvgWrap");if(sw)sw.style.display=ST.neck?"":"none";
     if(land&&!ST._scrl){ST._scrl=true;setTimeout(function(){var n2=document.getElementById("stNeck");if(n2)try{n2.scrollIntoView({block:"start",behavior:"instant"});}catch(e){n2.scrollIntoView();}},90);}else if(!land)ST._scrl=false;

@@ -427,6 +427,14 @@ export async function run() {
     assert(r.on && r.mode === "screen" && r.screen && r.secs < 8 && r.mid === "Starting…" && r.note, "light show hung on a frozen flashlight " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Strum patterns (landscape): the full neck stays through chord changes, arrows stop at the gold line over the body, reggae chop is a short real chord", async () => {
+    const ctx = await b.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true }); const pg = await profilePage(ctx, url, {});
+    await pg.evaluate(() => { ST.neck = true; renderStrumTrainer("ukulele"); ST.mode = "watch"; }); await pg.waitForTimeout(600); await pg.evaluate(() => document.getElementById("stGo").click());
+    const ws = []; for (let i = 0; i < 4; i++) { await pg.waitForTimeout(1500); ws.push(await pg.evaluate(() => { const e = document.querySelector("#fbSvgWrap svg"); return e ? Math.round(e.getBoundingClientRect().width) : 0; })); }
+    const r = await pg.evaluate(() => { stStop(); const P = SPATS.find((p) => p.id === "reggae"); let d = []; const op = window.pluck; window.pluck = (m, t, x) => d.push(x); stPlay("U", 0, P, 1, "C"); window.pluck = op; return { pat: P.pat, dur: Math.max(...d) }; });
+    assert(ws.every((w) => w > 300), "neck vanished in landscape " + JSON.stringify(ws)); assert(r.pat === "-U-U-U-U" && r.dur > 0.1 && r.dur < 0.3, "reggae chop wrong " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("the app never throws while opening Lyric Lab", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); await open(pg);
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
