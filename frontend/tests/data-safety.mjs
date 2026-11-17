@@ -460,14 +460,27 @@ export async function run() {
       const x = fsState(); x.el = 300; fsSave(x); fsNext(); return { parent, start: a.i, el1, bar, paused: p1 === p0, step2: fsState().i, theory: !!document.getElementById("fsQ") }; });
     assert(r1.start === 0 && r1.el1 >= 1 && r1.bar && r1.paused && r1.step2 === 1 && r1.theory, "session flow wrong " + JSON.stringify(r1));
     await pg.reload(); await pg.waitForTimeout(1500);
-    const r2 = await pg.evaluate(async () => { const st = fsState(); const bar = !!document.getElementById("fsBar"); fsGo(st); await new Promise((z) => setTimeout(z, 300));
+    const r2 = await pg.evaluate(async () => { const pk = fsPicker(); if (pk) { const c = [...document.querySelectorAll("#profiles *")].find((e) => e.children.length < 4 && /Star/.test(e.textContent) && e.closest("button,[data-id],.profile")); if (c) (c.closest("button,[data-id],.profile") || c).click(); await new Promise((z) => setTimeout(z, 1300)); } const st = fsState(); const bar = !!document.getElementById("fsBar") && !fsPicker(); fsGo(st); await new Promise((z) => setTimeout(z, 300));
       const q = document.querySelector("#fsQ button"); q.click(); const sc = fsState().score;
-      for (let i = 0; i < 4; i++) { const s = fsState(); s.el = 200; fsSave(s); fsNext(); await new Promise((z) => setTimeout(z, 600)); } const s = fsState(); s.el = 60; fsSave(s); fsNext();
+      for (let i = 0; i < 4; i++) { const s = fsState(); s.el = 200; s.showed = true; s.rated = true; fsSave(s); fsNext(); await new Promise((z) => setTimeout(z, 600)); } const s = fsState(); s.el = 60; fsSave(s); fsNext();
       const lg = fsLog(); return { resumed: st && st.i === 1, bar, sc, log: lg[0], beans: getBeans(), count: load(mk("fs", "count"), 0), state: fsState(), bars: !!document.getElementById("fsBar") }; });
     assert(r2.resumed && r2.bar, "didn't resume after reload " + JSON.stringify(r2)); assert(r2.sc && r2.sc.n === 1, "quiz answer not saved");
     assert(r2.log && r2.log.complete && r2.log.steps.length === 6 && r2.count === 1 && r2.beans === 20 && r2.state === null && !r2.bars, "finish not logged right " + JSON.stringify(r2));
     const r3 = await pg.evaluate((pid) => { save("majick-active", pid); renderFocusSession(); return { txt: document.querySelector("#view").innerText, day: fsDay() }; }, r1.parent);
     assert(/Star’s sessions/.test(r3.txt) && /Rhythm/.test(r3.txt) && /6\/6 steps/.test(r3.txt), "parent can't see Star's sessions"); await ctx.close();
+  });
+
+  await S.test("Focus Session kid pace: real ukulele plays, Show me raises chord tempo only when clean, melody rating moves tempo, the session waits for 'Who's playing?'", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r = await pg.evaluate(async () => { fsStart(); await new Promise((z) => setTimeout(z, 1500)); let n = 0; const o = window.ukeNote; window.ukeNote = function () { const h = o.apply(this, arguments); if (h) n++; return h; }; fsStrum("C"); window.ukeNote = o;
+      const x = fsState(); x.i = 3; x.coached = true; fsSave(x); fsNext(); const sm = !!document.querySelector("#fsSelf, #fsSkip");
+      for (let i = 0; i < 4; i++) { const b = document.getElementById("fsSelf"); if (b) b.click(); }
+      const ch = fsTempo().ch; document.getElementById("fsOn").click(); const after = fsState().i;
+      const y = fsState(); y.coached = true; fsSave(y); fsNext(); const rated = !!document.querySelector("[data-r]"); document.querySelector('[data-r="hard"]').click(); const mel = fsTempo().mel;
+      document.getElementById("gate").hidden = false; const before = fsState().i; fsGo(fsState()); const blocked = !document.getElementById("fsBar") || fsPicker(); document.getElementById("gate").hidden = true;
+      return { notes: n, sm, ch, after, rated, mel, blocked, wanted: (() => { renderStrumTrainer("ukulele"); return ukeWanted(); })(), notWanted: (() => { renderStrumTrainer("guitar"); return ukeWanted(); })() }; });
+    assert(r.notes === 4, "ukulele samples didn't play " + JSON.stringify(r)); assert(r.sm && r.ch === 65 && r.after === 4, "Show me didn't run or raise tempo " + JSON.stringify(r));
+    assert(r.rated && r.mel === 67, "melody rating didn't move tempo " + JSON.stringify(r)); assert(r.blocked, "session ran under the player picker"); assert(r.wanted && !r.notWanted, "ukulele voice used on the wrong instrument"); await ctx.close();
   });
 
   await S.test("the app never throws while opening Lyric Lab", async () => {
