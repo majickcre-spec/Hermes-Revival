@@ -7286,10 +7286,10 @@ function fbHzFit(){try{if(!document.body.classList.contains("fbHz")){fbLockUpd()
   bx.style.width=(nv[0]/tot*100).toFixed(2)+"%";z.style.width=(zv[0]/tot*100).toFixed(2)+"%";fbLockUpd();}catch(e){}}
 function fbSVG(){var h=fbHoriz();try{document.body.classList.toggle("fbHz",h);}catch(e){}
   try{if(h){cancelAnimationFrame(FB._hzF);FB._hzF=requestAnimationFrame(fbHzFit);}else{var bx=document.getElementById("fbBox"),z0=document.getElementById("fbZone");if(bx)bx.style.width="";if(z0)z0.style.width="";requestAnimationFrame(fbLockUpd);}}catch(e){}
-  var s0=fbSVG0();return h?fbRotSVG(s0,!!FB.stFlip&&!!document.getElementById("stNeck")):s0;}/* strum screen: neck matches the body — top string on top, like the instrument in your hands */
-function fbRotSVG(str,flip){try{var doc=new DOMParser().parseFromString(str,"image/svg+xml"),sv=doc.documentElement;if(!sv||sv.nodeName!=="svg")return str;var vb=(sv.getAttribute("viewBox")||"").split(/\s+/).map(Number);if(vb.length!==4)return str;var W=vb[2],H=vb[3];
-  sv.querySelectorAll("text").forEach(function(t){var x=parseFloat(t.getAttribute("x")||0),y=parseFloat(t.getAttribute("y")||0);t.setAttribute("transform",(flip?"matrix(0,1,1,0,"+(x-y)+","+(y-x)+")":"rotate(90 "+x+" "+y+")")+" "+(t.getAttribute("transform")||""));});
-  var g=doc.createElementNS("http://www.w3.org/2000/svg","g");g.setAttribute("transform",flip?"matrix(0,1,1,0,0,0)":"translate(0,"+W+") rotate(-90)");/* flip: same layout, strings mirrored top-to-bottom */[].slice.call(sv.childNodes).forEach(function(n){if(n.nodeName!=="defs")g.appendChild(n);});sv.appendChild(g);sv.setAttribute("viewBox","0 0 "+H+" "+W);return new XMLSerializer().serializeToString(sv);}catch(e){return str;}}
+  var s0=fbSVG0();return h?fbRotSVG(s0):s0;}
+function fbRotSVG(str){try{var doc=new DOMParser().parseFromString(str,"image/svg+xml"),sv=doc.documentElement;if(!sv||sv.nodeName!=="svg")return str;var vb=(sv.getAttribute("viewBox")||"").split(/\s+/).map(Number);if(vb.length!==4)return str;var W=vb[2],H=vb[3];
+  sv.querySelectorAll("text").forEach(function(t){var x=parseFloat(t.getAttribute("x")||0),y=parseFloat(t.getAttribute("y")||0);t.setAttribute("transform","rotate(90 "+x+" "+y+") "+(t.getAttribute("transform")||""));});
+  var g=doc.createElementNS("http://www.w3.org/2000/svg","g");g.setAttribute("transform","translate(0,"+W+") rotate(-90)");[].slice.call(sv.childNodes).forEach(function(n){if(n.nodeName!=="defs")g.appendChild(n);});sv.appendChild(g);sv.setAttribute("viewBox","0 0 "+H+" "+W);return new XMLSerializer().serializeToString(sv);}catch(e){return str;}}
 /* screen point -> neck coordinates, whichever way the neck faces */
 function fbPt(svg,g,cx,cy){var r=svg.getBoundingClientRect();if(!r.width||!r.height)return null;if(fbHoriz()){var X=(cx-r.left)*(g.VBH/r.width),Y=(cy-r.top)*(g.VBW/r.height);return [g.VBW-Y,X];}return [(cx-r.left)*(g.VBW/r.width),(cy-r.top)*(g.VBH/r.height)];}
 function fbSVG0(){var g=fbGeo(),N=g.N,shape=fbCurShape(),fingers=(FB.mode==="chord")?fbFingersFor(FB.chord):null;
@@ -7379,7 +7379,7 @@ function fbBindTouch(box){if(!box||box._fbBound)return;box._fbBound=true;var S=f
     var pe=function(e){end("p"+e.pointerId);};box.addEventListener("pointerup",pe);box.addEventListener("pointercancel",pe);
   }}
 function fbZoneXs(){var g=fbGeo(),xs=[];for(var s=0;s<g.N;s++)xs.push(g.sx(s,g.bottomY));return xs;}
-function fbZoneSVG(){var z=fbZoneSVG0();return fbHoriz()?fbRotSVG(z,!!FB.stFlip&&!!document.getElementById("stNeck")):z;}
+function fbZoneSVG(){var z=fbZoneSVG0();return fbHoriz()?fbRotSVG(z):z;}
 function fbZoneSVG0(){var g=fbGeo(),N=g.N,W=g.VBW,H=200,xs=fbZoneXs(),cx=g.cx,s=[];
   s.push('<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block">');
   s.push('<defs><linearGradient id="szTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d8b07a"/><stop offset="1" stop-color="#b5874f"/></linearGradient>'+
@@ -7399,7 +7399,7 @@ function fbZoneSVG0(){var g=fbGeo(),N=g.N,W=g.VBW,H=200,xs=fbZoneXs(),cx=g.cx,s=
   s.push('</svg>');return s.join("");}
 function fbZoneVib(s){var el=document.querySelector('#fbZone .szs[data-s="'+s+'"]');if(!el)return;el.classList.remove("vib");void el.getBoundingClientRect();el.classList.add("vib");}
 function fbBindZone(el){if(!el||el._bound)return;el._bound=true;var st={};var trackY=function(e){var t=e.touches&&e.touches[0]?e.touches[0]:(e.changedTouches&&e.changedTouches[0]?e.changedTouches[0]:e);if(t&&t.clientY!=null)el._cy=t.clientY;};["pointerdown","pointermove","mousedown","mousemove","touchstart","touchmove"].forEach(function(ev){el.addEventListener(ev,trackY,true);});
-  function vx(cx,cy){var svg=el.querySelector("svg");if(!svg)return null;if(fbHoriz()){var r=svg.getBoundingClientRect(),g=fbGeo(),v=((cy==null?(el._cy!=null?el._cy:r.top+r.height/2):cy)-r.top)*(g.VBW/r.height);return (FB.stFlip&&document.getElementById("stNeck"))?v:g.VBW-v;}var r2=svg.getBoundingClientRect();return (cx-r2.left)*(fbGeo().VBW/r2.width);}
+  function vx(cx,cy){var svg=el.querySelector("svg");if(!svg)return null;if(fbHoriz()){var r=svg.getBoundingClientRect(),g=fbGeo();return g.VBW-((cy==null?(el._cy!=null?el._cy:r.top+r.height/2):cy)-r.top)*(g.VBW/r.height);}var r2=svg.getBoundingClientRect();return (cx-r2.left)*(fbGeo().VBW/r2.width);}
   function start(id,cx){var x=vx(cx);if(x==null)return;st[id]={x:x,moved:false};}
   function move(id,cx){var p=st[id];if(!p)return;var x=vx(cx);if(x==null)return;var xs=fbZoneXs(),lo=Math.min(p.x,x),hi=Math.max(p.x,x),hit=[];
     for(var i=0;i<xs.length;i++){if(xs[i]>lo&&xs[i]<=hi)hit.push(i);}if(x<p.x)hit.reverse();
@@ -8644,7 +8644,7 @@ const SPATS=[
  {id:"ddu",name:"Down, down-up",genre:"Pop · rock",ts:"4/4",div:2,beats:4,pat:"D-DUDUDU",bpm:85},
  {id:"rock",name:"Driving rock",genre:"Rock",ts:"4/4",div:2,beats:4,pat:"DDDDDDDD",acc:[2,6],bpm:110},
  {id:"half",name:"Half-time ballad",genre:"Ballad",ts:"4/4",div:2,beats:4,pat:"D---D-DU",bpm:70},
- {id:"reggae",name:"Reggae / ska chop",genre:"Reggae · ska",ts:"4/4",div:2,beats:4,pat:"-U-U-U-U",chop:true,bpm:80},
+ {id:"reggae",name:"Reggae / ska chop",genre:"Reggae · ska",ts:"4/4",div:2,beats:4,pat:"-u-u-u-u",bpm:80},
  {id:"boom",name:"Country boom-chuck",genre:"Country · bluegrass · folk",ts:"4/4",div:1,beats:4,pat:"BDBD",bpm:100},
  {id:"waltz",name:"Waltz boom-chuck-chuck",genre:"Waltz · country",ts:"3/4",div:1,beats:3,pat:"BDD",bpm:90},
  {id:"68",name:"6/8 ballad",genre:"Ballad · folk",ts:"6/8",div:1,beats:6,pat:"DDUDDU",acc:[0,3],bpm:120},
@@ -8708,9 +8708,7 @@ function stHwyDraw(now){var cv=document.getElementById("stHwy");if(!cv)return;va
       if(horiz)c.fillText(stCountLbl(P,i),pp,cL+laneLen/2+16);else c.fillText(stCountLbl(P,i),cL+laneLen/2+14,pp+4);}}
   c.fillStyle="rgba(244,183,64,.95)";if(horiz)c.fillRect(hitP-1.5,cL-laneLen/2-6,3,laneLen+12);else c.fillRect(cL-laneLen/2-6,hitP-1.5,laneLen+12,3);}
 function stCountLbl(P,i){if(P.div===1)return String(i%P.beats+1);var b=Math.floor(i/P.div)+1,s=i%P.div;if(P.div===2)return s?"&":String(b);return s===0?String(b):["","e","&","a"][s];}
-function stLand(){return window.innerWidth>window.innerHeight;}
-function stGlyph(ch){var l=stLand();return ch==="D"||ch==="d"?(l?"↓":"→"):ch==="U"||ch==="u"?(l?"↑":"←"):ch==="B"?"●":"·";}
-function stDirTxt(down){return stLand()?(down?"swipe down":"swipe up"):(down?"swipe right":"swipe left");}
+function stGlyph(ch){return ch==="D"||ch==="d"?"→":ch==="U"||ch==="u"?"←":ch==="B"?"●":"·";}
 function stLaneHTML(P){var h="";for(var i=0;i<P.pat.length;i++){var ch=P.pat[i],cl="stc"+(ch==="-"?" rest":"")+((ch==="d"||ch==="u")?" mute":"")+(P.acc&&P.acc.indexOf(i)>=0?" acc":"");h+='<div class="'+cl+'" data-i="'+i+'"><div class="ar">'+stGlyph(ch)+((ch==="d"||ch==="u")?'<span style="font-size:.6em">✕</span>':'')+'</div><div class="ct">'+stCountLbl(P,i)+'</div></div>';}return h;}
 function stSlotT(P,barStart,i,bd){var beat=Math.floor(i/P.div),sub=i%P.div,off=sub*(bd/P.div);if(P.swing&&P.div===2&&sub===1)off=bd*2/3;return barStart+beat*bd+off;}
 function stWin(){var P=stP();return Math.min(0.16,(60/ST.bpm)/P.div*0.45);}
@@ -8718,7 +8716,7 @@ function stFrets(cn){return CHORDS[ST.inst]&&CHORDS[ST.inst][cn||ST.chord];}
 function stBassS(fr,alt){var first=-1,second=-1;for(var i=0;i<fr.length;i++){if(fr[i]>=0){if(first<0)first=i;else if(second<0){second=i;break;}}}return alt&&second>=0?second:first;}
 function stStrum(fr,t,down,g,dur){var notes=chordNotes(ST.inst,fr),ord=down?notes:notes.slice().reverse();ord.forEach(function(m,i){pluck(m,t+i*0.012,dur,g);});}
 function stPlay(ch,t,P,slot,cn){var fr=stFrets(cn);if(!fr)return;var acc=P.acc&&P.acc.indexOf(slot)>=0,sv=ST.strumVol==null?1:ST.strumVol;
-  if(ch==="D"||ch==="U")stStrum(fr,t,ch==="D",(acc?0.5:0.32)*sv,P.chop?0.16:1.3);
+  if(ch==="D"||ch==="U")stStrum(fr,t,ch==="D",(acc?0.5:0.32)*sv,1.3);
   else if(ch==="d"||ch==="u")stStrum(fr,t,ch==="d",0.26*sv,0.07);
   else if(ch==="B"){var s=stBassS(fr,slot>0);if(s>=0)pluck(STRING_INSTR[ST.inst].strings[s]+fr[s],t,1.1,0.45*sv);}}
 function stViz(ch,slot){var z=document.getElementById("fbZone"),fr=stFrets();if(!z||!fr)return;
@@ -8753,7 +8751,7 @@ function stJudge(kind){if(ST.mode==="watch"||!ST.running)return;var now=ac().cur
   if(!best){if(kind==="any")return;ST.extra++;stTip("Extra strum — on a <b>·</b> keep your hand moving but miss the strings.");return;}
   best.done=true;var want=(best.ch==="D"||best.ch==="d")?"down":(best.ch==="U"||best.ch==="u")?"up":"pick";if(kind==="any")kind=want;
   if(kind===want){best.res="hit";ST.hit++;ST.streak++;ST.err+=bd;ST.nErr++;stMark(best,"hit");stTip("");}
-  else{best.res="wrong";ST.wrong++;ST.streak=0;stMark(best,"wrong");stTip(want==="pick"?"That one’s a <b>● bass note</b> — tap one string.":want==="down"?"That one’s a <b>"+stGlyph("D")+" down strum</b> — "+stDirTxt(true)+".":"That one’s an <b>"+stGlyph("U")+" up strum</b> — "+stDirTxt(false)+".");}
+  else{best.res="wrong";ST.wrong++;ST.streak=0;stMark(best,"wrong");stTip(want==="pick"?"That one’s a <b>● bass note</b> — tap one string.":want==="down"?"That one’s a <b>→ down strum</b> — swipe right.":"That one’s an <b>← up strum</b> — swipe left.");}
   stHud();}
 function stStop(keep){ST.running=false;if(ST.micRaf){cancelAnimationFrame(ST.micRaf);ST.micRaf=null;}if(ST.schID){clearInterval(ST.schID);ST.schID=null;}if(ST.raf){cancelAnimationFrame(ST.raf);ST.raf=null;}ST.visQ=[];
   var b=$("#stGo");if(b)b.textContent=ST.mode==="watch"?"▶ Watch it":"▶ Start";var tb=$("#stTest");if(tb)tb.textContent="🎯 Test";var cn=$("#stCount");if(cn)cn.textContent="";
@@ -8790,11 +8788,11 @@ function renderStrumTrainer(inst){inst=inst||"guitar";if(toneRAF)cancelAnimation
       if(useN){n2.style.width=Math.floor(nv[0]*sc)+"px";n2.style.height=Math.floor(nv[1]*sc)+"px";n2.style.margin="0";}
       z2.style.width=Math.floor(zv[0]*sc)+"px";z2.style.height=Math.floor(zv[1]*sc)+"px";z2.style.margin="0";});}
     else{if(zs){zs.style.width="100%";zs.style.height="auto";zs.style.margin="";}if(ns){ns.style.width="";ns.style.height="";ns.style.margin="";}}};
-  var onRs=function(){stLayout();try{var ln=document.getElementById("stLane");if(ln)ln.innerHTML=stLaneHTML(stP());}catch(e){}if(!ST.running)stHwyDraw(ac().currentTime);clearTimeout(ST._rzT);ST._rzT=setTimeout(function(){stLayout();if(!ST.running)stHwyDraw(ac().currentTime);},350);};window.addEventListener("resize",onRs);window.addEventListener("orientationchange",onRs);
-  FB.upright=!(window.innerWidth>window.innerHeight);FB.stFlip=true;teardown=function(){stStop();FB.onSwipe=null;FB.onStringTap=null;FB.upright=false;FB.stFlip=false;fbRestore();window.removeEventListener("resize",onRs);window.removeEventListener("orientationchange",onRs);};
+  var onRs=function(){stLayout();if(!ST.running)stHwyDraw(ac().currentTime);clearTimeout(ST._rzT);ST._rzT=setTimeout(function(){stLayout();if(!ST.running)stHwyDraw(ac().currentTime);},350);};window.addEventListener("resize",onRs);window.addEventListener("orientationchange",onRs);
+  FB.upright=!(window.innerWidth>window.innerHeight);teardown=function(){stStop();FB.onSwipe=null;FB.onStringTap=null;FB.upright=false;fbRestore();window.removeEventListener("resize",onRs);window.removeEventListener("orientationchange",onRs);};
   function draw(){stStop();ST.test=false;var P=stP();if(ST.bpmFor!==P.id){ST.bpm=P.bpm;ST.bpmFor=P.id;}ST.chord=stChordAt(0);var PD=stProgDef();
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">↕️ Strum Patterns</span></div>'+gtrRotHint()+'<div class="panel">'+
-      '<div class="intro">Strums fall down the highway onto the neck. <b>👀 Watch</b> plays it for you. <b>🎸 I\'ll play</b>: after the count-in, swipe the guitar body as each arrow reaches the gold line — <b>'+(stLand()?'down <b>↓</b> for a down strum, up <b>↑</b> for an up strum':'right <b>→</b> for a down strum, left <b>←</b> for an up strum')+'</b>, keeping your hand swinging. Pick a progression and the chord changes every bar.</div>'+
+      '<div class="intro">Strums fall down the highway onto the neck. <b>👀 Watch</b> plays it for you. <b>🎸 I\'ll play</b>: after the count-in, swipe the guitar body as each arrow reaches the gold line — <b>right <b>→</b> for a down strum, left <b>←</b> for an up strum</b>, keeping your hand swinging. Pick a progression and the chord changes every bar.</div>'+
       '<div id="stBar" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:6px 0"><button class="btn" id="stGo" style="padding:9px 20px">'+(ST.mode==="play"?"▶ Start":"▶ Watch it")+'</button><button class="btn ghost" id="stTest" style="padding:7px 14px">🎯 Test</button><span class="rchips tight" id="stModes" style="margin:0"></span><button class="btn ghost" id="stSc" style="padding:7px 14px">🏆 My scores</button>'+'<button class="rchip sm'+(ST.loop?" sel":"")+'" id="stLoop">🔁 Loop</button><button class="rchip sm'+(ST.neck?" sel":"")+'" id="stNk">🎸 Neck</button><button class="rchip sm" id="stTm2" aria-label="Slower" style="font-weight:900;min-width:34px;justify-content:center">−</button><span class="rbpm" id="stBpmV2" style="min-width:34px;text-align:center">'+ST.bpm+'</span><button class="rchip sm" id="stTp2" aria-label="Faster" style="font-weight:900;min-width:34px;justify-content:center">+</button></div>'+
       '<div class="rrow2"><span class="rlab">Pattern</span><span class="rchips tight" id="stPats"></span></div>'+
       '<div class="rrow2"><span class="rlab">Progression</span><span class="rchips tight" id="stProgs"></span></div>'+
@@ -8809,7 +8807,7 @@ function renderStrumTrainer(inst){inst=inst||"guitar";if(toneRAF)cancelAnimation
       '<div class="rrow2"><span class="rlab">Bars</span><span class="rchips tight" id="stBars"></span></div>'+(function(){var pr=stProgChords();ST.lbo=Object.assign({n:0,s:0},load("mjk-stlb-"+ST.prog,{n:0,s:0}));return pr?lbHTML("stLB",ST.lbo,pr.length):"";})()+
       '<div class="rrow2"><span class="rlab">I play with</span><span class="rchips tight"><button class="rchip sm'+(ST.input==="touch"?" sel":"")+'" data-stin="touch">👆 Screen</button><button class="rchip sm'+(ST.input==="mic"?" sel":"")+'" data-stin="mic">🎸 My guitar (mic)</button></span></div>'+
       clickVolRow("stClickV",ST.clickVol)+'<div class="rrow"><span class="rlab">\ud83c\udfb8 Strums</span><input type="range" id="stStrumV" min="0" max="100" value="'+Math.round((ST.strumVol==null?1:ST.strumVol)*100)+'" style="flex:1"><span class="rbpm" id="stStrumVV">'+Math.round((ST.strumVol==null?1:ST.strumVol)*100)+'%</span></div>'+volSlider("stVol")+'</div>';
-    $("#eBack").onclick=function(){stStop();FB.onSwipe=null;FB.onStringTap=null;FB.upright=false;FB.stFlip=false;fbRestore();window.removeEventListener("resize",onRs);window.removeEventListener("orientationchange",onRs);renderStrings(ST.inst);};
+    $("#eBack").onclick=function(){stStop();FB.onSwipe=null;FB.onStringTap=null;FB.upright=false;fbRestore();window.removeEventListener("resize",onRs);window.removeEventListener("orientationchange",onRs);renderStrings(ST.inst);};
     SPATS.forEach(function(p,i){var b=document.createElement("button");b.className="rchip sm"+(i===ST.pi?" sel":"");b.textContent=p.name;b.onclick=function(){ST.pi=i;draw();};$("#stPats").appendChild(b);});
     [["watch","👀 Watch"],["play","🎸 I'll play"],["cr","🔁 Call & response"]].forEach(function(o){var b=document.createElement("button");b.className="rchip sm"+(ST.mode===o[0]?" sel":"");b.textContent=o[1];b.onclick=function(){ST.mode=o[0];draw();};$("#stModes").appendChild(b);});
     ST_PROGS.forEach(function(pr){if(pr.d&&!ks.length)return;var b=document.createElement("button");b.className="rchip sm"+(ST.prog===pr.id?" sel":"");b.innerHTML=esc(pr.n)+(pr.g?' <span style="opacity:.6;font-size:.75em">'+pr.g+'</span>':'');b.onclick=function(){ST.prog=pr.id;save("mjk-stprog",pr.id);draw();};$("#stProgs").appendChild(b);});
