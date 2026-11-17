@@ -51,7 +51,7 @@ When asked to revise an instrument, revise the whole section — every screen an
    **Post-flight (after Railway deploys):** `cd frontend && npm run postflight` — confirms the live site serves the pushed commit and key screens open without errors.
    **Never ship a change that can overwrite or drop user data without a test in `frontend/tests/data-safety.mjs` proving it can't.**
 1. Syntax-check the built app (`node --check` on the inline script) before every push.
-2. Screenshot every screen touched at phone size (390×844 portrait and 844×390 landscape), as the player.
+2. **LAW — look before you call it built:** before a build is done, screenshot every screen touched at phone size (390×844 portrait and 844×390 landscape), as the player, and actually LOOK at each screenshot to confirm the layout makes sense. Check it while it's running too (e.g. after a chord change, mid-session), not only the first frame. Never build by guess. If a screenshot looks wrong, fix it and re-shoot before pushing. Don't change how an instrument looks or feels (orientation, arrows, layout) unless Travis asked — ask first.
 3. Answer all 27 questions for each screen; fix what fails before reporting.
 4. Test the way it's really used: full session start to finish, with a device connected, including being cut off (sleep, screen lock, reload).
 5. Report briefly: what passed, what was fixed, what only a real phone/instrument can confirm.
