@@ -579,6 +579,7 @@ body.inact .brand h1,body.inact .brand .sigil,body.inact .brand .brandmark{anima
   <div id="gate"></div>
 
   <div id="home" hidden>
+    <div id="fsHero"></div>
     <div class="hero">
       <div class="eyebrow">Majick Music University</div>
       <h2>Whether an Experienced Professional or just starting out, these exercises will take you on a journey into your own deeper connection to <span class="mz">the Music</span>.</h2>
@@ -1215,7 +1216,7 @@ function buildSearchIndex(){var idx=[];
 function renderHome(){
   beanChip();renderQuest();
   const nm=activeName();if(nm){const h=document.querySelector(".hero h2 .nm");if(h)h.textContent=nm;}
-  renderPathHero();try{medRemBanner();}catch(e){}
+  renderPathHero();try{medRemBanner();}catch(e){}try{fsHeroPaint();}catch(e){}
   const tg=$("#topicGrid");tg.innerHTML="";
   TOPICS.forEach(t=>{const b=document.createElement("button");b.className="card";
     b.innerHTML=`<span class="ic">${t.icon}</span><h3>${esc(t.title)}</h3><span class="blurb">${esc(t.blurb)}</span>
@@ -7975,6 +7976,15 @@ function fsStar(){const me=activeId();return getProfiles().find(p=>p.id!==me&&/^
 function fsLogFor(pid){try{return JSON.parse(localStorage.getItem("music-"+pid+"-fs-log")||"[]")||[];}catch(e){return [];}}
 function fsHistHtml(lg){if(!lg.length)return '<div class="site-note">No sessions yet.</div>';const d=t=>new Date(t).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
   return '<div class="fs-hist">'+lg.slice(0,10).map(r=>'<div>'+(r.complete?"✅":"◐")+' <b>'+d(r.t)+'</b> · '+r.minutes+' min · '+esc(r.topic)+(r.score?' · theory '+r.score.ok+'/'+r.score.n:'')+(r.stars?' · ⭐ '+r.stars:'')+(r.feel?' · melody felt '+r.feel:'')+(r.tempo?' · '+r.tempo.ch+'/'+r.tempo.mel+' bpm':'')+(r.calm!=null?' · calm '+r.calm:'')+' · '+r.steps.length+'/'+FS_STEPS.length+' steps</div>').join("")+'</div>';}
+/* front and center on the home screen: Star sees her session first; a parent sees a small card with her last session */
+function fsHeroPaint(){const el=document.getElementById("fsHero");if(!el)return;const me=activeProfile(),isStar=!!(me&&/^star\b/i.test(me.name||"")),star=fsStar(),st=fsState(),going=st&&!st.done;
+  if(!isStar&&!star&&!going){el.innerHTML="";return;}
+  const D=FS_DAYS[going?st.day:fsDay()];
+  if(isStar||going){el.innerHTML='<button class="fs-hero" id="fsHeroGo"><span class="fs-hi">🌟</span><span class="fs-ht"><b>'+(isStar?"My Focus Session":"Star’s Focus Session")+'</b><small>'+(going?"Keep going · step "+(st.i+1)+" of "+FS_STEPS.length+" · "+esc(fsStep(st).n):"Breathe · "+esc(D.t)+" · Ukulele — about 28 min")+'</small></span><span class="fs-hb">'+(going?"▶ Keep going":"▶ Start")+'</span></button>';
+    $("#fsHeroGo").onclick=()=>{const x=fsState();if(x&&!x.done)fsGo(x);else fsStart();};}
+  else{const lg=fsLogFor(star.id),last=lg[0],d=last?new Date(last.t).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}):null;
+    el.innerHTML='<button class="fs-hero sm" id="fsHeroGo"><span class="fs-hi">🌟</span><span class="fs-ht"><b>Star’s Focus Session</b><small>'+(last?"Last: "+d+" · "+last.minutes+" min · "+esc(last.topic)+(last.stars?" · ⭐ "+last.stars:""):"Not started yet")+'</small></span><span class="fs-hb">Open</span></button>';
+    $("#fsHeroGo").onclick=renderFocusSession;}}
 function renderFocusSession(){if(toneRAF)cancelAnimationFrame(toneRAF);if(teardown){try{teardown();}catch(e){}}teardown=null;home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   const st=fsState(),day=st&&!st.done?st.day:fsDay(),D=FS_DAYS[day],star=fsStar(),cnt=load(mk("fs","count"),0)||0;
   view.innerHTML=fsCss()+fsTop("🌟 Star's Focus Session")+'<div class="panel">'+
@@ -8116,7 +8126,7 @@ function fsChordSvg(name){const c=FS_UKE[name],W=84,H=100,x=i=>14+i*18.6,y=f=>18
 function renderFsFree(){if(teardown){try{teardown();}catch(e){}}teardown=null;home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   view.innerHTML=fsCss()+fsTop("✨ Free strum")+'<div class="panel"><div class="fs-learn">Play anything you like with your chords — make up a pattern, switch chords, have fun. Tap a chord to hear it.</div><div class="fs-ch">'+["Am","A","C","F","G"].map(n=>'<button data-c="'+n+'">'+fsChordSvg(n)+'<div>'+n+'</div></button>').join("")+'</div></div>';
   $("#eBack").onclick=goHome;view.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>{unlockAudio();fsStrum(b.dataset.c);});}
-(function(){try{const s=document.createElement("style");s.textContent="#fsBar{position:fixed;left:50%;top:calc(6px + env(safe-area-inset-top));transform:translateX(-50%);z-index:9000;display:flex;align-items:center;gap:6px;padding:4px 5px 4px 8px;border-radius:999px;background:rgba(20,14,36,.92);border:1px solid rgba(244,183,64,.5);box-shadow:0 4px 14px rgba(0,0,0,.45);font:800 .8rem system-ui;color:#fff;max-width:96vw;white-space:nowrap}#fsBar button{background:none;border:0;color:#fff;font:800 .85rem system-ui;padding:8px 8px;min-height:44px;min-width:44px}#fsBar b{color:#f4b740;min-width:2.6em;text-align:center}#fsBar .nx{background:#f4b740;color:#120c20;border-radius:999px;padding:6px 12px}#fsBar.up .nx{animation:fsPulse 1s ease-in-out infinite}@keyframes fsPulse{50%{transform:scale(1.08);box-shadow:0 0 0 6px rgba(244,183,64,.25)}}#fsbOpen{overflow:hidden;text-overflow:ellipsis;max-width:46vw}@media (orientation:landscape) and (max-height:520px){#fsBar{top:auto;bottom:calc(6px + env(safe-area-inset-bottom));padding:2px 3px 2px 6px;opacity:.94}#fsBar .fsn{display:none}#fsBar button{min-height:44px;padding:4px 8px}body.fs-on .wrap>.top{display:none}}body.fs-on #view{padding-bottom:84px}body.fs-kid #stTest,body.fs-kid #melTest,body.fs-kid #melScores,body.fs-kid #czABtn,body.fs-kid #stSumm{display:none!important}";document.head.appendChild(s);}catch(e){}
+(function(){try{const s=document.createElement("style");s.textContent="#fsBar{position:fixed;left:50%;top:calc(6px + env(safe-area-inset-top));transform:translateX(-50%);z-index:9000;display:flex;align-items:center;gap:6px;padding:4px 5px 4px 8px;border-radius:999px;background:rgba(20,14,36,.92);border:1px solid rgba(244,183,64,.5);box-shadow:0 4px 14px rgba(0,0,0,.45);font:800 .8rem system-ui;color:#fff;max-width:96vw;white-space:nowrap}#fsBar button{background:none;border:0;color:#fff;font:800 .85rem system-ui;padding:8px 8px;min-height:44px;min-width:44px}#fsBar b{color:#f4b740;min-width:2.6em;text-align:center}#fsBar .nx{background:#f4b740;color:#120c20;border-radius:999px;padding:6px 12px}#fsBar.up .nx{animation:fsPulse 1s ease-in-out infinite}@keyframes fsPulse{50%{transform:scale(1.08);box-shadow:0 0 0 6px rgba(244,183,64,.25)}}#fsbOpen{overflow:hidden;text-overflow:ellipsis;max-width:46vw}.fs-hero{display:flex;align-items:center;gap:14px;width:100%;margin:6px 0 14px;padding:18px 18px;border-radius:22px;border:2px solid rgba(244,183,64,.7);background:linear-gradient(135deg,rgba(244,183,64,.22),rgba(127,240,214,.10));color:#fff;text-align:left;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.35)}.fs-hero .fs-hi{font-size:2.4rem}.fs-hero .fs-ht{flex:1;display:flex;flex-direction:column;gap:4px}.fs-hero b{font:900 1.25rem system-ui}.fs-hero small{font:700 .85rem system-ui;color:var(--muted)}.fs-hero .fs-hb{background:#f4b740;color:#120c20;font:900 1rem system-ui;padding:12px 18px;border-radius:999px;white-space:nowrap}.fs-hero.sm{padding:12px 14px;border-width:1px}.fs-hero.sm .fs-hi{font-size:1.6rem}.fs-hero.sm b{font-size:1rem}.fs-hero.sm .fs-hb{padding:8px 14px;font-size:.85rem}@media (orientation:landscape) and (max-height:520px){#fsBar{top:auto;bottom:calc(6px + env(safe-area-inset-bottom));padding:2px 3px 2px 6px;opacity:.94}#fsBar .fsn{display:none}#fsBar button{min-height:44px;padding:4px 8px}body.fs-on .wrap>.top{display:none}}body.fs-on #view{padding-bottom:84px}body.fs-kid #stTest,body.fs-kid #melTest,body.fs-kid #melScores,body.fs-kid #czABtn,body.fs-kid #stSumm{display:none!important}";document.head.appendChild(s);}catch(e){}
   setTimeout(()=>{try{const st=fsState();if(st&&!st.done){fsEnsureTicker();fsBar();}}catch(e){}},800);})();
 function renderSessionsDone(st){home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){};
   var kid=!isAdult()&&activeId();

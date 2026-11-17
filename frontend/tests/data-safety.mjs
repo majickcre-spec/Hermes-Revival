@@ -483,6 +483,13 @@ export async function run() {
     assert(r.rated && r.mel === 67, "melody rating didn't move tempo " + JSON.stringify(r)); assert(r.blocked, "session ran under the player picker"); assert(r.wanted && !r.notWanted, "ukulele voice used on the wrong instrument"); await ctx.close();
   });
 
+  await S.test("Focus Session is front and center: Star's home shows Start at the top; a parent sees her last session", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r = await pg.evaluate(() => { const ps = getProfiles(); ps.push({ id: "ustar1", name: "Star", mode: "kid" }); setProfiles(ps); localStorage.setItem("music-ustar1-fs-log", JSON.stringify([{ t: Date.now(), day: 0, topic: "Rhythm", steps: [], minutes: 27, stars: "4/4", complete: true }]));
+      goHome(); renderHome(); const parent = document.getElementById("fsHero").innerText; const pid = activeId(); save("majick-active", "ustar1"); renderHome(); const star = document.getElementById("fsHero").innerText; const first = document.getElementById("home").firstElementChild.id; save("majick-active", pid); return { parent, star, first }; });
+    assert(/Star’s Focus Session/.test(r.parent) && /27 min/.test(r.parent), "parent card missing " + JSON.stringify(r)); assert(/My Focus Session/.test(r.star) && /Start/.test(r.star) && r.first === "fsHero", "Star's card not front and center " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("the app never throws while opening Lyric Lab", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); await open(pg);
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
