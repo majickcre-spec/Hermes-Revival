@@ -224,6 +224,40 @@ const PRAYERS=[
   "There is one petition that we ask: that we be preserved in knowledge.",
   "And one protection we desire: that we not stumble in this kind of life."
  ]
+},
+{
+ id:"holy-sermon", glyph:"🌱",
+ title:"The Holy Sermon",
+ sub:"“THE glory of all things, God…”",
+ source:"Corpus Hermeticum", corpus:true,
+ ref:"The Divine Pymander · Book III (The Holy Sermon) · 1–11",
+ vn:["1", "2", "3", "", "4", "5", "", "", "6", "", "7", "", "", "8", "", "", "9", "", "", "10", "", "11", ""],
+ intro:"The whole Third Book — how all things came forth, and how all things are made new. Learn it a few lines at a time; the repeating “And…” openings help the memory.",
+ lines:[
+  "THE glory of all things, God, and that which is Divine, and the Divine Nature, the beginning of things that are.",
+  "God, and the Mind, and Nature, and Matter, and Operation or Working, and Necessity, and Matter, and Operation or Working, and Necessity, and the End, and Renovation.",
+  "For there were in the Chaos an infinite darkness in the Abyss or bottomless Depth, and Water, and a subtle in Spirit intelligible in Power;",
+  "and there went out the Holy Light, and the Elements were coagulated from the Sand out of the moist substance.",
+  "And all the Gods distinguished the Nature full of Seeds.",
+  "And when all things were interminated and unmade up, the light things were divided on high.",
+  "And the heavy things were founded upon the moist Sand, all things being Terminated or Divided by Fire,",
+  "and being sustained or hung up by the Spirit, they were so carried, and the Heaven was seen in Seven Circles.",
+  "And the Gods were seen in their Ideas of the Stars, with all their signs, and the Stars were numbered with the Gods in them.",
+  "And the Sphere was all lined with Air, carried about in a circular motion by the Spirit of God.",
+  "And every God, by his internal power, did that which was commanded him;",
+  "and there were made four-footed things, and creeping things, and such as live in the water, and such as fly,",
+  "and every fruitful seed, and Grass, and the Flowers of all Greens, all which had sowed in themselves the Seeds of Regeneration.",
+  "As also the Generations of Men, to the Knowledge of the Divine Works, and a lively or working Testimony of Nature,",
+  "and a multitude of men, and the dominion of all things under Heaven,",
+  "and the Knowledge of good things, and to be increased in increasing, and multiplied in multitude.",
+  "And every Soul in Flesh, by the wonderful working of the Gods in the Circles,",
+  "to the beholding of Heaven, the Gods Divine Works, and the operations of Nature;",
+  "and for signs of good things, and the Knowledge of the Divine Power, and to find out every cunning Workmanship of good things.",
+  "So it beginneth to live in them, and to be wise according to the operation of the course of the circular Gods;",
+  "and to be resolved into that which shall be great Monuments and Rememberances of the cunning Works done upon earth, leaving them to be read by the darkness of times.",
+  "And every Generation of living Flesh, of Fruit, Seed, and all Handicrafts, though they be lost, must of necessity be renewed by the renovation of the Gods, and of the Nature of a Circle, moving in number;",
+  "for it is a Divine thing that every worldly temperature should be renewed by Nature; for in that which is Divine is Nature also established."
+ ]
 }
 ];
 
@@ -245,6 +279,7 @@ function isOrdered(id){return load(pk(id,"ordered"),false);}
 const MEM_BEANS=20, ORDER_BEANS=10;
 
 function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+function vnum(P,i){return P.vn?P.vn[i]:String(i+1);}
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 const home=$("#home"),view=$("#view");
 function updateBeanChip(){const c=$("#beanChipP");if(!c)return;if(activeId()){c.hidden=false;$("#beanNumP").textContent=getBeans();}else c.hidden=true;}
@@ -307,7 +342,7 @@ function renderView(){
 function renderRead(){
   $("#body").innerHTML=`<div class="panel">
     <div class="intro">${esc(P.intro)}</div>
-    ${P.lines.map((l,i)=>`<p class="verse"><span class="vn">${i+1}</span>${esc(l)}</p>`).join("")}
+    ${P.lines.map((l,i)=>`<p class="verse"><span class="vn">${vnum(P,i)}</span>${esc(l)}</p>`).join("")}
     <div class="actions"><button class="btn" id="toFade">Start memorizing →</button></div></div>`;
   $("#toFade").onclick=()=>{tab="fade";renderView();};
 }
@@ -394,7 +429,7 @@ function drawStep(){
   $("#body").innerHTML=`<div class="panel">
     <div class="order-head">Learn it a little at a time · part ${cur} of ${total}</div>
     <div class="intro" style="margin-bottom:10px">First, read ${chunk.length>1?"these lines":"this line"} a few times:</div>
-    ${chunk.map((l,i)=>`<p class="verse"><span class="vn">${stepStart+i+1}</span>${esc(l)}</p>`).join("")}
+    ${chunk.map((l,i)=>`<p class="verse"><span class="vn">${vnum(P,stepStart+i)}</span>${esc(l)}</p>`).join("")}
     <div class="actions"><button class="btn" id="coverBtn">Cover &amp; say ${chunk.length>1?"them":"it"} →</button></div></div>`;
   $("#coverBtn").onclick=()=>recallStep(chunk,cur,total);
 }
