@@ -490,6 +490,18 @@ export async function run() {
     assert(/Star’s Focus Session/.test(r.parent) && /27 min/.test(r.parent), "parent card missing " + JSON.stringify(r)); assert(/My Focus Session/.test(r.star) && /Start/.test(r.star) && r.first === "fsHero", "Star's card not front and center " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Focus Session 5 days: each day has its own breath, sound world, song and strum; no G7 in her play-along or easy songs (G7 only as day-5 practice); picking a day sticks until a session is done", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r = await pg.evaluate(async () => { const days = FS_DAYS.map((d) => d.br.n + "|" + d.snd.nm + "|" + d.mel + "|" + d.strum);
+      const songs = ["jingle-easy", "twinkle-easy", "mary-easy", "ode"].map((id) => melAll().find((m) => m.id === id)); const lhBad = songs.some((m) => !m || /F#/.test(m.lh) || m.lh.split(" ").some((x) => /B2/.test(x) && /F3/.test(x)));
+      const playChords = FS_DAYS.map((d) => d.ch.join(" ")).join(" "); save(mk("fs", "pick"), 2); const picked = fsDay();
+      save(mk("fs", "state"), { day: 2, i: 0, el: 70, steps: [], score: null }); fsGo(fsState()); await new Promise((z) => setTimeout(z, 800)); const nat = !!FS.nat, hum = document.getElementById("fsSub").textContent;
+      const x = fsState(); x.i = 5; x.el = 300; x.steps = ["breathe", "theory", "tune", "chords", "melody"]; fsSave(x); fsNext(); const after = fsDay();
+      return { uniq: new Set(days).size, lhBad, g7: /G7/.test(playChords), newCh: FS_DAYS[4].newCh, picked, nat, hum, after, natGone: !FS.nat }; });
+    assert(r.uniq === 5, "days aren't different"); assert(!r.g7 && r.newCh === "G7", "G7 in her play-along"); assert(!r.lhBad, "G7 in an easy song backing");
+    assert(r.picked === 2 && r.nat && /hum/.test(r.hum) && r.natGone, "day pick / sound world wrong " + JSON.stringify(r)); assert(r.after === 1, "pick didn't clear after finishing " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("the app never throws while opening Lyric Lab", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); await open(pg);
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
