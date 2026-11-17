@@ -7919,6 +7919,118 @@ function sessPanel(){var st=sessGet();if(!st){renderSessions();return;}var over=
   $("#sessDone").onclick=function(){finishSession(true);renderSessionsDone(st);};
   $("#sessCancel").onclick=function(){finishSession(false);goHome();};
 }
+/* ===== STAR'S FOCUS SESSION — 20 min guided flow: Breathe (6) → Theory (5) → Ukulele (9: tune, chords, melody, free strum).
+   One Start button, a small bar on top with the step + timer + Next, pause/back anytime, resumes where she left off. ===== */
+var FS_STEPS=[{id:"breathe",g:"Breathe",n:"Breathe & focus",sec:360,ic:"🌬"},{id:"theory",g:"Theory",n:"Music theory",sec:300,ic:"🎵"},{id:"tune",g:"Ukulele",n:"Tune up",sec:60,ic:"🎯"},
+  {id:"chords",g:"Ukulele",n:"Chords & strum",sec:240,ic:"🎸"},{id:"melody",g:"Ukulele",n:"Play a melody",sec:180,ic:"🎶"},{id:"free",g:"Ukulele",n:"Free strum",sec:60,ic:"✨"}];
+var FS_DAYS=[{t:"Rhythm",d:"Quarter notes and eighth notes — the counts inside your strum",ch:["C","Am","F","G"]},{t:"Happy or sad chords",d:"Hear major (happy) vs minor (sad) with your chords",ch:["Am","F","C","G"]},{t:"Your ukulele's notes",d:"Name the strings G C E A, and the notes inside a C chord",ch:["A","Am","C","G"]}];
+var FS_UKE={Am:{f:[2,0,0,0],m:[69,60,64,69]},A:{f:[2,1,0,0],m:[69,61,64,69]},C:{f:[0,0,0,3],m:[67,60,64,72]},F:{f:[2,0,1,0],m:[69,60,65,69]},G:{f:[0,2,3,2],m:[67,62,67,71]}};
+var FS={tm:null,brRaf:null,brT0:0,thq:null,score:{ok:0,n:0},chords:null};
+function fsState(){return load(mk("fs","state"),null);}
+function fsSave(st){save(mk("fs","state"),st);}
+function fsLog(){return load(mk("fs","log"),[]);}
+function fsDay(){return (load(mk("fs","count"),0)||0)%3;}
+function fsStep(st){return FS_STEPS[Math.min(FS_STEPS.length-1,st.i)];}
+function fsLeft(st){return Math.max(0,fsStep(st).sec-(st.el||0));}
+function fsFmt(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
+function fsClick(acc,vol){try{const a=ac(),t=a.currentTime+0.005,o=a.createOscillator(),g=a.createGain();o.type="sine";o.frequency.value=acc?1320:880;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime((vol||0.08)*(acc?1.6:1),t+0.004);g.gain.exponentialRampToValueAtTime(0.0001,t+0.07);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+0.09);}catch(e){}}
+function fsChime(){try{const a=ac();[523.25,783.99].forEach((f,i)=>{const t=a.currentTime+i*0.18,o=a.createOscillator(),g=a.createGain();o.frequency.value=f;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.09,t+0.03);g.gain.exponentialRampToValueAtTime(0.0001,t+2);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+2.1);});}catch(e){}}
+function fsStrum(name,when){const c=FS_UKE[name];if(!c)return;const t0=(when||ac().currentTime+0.03);c.m.forEach((m,i)=>{try{pluck(m,t0+i*0.025,1.6,0.32);}catch(e){}});}
+/* the timer: counts only while the session is running, not paused, and the page is visible */
+function fsTick(){const st=fsState();if(!st||st.done){fsBar();return;}if(!st.paused&&!document.hidden){st.el=(st.el||0)+1;if(st.el===fsStep(st).sec){fsChime();st.timeUp=true;}fsSave(st);}fsBar();}
+function fsEnsureTicker(){if(FS.tm)return;FS.tm=setInterval(fsTick,1000);}
+function fsBar(){let b=document.getElementById("fsBar");const st=fsState();if(!st||st.done){if(b)b.remove();return;}
+  if(!b){b=document.createElement("div");b.id="fsBar";document.body.appendChild(b);}
+  const s=fsStep(st),left=fsLeft(st),up=left<=0;
+  b.className=up?"up":"";b.innerHTML='<button id="fsbOpen" title="Session">🌟 '+(st.i+1)+'/'+FS_STEPS.length+'<span class="fsn"> '+s.n+'</span></button><b>'+(up?"Time!":fsFmt(left))+'</b><button id="fsbPause" title="'+(st.paused?"Resume":"Pause")+'">'+(st.paused?"▶":"❚❚")+'</button><button id="fsbNext" class="nx">'+(st.i>=FS_STEPS.length-1?"Finish ✓":"Next ▶")+'</button>';
+  b.querySelector("#fsbOpen").onclick=()=>renderFocusSession();b.querySelector("#fsbPause").onclick=()=>{const x=fsState();if(!x)return;x.paused=!x.paused;fsSave(x);fsBar();};
+  b.querySelector("#fsbNext").onclick=()=>fsNext();}
+function fsGo(st){unlockAudio();fsEnsureTicker();fsBar();const s=fsStep(st);FS.chords=FS_DAYS[st.day].ch;
+  if(s.id==="breathe")return renderFsBreathe();if(s.id==="theory")return renderFsTheory();
+  if(s.id==="tune"){try{TN.inst="ukulele";}catch(e){}return renderTuner();}
+  if(s.id==="chords"){ST.prog="fs";ST.pi=Math.max(0,SPATS.findIndex(p=>p.id==="folk"));ST.bpm=70;ST.bpmFor=SPATS[ST.pi].id;ST.mode="watch";ST.loop=true;renderStrumTrainer("ukulele");setTimeout(()=>{try{const z=document.getElementById("stNeck");if(z)z.scrollIntoView({block:"center"});const g=document.getElementById("stGo");if(g&&!ST.running&&fsStep(fsState()||{i:0}).id==="chords")g.click();}catch(e){}},450);return;}
+  if(s.id==="melody"){save("mjk-melsong","jingle");try{MEL.song=null;MEL.loop=true;}catch(e){}renderMelody("ukulele");setTimeout(()=>{try{const lb=document.getElementById("melLibBody");if(lb&&lb.offsetParent&&document.getElementById("melLib"))document.getElementById("melLib").click();}catch(e){}setTimeout(()=>{try{const w=document.getElementById("melStageWrap");if(w)w.scrollIntoView({block:"center"});const g=document.getElementById("melGo");if(g&&!MEL.running&&fsStep(fsState()||{i:0}).id==="melody")g.click();}catch(e){}},250);},400);return;}
+  return renderFsFree();}
+function fsStart(){const st=fsState();if(st&&!st.done){fsGo(st);return;}const n={day:fsDay(),i:0,el:0,paused:false,startedAt:Date.now(),steps:[],score:null,calm:null};fsSave(n);FS.score={ok:0,n:0};fsGo(n);}
+function fsNext(){const st=fsState();if(!st)return;st.tot=(st.tot||0)+(st.el||0);if(st.steps.indexOf(fsStep(st).id)<0&&st.el>=Math.min(fsStep(st).sec*0.5,45))st.steps.push(fsStep(st).id);
+  if(st.i>=FS_STEPS.length-1){fsFinish(st,true);return;}st.i++;st.el=0;st.timeUp=false;st.paused=false;fsSave(st);fsChime();fsGo(st);}
+function fsBack(){const st=fsState();if(!st||st.i===0)return;st.i--;st.el=0;st.paused=false;fsSave(st);fsGo(st);}
+function fsFinish(st,counted){const mins=Math.round(((st.tot||0)+(counted?0:(st.el||0)))/60);const full=st.steps.length>=FS_STEPS.length-1;
+  const lg=fsLog();lg.unshift({t:Date.now(),day:st.day,topic:FS_DAYS[st.day].t,steps:st.steps.slice(),minutes:mins,score:st.score,calm:st.calm,complete:full});save(mk("fs","log"),lg.slice(0,200));
+  if(full){save(mk("fs","count"),(load(mk("fs","count"),0)||0)+1);if(!isAdult()&&activeId()){try{addBeans(20);beanChip();}catch(e){}}}
+  save(mk("fs","state"),null);fsBar();stStopSafe();renderFsDone(full,mins,st);}
+function stStopSafe(){try{stStop();}catch(e){}try{melStop();}catch(e){}}
+function fsTop(title){return '<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+title+'</span></div>';}
+function fsCss(){return '<style>.fs-steps{display:grid;gap:6px;margin:10px 0}.fs-st{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.04);font:700 .92rem system-ui}.fs-st b{margin-left:auto;color:var(--muted);font-weight:800}.fs-st.on{outline:2px solid #f4b740}.fs-st.ok{opacity:.55}'+
+  '.fs-learn{font:600 1rem/1.55 system-ui;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.04);margin:4px 0 8px}.fs-q button small{display:block;font:700 .78rem system-ui;color:var(--muted);margin-top:4px}.fs-hist{font:700 .82rem/1.5 system-ui;color:var(--muted)}.fs-hist div{padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06)}.fs-big{font:900 2.4rem system-ui;text-align:center;margin:4px 0}.fs-q{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:12px 0}.fs-q button{padding:18px 8px;border-radius:16px;font:800 1.05rem system-ui;background:rgba(255,255,255,.06);color:var(--text,#fff);border:2px solid rgba(255,255,255,.1)}.fs-q button.ok{border-color:#7ff0d6;background:rgba(127,240,214,.15)}.fs-q button.no{border-color:#ff8a8a;background:rgba(255,138,138,.12)}'+
+  '.fs-ch{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:10px;margin:10px 0}.fs-ch button{background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.1);border-radius:16px;padding:8px 4px;color:var(--text,#fff);font:900 1.1rem system-ui}</style>';}
+function fsWho(){const me=activeProfile();return me?me.name:"";}
+function fsStar(){const me=activeId();return getProfiles().find(p=>p.id!==me&&/^star\b/i.test(p.name||""))||null;}
+function fsLogFor(pid){try{return JSON.parse(localStorage.getItem("music-"+pid+"-fs-log")||"[]")||[];}catch(e){return [];}}
+function fsHistHtml(lg){if(!lg.length)return '<div class="site-note">No sessions yet.</div>';const d=t=>new Date(t).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
+  return '<div class="fs-hist">'+lg.slice(0,10).map(r=>'<div>'+(r.complete?"✅":"◐")+' <b>'+d(r.t)+'</b> · '+r.minutes+' min · '+esc(r.topic)+(r.score?' · theory '+r.score.ok+'/'+r.score.n:'')+(r.calm!=null?' · calm '+r.calm:'')+' · '+r.steps.length+'/'+FS_STEPS.length+' steps</div>').join("")+'</div>';}
+function renderFocusSession(){if(toneRAF)cancelAnimationFrame(toneRAF);if(teardown){try{teardown();}catch(e){}}teardown=null;home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  const st=fsState(),day=st&&!st.done?st.day:fsDay(),D=FS_DAYS[day],star=fsStar(),cnt=load(mk("fs","count"),0)||0;
+  view.innerHTML=fsCss()+fsTop("🌟 Star's Focus Session")+'<div class="panel">'+
+    '<div class="fs-learn"><b>20 minutes: breathe, learn, play.</b> Tap Start and follow the bar at the top — tap <b>Next ▶</b> when a step’s done. Pause or come back anytime.</div>'+
+    '<div class="actions"><button class="btn" id="fsGo" style="font-size:1.1rem;padding:14px 26px">'+(st&&!st.done?"▶ Keep going · step "+(st.i+1):"▶ Start")+'</button>'+(st&&!st.done&&st.i>0?'<button class="btn ghost" id="fsPrev">◀ Back a step</button>':'')+'</div>'+
+    '<div class="fs-steps">'+FS_STEPS.map((s,i)=>'<div class="fs-st'+(st&&!st.done&&st.i===i?" on":"")+(st&&st.steps&&st.steps.indexOf(s.id)>=0?" ok":"")+'"><span>'+s.ic+'</span><span>'+s.n+(s.id==="theory"?' <small style="color:var(--muted)">· '+esc(D.t)+'</small>':s.id==="chords"?' <small style="color:var(--muted)">· '+D.ch.join(" – ")+'</small>':s.id==="melody"?' <small style="color:var(--muted)">· Jingle Bells</small>':'')+'</span><b>'+Math.round(s.sec/60)+' min</b></div>').join("")+'</div>'+
+    (st&&!st.done?'<div class="actions"><button class="btn ghost" id="fsStop">✕ End session</button></div>':'')+
+    '<h4 style="margin:14px 0 4px">'+(fsWho()?esc(fsWho())+"’s":"My")+' sessions · '+cnt+' done</h4>'+fsHistHtml(fsLog())+
+    (star?'<h4 style="margin:14px 0 4px">⭐ '+esc(star.name)+'’s sessions</h4>'+fsHistHtml(fsLogFor(star.id)):'')+'</div>';
+  $("#eBack").onclick=goHome;$("#fsGo").onclick=fsStart;if($("#fsPrev"))$("#fsPrev").onclick=fsBack;
+  if($("#fsStop"))$("#fsStop").onclick=()=>{const x=fsState();if(x)fsFinish(x);};}
+function renderFsDone(full,mins,st){home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=null;
+  view.innerHTML=fsCss()+fsTop("🌟 Session done")+'<div class="panel" style="text-align:center"><div class="fs-big">'+(full?"🌟 You did it!":"Nice work")+'</div>'+
+    '<div class="fs-learn">'+mins+' minutes · '+esc(FS_DAYS[st.day].t)+(st.score?' · theory '+st.score.ok+'/'+st.score.n:'')+(full&&!isAdult()?' · +20 beans 🫘':'')+'</div>'+
+    '<div class="actions" style="justify-content:center"><button class="btn" id="fsHome">Done</button></div></div>';
+  $("#eBack").onclick=goHome;$("#fsHome").onclick=renderFocusSession;}
+/* --- Step 1: glowing circle + soft clicks. Settle 1 min → box breathing 4·4·4·4 for 3 min → count breaths 1–10 for 2 min --- */
+function fsBreathPhase(t){if(t<60){const c=t%10;return c<4?{k:"in",p:c/4,txt:"Breathe in",sub:"Sit tall · feet on the floor · hands soft"}:{k:"out",p:1-(c-4)/6,txt:"Breathe out",sub:"Sit tall · feet on the floor · hands soft"};}
+  if(t<240){const u=t-60,c=u%16,ph=Math.floor(c/4),inn=c%4;return [{k:"in",p:inn/4,txt:"In"},{k:"hold",p:1,txt:"Hold"},{k:"out",p:1-inn/4,txt:"Out"},{k:"hold2",p:0,txt:"Hold"}][ph];}
+  const u=t-240,c=u%10,n=Math.floor(u/10)%10+1;return c<4?{k:"in",p:c/4,txt:"In",n:n}:{k:"out",p:1-(c-4)/6,txt:"Out",n:n};}
+function renderFsBreathe(){if(teardown){try{teardown();}catch(e){}}home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  view.innerHTML=fsCss()+'<style>#fsBr{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70vh;gap:14px}#fsOrb{width:min(62vw,46vh);height:min(62vw,46vh);border-radius:50%;background:radial-gradient(circle,#ffe7a8 0%,#f4b740 38%,rgba(244,183,64,.25) 66%,rgba(244,183,64,0) 72%);transition:transform .25s linear;will-change:transform}#fsTxt{font:900 2rem system-ui}#fsSub{font:700 .9rem system-ui;color:var(--muted);text-align:center;min-height:1.2em}#fsCnt{font:900 1.4rem system-ui;color:#f4b740;min-height:1.6em}</style>'+
+    fsTop("🌬 Breathe & focus")+'<div id="fsBr"><div id="fsOrb"></div><div id="fsTxt">Ready</div><div id="fsCnt"></div><div id="fsSub"></div></div>';
+  $("#eBack").onclick=goHome;let lastK=null,lastS=-1;
+  const loop=()=>{const st=fsState();if(!st||fsStep(st).id!=="breathe"||!document.getElementById("fsOrb"))return;const t=Math.min(359.9,(st.el||0)+(st.paused?0:Math.min(0.999,(performance.now()-FS.brT0)/1000)));
+    const P=fsBreathPhase(t),o=document.getElementById("fsOrb");o.style.transform="scale("+(0.45+0.55*P.p).toFixed(3)+")";o.style.opacity=st.paused?0.4:1;
+    document.getElementById("fsTxt").textContent=st.paused?"Paused":(fsLeft(st)<=0?"All done — tap Next ▶":P.txt);
+    document.getElementById("fsSub").textContent=t<60?P.sub:t<240?"Box breathing — in, hold, out, hold, 4 counts each":"Count each breath out. Lost count? Start again at 1.";
+    const sec=Math.floor(t),inSeg=t<60?null:t<240?((sec-60)%4)+1:null;document.getElementById("fsCnt").textContent=t>=240?String(P.n):inSeg?"• ".repeat(inSeg).trim():"";
+    let calm="";try{if(HR.connected){const c=bioCoherence();if(c&&c.score!=null){calm=" · 💓 calm "+c.score.toFixed(1);st.calm=Math.round(c.score*10)/10;}}}catch(e){}if(calm)document.getElementById("fsSub").textContent+=calm;
+    if(!st.paused&&fsLeft(st)>0){if(P.k!==lastK){if(lastK!==null)fsClick(true,0.07);lastK=P.k;}else if(t>=60&&t<240&&sec!==lastS){fsClick(false,0.035);}}lastS=sec;
+    FS.brRaf=requestAnimationFrame(loop);};
+  FS.brT0=performance.now();let lastEl=-1;const sync=setInterval(()=>{const st=fsState();if(st&&st.el!==lastEl){lastEl=st.el;FS.brT0=performance.now();}},50);
+  teardown=()=>{cancelAnimationFrame(FS.brRaf);clearInterval(sync);};loop();}
+/* --- Step 2: one short lesson card, then a quick listening quiz with her chords. Rotates daily. --- */
+function fsTheoryQ(day){if(day===0){const k=["half","quarter","eighth"][Math.floor(Math.random()*3)];return {k:k,opts:[["half","Half notes<small>1 · 3 ·</small>"],["quarter","Quarter notes<small>1 2 3 4</small>"],["eighth","Eighth notes<small>1 & 2 & 3 & 4 &</small>"]],play:()=>{const a=ac(),b=60/80,t0=a.currentTime+0.1,step=k==="half"?2:k==="quarter"?1:0.5;for(let x=0;x<4;x+=step)fsStrum("C",t0+x*b);for(let x=0;x<4;x++)setTimeout(()=>fsClick(x===0,0.05),(0.1+x*b)*1000);}};}
+  if(day===1){const c=["Am","A","C","F","G","Am","Am"][Math.floor(Math.random()*7)];return {k:c==="Am"?"min":"maj",opts:[["maj","😊 Major<small>happy</small>"],["min","😢 Minor<small>sad</small>"]],play:()=>fsStrum(c),reveal:c};}
+  const s=[["G",67],["C",60],["E",64],["A",69]][Math.floor(Math.random()*4)];return {k:s[0],opts:[["G","G"],["C","C"],["E","E"],["A","A"]],play:()=>{try{pluck(s[1],ac().currentTime+0.05,1.6,0.4);}catch(e){}},reveal:s[0]+" string"};}
+function renderFsTheory(){if(teardown){try{teardown();}catch(e){}}teardown=null;home.hidden=true;view.hidden=false;window.scrollTo(0,0);const st=fsState();if(!st)return renderFocusSession();const day=st.day,D=FS_DAYS[day];
+  const learn=[
+    'Every strum pattern sits on a <b>beat</b>. Count <b>1 2 3 4</b> — one strum each is <b>quarter notes</b>. Count <b>1 & 2 & 3 & 4 &</b> — down on the number, up on the “&” — that’s <b>eighth notes</b>. <b>Half notes</b> last 2 beats: strum on 1 and 3.',
+    '<b>Major</b> chords sound bright and happy. <b>Minor</b> chords sound soft or sad. Listen: <b>A</b> and <b>Am</b> are only one finger apart, but A is happy and Am is sad. Of your chords, <b>Am</b> is the minor one — A, C, F and G are major.',
+    'Your ukulele strings, from the top: <b>G C E A</b> — “<b>My Dog Has Fleas</b>.” The <b>C chord</b> is made of three notes: <b>C, E and G</b> — and they’re three of your open strings! That’s why C is so easy on ukulele.'][day];
+  const demo=[["▶ Hear quarters",()=>{const a=ac(),b=0.75;for(let x=0;x<4;x++)fsStrum("C",a.currentTime+0.1+x*b);}],["▶ Hear A then Am",()=>{fsStrum("A");setTimeout(()=>fsStrum("Am"),1400);}],["▶ Hear G C E A",()=>{[67,60,64,69].forEach((m,i)=>{try{pluck(m,ac().currentTime+0.1+i*0.6,1.4,0.4);}catch(e){}});}]][day];
+  const sc=st.score||{ok:0,n:0};
+  view.innerHTML=fsCss()+fsTop("🎵 "+esc(D.t))+'<div class="panel"><div class="fs-learn">'+learn+'</div><div class="actions"><button class="btn ghost" id="fsDemo">'+demo[0]+'</button></div>'+
+    '<h4 style="margin:12px 0 2px">Quick quiz · listen, then pick</h4><div class="site-note" id="fsSc">'+sc.ok+' / '+sc.n+' right</div><div class="actions"><button class="btn" id="fsPlay">▶ Play it</button></div><div class="fs-q" id="fsQ"></div><div class="site-note" id="fsFb" style="min-height:1.4em"></div></div>';
+  $("#eBack").onclick=goHome;$("#fsDemo").onclick=demo[1];
+  const newQ=()=>{FS.thq=fsTheoryQ(day);const box=$("#fsQ");box.innerHTML=FS.thq.opts.map(o=>'<button data-a="'+o[0]+'">'+o[1]+'</button>').join("");
+    box.querySelectorAll("button").forEach(b=>b.onclick=()=>{if(FS.thq.answered)return;FS.thq.answered=true;const ok=b.dataset.a===FS.thq.k,x=fsState();x.score=x.score||{ok:0,n:0};x.score.n++;if(ok)x.score.ok++;fsSave(x);
+      b.classList.add(ok?"ok":"no");if(!ok)box.querySelector('[data-a="'+FS.thq.k+'"]').classList.add("ok");$("#fsSc").textContent=x.score.ok+" / "+x.score.n+" right";
+      $("#fsFb").textContent=(ok?"✅ Yes!":"Not quite")+(FS.thq.reveal?" — that was "+FS.thq.reveal:"")+". Next one…";fsClick(ok,0.05);setTimeout(()=>{if(document.getElementById("fsQ")){newQ();$("#fsFb").textContent="";FS.thq.play();}},1600);});};
+  newQ();$("#fsPlay").onclick=()=>{unlockAudio();FS.thq.play();};}
+/* --- Step 6: free strum — her five chord shapes to look at, tap one to hear it --- */
+function fsChordSvg(name){const c=FS_UKE[name],W=84,H=100,x=i=>14+i*18.6,y=f=>18+(f-0.5)*20;let s='<svg viewBox="0 0 '+W+' '+H+'" width="84" height="100"><rect x="14" y="16" width="56" height="3" fill="#eee"/>';
+  for(let i=0;i<4;i++)s+='<line x1="'+x(i)+'" y1="18" x2="'+x(i)+'" y2="96" stroke="#bbb" stroke-width="1.4"/>';for(let f=1;f<=4;f++)s+='<line x1="14" y1="'+(18+f*20)+'" x2="70" y2="'+(18+f*20)+'" stroke="#666"/>';
+  c.f.forEach((f,i)=>{s+=f?'<circle cx="'+x(i)+'" cy="'+y(f)+'" r="7" fill="#f4b740"/>':'<circle cx="'+x(i)+'" cy="9" r="4" fill="none" stroke="#7ff0d6" stroke-width="1.6"/>';});return s+'</svg>';}
+function renderFsFree(){if(teardown){try{teardown();}catch(e){}}teardown=null;home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  view.innerHTML=fsCss()+fsTop("✨ Free strum")+'<div class="panel"><div class="fs-learn">Play anything you like with your chords — make up a pattern, switch chords, have fun. Tap a chord to hear it.</div><div class="fs-ch">'+["Am","A","C","F","G"].map(n=>'<button data-c="'+n+'">'+fsChordSvg(n)+'<div>'+n+'</div></button>').join("")+'</div></div>';
+  $("#eBack").onclick=goHome;view.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>{unlockAudio();fsStrum(b.dataset.c);});}
+(function(){try{const s=document.createElement("style");s.textContent="#fsBar{position:fixed;left:50%;top:calc(6px + env(safe-area-inset-top));transform:translateX(-50%);z-index:9000;display:flex;align-items:center;gap:6px;padding:4px 5px 4px 8px;border-radius:999px;background:rgba(20,14,36,.92);border:1px solid rgba(244,183,64,.5);box-shadow:0 4px 14px rgba(0,0,0,.45);font:800 .8rem system-ui;color:#fff;max-width:96vw;white-space:nowrap}#fsBar button{background:none;border:0;color:#fff;font:800 .8rem system-ui;padding:6px 6px;min-height:34px}#fsBar b{color:#f4b740;min-width:2.6em;text-align:center}#fsBar .nx{background:#f4b740;color:#120c20;border-radius:999px;padding:6px 12px}#fsBar.up .nx{animation:fsPulse 1s ease-in-out infinite}@keyframes fsPulse{50%{transform:scale(1.08);box-shadow:0 0 0 6px rgba(244,183,64,.25)}}#fsbOpen{overflow:hidden;text-overflow:ellipsis;max-width:46vw}@media (orientation:landscape) and (max-height:520px){#fsBar{top:auto;bottom:calc(6px + env(safe-area-inset-bottom));padding:2px 3px 2px 6px;opacity:.94}#fsBar .fsn{display:none}#fsBar button{min-height:30px;padding:4px 6px}}";document.head.appendChild(s);}catch(e){}
+  setTimeout(()=>{try{const st=fsState();if(st&&!st.done){fsEnsureTicker();fsBar();}}catch(e){}},800);})();
 function renderSessionsDone(st){home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){};
   var kid=!isAdult()&&activeId();
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">✓ Session logged</span></div><div class="panel" style="text-align:center">'+
@@ -7931,13 +8043,14 @@ function renderSessions(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=t
   var h='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">⏱ Practice Sessions</span></div><div class="panel">';
   h+='<div class="intro">Pick how long you’ve got. The timer follows you into the Lyric Lab and back, so you can just practice. '+(!isAdult()?'Finish a session to earn beans 🫠.':'Finish to log it to your progress.')+'</div>';
   if(st){h+='<div class="idea-fb" style="margin-bottom:8px"><b>In progress:</b> '+esc(st.title)+' · '+(sessRemain(st)>0?sessFmt(sessRemain(st))+' left':'time’s up')+' <button class="rchip sm" id="sessOpen" style="margin-left:6px">Open</button></div>';}
-  h+='<div class="grid">';
+  h+='<div class="grid"><button class="card" id="fsCard"><span class="ic">🌟</span><h3>Star\'s Focus Session · 20 min</h3><span class="blurb">Breathe &amp; focus, music theory, then ukulele — one easy flow.</span></button>';
   SESSIONS.forEach(function(s){h+='<button class="card" data-s="'+s.id+'"><span class="ic">'+s.icon+'</span><h3>'+esc(s.title)+' · '+s.len+' min</h3><span class="blurb">'+esc(s.goal)+'</span><span class="done-pill" style="color:var(--muted);border-color:var(--line);background:transparent">'+esc(s.focus)+'</span></button>';});
   h+='</div></div>';
   view.innerHTML=h;
   $("#eBack").onclick=goHome;
   var so=$("#sessOpen");if(so)so.onclick=sessPanel;
   view.querySelectorAll("[data-s]").forEach(function(b){b.onclick=function(){startSession(b.getAttribute("data-s"));};});
+  var fc=document.getElementById("fsCard");if(fc)fc.onclick=renderFocusSession;
 }
 (function(){try{var s=document.createElement("style");s.textContent="#sessChipM.done{background:#e2554f;color:#fff;border-color:#e2554f}";document.head.appendChild(s);}catch(e){}})();
 const MAKE_CARDS=[
@@ -7953,6 +8066,7 @@ const MAKE_CARDS=[
  {ic:"🎼",title:"Learn a Song",blurb:"Bring in a song you're practicing — paste a chord sheet or build it — and get a play-along chord chart with loop, tempo, and transpose.",go:()=>renderLearnSong()},
  {ic:"✍️",title:"Songwriting",blurb:"Learn to write songs that work — structure, the parts, rhyme schemes and prosody — then write your lyrics in the Lyric Lab with a syllable counter, a rhyme finder, and a coach that tightens them. This is where your midterm & final lyrics come from.",go:()=>renderSongwriting()},
  {ic:"🎓",title:"AABA Class",blurb:"A ~45-minute class: write a song section in AABA form, perfect it, and understand why it works. Earn beans (kids) and a trophy.",go:()=>renderModule1()},
+ {ic:"🌟",title:"Star's Focus Session",blurb:"20 minutes in one easy flow: breathe and focus, a little music theory, then ukulele.",go:()=>renderFocusSession()},
  {ic:"⏱",title:"Practice Sessions",blurb:"Short on time? Pick a 5, 15 or 45-minute practice session — the timer follows you while you work. Earn beans + a trophy.",go:()=>renderSessions()},
  {ic:"🎼",title:"Song Project (final)",blurb:"The big one — assemble your sections into a full song: intro, verses, choruses, bridge, outro. Finish it to earn Songwriter.",go:()=>renderSongBuilder()},
  {ic:"🎚️",title:"Mixing Station",blurb:"Real in-app mixing — load a track and process it with a channel strip (mono sub, saturator, sheen, pump, bus comp, limiter), A/B against the original, watch LUFS/peak/width meters, then bounce a processed WAV to finish in Ableton. Devices pre-set from your mix report.",go:()=>renderMixStation()},
@@ -8671,11 +8785,11 @@ const ST={input:load("mjk-stinput","touch"),micRaf:null,prog:load("mjk-stprog","
 ".stc.hit{background:#3fcf7a}.stc.wrong{background:#ff9f43}.stc.miss{background:#ff5d5d}.stc.hit .ar,.stc.wrong .ar,.stc.miss .ar{color:#fff}";
 document.head.appendChild(s);}catch(e){}})();
 function stP(){return SPATS[ST.pi];}
-const ST_PROGS=[{id:"one",n:"One chord"},{id:"pop",n:"I–V–vi–IV",g:"pop",d:[0,4,5,3]},{id:"rock",n:"I–IV–V–I",g:"rock & folk",d:[0,3,4,0]},{id:"ballad",n:"vi–IV–I–V",g:"ballad",d:[5,3,0,4]},{id:"fifties",n:"I–vi–IV–V",g:"50s",d:[0,5,3,4]},{id:"two",n:"I–IV",g:"two-chord jam",d:[0,3]},{id:"blues",n:"12-bar blues",g:"blues",d:[0,0,0,0,3,3,0,0,4,3,0,4]}];
+const ST_PROGS=[{id:"one",n:"One chord"},{id:"pop",n:"I–V–vi–IV",g:"pop",d:[0,4,5,3]},{id:"rock",n:"I–IV–V–I",g:"rock & folk",d:[0,3,4,0]},{id:"ballad",n:"vi–IV–I–V",g:"ballad",d:[5,3,0,4]},{id:"fifties",n:"I–vi–IV–V",g:"50s",d:[0,5,3,4]},{id:"two",n:"I–IV",g:"two-chord jam",d:[0,3]},{id:"blues",n:"12-bar blues",g:"blues",d:[0,0,0,0,3,3,0,0,4,3,0,4]},{id:"fs",n:"Session chords",g:"focus session",hide:true}];
 function stProgDef(){for(var i=0;i<ST_PROGS.length;i++)if(ST_PROGS[i].id===ST.prog)return ST_PROGS[i];return ST_PROGS[0];}
 function stKeyOk(k,inst){var K=KEY_CHORDS[k];if(!K||K.minor)return false;var need=[0,3,4,5];for(var i=0;i<need.length;i++)if(!(CHORDS[inst]||{})[K.chords[need[i]]])return false;return true;}
 function stKeys(inst){return Object.keys(KEY_CHORDS).filter(function(k){return stKeyOk(k,inst);});}
-function stProgChords(){var d=stProgDef();if(!d.d)return null;var K=KEY_CHORDS[ST.key];if(!K)return null;return d.d.map(function(i){return K.chords[i];});}
+function stProgChords(){var d=stProgDef();if(d.id==="fs")return ((typeof FS!=="undefined"&&FS.chords)||["C","Am","F","G"]).slice();if(!d.d)return null;var K=KEY_CHORDS[ST.key];if(!K)return null;return d.d.map(function(i){return K.chords[i];});}
 function stChordAt(bar){var pr=stProgChords();if(pr&&ST.lbo&&ST.lbo.n&&ST.lbo.n<pr.length)return pr[(ST.lbo.s+(((bar%ST.lbo.n)+ST.lbo.n)%ST.lbo.n))%pr.length];return pr?pr[((bar%pr.length)+pr.length)%pr.length]:ST.one;}
 function stStats(){return load("mjk-strstats",{});}
 function stStatKey(){var P=stP();return ST.inst+"|"+P.id+"|"+(ST.prog==="one"?ST.one:ST.prog+"-"+ST.key)+"|"+(ST.test?"test":ST.mode);}
@@ -8799,7 +8913,7 @@ function renderStrumTrainer(inst){inst=inst||"guitar";if(toneRAF)cancelAnimation
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">↕️ Strum Patterns</span></div>'+gtrRotHint()+'<div class="panel">'+
       '<div class="intro">Strums fall down the highway onto the neck. <b>👀 Watch</b> plays it for you. <b>🎸 I\'ll play</b>: after the count-in, swipe the guitar body as each arrow reaches the gold line — <b>'+(stLand()?'down <b>↓</b> for a down strum, up <b>↑</b> for an up strum':'right <b>→</b> for a down strum, left <b>←</b> for an up strum')+'</b>, keeping your hand swinging. Pick a progression and the chord changes every bar.</div>'+
       '<div id="stBar" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:6px 0"><button class="btn" id="stGo" style="padding:9px 20px">'+(ST.mode==="play"?"▶ Start":"▶ Watch it")+'</button><button class="btn ghost" id="stTest" style="padding:7px 14px">🎯 Test</button></div>'+
-      '<div class="site-note" id="stSumm" style="margin:0 0 4px"><b>'+esc(P.name)+'</b>'+(PD.d?' · '+esc(stProgChords().join(" – ")):'')+' · '+ST.bpm+' bpm</div>'+
+      '<div class="site-note" id="stSumm" style="margin:0 0 4px"><b>'+esc(P.name)+'</b>'+(stProgChords()?' · '+esc(stProgChords().join(" – ")):'')+' · '+ST.bpm+' bpm</div>'+
       '<div class="rrow2"><span class="rlab">Play</span><span class="rchips tight" id="stModes" style="margin:0"></span></div>'+
       '<div class="rrow2"><span class="rlab">Practice</span><span class="rchips tight"><button class="rchip sm" id="stSc">🏆 My scores</button>'+'<button class="rchip sm'+(ST.loop?" sel":"")+'" id="stLoop">🔁 Loop</button><button class="rchip sm'+(ST.neck?" sel":"")+'" id="stNk">🎸 Neck</button><button class="rchip sm" id="stTm2" aria-label="Slower" style="font-weight:900;min-width:34px;justify-content:center">−</button><span class="rbpm" id="stBpmV2" style="min-width:34px;text-align:center">'+ST.bpm+'</span><button class="rchip sm" id="stTp2" aria-label="Faster" style="font-weight:900;min-width:34px;justify-content:center">+</button></span></div>'+
       '<div class="rrow2"><span class="rlab">Pattern</span><span class="rchips tight" id="stPats"></span></div>'+
@@ -8818,7 +8932,7 @@ function renderStrumTrainer(inst){inst=inst||"guitar";if(toneRAF)cancelAnimation
     $("#eBack").onclick=function(){stStop();FB.onSwipe=null;FB.onStringTap=null;FB.upright=false;FB.stFlip=false;document.documentElement.style.overscrollBehavior="";document.body.style.overscrollBehavior="";fbRestore();window.removeEventListener("resize",onRs);window.removeEventListener("orientationchange",onRs);renderStrings(ST.inst);};
     SPATS.forEach(function(p,i){var b=document.createElement("button");b.className="rchip sm"+(i===ST.pi?" sel":"");b.textContent=p.name;b.onclick=function(){ST.pi=i;draw();};$("#stPats").appendChild(b);});
     [["watch","👀 Watch"],["play","🎸 I'll play"],["cr","🔁 Call & response"]].forEach(function(o){var b=document.createElement("button");b.className="rchip sm"+(ST.mode===o[0]?" sel":"");b.textContent=o[1];b.onclick=function(){ST.mode=o[0];draw();};$("#stModes").appendChild(b);});
-    ST_PROGS.forEach(function(pr){if(pr.d&&!ks.length)return;var b=document.createElement("button");b.className="rchip sm"+(ST.prog===pr.id?" sel":"");b.innerHTML=esc(pr.n)+(pr.g?' <span style="opacity:.6;font-size:.75em">'+pr.g+'</span>':'');b.onclick=function(){ST.prog=pr.id;save("mjk-stprog",pr.id);draw();};$("#stProgs").appendChild(b);});
+    ST_PROGS.forEach(function(pr){if(pr.hide&&ST.prog!==pr.id)return;if(pr.d&&!ks.length)return;var b=document.createElement("button");b.className="rchip sm"+(ST.prog===pr.id?" sel":"");b.innerHTML=esc(pr.n)+(pr.g?' <span style="opacity:.6;font-size:.75em">'+pr.g+'</span>':'');b.onclick=function(){ST.prog=pr.id;save("mjk-stprog",pr.id);draw();};$("#stProgs").appendChild(b);});
     if(ST.prog==="one"){["G","C","D","Em","Am","E","A","Dm","F"].filter(function(c){return CHORDS[ST.inst][c];}).forEach(function(c){var b=document.createElement("button");b.className="rchip sm"+(c===ST.one?" sel":"");b.textContent=c;b.onclick=function(){ST.one=c;draw();};$("#stChords").appendChild(b);});}
     else ks.forEach(function(k){var b=document.createElement("button");b.className="rchip sm"+(k===ST.key?" sel":"");b.textContent=KEY_CHORDS[k].label.replace(/ major$/,"");b.onclick=function(){ST.key=k;save("mjk-stkey",k);draw();};$("#stKeys").appendChild(b);});
     [[0.5,"½ slow"],[0.75,"¾"],[1,"Original"],[1.15,"Faster"]].forEach(function(o){var b=document.createElement("button");b.className="rchip sm"+(Math.round(P.bpm*o[0])===ST.bpm?" sel":"");b.textContent=o[1];b.onclick=function(){stStop();ST.bpm=Math.round(P.bpm*o[0]);draw();};$("#stSpd").appendChild(b);});

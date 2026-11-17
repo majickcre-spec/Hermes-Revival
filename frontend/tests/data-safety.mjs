@@ -324,7 +324,7 @@ export async function run() {
   });
 
   await S.test("Light Mix is lively: changes rate every few seconds, stays in the pattern range on beat harmonics, louder = faster", async () => {
-    const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(() => { const R = {}; let now = 0; const dt = 0.05, hz = 3; let changes = 0, lastTo = null, minR = 99, maxR = 0, offGrid = 0, q = [], l = [];
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); const r = await pg.evaluate(() => { let _sd = 12345; const _mr = Math.random; Math.random = () => { _sd = (_sd * 1103515245 + 12345) % 2147483648; return _sd / 2147483648; }; const R = {}; let now = 0; const dt = 0.05, hz = 3; let changes = 0, lastTo = null, minR = 99, maxR = 0, offGrid = 0, q = [], l = [];
       for (let i = 0; i < 20 * 60 * 20; i++) { now += dt * 1000; const t = now / 1000, lv = Math.max(0, Math.min(1, 0.5 + 0.45 * Math.sin(t / 9) * Math.sin(t / 31 + 1))); const m = lgtMixStep(R, lv, dt, now, 20, hz), rate = m * hz;
         if (R.to !== lastTo) { changes++; lastTo = R.to; if (Math.abs(R.to / hz - Math.round(R.to / hz)) > 0.001) offGrid++; } minR = Math.min(minR, rate); maxR = Math.max(maxR, rate); if (t > 60) { if (lv < 0.2) q.push(rate); if (lv > 0.85) l.push(rate); } }
       const avg = (a) => a.reduce((x, y) => x + y, 0) / (a.length || 1); return { perMin: changes / 20, minR, maxR, offGrid, quiet: avg(q), loud: avg(l) }; });
@@ -450,6 +450,24 @@ export async function run() {
     }
     assert(out[0].g === "↓↑" && out[1].g === "→←", "arrows wrong " + JSON.stringify(out.map((x) => x.g)));
     assert(out[0].sw[0] === "d" && out[1].sw[0] === "d", "swipe direction wrong " + JSON.stringify(out.map((x) => x.sw))); assert(out[0].paused, "no note when the phone paused the sound");
+  });
+
+  await S.test("Star's Focus Session: flows step by step, pause stops the clock, survives a reload, logs + beans on finish, and the parent sees Star's history", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r1 = await pg.evaluate(async () => { const ps = getProfiles(); const star = { id: "ustar1", name: "Star", mode: "kid" }; ps.push(star); setProfiles(ps); const parent = activeId(); save("majick-active", "ustar1");
+      fsStart(); const a = fsState(); await new Promise((z) => setTimeout(z, 2300)); const el1 = fsState().el; const bar = !!document.getElementById("fsBar") && !!document.getElementById("fsOrb");
+      document.getElementById("fsbPause").click(); const p0 = fsState().el; await new Promise((z) => setTimeout(z, 2200)); const p1 = fsState().el; document.getElementById("fsbPause").click();
+      const x = fsState(); x.el = 300; fsSave(x); fsNext(); return { parent, start: a.i, el1, bar, paused: p1 === p0, step2: fsState().i, theory: !!document.getElementById("fsQ") }; });
+    assert(r1.start === 0 && r1.el1 >= 1 && r1.bar && r1.paused && r1.step2 === 1 && r1.theory, "session flow wrong " + JSON.stringify(r1));
+    await pg.reload(); await pg.waitForTimeout(1500);
+    const r2 = await pg.evaluate(async () => { const st = fsState(); const bar = !!document.getElementById("fsBar"); fsGo(st); await new Promise((z) => setTimeout(z, 300));
+      const q = document.querySelector("#fsQ button"); q.click(); const sc = fsState().score;
+      for (let i = 0; i < 4; i++) { const s = fsState(); s.el = 200; fsSave(s); fsNext(); await new Promise((z) => setTimeout(z, 600)); } const s = fsState(); s.el = 60; fsSave(s); fsNext();
+      const lg = fsLog(); return { resumed: st && st.i === 1, bar, sc, log: lg[0], beans: getBeans(), count: load(mk("fs", "count"), 0), state: fsState(), bars: !!document.getElementById("fsBar") }; });
+    assert(r2.resumed && r2.bar, "didn't resume after reload " + JSON.stringify(r2)); assert(r2.sc && r2.sc.n === 1, "quiz answer not saved");
+    assert(r2.log && r2.log.complete && r2.log.steps.length === 6 && r2.count === 1 && r2.beans === 20 && r2.state === null && !r2.bars, "finish not logged right " + JSON.stringify(r2));
+    const r3 = await pg.evaluate((pid) => { save("majick-active", pid); renderFocusSession(); return { txt: document.querySelector("#view").innerText, day: fsDay() }; }, r1.parent);
+    assert(/Star’s sessions/.test(r3.txt) && /Rhythm/.test(r3.txt) && /6\/6 steps/.test(r3.txt), "parent can't see Star's sessions"); await ctx.close();
   });
 
   await S.test("the app never throws while opening Lyric Lab", async () => {
