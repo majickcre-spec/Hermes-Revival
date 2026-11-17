@@ -427,6 +427,23 @@ export async function run() {
     assert(r.on && r.mode === "screen" && r.screen && r.secs < 8 && r.mid === "Starting…" && r.note, "light show hung on a frozen flashlight " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Strum patterns: in landscape a downward swipe is a down strum and arrows point ↓/↑; reggae chop is a short real chord, not a dead mute", async () => {
+    const out = [];
+    for (const [w, h] of [[844, 390], [390, 844]]) {
+      const ctx = await b.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true }); const pg = await profilePage(ctx, url, {});
+      await pg.evaluate(() => { renderStrumTrainer("ukulele"); ST.pi = SPATS.findIndex((p) => p.id === "reggae"); renderStrumTrainer("ukulele"); }); await pg.waitForTimeout(500); await pg.evaluate(() => document.getElementById("fbZone").scrollIntoView({ block: "center" })); await pg.waitForTimeout(250);
+      const info = await pg.evaluate(() => { const z = document.getElementById("fbZone"), r = z.getBoundingClientRect(); window.__sw = []; FB.onSwipe = (d) => window.__sw.push(d);
+        let durs = []; const op = window.pluck; window.pluck = (m, t, d) => durs.push(d); stPlay("U", 0, stP(), 1, "C"); window.pluck = op; return { g: stGlyph("D") + stGlyph("U"), pat: stP().pat, dur: Math.max(...durs), z: [r.left, r.top, r.width, r.height] }; });
+      const cdp = await ctx.newCDPSession(pg), z = info.z, T = (type, x, y) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y, id: 1 }] });
+      const land = w > h, [x0, y0, x1, y1] = land ? [z[0] + z[2] / 2, z[1] + 8, z[0] + z[2] / 2, z[1] + z[3] - 8] : [z[0] + 8, z[1] + z[3] / 2, z[0] + z[2] - 8, z[1] + z[3] / 2];
+      await T("touchStart", x0, y0); for (let i = 1; i <= 12; i++) await T("touchMove", x0 + (x1 - x0) * i / 12, y0 + (y1 - y0) * i / 12); await T("touchEnd");
+      out.push(Object.assign(info, { sw: await pg.evaluate(() => window.__sw) })); await ctx.close();
+    }
+    assert(out[0].g === "↓↑" && out[1].g === "→←", "arrows wrong " + JSON.stringify(out.map((x) => x.g)));
+    assert(out[0].sw[0] === "d" && out[1].sw[0] === "d", "swipe direction wrong " + JSON.stringify(out.map((x) => x.sw)));
+    assert(out[0].pat === "-U-U-U-U" && out[0].dur > 0.1 && out[0].dur < 0.3, "reggae chop wrong " + JSON.stringify(out[0]));
+  });
+
   await S.test("the app never throws while opening Lyric Lab", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); await open(pg);
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
