@@ -7972,12 +7972,13 @@ function fsCss(){return '<style>.fs-steps{display:grid;gap:6px;margin:10px 0}.fs
   '.fs-side{display:block}@media (orientation:landscape) and (max-height:520px){.fs-side{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center}.fs-side .fs-big-ch svg{width:auto!important;height:min(48vh,190px)!important}.fs-side .fs-big-ch b{font-size:1.8rem!important}}.fs-learn{font:600 1rem/1.55 system-ui;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.04);margin:4px 0 8px}.fs-q button small{display:block;font:700 .78rem system-ui;color:var(--muted);margin-top:4px}.fs-hist{font:700 .82rem/1.5 system-ui;color:var(--muted)}.fs-hist div{padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06)}.fs-big{font:900 2.4rem system-ui;text-align:center;margin:4px 0}.fs-q{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:12px 0}.fs-q button{padding:18px 8px;border-radius:16px;font:800 1.05rem system-ui;background:rgba(255,255,255,.06);color:var(--text,#fff);border:2px solid rgba(255,255,255,.1)}.fs-q button.ok{border-color:#7ff0d6;background:rgba(127,240,214,.15)}.fs-q button.no{border-color:#ff8a8a;background:rgba(255,138,138,.12)}'+
   '.fs-ch{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:10px;margin:10px 0}.fs-ch button{background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.1);border-radius:16px;padding:8px 4px;color:var(--text,#fff);font:900 1.1rem system-ui}</style>';}
 function fsWho(){const me=activeProfile();return me?me.name:"";}
-function fsStar(){const me=activeId();return getProfiles().find(p=>p.id!==me&&/^star\b/i.test(p.name||""))||null;}
+function fsStar(){const me=activeId();return getProfiles().find(p=>p.id!==me&&(/star/i.test(p.name||"")||p.mode==="kid"))||null;}
 function fsLogFor(pid){try{return JSON.parse(localStorage.getItem("music-"+pid+"-fs-log")||"[]")||[];}catch(e){return [];}}
 function fsHistHtml(lg){if(!lg.length)return '<div class="site-note">No sessions yet.</div>';const d=t=>new Date(t).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
   return '<div class="fs-hist">'+lg.slice(0,10).map(r=>'<div>'+(r.complete?"✅":"◐")+' <b>'+d(r.t)+'</b> · '+r.minutes+' min · '+esc(r.topic)+(r.score?' · theory '+r.score.ok+'/'+r.score.n:'')+(r.stars?' · ⭐ '+r.stars:'')+(r.feel?' · melody felt '+r.feel:'')+(r.tempo?' · '+r.tempo.ch+'/'+r.tempo.mel+' bpm':'')+(r.calm!=null?' · calm '+r.calm:'')+' · '+r.steps.length+'/'+FS_STEPS.length+' steps</div>').join("")+'</div>';}
 /* front and center on the home screen: Star sees her session first; a parent sees a small card with her last session */
-function fsHeroPaint(){const el=document.getElementById("fsHero");if(!el)return;const me=activeProfile(),isStar=!!(me&&/^star\b/i.test(me.name||"")),star=fsStar(),st=fsState(),going=st&&!st.done;
+function fsIsStar(p){if(!p)return false;if(/star/i.test(p.name||""))return true;try{if(p.id===activeId()&&/star/i.test(localStorage.getItem("majick-acct")||""))return true;}catch(e){}return p.mode==="kid";}
+function fsHeroPaint(){const el=document.getElementById("fsHero");if(!el)return;const me=activeProfile(),isStar=fsIsStar(me),star=fsStar(),st=fsState(),going=st&&!st.done;
   if(!isStar&&!star&&!going){el.innerHTML="";return;}
   const D=FS_DAYS[going?st.day:fsDay()];
   if(isStar||going){el.innerHTML='<button class="fs-hero" id="fsHeroGo"><span class="fs-hi">🌟</span><span class="fs-ht"><b>'+(isStar?"My Focus Session":"Star’s Focus Session")+'</b><small>'+(going?"Keep going · step "+(st.i+1)+" of "+FS_STEPS.length+" · "+esc(fsStep(st).n):"Breathe · "+esc(D.t)+" · Ukulele — about 28 min")+'</small></span><span class="fs-hb">'+(going?"▶ Keep going":"▶ Start")+'</span></button>';
@@ -8006,15 +8007,25 @@ function fsBreathPhase(t){if(t<60){const c=t%10;return c<4?{k:"in",p:c/4,txt:"Br
   if(t<240){const u=t-60,c=u%16,ph=Math.floor(c/4),inn=c%4;return [{k:"in",p:inn/4,txt:"In"},{k:"hold",p:1,txt:"Hold"},{k:"out",p:1-inn/4,txt:"Out"},{k:"hold2",p:0,txt:"Hold"}][ph];}
   const u=t-240,c=u%10,n=Math.floor(u/10)%10+1;return c<4?{k:"in",p:c/4,txt:"In",n:n}:{k:"out",p:1-(c-4)/6,txt:"Out",n:n};}
 function renderFsBreathe(){if(teardown){try{teardown();}catch(e){}}home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  view.innerHTML=fsCss()+'<style>#fsBr{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70vh;gap:14px}#fsOrb{width:min(62vw,46vh);height:min(62vw,46vh);border-radius:50%;background:radial-gradient(circle,#ffe7a8 0%,#f4b740 38%,rgba(244,183,64,.25) 66%,rgba(244,183,64,0) 72%);transition:transform .25s linear;will-change:transform}#fsTxt{font:900 2rem system-ui}#fsSub{font:700 .9rem system-ui;color:var(--muted);text-align:center;min-height:1.2em}#fsCnt{font:900 1.4rem system-ui;color:#f4b740;min-height:1.6em}</style>'+
+  view.innerHTML=fsCss()+'<style>#fsBr{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70vh;gap:14px}#fsOrb{width:min(62vw,46vh);height:min(62vw,46vh);border-radius:50%;background:radial-gradient(circle,#ffe7a8 0%,#f4b740 38%,rgba(244,183,64,.25) 66%,rgba(244,183,64,0) 72%);transition:transform .25s linear;will-change:transform}#fsTxt{font:900 2rem system-ui}#fsSub{font:700 .9rem system-ui;color:var(--muted);text-align:center;min-height:1.2em}#fsCnt{font:900 1.4rem system-ui;color:#f4b740;min-height:1.6em}@media (orientation:landscape) and (max-height:520px){#fsBr{min-height:0;gap:6px;padding-bottom:70px}#fsOrb{width:34vh;height:34vh}#fsTxt{font-size:1.5rem}#fsCnt{min-height:1.2em;font-size:1.1rem}}</style>'+
     fsTop("🌬 Breathe & focus")+'<div id="fsBr"><div id="fsOrb"></div><div id="fsTxt">Ready</div><div id="fsCnt"></div><div id="fsSub"></div><div class="site-note" id="fsWave" style="margin-top:6px;text-align:center"></div></div>';
   $("#eBack").onclick=goHome;let lastK=null,lastS=-1;
   /* sound design: warm pad + binaural beat — alpha 10 Hz to settle, SMR 12 Hz (calm focus) for box breathing, low beta 14 Hz for focus counting */
   let curHz=null,gateOn=true;const KID=!isAdult(),WAVE=t=>t<60?[10,KID?"Calm sound":"Alpha 10 Hz · settling"]:t<240?[12,KID?"Calm-focus sound":"SMR 12 Hz · calm focus"]:[14,KID?"Focus sound":"Low beta 14 Hz · focus"];
-  try{const st0=fsState(),w0=WAVE(st0?st0.el||0:0);medBinaural(w0[0],200,0.36,true);clearTimeout(MED.doneT);medPrgStart("lift","pad",0.24,200);curHz=w0[0];}catch(e){}
+  /* a full sound journey in three movements, built from the journey engine:
+     1 Arrive (0–1 min): ocean waves + warm pad, alpha 10 Hz
+     2 Breathe in a box (1–4 min): strings chords take over, a slow harp melody enters, SMR 12 Hz
+     3 Focus (4–6 min): waves recede, celesta melody brightens over choir, low beta 14 Hz; last 20 s everything fades to the chime */
+  const MOV=t=>t<60?0:t<240?1:2;let curMov=-1,faded=false;
+  const movStart=(m)=>{try{if(m===0){medPrgStart("lift","pad",0.26,200);const lv=MEDOCEAN.lvl;MEDOCEAN.lvl=0.42;medOceanStart();MEDOCEAN.lvl=lv;}
+      else if(m===1){medPrgStart("sky","strings",0.28,200);medMelStart("pent","harp",0.20,200);if(MED.ocean)MED.ocean.out.gain.setTargetAtTime(0.26,ac().currentTime,8);}
+      else{medPrgStart("lift","choir",0.24,200);medMelStart("fifths","bell",0.18,200);if(MED.ocean)MED.ocean.out.gain.setTargetAtTime(0.08,ac().currentTime,10);}}catch(e){}};
+  try{const st0=fsState(),t0=st0?st0.el||0:0,w0=WAVE(t0);medBinaural(w0[0],200,0.30,true);clearTimeout(MED.doneT);curHz=w0[0];curMov=MOV(t0);movStart(curMov);}catch(e){}
   const soundTick=(t,paused)=>{try{const a=ac(),w=WAVE(t);if(w[0]!==curHz&&MED.right&&MED.leftO){MED.right.frequency.setTargetAtTime(MED.leftO.frequency.value+w[0],a.currentTime,6);curHz=w[0];}
+    const m=MOV(t);if(m!==curMov){curMov=m;movStart(m);}
+    if(!faded&&t>=340&&MED.master){faded=true;MED.master.gain.setTargetAtTime(0.0001,a.currentTime,6);}
     if(MED.gate&&paused===gateOn){gateOn=!paused;MED.gate.gain.cancelScheduledValues(a.currentTime);MED.gate.gain.setTargetAtTime(paused?0.0001:1,a.currentTime,0.4);}
-    const wv=document.getElementById("fsWave");if(wv)wv.textContent="🎧 "+w[1];}catch(e){}};
+    const wv=document.getElementById("fsWave");if(wv)wv.textContent="🎧 "+["Arrive","Breathe in a box","Focus"][MOV(t)]+" · "+w[1];}catch(e){}};
   const loop=()=>{const st=fsState();if(!st||fsStep(st).id!=="breathe"||!document.getElementById("fsOrb"))return;const t=Math.min(359.9,(st.el||0)+(st.paused?0:Math.min(0.999,(performance.now()-FS.brT0)/1000)));
     const P=fsBreathPhase(t),o=document.getElementById("fsOrb");o.style.transform="scale("+(0.45+0.55*P.p).toFixed(3)+")";o.style.opacity=st.paused?0.4:1;
     document.getElementById("fsTxt").textContent=st.paused?"Paused":(fsLeft(st)<=0?"All done — tap Next ▶":P.txt);
@@ -15513,7 +15524,8 @@ function showCreate(){
 function activate(id){save("majick-active",id);showHome();}
 function showHome(){document.body.classList.remove("gated");gate.hidden=true;view.hidden=true;home.hidden=false;
   const p=getProfiles().find(x=>x.id===activeId());if($("#profileName"))$("#profileName").textContent=p?p.name:"—";
-  renderHome();window.scrollTo(0,0);}
+  renderHome();window.scrollTo(0,0);
+  try{if(!window.__fsLinkDone&&/session/.test(linkParams().focus||"")&&fsIsStar(activeProfile())){window.__fsLinkDone=true;renderFocusSession();}}catch(e){}}
 $("#switchProfile").onclick=()=>{save("majick-active",null);renderGate();window.scrollTo(0,0);};
 
 /* ===== drifting notes (magical music background) ===== */

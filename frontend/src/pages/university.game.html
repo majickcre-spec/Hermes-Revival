@@ -108,6 +108,13 @@ footer b{color:var(--ink);font-weight:600}
     <a class="btn" href="/music-theory">Enter the University</a>
     <a class="btn ghost" href="/resonance">Tune in to the Resonance</a>
   </div>
+  <div id="fsFront"></div>
+  <script>
+  /* Star's Focus Session: one tap from the front door when a Star (or kid) player is saved on this device */
+  (function(){try{var ps=JSON.parse(localStorage.getItem("majick-profiles")||"[]"),acct=localStorage.getItem("majick-acct")||"";
+    var st=ps.find(function(p){return /star/i.test(p.name||"")||p.mode==="kid";});if(!st&&!/star/i.test(acct))return;var nm=st?st.name:"Star";
+    var el=document.getElementById("fsFront");el.innerHTML='<a class="btn" href="/music-theory?focus=session" style="margin-top:14px;display:inline-flex;gap:8px;align-items:center;font-size:18px;padding:16px 26px;background:linear-gradient(135deg,#f4b740,#ffd98a);color:#120c20">🌟 '+nm.replace(/[<>&"]/g,"")+'’s Focus Session ▶</a>';}catch(e){}})();
+  </script>
   <div class="fine">Founded in the key of 7.83 Hz &middot; open to everybody</div>
   <div style="margin-top:14px"><a href="/anatomy" style="color:var(--gold);text-decoration:none;font-size:14px;border-bottom:1px solid rgba(244,183,64,.4)">New here? Start with the lesson &mdash; Anatomy of a Song &rarr;</a></div>
 </header>
