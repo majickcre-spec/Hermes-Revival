@@ -2787,10 +2787,10 @@ function rhythmNameQuiz(){
     view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🧠 Which rhythm?</span>
        <span style="margin-left:auto;color:var(--muted);font-weight:800;font-size:.8rem">${qi+1}/${TOTAL}</span></div>
       <div class="panel"><div class="ask">Listen, then pick the rhythm you heard</div>
-      <div class="actions"><button class="btn" id="play">▶ Play</button><button class="btn ghost" id="replay">↻ Again</button></div>
+      <div class="actions"><button class="btn" id="play">▶ Play</button></div>
       <div class="opts" id="opts" style="margin-top:14px"></div><div class="feedback" id="fb"></div>
       <div class="actions"><button class="btn" id="next" disabled>Next</button></div></div>`;
-    $("#eBack").onclick=goHome;$("#play").onclick=playIt;$("#replay").onclick=playIt;
+    $("#eBack").onclick=goHome;$("#play").onclick=()=>{playIt();const pb=$("#play");if(pb)pb.textContent="🔁 Hear again";};
     drillRow("#opts","tempo");const box=$("#opts");
     opts.forEach(o=>{const b=document.createElement("button");b.className="opt";b.textContent=o.name;
       b.onclick=()=>{if(box.dataset.lock)return;if(o.id===ans.id){box.dataset.lock="1";b.classList.add("correct");[...box.children].forEach(c=>c.disabled=true);if(!box.dataset.miss)correct++;$("#fb").textContent=(box.dataset.miss?"That's it (not counted — first answers only): ":"Correct — ")+ans.name;$("#fb").className="feedback good";$("#next").disabled=false;$("#next").focus();}
@@ -6904,9 +6904,14 @@ const SCALE_LEVELS=[["major","minor"],["major","minor","dorian","majpent"],["maj
 function playChordEar(root,iv){earStop();iv.forEach(function(s){earTone(root+s,0,2.0,0.16);});}
 var EAR_T=[],EAR_O=[];
 function earStop(){EAR_T.forEach(clearTimeout);EAR_T=[];try{var a=ac();EAR_O.forEach(function(n){try{n.g.gain.cancelScheduledValues(a.currentTime);n.g.gain.setTargetAtTime(0.0001,a.currentTime,0.03);n.o.stop(a.currentTime+0.12);}catch(e){}});}catch(e){}EAR_O=[];}
-function earTone(midi,delayMs,dur,gain){try{if(typeof sfLoadInst==="function")sfLoadInst("piano");}catch(e){}(function(){try{var a=ac(),t=a.currentTime+Math.max(0,delayMs)/1000+0.03,pk=gain||0.24;
+/* ear-training notes play through the SAME grand piano and loudness as the Interval Trainer (playTone → sfPlayKey).
+   Old per-note gains (0.16 for chords, 0.26 for scales) are mapped to piano velocity so a 3–4 note chord sounds as full as a single interval note. */
+function earVel(gain){return Math.max(0.5,Math.min(0.95,(gain||0.24)*3.6));}
+function earTone(midi,delayMs,dur,gain){try{if(typeof sfLoadInst==="function")sfLoadInst("piano");}catch(e){}try{grLoad();}catch(e){}
+  try{var h=sfPlayKey("piano",midi,Math.max(0,delayMs)/1000+0.03,dur,earVel(gain));if(h&&h.g){EAR_O.push({o:h.s||{stop:function(){}},g:h.g});return;}if(h){EAR_O.push({o:{stop:function(t){try{h.stop&&h.stop();}catch(e){}}},g:{gain:{cancelScheduledValues:function(){},setTargetAtTime:function(){}}}});return;}}catch(e){}
+  (function(){try{var a=ac(),t=a.currentTime+Math.max(0,delayMs)/1000+0.03,pk=gain||0.24;
   if(typeof sfInstReady==="function"&&sfInstReady("piano")){var anc=sfNearest("piano",midi);if(anc!=null&&SF.buf.piano&&SF.buf.piano[anc]){var s=a.createBufferSource();s.buffer=SF.buf.piano[anc];s.playbackRate.value=Math.pow(2,(midi-anc)/12);var pg=a.createGain(),rel=Math.max(0.12,dur),tail=0.35,peak=Math.min(0.6,pk*2.4);pg.gain.setValueAtTime(0.0001,t);pg.gain.exponentialRampToValueAtTime(peak,t+0.006);pg.gain.setValueAtTime(peak,t+rel);pg.gain.exponentialRampToValueAtTime(0.0008,t+rel+tail);s.connect(pg);pg.connect(pianoMaster(a));s.start(t);s.stop(t+rel+tail+0.12);EAR_O.push({o:s,g:pg});return;}}
-  var o=a.createOscillator(),g=a.createGain();o.type="triangle";o.frequency.value=midiToFreq(midi);g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(pk,t+0.012);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(pianoMaster(a));o.start(t);o.stop(t+dur+0.12);EAR_O.push({o:o,g:g});
+  try{playTone(midiToFreq(midi),Math.max(0,delayMs)/1000+0.03,Math.max(0.6,dur));return;}catch(e){}var o=a.createOscillator(),g=a.createGain();o.type="triangle";o.frequency.value=midiToFreq(midi);g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(pk,t+0.012);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(pianoMaster(a));o.start(t);o.stop(t+dur+0.12);EAR_O.push({o:o,g:g});
 }catch(e){}})();}
 function playScaleEar(root,iv){earStop();iv.forEach(function(s,i){earTone(root+s,i*320,0.55,0.26);});}
 /* ===== See it after you name it \u2014 chord, scale and progression reveals in the keyboard-card style ===== */
@@ -8089,8 +8094,8 @@ function renderFsTheory(){if(teardown){try{teardown();}catch(e){}}teardown=null;
     '<h4 style="margin:12px 0 2px">Listen and answer</h4><div class="fs-learn" id="fsPr" style="font-weight:800;margin:6px 0"></div><div class="site-note" id="fsSc">'+sc.ok+' / '+sc.n+' right</div><div class="actions"><button class="btn" id="fsPlay">▶ Play it</button></div><div class="fs-q" id="fsQ"></div><div class="site-note" id="fsFb" style="min-height:1.4em"></div></div>';
   $("#eBack").onclick=goHome;$("#fsDemo").onclick=demo[1];
   FS.qn=FS.qn||0;const fin=(ok)=>{if(FS.thq.answered)return;FS.thq.answered=true;const x=fsState();x.score=x.score||{ok:0,n:0};x.score.n++;if(ok)x.score.ok++;fsSave(x);$("#fsSc").textContent=x.score.ok+" / "+x.score.n+" right";
-      $("#fsFb").innerHTML=(ok?"✅ Yes!":"Not quite.")+(FS.thq.reveal?" That was "+FS.thq.reveal+".":"")+' <button class="btn ghost" id="fsAgain" style="padding:6px 12px">🔁 Hear it again</button> <button class="btn" id="fsNq" style="padding:6px 14px">Next question ▶</button>';fsClick(ok,0.05);
-      $("#fsAgain").onclick=()=>FS.thq.play();$("#fsNq").onclick=()=>{newQ();$("#fsFb").textContent="";FS.thq.play();};};
+      $("#fsFb").innerHTML=(ok?"✅ Yes!":"Not quite.")+(FS.thq.reveal?" That was "+FS.thq.reveal+".":"")+' <button class="btn" id="fsNq" style="padding:6px 14px">Next question ▶</button>';fsClick(ok,0.05);
+      $("#fsNq").onclick=()=>{newQ();$("#fsFb").textContent="";FS.thq.play();};};
   const newQ=()=>{FS.qn++;FS.thq=fsTheoryQ(day,FS.qn);const box=$("#fsQ");$("#fsPr").textContent=FS.thq.prompt||"";
     if(FS.thq.tap){const P=FS.thq.tap,taps=[];box.innerHTML='<button id="fsPad" style="grid-column:1/-1;padding:46px 8px;font-size:1.3rem">👆 Tap here</button>';
       $("#fsPad").onclick=()=>{if(FS.thq.answered)return;taps.push(performance.now());fsClick(false,0.05);if(taps.length===P.length){const iv=[],want=[];for(let i=1;i<taps.length;i++){iv.push(taps[i]-taps[i-1]);want.push(P[i-1]);}
@@ -15321,7 +15326,7 @@ function renderRound(level){
       <div class="panel">
         <div class="ask">Listen, then name the interval</div>
         ${ivCardHTML()}
-        <div class="actions"><button class="btn" id="play">▶ Play</button><button class="btn ghost" id="replay">↻ Again</button></div>
+        <div class="actions"><button class="btn" id="play">▶ Play</button></div>
         <div class="opts" id="opts" style="margin-top:14px"></div>
         ${minUI()}
         <div class="feedback" id="fb"></div>
@@ -15329,7 +15334,7 @@ function renderRound(level){
     $("#eBack").onclick=goHome;
     const kb=ivMountKb(kbLow);
     const playIt=()=>playInterval(root,semis,ivMode()==="mixed"?qMode:ivMode());drillRow("#opts","iv");
-    $("#play").onclick=playIt;$("#replay").onclick=playIt;
+    $("#play").onclick=()=>{playIt();const pb=$("#play");if(pb)pb.textContent="🔁 Hear again";};
     const box=$("#opts");
     set.forEach(s=>{const b=document.createElement("button");b.className="opt";b.textContent=INAMES[s];
       b.onclick=()=>{if(box.dataset.lock)return;
@@ -15376,10 +15381,10 @@ function renderSongQuiz(){
     view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎶 Which song?</span>
         <span style="margin-left:auto;color:var(--muted);font-weight:800;font-size:.8rem">${qi+1}/${TOTAL}</span></div>
       <div class="panel"><div class="ask">Hear the interval — which song starts like it?</div>
-        <div class="actions"><button class="btn" id="play">▶ Play</button><button class="btn ghost" id="replay">↻ Again</button></div>
+        <div class="actions"><button class="btn" id="play">▶ Play</button></div>
         <div class="opts" id="opts" style="margin-top:14px"></div>${minUI()}<div class="feedback" id="fb"></div>
         <div class="actions"><button class="btn" id="next" disabled>Next</button></div></div>`;
-    $("#eBack").onclick=goHome;const playIt=()=>playInterval(60,s);$("#play").onclick=playIt;$("#replay").onclick=playIt;
+    $("#eBack").onclick=goHome;const playIt=()=>playInterval(60,s);$("#play").onclick=()=>{playIt();const pb=$("#play");if(pb)pb.textContent="🔁 Hear again";};
     const box=$("#opts");
     opts.forEach(o=>{const b=document.createElement("button");b.className="opt";b.innerHTML=SONGS[o];
       b.onclick=()=>{if(box.dataset.lock)return;

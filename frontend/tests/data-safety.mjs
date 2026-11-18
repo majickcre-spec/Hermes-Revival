@@ -508,6 +508,14 @@ export async function run() {
     assert(r.mid === "suspended" && r.after === "running", "sound stayed off " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Ear trainers: chord/scale/progression/cadence play through the same grand piano as the Interval Trainer; one play button per screen", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r = await pg.evaluate(async () => { let n = 0; const o = window.sfPlayKey; window.sfPlayKey = function (k) { if (k === "piano") n++; return o.apply(this, arguments); }; playChordEar(53, CHORD_DEFS.maj.iv); playProg(53, PROG_DEFS["1546"].iv); window.sfPlayKey = o; earStop();
+      const scr = []; for (const m of ["intervals", "chords", "prog", "noteid"]) { openEar(m); await new Promise((z) => setTimeout(z, 200)); const st = document.getElementById("egStart"); if (st) { st.click(); await new Promise((z) => setTimeout(z, 300)); } scr.push(!document.getElementById("replay")); }
+      return { n, single: scr.every(Boolean) }; });
+    assert(r.n === 3 + 12, "ear notes not on the shared piano " + JSON.stringify(r)); assert(r.single, "duplicate play/again buttons"); await ctx.close();
+  });
+
   await S.test("the app never throws while opening Lyric Lab", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); await open(pg);
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
