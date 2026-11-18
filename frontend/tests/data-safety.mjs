@@ -508,6 +508,13 @@ export async function run() {
     assert(r.mid === "suspended" && r.after === "running", "sound stayed off " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Home: Vocal Training and Lyric Lab each have a main menu button; Lyric Lab's opens it directly", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r = await pg.evaluate(async () => { goHome(); const v = !!document.querySelector('.door[data-d="voice"]'), l = document.querySelector('.door[data-d="lyric"]'); if (l) l.click(); await new Promise((z) => setTimeout(z, 500));
+      return { v, l: !!l, opened: /Lyric Lab/.test((document.querySelector(".ttitle") || {}).textContent || "") }; });
+    assert(r.v && r.l && r.opened, "home buttons " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("Vocal Training: own home section + hub, Ear Training routes there, Range Finder saves a range that fits the guide voice, daily/weekly flow, rap timing score, belting daily cap — and a saved guide-voice choice is kept", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, { "mjk-tonevoice": JSON.stringify("piano") });
     const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const out = {};
