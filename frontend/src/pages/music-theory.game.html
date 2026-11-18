@@ -580,10 +580,10 @@ body.inact .brand h1,body.inact .brand .sigil,body.inact .brand .brandmark{anima
 
   <div id="home" hidden>
     <div id="fsHero"></div>
-    <div class="hero" hidden style="display:none">
+    <div class="hero">
       <div class="eyebrow">Majick Music University</div>
       <h2>Whether an Experienced Professional or just starting out, these exercises will take you on a journey into your own deeper connection to <span class="mz">the Music</span>.</h2>
-      <p>Music lives in our minds, hearts, body, feet and hands. We learn it by watching, practicing and testing our progress. Our emotions can be harmonic and our thoughts rhythmic. Repetition is the key. Have a Magical music journey!</p>
+
       <div class="pillars"><span class="pillar">🎯 <b>Know it</b></span><span class="pillar">👂 <b>Hear it</b></span><span class="pillar">🥁 <b>Feel it</b></span><span class="pillar">🎹 <b>Play it</b></span></div>
     </div>
 
@@ -1628,7 +1628,15 @@ const SONGS={
 };
 /* audio */
 let AC=null,PIANO_WAVE=null,PIANO_MASTER=null,_audioUnlocked=false;
-function ac(){if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended"||AC.state==="interrupted"){try{AC.resume();}catch(e){}}return AC;}
+function ac(){if(!AC){AC=new (window.AudioContext||window.webkitAudioContext)();acWatch();}if(AC.state==="suspended"||AC.state==="interrupted"){try{AC.resume();}catch(e){}}return AC;}
+/* KEEP SOUND ON (screen recording, Control Center, calls, Siri, notifications): iOS interrupts web audio when these start and never restarts it.
+   The app never pauses audio on purpose, so whenever the sound is cut we bring it back on our own — right away, as the interruption ends,
+   and when the page comes back into view — and re-arm the playback session. A tap always works too. */
+var _acRetry=null;
+function acKick(){try{if(!AC||AC.state==="closed")return;if(AC.state!=="running"){try{audioPlaybackCategory();}catch(e){}AC.resume().then(function(){try{if(AC.state==="running"&&typeof sndPausedNote==="function")sndPausedNote(false);}catch(e){}}).catch(function(){});}else{try{if(_silentEl&&_silentEl.paused)_silentEl.play().catch(function(){});}catch(e){}}}catch(e){}}
+function acWatch(){try{AC.addEventListener("statechange",function(){if(AC.state!=="running"&&AC.state!=="closed"){acKick();clearInterval(_acRetry);var n=0;_acRetry=setInterval(function(){n++;if(!AC||AC.state==="running"||n>40){clearInterval(_acRetry);return;}acKick();},500);}});
+  ["visibilitychange","pageshow","focus"].forEach(function(ev){(ev==="visibilitychange"?document:window).addEventListener(ev,function(){if(!document.hidden)setTimeout(acKick,60);});});
+  setInterval(function(){if(!document.hidden)acKick();},2000);}catch(e){}}
 ["touchend","click","keydown"].forEach(function(ev){document.addEventListener(ev,function(){try{if(AC&&AC.state!=="running"&&AC.state!=="closed"){AC.resume();var w=document.getElementById("sndPaused");if(w)w.remove();}}catch(e){}},{passive:true,capture:true});});
 /* a visible note when the phone has paused the sound mid-session */
 function sndPausedNote(on){var w=document.getElementById("sndPaused");if(!on){if(w)w.remove();return;}if(w)return;w=document.createElement("div");w.id="sndPaused";w.textContent="🔇 Your phone paused the sound — tap anywhere to bring it back";w.style.cssText="position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top));transform:translateX(-50%);z-index:99999;background:#f4b740;color:#120c20;font:800 .9rem system-ui;padding:10px 16px;border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.5);max-width:90vw;text-align:center";w.onclick=function(){try{AC.resume();}catch(e){}w.remove();};document.body.appendChild(w);}

@@ -445,7 +445,7 @@ export async function run() {
       const [x0, y0, x1, y1] = w > h ? [z[0] + z[2] / 2, z[1] + 8, z[0] + z[2] / 2, z[1] + z[3] - 8] : [z[0] + 8, z[1] + z[3] / 2, z[0] + z[2] - 8, z[1] + z[3] / 2];
       await T("touchStart", x0, y0); for (let i = 1; i <= 12; i++) await T("touchMove", x0 + (x1 - x0) * i / 12, y0 + (y1 - y0) * i / 12); await T("touchEnd");
       info.sw = await pg.evaluate(() => window.__sw);
-      if (w > h) info.paused = await pg.evaluate(async () => { ST.mode = "watch"; stStart(); await new Promise((z) => setTimeout(z, 300)); await AC.suspend(); const o = window.ac; window.ac = () => AC; await new Promise((z) => setTimeout(z, 400)); const n = !!document.getElementById("sndPaused"); window.ac = o; stStop(); return n; });
+      if (w > h) info.paused = await pg.evaluate(async () => { ST.mode = "watch"; stStart(); await new Promise((z) => setTimeout(z, 300)); await AC.suspend(); const o = window.ac; window.ac = () => AC; await new Promise((z) => setTimeout(z, 400)); const n = !!document.getElementById("sndPaused") || AC.state === "running"; window.ac = o; stStop(); return n; });
       out.push(info); await ctx.close();
     }
     assert(out[0].g === "↓↑" && out[1].g === "→←", "arrows wrong " + JSON.stringify(out.map((x) => x.g)));
@@ -500,6 +500,12 @@ export async function run() {
       return { uniq: new Set(days).size, lhBad, g7: /G7/.test(playChords), newCh: FS_DAYS[4].newCh, picked, nat, hum, after, natGone: !FS.nat }; });
     assert(r.uniq === 5, "days aren't different"); assert(!r.g7 && r.newCh === "G7", "G7 in her play-along"); assert(!r.lhBad, "G7 in an easy song backing");
     assert(r.picked === 2 && r.nat && /hum/.test(r.hum) && r.natGone, "day pick / sound world wrong " + JSON.stringify(r)); assert(r.after === 1, "pick didn't clear after finishing " + JSON.stringify(r)); await ctx.close();
+  });
+
+  await S.test("Sound comes back on its own after the phone cuts it (screen recording, Control Center, calls)", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r = await pg.evaluate(async () => { ac(); await AC.resume(); await AC.suspend(); const mid = AC.state; await new Promise((z) => setTimeout(z, 1500)); return { mid, after: AC.state }; });
+    assert(r.mid === "suspended" && r.after === "running", "sound stayed off " + JSON.stringify(r)); await ctx.close();
   });
 
   await S.test("the app never throws while opening Lyric Lab", async () => {
