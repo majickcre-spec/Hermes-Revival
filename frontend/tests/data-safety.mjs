@@ -508,6 +508,21 @@ export async function run() {
     assert(r.mid === "suspended" && r.after === "running", "sound stayed off " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Halftime: Trap + D&B halftime grooves play a real kit in Metronome Flow at their own tempo, and Lyric Lab keeps the song at the felt tempo with drums at double — song words untouched", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const out = {};
+      renderRhythm(false); await w(300); const pick = (n) => [...document.querySelectorAll("#rChips .rchip")].find((c) => c.textContent.indexOf(n) >= 0).click();
+      pick("Trap halftime"); out.trap = R.bpm; out.lanes = document.querySelectorAll(".htLanes .htL").length; out.felt = document.querySelectorAll(".rcell.felt").length;
+      pick("D&B halftime"); out.dnb = R.bpm; let calls = 0; const o = window.htKitStep; window.htKitStep = function () { calls++; return o.apply(this, arguments); };
+      R.countIn = 0; document.getElementById("rStart").click(); await w(700); rStop(); window.htKitStep = o; out.kitSteps = calls;
+      out.quizClean = RHYTHM_PATTERNS.filter((p) => !p.kit).length === RHYTHM_PATTERNS.length - 2;
+      renderIdeaLab(); await w(700); const s = swSong(); if (!s.setup) { s.setup = true; } s.bpm = 90; s.sections = s.sections || []; const before = JSON.stringify(s.sections); swSave(); swDraw(); await w(200);
+      document.getElementById("bkSet").open = true; [...document.querySelectorAll("[data-bkg]")].find((x) => x.dataset.bkg === "ht_trap").click(); await w(200);
+      document.getElementById("bkGo").click(); await w(300); out.song = swSong().bpm; out.drums = R.bpm; out.words = JSON.stringify(swSong().sections) === before; bkStop(); return out; });
+    assert(r.trap === 140 && r.dnb === 172 && r.lanes === 3 && r.felt === 4 && r.kitSteps > 5 && r.quizClean, "Metronome Flow halftime " + JSON.stringify(r));
+    assert(r.song === 70 && r.drums === 140 && r.words, "Lyric Lab halftime " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("Djembe: real djembe-pitched bass, a big playable drum on every djembe screen (portrait + landscape), hits light their zone, and no Lead note anywhere", async () => {
     for (const [w, h] of [[390, 844], [844, 390]]) {
       const ctx = await b.newContext({ viewport: { width: w, height: h } }); const pg = await profilePage(ctx, url, {});

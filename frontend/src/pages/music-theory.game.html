@@ -357,7 +357,7 @@ body.djOn #metFab,body.djOn #sensFab{display:none!important}
 .rfeel{font-size:.95rem;color:var(--muted);font-family:"Nunito Sans",system-ui,sans-serif;margin-top:6px;transition:color .1s;min-height:22px}
 .rfeel.beat{color:var(--gold);transform:scale(1.04)}
 .rbanner{text-align:center;font-family:"Hanken Grotesk",system-ui,sans-serif;letter-spacing:1px;color:var(--gold-deep);background:rgba(255,111,163,.1);border:1px solid rgba(255,111,163,.3);border-radius:10px;padding:8px;margin-bottom:10px}
-.rcell.trip{width:42px}
+.rcell.felt{position:relative;box-shadow:inset 0 0 0 2px #ffd27a}.rcell.felt::before{content:attr(data-felt);position:absolute;top:-8px;left:50%;transform:translateX(-50%);font:800 .52rem system-ui;color:#1a1306;background:#ffd27a;border-radius:6px;padding:0 4px;white-space:nowrap;z-index:1}.htLanes{width:100%;margin-top:8px}.htL{display:flex;align-items:center;gap:6px;margin:3px 0}.htL span{width:44px;font:700 .66rem system-ui;color:var(--muted);flex:none}.htL div{flex:1;display:grid;gap:1px}.htL i{height:18px;border-radius:3px;background:rgba(255,255,255,.05);font:800 .5rem system-ui;font-style:normal;color:#fff;display:flex;align-items:center;justify-content:center}.htL i.bt{background:rgba(255,255,255,.1)}.htL i.br{margin-left:3px}.htL i.on{background:#f4b740}.htL i.gh{background:rgba(244,183,64,.4)}.htL i.now{outline:2px solid #fff;outline-offset:-1px}.rcell.trip{width:42px}
 .rtap{flex:none;font:inherit;font-weight:800;font-size:.82rem;cursor:pointer;border-radius:10px;padding:8px 14px;background:var(--card2);border:1px solid var(--violet);color:var(--cream)}
 .rtap:active{background:rgba(52,224,198,.25)}
 .rrow2{display:flex;align-items:center;gap:10px;margin:8px 2px;flex-wrap:wrap}
@@ -2477,8 +2477,21 @@ const RHYTHM_PATTERNS=[
  {id:"g_country",name:"\ud83e\udd20 Country (two-step)",div:4,active:[0,2,4,8,10,12],say:"1 & 2 \u2013 3 & 4"},
  {id:"g_jazz",name:"\ud83c\udfb7 Jazz (swing ride)",div:3,active:[0,3,5,6,9,11],say:"1 \u2013 2 \u2013 let 3 \u2013 4 \u2013 let"},
  {id:"g_funk",name:"\ud83d\udd7a Funk (the One)",div:4,active:[0,3,6,8,10,11,14],say:"ONE . . a . . & . 3 . & a . . & ."},
- {id:"g_dnb",name:"\u26a1 Drum & bass (two-step)",div:4,active:[0,6,8,10,14],say:"1 . . . . . & . 3 . & . . . & ."}
+ {id:"g_dnb",name:"\u26a1 Drum & bass (two-step)",div:4,active:[0,6,8,10,14],say:"1 . . . . . & . 3 . & . . . & ."},
+ /* HALFTIME: written fast, felt at half speed. Kick on 1, snare on 3 of every written bar = the felt 2 and 4. Played on a real kit, not a click. */
+ {id:"ht_trap",name:"\ud83c\udf9b Trap halftime",div:4,bars:2,say:"Nod on the gold: feel 1 – 2 – 3 – 4",
+  kit:{style:"Trap",kit:"808",bpm:140,feel:[130,140,150,160],kick:[0,7,16,22,26],snare:[8,24],hat:[0,2,4,6,8,10,12,13,14,15,16,18,20,22,24,26,28,29,30,31],roll:{29:3,31:2},hatV:{13:55,14:70,15:55,29:60,30:70,31:60}}},
+ {id:"ht_dnb",name:"\u26a1 D&B halftime",div:4,bars:2,say:"Nod on the gold: feel 1 – 2 – 3 – 4",
+  kit:{style:"Drum & bass",kit:"909",bpm:172,feel:[170,172,174],kick:[0,10,16,22,27],snare:[8,24],ghost:[14,30],hat:[0,2,3,4,6,8,10,11,12,14,16,18,19,20,22,24,26,27,28,30],hatV:{3:55,11:55,19:55,27:55}}}
 ];
+RHYTHM_PATTERNS.forEach(function(p){if(p.kit){var k=p.kit,s={};["kick","snare","ghost","hat"].forEach(function(l){(k[l]||[]).forEach(function(c){s[c]=1;});});p.active=Object.keys(s).map(Number).sort(function(a,b){return a-b;});}});
+/* play one step of a halftime kit groove on the click bus (so Stop silences it and the Groove/Click volume applies) */
+function htKitStep(pat,cell,time,vol){var k=pat.kit,a=ac(),bus=clickBus(a),v=(vol==null?1:vol)*0.32,cd=rCellDur();if(v<=0.001)return;
+  var hit=function(id,when,lv){var g=a.createGain();g.gain.value=lv*v;g.connect(bus);try{lvDrumSynth(a,g,when,id,k.kit,id==="snare"&&k.kit==="909"?2:0,id==="kick"&&k.kit==="808"?1.25:1);}catch(e){}};
+  if(k.kick.indexOf(cell)>=0)hit("kick",time,1.15);
+  if(k.snare.indexOf(cell)>=0){hit("snare",time,1);if(k.kit==="808")hit("clap",time,0.75);}
+  if(k.ghost&&k.ghost.indexOf(cell)>=0)hit("snare",time,0.28);
+  if(k.hat.indexOf(cell)>=0){var n=(k.roll&&k.roll[cell])||1,hv=((k.hatV&&k.hatV[cell])||(cell%2?60:85))/100;for(var i=0;i<n;i++)hit("hhc",time+i*cd/n,hv*(i?0.8:1));}}
 const RHYTHM_CARDS=[
  {ic:"📖",title:"Learn Rhythm",blurb:"Flip-cards for note values — whole, half, quarter, eighths, triplets — and how to count each. Hear every one.",go:()=>rhythmLearn()},
  {ic:"🥁",title:"Metronome Flow",blurb:"A magical metronome — pick a rhythm shape and count along, slow and steady.",go:()=>renderRhythm(false)},
@@ -2531,11 +2544,12 @@ function rSchedule(){
     const cell=R.cur%cells,onBeat=cell%div===0;R.cur=cell;
     if(inCount){
       if(onBeat)click(R.nextTime,cell===0?"accent":"beat",R.gv);
+    }else if(pat.kit){htKitStep(pat,cell,R.nextTime,R.gv);if(R.speak&&pat.active.indexOf(cell)>=0)R.expected.push({t:R.nextTime,done:false});
     }else if(pat.active.indexOf(cell)>=0){
       click(R.nextTime,cell===0?"accent":(onBeat?"beat":"sub"),R.gv);
       if(R.speak)R.expected.push({t:R.nextTime,done:false});
     }
-    if(R.onBar&&!inCount&&cell%(4*div)===0){try{R.onBar(R.nextTime);}catch(e){}}
+    if(R.onBar&&!inCount&&cell%(4*div*(pat.kit?2:1))===0){try{R.onBar(R.nextTime);}catch(e){}}
     if(!document.hidden)R.visQ.push({t:R.nextTime,cell,count:inCount});
     R.nextTime+=rCellDur();R.cur=(R.cur+1)%cells;if(R.cur===0)R.barCount++;
   }
@@ -2544,6 +2558,7 @@ function rLight(cell){
   const cells=document.querySelectorAll("#rCells .rcell");
   if(R.litCell>=0&&cells[R.litCell])cells[R.litCell].classList.remove("on");
   if(cells[cell])cells[cell].classList.add("on");R.litCell=cell;
+  const pl=document.querySelectorAll(".htLanes i.now");pl.forEach(x=>x.classList.remove("now"));if(document.querySelector(".htLanes"))document.querySelectorAll('.htLanes i[data-c="'+cell+'"]').forEach(x=>x.classList.add("now"));
 }
 function rDetect(now,record){
   if(!R.buf)return;toneAnalyser.getFloatTimeDomainData(R.buf);
@@ -2610,23 +2625,29 @@ function rRenderCells(){
     [1,2].forEach(n=>{const b=document.createElement("button");b.className="rchip sm"+(rCustom().bars===n?" sel":"");b.textContent=n+(n===1?" bar":" bars");
       b.onclick=()=>{rCustom().bars=n;save(mk("rhythm","custom"),R.custom);rRenderCells();};bw.appendChild(b);});
     box.appendChild(bw);}
+  const ht=$("#rHt");if(ht){if(pat.kit){const k=pat.kit;ht.hidden=false;ht.innerHTML='<b>'+k.style+' halftime</b> \u00b7 written <b id="rHtW">'+R.bpm+'</b>, feels like <b id="rHtF">'+Math.round(R.bpm/2)+'</b>. Snare on 3 = the felt 2 and 4. Rap about 8 syllables a bar in the pocket, 16 double-time.'+
+      '<div class="rchips tight" style="margin-top:6px">'+k.feel.map(b=>'<button class="rchip sm'+(b===R.bpm?" sel":"")+'" data-htb="'+b+'">'+b+' <small style="opacity:.7">(feels '+Math.round(b/2)+')</small></button>').join("")+'</div>';
+      ht.querySelectorAll("[data-htb]").forEach(x=>x.onclick=()=>{rSetBpm(+x.dataset.htb);rRenderCells();});}else ht.hidden=true;}
   for(let bar=0;bar<bars;bar++){
     if(bars>1){const bl=document.createElement("div");bl.className="site-note";bl.style.cssText="margin:"+(bar?"8px":"0")+" 0 2px;font-size:.7rem;width:100%";bl.textContent="Bar "+(bar+1);box.appendChild(bl);}
     for(let beat=0;beat<4;beat++){const grp=document.createElement("div");grp.className="rbeat";
       for(let s=0;s<div;s++){const cell=bar*4*div+beat*div+s;const d=document.createElement("div");
         d.className="rcell"+(pat.active.indexOf(cell)>=0?" act":"")+(div===3?" trip":"");
-        d.innerHTML=`<span>${syl[beat*div+s]}</span>`;
+        d.innerHTML=`<span>${syl[beat*div+s]}</span>`;if(pat.kit&&cell%8===0){d.dataset.felt="feel "+(cell/8+1);d.classList.add("felt");}
         if(pat.id==="custom"){d.style.cursor="pointer";d.onclick=()=>{const on=rCustom().on,i=on.indexOf(cell);if(i>=0)on.splice(i,1);else{on.push(cell);on.sort((a,b)=>a-b);}
           d.classList.toggle("act",i<0);save(mk("rhythm","custom"),R.custom);};}
         grp.appendChild(d);}
       box.appendChild(grp);}}
+  if(pat.kit){const k=pat.kit,ln=document.createElement("div");ln.className="htLanes";const n=4*div*bars,lanes=[["Kick",k.kick],["Snare",k.snare.concat(k.ghost||[])],["Hats",k.hat]];
+    ln.innerHTML=lanes.map(L=>'<div class="htL"><span>'+L[0]+'</span><div style="grid-template-columns:repeat('+n+',1fr)">'+Array.from({length:n},(_,c)=>'<i data-c="'+c+'" class="'+(L[1].indexOf(c)>=0?((k.ghost||[]).indexOf(c)>=0&&L[0]==="Snare"?"gh":"on"):"")+(c%div===0?" bt":"")+(c%16===0?" br":"")+'">'+(L[0]==="Hats"&&k.roll&&k.roll[c]?"\u00d7"+k.roll[c]:"")+'</i>').join("")+'</div></div>').join("");box.appendChild(ln);}
   R.litCell=-1;const say=$("#rSay");if(say)say.textContent=pat.say;
 }
+function rSetBpm(v){R.bpm=Math.max(30,Math.min(300,Math.round(v)));const s=$("#bpm"),bv=$("#bpmVal");if(s)s.value=R.bpm;if(bv)bv.textContent=R.bpm;try{if(R.running)bgKeep(true,"Metronome \u00b7 "+R.bpm+" BPM");}catch(e){}}
 function rRenderChips(){
   const box=$("#rChips");if(!box)return;box.innerHTML="";
   [{name:"✏️ Custom",_custom:true}].concat(RHYTHM_PATTERNS).forEach((p)=>{const idx=p._custom?-1:RHYTHM_PATTERNS.indexOf(p);const c=document.createElement("button");
     c.className="rchip"+(idx===R.patIdx?" sel":"");c.textContent=p.name;
-    c.onclick=()=>{R.patIdx=idx;R.beaned=false;R.resolved=0;R.matched=0;R.inPocket=0;R.errSum=0;R.errAbsSum=0;R.barCount=0;
+    c.onclick=()=>{if(p.kit){const f=p.kit.feel;if(!(R.bpm>=f[0]-5&&R.bpm<=f[f.length-1]+5))rSetBpm(p.kit.bpm);}R.patIdx=idx;R.beaned=false;R.resolved=0;R.matched=0;R.inPocket=0;R.errSum=0;R.errAbsSum=0;R.barCount=0;
       if(R.running){R.cur=0;R.nextTime=ac().currentTime+0.12;R.visQ=[];R.expected=[];R.countEndTime=R.nextTime+R.countIn*(60/R.bpm)*4;}
       rRenderChips();rRenderCells();rScoreUI();};
     box.appendChild(c);});
@@ -2650,6 +2671,7 @@ async function renderRhythm(speak){
     <div class="panel">
       <div class="intro">${speak?"Breathe, then count out loud <b>with</b> the clicks — say each number right on the beat. The app listens and shows how in‑time you are. Repeat it like a meditation.":"Pick a rhythm shape and count along out loud. Slow and steady — let the pulse settle you."}</div>
       <div class="rbanner" id="rBanner" hidden></div>
+      <div class="intro" id="rHt" hidden style="margin:6px 0"></div>
       <div class="rsay" id="rSay"></div>
       <div class="rcells" id="rCells"></div>
       <div class="rrow"><span class="rlab">Tempo</span><input type="range" id="bpm" min="30" max="300" step="1" value="${R.bpm}"><span class="rbpm" id="bpmVal">${R.bpm}</span><button class="rtap" id="rTap">Tap</button></div>
@@ -2666,7 +2688,7 @@ async function renderRhythm(speak){
   teardown=()=>{rStop();stopMic();};
   rRenderCells();rRenderChips();rRenderMini();
   const bpm=$("#bpm"),bpmVal=$("#bpmVal");
-  bpm.oninput=()=>{R.bpm=+bpm.value;bpmVal.textContent=bpm.value;};
+  bpm.oninput=()=>{R.bpm=+bpm.value;bpmVal.textContent=bpm.value;const w=$("#rHtW"),f=$("#rHtF");if(w)w.textContent=R.bpm;if(f)f.textContent=Math.round(R.bpm/2);document.querySelectorAll("#rHt [data-htb]").forEach(x=>x.classList.toggle("sel",+x.dataset.htb===R.bpm));};
   $("#rTap").onclick=()=>{
     const now=performance.now();
     if(R.taps.length&&now-R.taps[R.taps.length-1]>2000)R.taps=[];
@@ -2779,7 +2801,7 @@ function tapRound(pat){
 }
 function rhythmNameQuiz(){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  const pool=RHYTHM_PATTERNS;let qi=0,correct=0;const TOTAL=6;
+  const pool=RHYTHM_PATTERNS.filter(p=>!p.kit);let qi=0,correct=0;const TOTAL=6;
   function step(){
     if(qi>=TOTAL){const pass=correct>=4;let note="";
       if(pass&&activeId()){if(!load(mk("rname","paid"),false)){addBeans(10);save(mk("rname","paid"),true);note='<div class="bean-note">+10 🫘</div>';}else{addBeans(2);note='<div class="bean-note">+2 🫘</div>';}beanChip();}
@@ -3134,7 +3156,7 @@ function swCand(song,tag,i){const hs=swCands(song,tag);if(hs&&i===0){const m=son
 function swPlayNotes(ns,off){const s16=swS16(),v=swData().voice||"piano";(ns||[]).forEach(n=>melNote(n.midi,off+n.step*s16,Math.max(0.12,n.len*s16*0.92),v));}
 /* ---- Lyric Lab backing: a looping chord progression riding Metronome Flow's own engine (R), so grooves, timing and background play are shared, not rebuilt ---- */
 const BK={on:false,bar:0,tm:[],bus:null,saved:null};
-const BK_GROOVES=["off","backbeat","g_rock","g_hiphop","g_trap","g_reggae","g_afro","g_funk","g_country","g_jazz","g_house","g_clave","quarter"];
+const BK_GROOVES=["off","backbeat","ht_trap","ht_dnb","g_rock","g_hiphop","g_trap","g_reggae","g_afro","g_funk","g_country","g_jazz","g_house","g_clave","quarter"];
 function bkCfg(song){const L=swProgList(song);let p0=0;const t0=song.sections.find(x=>song.prog&&song.prog[x.tag]!=null&&song.prog[x.tag]>=0);if(t0)p0=song.prog[t0.tag];
   const d={p:p0,g:"backbeat",cs:"keys",ds:"rim",cv:0.7,dv:0.6};const b=Object.assign({},d,song.bk||{});if(b.p<0||b.p>=L.length)b.p=0;return b;}
 function bkSet(song,k,v){const b=bkCfg(song);b[k]=v;song.bk=b;swSave();if(BK.on)bkApply(song);}
@@ -3148,7 +3170,7 @@ function bkGrooveGrid(id){const p=id==="off"?RHYTHM_PATTERNS.find(x=>x.id==="qua
   for(let c=0;c<cells;c++){const on=p.active.indexOf(c)>=0,beat=c%div===0,lab=beat?String((Math.floor(c/div)%4)+1):cnt[c%div];h+='<span class="'+(on?"on":"")+(beat?" bt":"")+(c===0?" one":"")+'">'+lab+'</span>';}
   return h+'</div><div class="bk-ggs">Count it: '+swEsc(p.say||"")+'</div></div>';}
 function bkGrooveName(id){if(id==="off")return "No drums";const p=RHYTHM_PATTERNS.find(x=>x.id===id);return p?p.name.replace(/\s*\(.*\)/,""):id;}
-function bkApply(song){const b=bkCfg(song),gi=RHYTHM_PATTERNS.findIndex(x=>x.id===b.g);R.bpm=song.bpm||90;R.patIdx=gi>=0?gi:RHYTHM_PATTERNS.findIndex(x=>x.id==="quarter");R.sound=b.ds;R.gv=b.g==="off"?0:b.dv;
+function bkApply(song){const b=bkCfg(song),gi=RHYTHM_PATTERNS.findIndex(x=>x.id===b.g),gp=RHYTHM_PATTERNS[gi];R.bpm=(song.bpm||90)*(gp&&gp.kit?2:1);R.patIdx=gi>=0?gi:RHYTHM_PATTERNS.findIndex(x=>x.id==="quarter");R.sound=b.ds;R.gv=b.g==="off"?0:b.dv;
   if(BK.play)R.gv=+swMix().clk||0; /* playing the song: the Groove slider sets the drums; "No drums" falls back to a quarter-note click */
   try{if(BK.bus)BK.bus.gain.value=BK.play?(+swMix().ch||0):b.cv;}catch(e){}}
 function bkNote(key,midi,T,dur,gain,syn){const a=ac();if(sfInstReady(key)&&sfPlayKey(key,midi,T-a.currentTime,dur,gain))return;proSynth(a,BK.bus,T,midi,dur,Math.round(70+gain*40),syn);}
@@ -3177,9 +3199,12 @@ function bkHTML(song){const b=bkCfg(song),ch=bkChords(song),L=swProgList(song),o
   '<div class="rrow2"><span class="rlab">Key</span><span class="rchips tight" style="flex-wrap:wrap">'+swKeyNames(song).map((nm,i)=>chip(swKey(song).root===i,'data-bkk="'+i+'"',nm)).join("")+chip(!swKey(song).minor,'data-bkm="0"',"Major")+chip(!!swKey(song).minor,'data-bkm="1"',"Minor")+'</span></div>'+
   '<div class="rrow2"><span class="rlab">Chords</span><span class="rchips tight">'+L.map((P,i)=>chip(i===b.p,'data-bkp="'+i+'"',P.c.map(c=>swChName(song,c)).join("–")+'<small style="display:block;opacity:.85;font-weight:800">'+P.r.join("–")+' · '+P.r.map(swNash).join("-")+'</small><small style="display:block;opacity:.65;font-weight:700">'+P.l+'</small>')).join("")+'</span></div>'+
   '<div class="rrow2"><span class="rlab">Groove</span><span class="rchips tight">'+BK_GROOVES.map(g=>chip(g===b.g,'data-bkg="'+g+'"',bkGrooveName(g))).join("")+'</span></div>'+
+  (function(){const gp=RHYTHM_PATTERNS.find(x=>x.id===b.g);if(!gp||!gp.kit)return "";const k=gp.kit,bp=song.bpm||90;
+    return '<div class="sw-sub" style="margin:4px 0 2px">\u{1F570} <b>Halftime:</b> your song tempo is the <b>felt</b> speed. '+bp+' here = '+k.style.toLowerCase()+' drums at <b>'+(bp*2)+'</b>. Rap in the pocket \u2248 8 syllables a bar, double-time \u2248 16.</div>'+
+      '<div class="rrow2"><span class="rlab">Tempo</span><span class="rchips tight">'+k.feel.map(w=>{const f=Math.round(w/2);return chip(bp===f,'data-bkht="'+f+'"',f+' <small style="opacity:.7">('+w+')</small>');}).join("")+'</span></div>';})()+
   '<div class="rrow2"><span class="rlab"></span><span><button class="rchip sm" id="bkGInfo">'+(SW.gInfo?"Hide":"Show")+' the groove pattern</button></span></div>'+(SW.gInfo?bkGrooveGrid(b.g):"")+
   '<div class="rrow2"><span class="rlab">Chord sound</span><span class="rchips tight">'+[["keys","Keys"],["pad","Pad"],["guitar","Guitar"]].map(x=>chip(x[0]===b.cs,'data-bkc="'+x[0]+'"',x[1])).join("")+'</span></div>'+
-  '<div class="rrow2"><span class="rlab">Drum sound</span><span class="rchips tight">'+[["rim","Rim"],["hat","Hat"],["wood","Wood"],["clave","Clave"]].map(x=>chip(x[0]===b.ds,'data-bkd="'+x[0]+'"',x[1])).join("")+'</span></div>'+
+  ((RHYTHM_PATTERNS.find(x=>x.id===b.g)||{}).kit?'':'<div class="rrow2"><span class="rlab">Drum sound</span><span class="rchips tight">'+[["rim","Rim"],["hat","Hat"],["wood","Wood"],["clave","Clave"]].map(x=>chip(x[0]===b.ds,'data-bkd="'+x[0]+'"',x[1])).join("")+'</span></div>')+
   '<div class="rrow"><span class="rlab">Chords</span><input type="range" id="bkCv" min="0" max="100" value="'+Math.round(b.cv*100)+'"><span class="rbpm" id="bkCvV">'+Math.round(b.cv*100)+'%</span></div>'+
   '<div class="rrow"><span class="rlab">Drums</span><input type="range" id="bkDv" min="0" max="150" value="'+Math.round(b.dv*100)+'"><span class="rbpm" id="bkDvV">'+Math.round(b.dv*100)+'%</span></div>'+
   '<div class="sw-sub" style="margin-top:4px">Same grooves as Metronome Flow. Keeps looping while you write — even with the screen off.</div></details></div>';}
@@ -3189,13 +3214,17 @@ function bkWire(song){const g=$("#bkGo");if(!g)return;g.onclick=()=>{BK.on?bkSto
   /* change the song's key right here: melodies move with it, chords re-spell */
   view.querySelectorAll("[data-bkk]").forEach(x=>x.onclick=()=>{swSetKey(song,+x.dataset.bkk,!!swKey(song).minor);swDraw();});
   view.querySelectorAll("[data-bkm]").forEach(x=>x.onclick=()=>{swSetKey(song,swKey(song).root,x.dataset.bkm==="1");swDraw();});
-  view.querySelectorAll("[data-bkg]").forEach(x=>x.onclick=()=>{bkSet(song,"g",x.dataset.bkg);swDraw();});
+  view.querySelectorAll("[data-bkg]").forEach(x=>x.onclick=()=>{const gp=RHYTHM_PATTERNS.find(p=>p.id===x.dataset.bkg);
+    /* a halftime groove plays its drums at double the song tempo: a song outside the groove's felt range moves to its felt speed (trap 70, D&B 86) */
+    if(gp&&gp.kit){const f=gp.kit.feel,bp=song.bpm||90;if(bp*2<f[0]-4||bp*2>f[f.length-1]+4){song.bpm=Math.round(gp.kit.bpm/2);try{bkTempo(song);}catch(e){}}}
+    bkSet(song,"g",x.dataset.bkg);swDraw();});
+  view.querySelectorAll("[data-bkht]").forEach(x=>x.onclick=()=>{song.bpm=+x.dataset.bkht;swSave();try{bkTempo(song);}catch(e){}if(BK.on)bkApply(song);swDraw();});
   if($("#bkGInfo"))$("#bkGInfo").onclick=()=>{SW.gInfo=!SW.gInfo;swDraw();};
   view.querySelectorAll("[data-bkc]").forEach(x=>x.onclick=()=>{bkSet(song,"cs",x.dataset.bkc);sfLoadInst(x.dataset.bkc==="guitar"?"guitar":"piano");swDraw();});
   view.querySelectorAll("[data-bkd]").forEach(x=>x.onclick=()=>{bkSet(song,"ds",x.dataset.bkd);if(!BK.on){try{proClick(ac(),clickBus(ac()),ac().currentTime+0.02,"accent",bkCfg(song).dv,x.dataset.bkd);}catch(e){}}swDraw();});
   const cv=$("#bkCv"),dv=$("#bkDv");cv.oninput=()=>{$("#bkCvV").textContent=cv.value+"%";const b=bkCfg(song);b.cv=cv.value/100;song.bk=b;if(BK.on)bkApply(song);};cv.onchange=()=>swSave();
   dv.oninput=()=>{$("#bkDvV").textContent=dv.value+"%";const b=bkCfg(song);b.dv=dv.value/100;song.bk=b;if(BK.on)bkApply(song);};dv.onchange=()=>swSave();}
-function bkTempo(song){const t=$("#bkTv");if(t)t.textContent=song.bpm||90;if(BK.on)R.bpm=song.bpm||90;}
+function bkTempo(song){const t=$("#bkTv");if(t)t.textContent=song.bpm||90;if(BK.on){const gp=RHYTHM_PATTERNS.find(x=>x.id===bkCfg(song).g);R.bpm=(song.bpm||90)*(gp&&gp.kit?2:1);}}
 /* ---- mixer: melody, chords, your voice, click — each with its own level (0 = off) ---- */
 function swMix(){const D=swData();if(!D.mix||typeof D.mix!=="object")D.mix={mel:0.8,ch:0.7,vox:1,clk:D.click?0.6:0};return D.mix;}
 function swBus(layer){const a=ac();SW.bus=SW.bus||{};let b=SW.bus[layer];if(!b||b.context!==a){b=a.createGain();try{b.connect(pianoMaster(a));}catch(e){b.connect(a.destination);}SW.bus[layer]=b;}b.gain.value=swMix()[layer]||0;return b;}
