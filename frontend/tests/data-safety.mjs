@@ -508,6 +508,39 @@ export async function run() {
     assert(r.mid === "suspended" && r.after === "running", "sound stayed off " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Djembe: real djembe-pitched bass, a big playable drum on every djembe screen (portrait + landscape), hits light their zone, and no Lead note anywhere", async () => {
+    for (const [w, h] of [[390, 844], [844, 390]]) {
+      const ctx = await b.newContext({ viewport: { width: w, height: h } }); const pg = await profilePage(ctx, url, {});
+      const r = await pg.evaluate(async (land) => { const wt = (ms) => new Promise((z) => setTimeout(z, ms)); const out = {};
+        const screens = { main: () => renderDjembe(), strike: () => renderStrikeCheck(), cr: () => renderCR(), dex: () => renderDexterity("djembe"), beat: () => renderBeat("djembe") };
+        for (const k in screens) { screens[k](); await wt(250); const d = document.querySelector(".djDrumWrap .drum"); const rc = d.getBoundingClientRect(); out[k] = { w: Math.round(rc.width), top: Math.round(rc.top), bot: Math.round(rc.top + rc.width) }; }
+        renderDjembe(); await wt(200); djHit("T", "L"); const zh = document.querySelector(".djZoneHit"); out.zone = zh ? zh.className : "";
+        out.bassFile = await fetch("/sounds/djembe/bass_h1.mp3").then((x) => x.ok ? x.arrayBuffer() : null).then((ab) => ab ? ab.byteLength : 0);
+        out.lead = leadOn(); renderHandpan(); await wt(200); out.leadBtn = !!document.getElementById("leadChip") || /Lead note/.test(document.getElementById("view").textContent);
+        return out; }, w > h);
+      if (w < h) { for (const k of ["main", "strike", "cr", "dex", "beat"]) assert(r[k].w >= 360, k + " drum too small in portrait " + JSON.stringify(r[k])); }
+      else { for (const k of ["main", "strike", "cr", "dex", "beat"]) assert(r[k].top >= 0 && r[k].bot <= h + 2 && r[k].w >= 300, k + " drum not fully on screen in landscape " + JSON.stringify(r[k])); }
+      assert(/tone/.test(r.zone) && /on/.test(r.zone), "hit zone not lit " + r.zone);
+      assert(r.bassFile > 8000 && r.bassFile !== 37138, "djembe bass not replaced " + r.bassFile);
+      assert(r.lead === false && !r.leadBtn, "Lead note still present"); await ctx.close();
+    }
+  });
+
+  await S.test("Phone heat: the home background freezes without a touch, and the audio engine sleeps after real silence and wakes on the next sound", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms));
+      const a = ac(); acLevel(); playTone(440, a.currentTime + 0.05, 0.3); await w(3000);
+      _acLastUse = Date.now() - 200000; _acQuietSince = Date.now() - 100000; acIdleCheck(); await w(300);
+      const slept = AC.state, sil = _silentEl ? _silentEl.paused : true; ac(); await w(300); const woke = AC.state;
+      /* a sound still ringing never counts as silence */
+      { const c = ac(), o = c.createOscillator(), g = c.createGain(); g.gain.value = 0.05; o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + 1.5); } await w(250); _acLastUse = Date.now() - 200000; _acQuietSince = Date.now() - 100000; acIdleCheck(); const keptAwake = !_acIdle;
+      return { slept, sil, woke, keptAwake }; });
+    assert(r.slept === "suspended" && r.sil && r.woke === "running" && r.keptAwake, "audio sleep/wake " + JSON.stringify(r));
+    const sky = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const on = SKY_STATE.running; await w(21500); const off = !SKY_STATE.running;
+      document.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); await w(200); return { on, off, back: SKY_STATE.running }; });
+    assert(sky.on && sky.off && sky.back, "home background " + JSON.stringify(sky)); await ctx.close();
+  });
+
   await S.test("Ear trainers: chord/scale/progression/cadence play through the same grand piano as the Interval Trainer; one play button per screen", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
     const r = await pg.evaluate(async () => { let n = 0; const o = window.sfPlayKey; window.sfPlayKey = function (k) { if (k === "piano") n++; return o.apply(this, arguments); }; playChordEar(53, CHORD_DEFS.maj.iv); playProg(53, PROG_DEFS["1546"].iv); window.sfPlayKey = o; earStop();

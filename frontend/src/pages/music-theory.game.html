@@ -291,9 +291,9 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .dpads{display:flex;gap:10px;margin:14px 0 4px}
 .djLay{display:flex;flex-direction:column;gap:6px}.djSide{min-width:0}.djPats{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-bottom:4px}.djPats::-webkit-scrollbar{display:none}.djPats .rchip{white-space:nowrap;flex:0 0 auto}
 .djGo{display:flex;align-items:center;gap:10px;margin:8px 0 2px}.djGo .btn{flex:1;margin:0}.djBpmTag{font:800 .95rem system-ui;color:var(--gold,#f4b740);white-space:nowrap}
-.djDrumWrap{display:flex;justify-content:center}.djDrumWrap .drum{margin-top:6px}
+.djDrumWrap{display:flex;justify-content:center}.djDrumWrap .drum{margin-top:6px}@media (orientation:portrait){.djDrumWrap{width:100vw;max-width:560px;margin-left:50%;transform:translateX(-50%)}}@media (orientation:landscape) and (max-height:520px){.panel:has(> .djDrumWrap,> .bmperf > .djDrumWrap){display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);column-gap:14px;align-items:start;grid-auto-flow:row dense}.panel:has(> .djDrumWrap,> .bmperf > .djDrumWrap) > *{grid-column:2}.panel:has(> .djDrumWrap,> .bmperf > .djDrumWrap) > .djDrumWrap,.panel:has(> .djDrumWrap,> .bmperf > .djDrumWrap) > .bmperf{grid-column:1;grid-row:1 / span 40;position:sticky;top:6px;align-self:start}}.djZoneHit{position:absolute;left:6px;top:6px;width:188px;height:188px;border-radius:50%;pointer-events:none;opacity:0;z-index:3}.djZoneHit.on{animation:djzh .32s ease-out}@keyframes djzh{0%{opacity:1}100%{opacity:0}}.djZoneHit.bass{background:radial-gradient(circle closest-side,rgba(52,224,198,.6) 0 42%,transparent 43%)}.djZoneHit.tone{background:radial-gradient(circle closest-side,transparent 0 45%,rgba(255,170,80,.5) 46% 84%,transparent 85%)}.djZoneHit.slap{background:radial-gradient(circle closest-side,transparent 0 86%,rgba(140,215,255,.85) 87% 100%)}
 .drum-zl{position:absolute;font:700 .55rem "Hanken Grotesk",system-ui,sans-serif;letter-spacing:1px;color:rgba(50,34,16,.5);pointer-events:none}.drum-zl.t{left:0;width:200px;text-align:center;top:44px}.drum-zl.s{left:0;width:200px;text-align:center;top:6px}
-.djMore{justify-content:center;margin:10px 0 4px}.djZone{position:absolute;left:6px;top:6px;width:188px;height:188px;border-radius:50%;pointer-events:none;opacity:0;transition:opacity .2s}.djZone.bass{opacity:1;background:radial-gradient(circle closest-side,rgba(201,179,255,.55) 0 42%,transparent 43%)}.djZone.tone{opacity:1;background:radial-gradient(circle closest-side,transparent 0 45%,rgba(255,206,110,.45) 46% 84%,transparent 85%)}.djZone.slap{opacity:1;background:radial-gradient(circle closest-side,transparent 0 86%,rgba(191,227,255,.6) 87% 100%)}.drum.playable .drum-lbl{font-size:.85rem;top:158px}.djGo+.czOpen{display:block;margin:6px auto 0}
+.djMore{justify-content:center;margin:10px 0 4px}.djZone{position:absolute;left:6px;top:6px;width:188px;height:188px;border-radius:50%;pointer-events:none;opacity:0;transition:opacity .2s}.djZone.bass{opacity:1;background:radial-gradient(circle closest-side,rgba(201,179,255,.55) 0 42%,transparent 43%)}.djZone.tone{opacity:1;background:radial-gradient(circle closest-side,transparent 0 45%,rgba(255,206,110,.45) 46% 84%,transparent 85%)}.djZone.slap{opacity:1;background:radial-gradient(circle closest-side,transparent 0 86%,rgba(191,227,255,.6) 87% 100%)}.drum.playable .drum-lbl{font-size:.85rem;top:158px}.djGo+.czOpen,.djMore+.czOpen{display:block;margin:6px auto 0}
 body.djOn #metFab,body.djOn #sensFab{display:none!important}
 @media (orientation:landscape) and (min-width:640px){.djLay{flex-direction:row;align-items:flex-start;gap:14px}.djSide{flex:1 1 42%;order:2}.djDrumWrap{flex:1 1 58%;order:1}.djSide .rcells{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:4px 0 6px}.djSide .rbeat{gap:3px}.djSide .rcell{width:auto;flex:1;height:40px;min-width:0}}
 .dpad{flex:1;height:92px;border-radius:14px;border:2px solid var(--line);background:var(--card2);color:var(--cream);font-family:"Hanken Grotesk",system-ui,sans-serif;font-size:1.05rem;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
@@ -805,8 +805,9 @@ function addBeans(n){const id=activeId();if(!id)return;
   save("majick-p-"+id+"-beans",(load("majick-p-"+id+"-beans",0)||0)+n);
   save("majick-p-"+id+"-beansLife",(load("majick-p-"+id+"-beansLife",0)||0)+n);}
 function mk(id,s){return "music-"+(activeId()||"guest")+"-"+id+"-"+s;}
-function leadOn(){return load("mjk-leadnote",1)?true:false;}
-function leadChip(){return '<button class="rchip sm'+(leadOn()?" sel":"")+'" id="leadChip" title="Light the next note in blue so you can play ahead">\u{1F4A1} Lead note</button>';}
+/* Lead note (blue "next" glow) was removed: too confusing. Only the note being played now is lit. */
+function leadOn(){return false;}
+function leadChip(){return "";}
 function wireLead(redraw){var b=document.getElementById("leadChip");if(b)b.onclick=function(){save("mjk-leadnote",leadOn()?0:1);redraw();};}
 function getProfiles(){return load("majick-profiles",[]);}
 function setProfiles(p){save("majick-profiles",p);}
@@ -1315,7 +1316,7 @@ function czSort(body){var items=[].slice.call(body.children).filter(function(x){
   Object.keys(groups).map(Number).sort(function(a,b){return a-b;}).forEach(function(c){var h=document.createElement("div");h.className="czSec czCat";h.textContent=c<CZ_CATS.length?CZ_CATS[c][0]:"More";body.appendChild(h);
     groups[c].forEach(function(el){var rl=el.querySelector(".rlab");if(rl&&c<CZ_CATS.length&&rl.textContent.trim().toLowerCase()===CZ_CATS[c][0].toLowerCase())rl.style.display="none";var n=el.nextElementSibling&&el.nextElementSibling.hasAttribute("data-czn")?el.nextElementSibling:null;body.appendChild(el);if(n)body.appendChild(n);});});}
 var CZ_CFG={/* per-screen tuning by title: keep = extra labels to leave in view, off = leave the screen alone */
-  "Lyric Lab":{keep:/(^section|word bank)/i},"Strum Patterns":{into:"#stBar",move:/^(play|practice|pattern|progression|key|chord)\b/i},"Djembe Groove":{after:".djGo"},"Handpan":{after:".djGo"},"Piano Studio":{into:"#pkModeBar",move:/^(screen|hands|loop)/i,keep:/^(root|type|songs?|scale|chord|progression|mode)\b/i},"Brainwave Journey":{move:/^(chords?|chord sound|chord level|melody|vibro)/i},"Heart Sync":{off:1},"Breathwork":{off:1},"Morning":{off:1},"Afternoon":{off:1},"Bedtime":{off:1},"About":{off:1}};
+  "Lyric Lab":{keep:/(^section|word bank)/i},"Strum Patterns":{into:"#stBar",move:/^(play|practice|pattern|progression|key|chord)\b/i},"Djembe Groove":{after:".djMore"},"Handpan":{after:".djGo"},"Piano Studio":{into:"#pkModeBar",move:/^(screen|hands|loop)/i,keep:/^(root|type|songs?|scale|chord|progression|mode)\b/i},"Brainwave Journey":{move:/^(chords?|chord sound|chord level|melody|vibro)/i},"Heart Sync":{off:1},"Breathwork":{off:1},"Morning":{off:1},"Afternoon":{off:1},"Bedtime":{off:1},"About":{off:1}};
 (function(){try{var st=document.createElement("style");st.textContent="@media (max-width:560px){.llrow{flex-wrap:wrap;justify-content:flex-end}.llrow .llin{flex:1 1 100%;min-width:0}.llrow .rchip{flex:0 0 auto}}";document.head.appendChild(st);}catch(e){}})();
 var CZOPEN={},CZ_BUSY=false;
 /* long chip lists become one swipeable row, with the chosen chip kept in view */
@@ -1628,16 +1629,23 @@ const SONGS={
 };
 /* audio */
 let AC=null,PIANO_WAVE=null,PIANO_MASTER=null,_audioUnlocked=false;
-function ac(){if(!AC){AC=new (window.AudioContext||window.webkitAudioContext)();acWatch();}if(AC.state==="suspended"||AC.state==="interrupted"){try{AC.resume();}catch(e){}}return AC;}
+function ac(){if(!AC){AC=new (window.AudioContext||window.webkitAudioContext)();acWatch();}if(_acIdle){_acIdle=false;try{audioPlaybackCategory();}catch(e){}}_acLastUse=Date.now();if(AC.state==="suspended"||AC.state==="interrupted"){try{AC.resume();}catch(e){}}return AC;}
+/* PHONE HEAT: a running audio engine (plus the silent keep-alive loop) keeps the phone's audio hardware awake even when nothing plays.
+   After 90 s of true silence (measured at the master output) with no mic in use, the engine goes to sleep on purpose.
+   Any sound wakes it instantly via ac(). Interruptions by the phone (screen recording, calls) are still brought back. */
+var _acIdle=false,_acLastUse=Date.now(),_acQuietSince=0,_acMeter=null,_acMeterBuf=null;
+function acLevel(){try{var c=AC;if(!c||!c.__mv)return 0;if(!_acMeter){_acMeter=c.createAnalyser();_acMeter.fftSize=512;_acMeterBuf=new Float32Array(512);c.__mv.connect(_acMeter);}_acMeter.getFloatTimeDomainData(_acMeterBuf);var m=0;for(var i=0;i<512;i++){var a=Math.abs(_acMeterBuf[i]);if(a>m)m=a;}return m;}catch(e){return 1;}}
+function acIdleCheck(){try{if(!AC||_acIdle||AC.state!=="running")return;var now=Date.now();if(acLevel()>0.0005||micLive()||now-_acLastUse<90000){_acQuietSince=0;return;}if(!_acQuietSince){_acQuietSince=now;return;}if(now-_acQuietSince<90000)return;
+  _acIdle=true;_acQuietSince=0;try{if(_silentEl&&!_silentEl.paused)_silentEl.pause();}catch(e){}try{AC.suspend();}catch(e){}}catch(e){}}
 /* KEEP SOUND ON (screen recording, Control Center, calls, Siri, notifications): iOS interrupts web audio when these start and never restarts it.
    The app never pauses audio on purpose, so whenever the sound is cut we bring it back on our own — right away, as the interruption ends,
    and when the page comes back into view — and re-arm the playback session. A tap always works too. */
 var _acRetry=null;
-function acKick(){try{if(!AC||AC.state==="closed")return;if(AC.state!=="running"){try{audioPlaybackCategory();}catch(e){}AC.resume().then(function(){try{if(AC.state==="running"&&typeof sndPausedNote==="function")sndPausedNote(false);}catch(e){}}).catch(function(){});}else{try{if(_silentEl&&_silentEl.paused)_silentEl.play().catch(function(){});}catch(e){}}}catch(e){}}
+function acKick(){try{if(!AC||AC.state==="closed"||_acIdle)return;if(AC.state!=="running"){try{audioPlaybackCategory();}catch(e){}AC.resume().then(function(){try{if(AC.state==="running"&&typeof sndPausedNote==="function")sndPausedNote(false);}catch(e){}}).catch(function(){});}else{try{if(_silentEl&&_silentEl.paused)_silentEl.play().catch(function(){});}catch(e){}}}catch(e){}}
 function acWatch(){try{AC.addEventListener("statechange",function(){if(AC.state!=="running"&&AC.state!=="closed"){acKick();clearInterval(_acRetry);var n=0;_acRetry=setInterval(function(){n++;if(!AC||AC.state==="running"||n>40){clearInterval(_acRetry);return;}acKick();},500);}});
   ["visibilitychange","pageshow","focus"].forEach(function(ev){(ev==="visibilitychange"?document:window).addEventListener(ev,function(){if(!document.hidden)setTimeout(acKick,60);});});
-  setInterval(function(){if(!document.hidden)acKick();},2000);}catch(e){}}
-["touchend","click","keydown"].forEach(function(ev){document.addEventListener(ev,function(){try{if(AC&&AC.state!=="running"&&AC.state!=="closed"){AC.resume();var w=document.getElementById("sndPaused");if(w)w.remove();}}catch(e){}},{passive:true,capture:true});});
+  setInterval(function(){if(!document.hidden){acKick();acIdleCheck();}},2000);}catch(e){}}
+["touchend","click","keydown"].forEach(function(ev){document.addEventListener(ev,function(){try{if(AC&&!_acIdle&&AC.state!=="running"&&AC.state!=="closed"){AC.resume();var w=document.getElementById("sndPaused");if(w)w.remove();}}catch(e){}},{passive:true,capture:true});});
 /* a visible note when the phone has paused the sound mid-session */
 function sndPausedNote(on){var w=document.getElementById("sndPaused");if(!on){if(w)w.remove();return;}if(w)return;w=document.createElement("div");w.id="sndPaused";w.textContent="🔇 Your phone paused the sound — tap anywhere to bring it back";w.style.cssText="position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top));transform:translateX(-50%);z-index:99999;background:#f4b740;color:#120c20;font:800 .9rem system-ui;padding:10px 16px;border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.5);max-width:90vw;text-align:center";w.onclick=function(){try{AC.resume();}catch(e){}w.remove();};document.body.appendChild(w);}
 var _silentEl=null;
@@ -1654,7 +1662,7 @@ var APPVOL=(function(){try{var v=parseFloat(localStorage.getItem("mjk-vol"));ret
 function setAppVol(v){APPVOL=Math.max(0,Math.min(1,v));try{localStorage.setItem("mjk-vol",String(APPVOL));}catch(e){}try{var c=ac();if(c.__mv){c.__mv.gain.cancelScheduledValues(0);c.__mv.gain.value=APPVOL*APPVOL;}}catch(e){}}
 function volSlider(id){return '<div class="rrow"><span class="rlab">🔊 Volume</span><input type="range" id="'+id+'" min="0" max="100" value="'+Math.round(APPVOL*100)+'" style="flex:1"><span class="rbpm" id="'+id+'V">'+Math.round(APPVOL*100)+'%</span></div>';}
 function bindVol(id){var s=document.getElementById(id);if(!s)return;s.oninput=function(){setAppVol(s.value/100);var l=document.getElementById(id+"V");if(l)l.textContent=s.value+"%";};}
-function unlockAudio(){audioPlaybackCategory();const a=ac();try{a.resume();}catch(e){}if(_audioUnlocked)return;_audioUnlocked=true;
+function unlockAudio(){if(_audioUnlocked&&_acIdle)return;audioPlaybackCategory();const a=ac();try{a.resume();}catch(e){}if(_audioUnlocked)return;_audioUnlocked=true;
   try{const b=a.createBuffer(1,1,22050),s=a.createBufferSource();s.buffer=b;s.connect(a.destination);s.start(0);}catch(e){}
   try{sfLoadInst("piano");}catch(e){}}
 document.addEventListener("pointerdown",unlockAudio,true);
@@ -5667,7 +5675,7 @@ function renderLearnSong(){
       '<div class="rrow"><span class="rlab">Tempo</span><input type="range" id="lsBpm" min="40" max="160" value="'+bpm+'" style="flex:1"><span class="rbpm" id="lsBpmV">'+bpm+'</span></div>'+
       '<div class="rrow2"><span class="rlab">Transpose</span><span class="rchips tight"><button class="rchip sm" id="lsTdn">− ♭</button><span class="rbpm" id="lsTv" style="min-width:60px;text-align:center">'+(transpose>0?"+"+transpose:transpose)+'</span><button class="rchip sm" id="lsTup">+ ♯</button></span></div>'+
       '<div class="rrow2"><span class="rlab">Loop</span><span class="rchips tight" id="lsLoop"></span></div>'+
-      '<div class="rrow2"><span class="rlab">Lead note</span><span class="rchips tight">'+leadChip()+'</span></div>'+
+      
       '<div class="actions"><button class="btn" id="lsPlay">▶ Play along</button><button class="btn ghost" id="lsEdit">✎ Edit</button></div>'+
       '<div id="lsNow" style="text-align:center;margin:8px 0"></div>'+
       '<div id="lsChartP"></div></div>';
@@ -5823,13 +5831,17 @@ function hpPanEl(notes,idp){const box=document.createElement("div");box.classNam
   const w=document.createElement("div");w.className="djDrumWrap";w.appendChild(box);setTimeout(()=>hpFit(box),0);return w;}
 function hpGlow(id){const el=document.getElementById(id);if(!el)return;el.classList.remove("glow");void el.offsetWidth;el.classList.add("glow");setTimeout(()=>{if(el)el.classList.remove("glow");},300);}
 function hpFit(box){if(!box)return;var B=box.offsetWidth||260,w=(box.parentElement||document.body).clientWidth-8,h=window.innerHeight-24,sc=Math.max(1,Math.min(2.6,w/B,h/B));box.style.transformOrigin="50% 0";box.style.transform="scale("+sc.toFixed(3)+")";box.style.marginBottom=(B*(sc-1)+8)+"px";}
-function djFit(dr,big){var w=(dr.parentElement||document.body).clientWidth-8,h=big?(window.innerHeight-24):1e9;return Math.max(1,Math.min(big?3.2:1.85,w/200,h/215));}
-function djHeadBind(dr,big,onHit){if(!dr||dr._bound)return;dr._bound=true;djkLoad();var sc=djFit(dr,big);dr.style.setProperty("--djs",sc.toFixed(3));dr.classList.add("playable");if(big){var rf=function(){if(!dr.isConnected){window.removeEventListener("resize",rf);return;}dr.style.setProperty("--djs",djFit(dr,true).toFixed(3));};window.addEventListener("resize",rf);}
+function djFit(dr,big){var w=(dr.parentElement||document.body).clientWidth-10,h=big?(window.innerHeight-16):1e9;return Math.max(1,Math.min(big?3.2:1.85,w/200,h/206));}
+function djHeadBind(dr,big,onHit){if(!dr||dr._bound)return;dr._bound=true;djkLoad();
+  /* keep the whole drum in view: landscape puts the panel at the top; portrait scrolls the drum up when you press Play/Listen */
+  try{var pnl=dr.closest(".panel");if(big&&pnl&&!pnl.querySelector(".djLay")){if(innerWidth>innerHeight&&innerHeight<520)setTimeout(function(){if(dr.isConnected)pnl.scrollIntoView({block:"start"});},70);
+    pnl.addEventListener("click",function(e){if(innerWidth>=innerHeight||!e.target.closest||!e.target.closest(".actions"))return;setTimeout(function(){if(!dr.isConnected)return;var r=dr.getBoundingClientRect(),over=r.bottom-innerHeight+6;if(over>0)window.scrollBy({top:Math.min(over,Math.max(0,r.top-8)),behavior:"smooth"});},120);});}}catch(e){}var sc=djFit(dr,big);dr.style.setProperty("--djs",sc.toFixed(3));dr.classList.add("playable");if(big){var rf=function(){if(!dr.isConnected){window.removeEventListener("resize",rf);return;}dr.style.setProperty("--djs",djFit(dr,true).toFixed(3));};window.addEventListener("resize",rf);}
   var head=dr.querySelector(".drum-head");dr.addEventListener("pointerdown",function(e){var R=dr.getBoundingClientRect(),k=R.width/200,cx=R.left+100*k,cy=R.top+100*k,dx=e.clientX-cx,dy=e.clientY-cy,d=Math.sqrt(dx*dx+dy*dy)/(100*k);if(d>1.1)return;e.preventDefault();unlockAudio();
     var kind=d<=0.44?"bass":d<=0.86?"tone":"slap",vel=0.62+Math.random()*0.12+(e.pressure&&e.pressure!==0.5?(e.pressure-0.5)*0.4:0);djembe(ac().currentTime+0.005,kind,vel);if(onHit)try{onHit(kind);}catch(_){}djHit(kind==="bass"?"B":kind==="tone"?"T":"S",dx<0?"L":"R");
     var rp=document.createElement("div");rp.className="djripple "+kind;rp.style.left=((e.clientX-R.left)/k)+"px";rp.style.top=((e.clientY-R.top)/k)+"px";rp.style.zIndex=5;dr.appendChild(rp);setTimeout(function(){rp.remove();},500);},{passive:false});}
-(function(){try{var st=document.createElement("style");st.textContent=".drum.playable{--djs:1;transform:scale(var(--djs));transform-origin:50% 0;margin-bottom:calc(230px * (var(--djs) - 1) + 10px);touch-action:none;-webkit-user-select:none;user-select:none;cursor:pointer}.drum.playable .drum-head{overflow:hidden}.djripple{position:absolute;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;pointer-events:none;animation:djrip .45s ease-out forwards}.djripple.bass{background:rgba(52,224,198,.55)}.djripple.tone{background:rgba(255,206,110,.6)}.djripple.slap{background:rgba(191,227,255,.75)}@keyframes djrip{0%{transform:scale(.4);opacity:1}100%{transform:scale(4.5);opacity:0}}";document.head.appendChild(st);}catch(e){}})();
+(function(){try{var st=document.createElement("style");st.textContent=".drum.playable{--djs:1;height:206px;transform:scale(var(--djs));transform-origin:50% 0;margin-bottom:calc(206px * (var(--djs) - 1) + 8px);touch-action:none;-webkit-user-select:none;user-select:none;cursor:pointer}.drum.playable .drum-head{overflow:hidden}.djripple{position:absolute;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;pointer-events:none;animation:djrip .45s ease-out forwards}.djripple.bass{background:rgba(52,224,198,.55)}.djripple.tone{background:rgba(255,206,110,.6)}.djripple.slap{background:rgba(191,227,255,.75)}@keyframes djrip{0%{transform:scale(.4);opacity:1}100%{transform:scale(4.5);opacity:0}}";document.head.appendChild(st);}catch(e){}})();
 function djHit(stroke,hand){const fl=$("#drumFlash");if(!fl)return;
+  try{const dr=fl.parentElement;let zh=dr.querySelector(".djZoneHit");if(!zh){zh=document.createElement("div");dr.insertBefore(zh,fl);}zh.className="djZoneHit "+(stroke==="B"?"bass":stroke==="T"?"tone":"slap");void zh.offsetWidth;zh.classList.add("on");}catch(e){}
   if(hand==="R"||hand==="L")DJ.hand=hand;else DJ.hand=DJ.hand==="L"?"R":"L";const left=DJ.hand==="L";
   let x,y,size,col,lbl;
   if(stroke==="B"){x=100;y=100;size=110;col="rgba(52,224,198,.95)";lbl="BASS";}          // center
@@ -6179,7 +6191,10 @@ async function renderDjembe(){
     $("#tgPat").onclick=()=>{DJ.playPattern=!DJ.playPattern;draw();};
     $("#tgClick").onclick=()=>{DJ.metClick=!DJ.metClick;draw();};
     $("#tgScore").onclick=async()=>{if(!DJ.scoring){const ok=await ensureMic();if(!ok){DJ.scoring=false;draw();return;}DJ.buf=new Float32Array(toneAnalyser.fftSize);DJ.scoring=true;}else DJ.scoring=false;draw();};
-    $("#djStart").onclick=()=>{unlockAudio();DJ.refresh=draw;if(DJ.running){djStop();draw();}else djStart();};
+    $("#djStart").onclick=()=>{unlockAudio();DJ.refresh=draw;if(DJ.running){djStop();draw();}else{djStart();djFrame0();}};
+    /* portrait: playing brings the pattern to the top so the pattern and the whole drum are on screen together */
+    function djFrame0(){if(innerWidth>=innerHeight)return;setTimeout(()=>{const c=$("#djChips");if(c)window.scrollTo({top:Math.max(0,c.getBoundingClientRect().top+scrollY-8),behavior:"smooth"});},80);}
+    if(DJ.running)djFrame0();
     const mz=$("#djMeas");if(mz){[1,2,3,4,8].forEach(n=>{const b=document.createElement("button");b.className="rchip sm"+(DJ.measures===n?" sel":"");b.textContent=n+(n===1?" bar":" bars");b.onclick=()=>{DJ.measures=n;draw();};mz.appendChild(b);});}
     const hist=$("#djHist");if(hist){const sc=djScores();if(sc.length){const best=Math.max.apply(null,sc.map(x=>x.acc)),last=sc[sc.length-1].acc,prev=sc.slice(0,-1),avgPrev=prev.length?Math.round(prev.reduce((a,b)=>a+b.acc,0)/prev.length):null,trend=avgPrev!=null?(last>avgPrev+3?"▲ improving":last<avgPrev-3?"▼ off today":"→ steady"):"";hist.innerHTML='<b>Your progress</b> · Best <b style="color:#5fd38d">'+best+'%</b> · Last '+last+'% · '+sc.length+' run'+(sc.length>1?"s":"")+(trend?' · '+trend:'');}else{hist.innerHTML='Play a scored round and press Stop — your best and last for <b>'+esc(DJP().name)+'</b> will track here.';}}
     const stk=$("#djStrike");if(stk)stk.onclick=()=>{djStop();renderStrikeCheck();};
@@ -8414,7 +8429,7 @@ function renderHandpan(){try{sfLoadInst("handpan");}catch(e){}try{hpkLoad();}cat
         '<div class="intro">Call &amp; response: I play a phrase, then you play it back on your handpan. Pick <b>1&ndash;4 bars</b> &mdash; longer calls add a variation each bar and resolve at the end. The notes light up on the pan and in the row below, so you always know what&rsquo;s coming.</div>'+
         '<div class="rchips djPats" id="hpScales"></div>'+
         '<div class="rrow2"><span class="rlab">Measures</span><span class="rchips tight" id="crLevels"></span></div>'+
-        '<div class="rrow2"><span class="rlab">Lead note</span><span class="rchips tight">'+leadChip()+'</span></div>'+
+        
         '<div class="hpstrip" id="crStrip"></div>'+
         '<div class="actions"><button class="btn" id="crCall">▶ Call</button><button class="btn ghost" id="crNew">＋ New phrase</button><button class="btn ghost" id="crAns">🎤 Answer</button></div>'+
         '<div class="feedback" id="crStatus">Tap “Call” to hear a phrase</div>'+
@@ -8444,7 +8459,7 @@ function renderHandpan(){try{sfLoadInst("handpan");}catch(e){}try{hpkLoad();}cat
         '<div class="rchips tight djMore"><button class="rchip sm" id="hpDex">👐 Hand independence</button><button class="rchip sm" id="hpBeat">🧩 Beat Maker</button></div>'+
         '<div class="rrow"><span class="rlab">Tempo</span><input type="range" id="hpBpm" min="45" max="140" value="'+HP.bpm+'" style="flex:1"><span class="rbpm" id="hpBpmV">'+HP.bpm+'</span><button class="rtap" id="hpTap">Tap</button></div>'+
         '<div class="rrow2"><span class="rlab">Sound</span><button class="rchip sm'+(HP.playNotes?" sel":"")+'" id="hpMute">'+(HP.playNotes?"🔊 Plays the notes":"🔇 Just the glow")+'</button></div>'+
-        '<div class="rrow2"><span class="rlab">Lead note</span><span class="rchips tight">'+leadChip()+'</span></div>'+
+        
       '</div>';document.body.classList.add("djOn");save(mk("hp","st"),{scaleIdx:HP.scaleIdx,patIdx:HP.patIdx,bpm:HP.bpm,playNotes:HP.playNotes});setTimeout(()=>{if(innerWidth>innerHeight&&innerHeight<520){const L=view.querySelector(".djLay");if(L)L.scrollIntoView({block:"start"});}},60);
     $("#eBack").onclick=goHome;wireMode();
     const scc=$("#hpScales");hpScaleList().forEach((s,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===HP.scaleIdx?" sel":"");b.textContent=s.name;b.onclick=()=>{HP.scaleIdx=i;if(HP.running){HP.i=0;HP.nextTime=ac().currentTime+0.1;HP.visQ=[];}draw();};scc.appendChild(b);});
@@ -9922,7 +9937,7 @@ function strProg(inst){
         <details id="prgOpt"${PRG.optOpen?" open":""} style="margin-top:6px"><summary style="cursor:pointer;list-style:none;-webkit-user-select:none;user-select:none;padding:8px 4px;font:800 .85rem system-ui,sans-serif;color:var(--muted);display:flex;gap:6px;align-items:center"><span style="white-space:nowrap">⚙️ Settings</span><span id="prgOptSum" style="font-weight:600;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span><span id="prgOptArr">${PRG.optOpen?"▴":"▾"}</span></summary>
           ${lbHTML("prgLB",PRG.lbo,P.chords.length)}
           ${volSlider("prgVol")}
-          <div class="rrow2"><span class="rlab">Options</span><span class="rchips tight">${leadChip()}</span></div>
+          
         </details>
       </div>`;
     $("#eBack").onclick=()=>{prgStop();if(crRaf)cancelAnimationFrame(crRaf);try{stopMic();}catch(e){}fbRestore();renderStrings(inst);};
@@ -10021,7 +10036,7 @@ function renderBass(){try{sfLoadInst("bass");}catch(e){}
       panel='<div class="rrow2"><span class="rlab">Bassline</span><span class="rchips tight" id="bgList"></span></div>'+
         '<div class="rlab" style="display:block;margin:10px 0 5px">The line — lights up as it plays</div>'+
         '<div class="hpstrip" id="bgStrip"></div>'+
-        '<div class="rrow2"><span class="rlab">Lead note</span><span class="rchips tight">'+leadChip()+'</span></div>'+
+        
         '<div class="rrow"><span class="rlab">Tempo</span><input type="range" id="bgBpm" min="50" max="150" value="'+BG.bpm+'" style="flex:1"><span class="rbpm" id="bgBpmV">'+BG.bpm+'</span></div>'+
         '<div class="actions"><button class="btn" id="bgStart">▶ Play along</button><button class="btn ghost" id="bgPlayback">🎤 Play it back</button></div>'+
         '<div class="feedback" id="bgStatus"></div>'+
@@ -15574,17 +15589,25 @@ $("#switchProfile").onclick=()=>{save("majick-active",null);renderGate();window.
     a:0.07+Math.random()*0.20, sway:4+Math.random()*7, ph:Math.random()*6.28, sp:0.006+Math.random()*0.01};}
   function size(){w=c.width=innerWidth;hh=c.height=innerHeight;
     parts=Array.from({length:Math.min(36,Math.max(14,Math.floor(w*hh/26000)))},()=>mk(false));}
-  let lastF=0,idle=false;
-  function frame(now){const v=document.getElementById("view"),act=!!(v&&!v.hidden)||document.hidden;
+  /* PHONE HEAT: this background used to wake the phone 60x a second forever. Now: 15 fps, glyphs pre-drawn once,
+     and it freezes after 20 s without a touch (and whenever an activity or another app is in front). A touch wakes it. */
+  const GC={};function glyph(p){const k=p.g+p.c+Math.round(p.s);if(!GC[k]){const o=document.createElement("canvas"),z=Math.ceil(p.s*1.4);o.width=o.height=z;const q=o.getContext("2d");q.font=p.s+"px serif";q.fillStyle=p.c;q.textBaseline="alphabetic";q.fillText(p.g,0,Math.round(p.s*1.05));GC[k]=o;}return GC[k];}
+  let lastTouch=Date.now(),tmr=null;window.SKY_STATE={running:false};
+  function sched(ms){clearTimeout(tmr);tmr=setTimeout(frame,ms);}
+  function frame(){const v=document.getElementById("view"),act=!!(v&&!v.hidden)||document.hidden;
     document.body.classList.toggle("inact",act);
-    if(act){idle=true;setTimeout(function(){requestAnimationFrame(frame);},700);return;}idle=false;
-    if(now&&now-lastF<32){requestAnimationFrame(frame);return;}lastF=now||0;
+    if(act||reduce||Date.now()-lastTouch>20000){SKY_STATE.running=false;tmr=null;return;}SKY_STATE.running=true;
     x.clearRect(0,0,w,hh);
-    for(const p of parts){p.y-=2*p.v;p.ph+=2*p.sp;const dx=Math.sin(p.ph)*p.sway;
-      x.globalAlpha=p.a;x.fillStyle=p.c;x.font=p.s+"px serif";x.fillText(p.g,p.x+dx,p.y);
+    for(const p of parts){p.y-=4*p.v;p.ph+=4*p.sp;const dx=Math.sin(p.ph)*p.sway;
+      x.globalAlpha=p.a;x.drawImage(glyph(p),p.x+dx,p.y-p.s*1.05);
       if(p.y<-34)Object.assign(p,mk(true));}
-    x.globalAlpha=1;if(!reduce)requestAnimationFrame(frame);}
-  size();frame();addEventListener("resize",size);})();
+    x.globalAlpha=1;sched(66);}
+  function wake(){lastTouch=Date.now();if(!tmr)sched(0);}
+  ["pointerdown","keydown","scroll","wheel"].forEach(function(e){addEventListener(e,wake,{passive:true,capture:true});});
+  document.addEventListener("visibilitychange",function(){if(!document.hidden)wake();});
+  /* the home screen comes back when an activity closes: watch #view so the background resumes there */
+  try{const v=document.getElementById("view");if(v)new MutationObserver(function(){if(v.hidden)wake();else document.body.classList.add("inact");}).observe(v,{attributes:true,attributeFilter:["hidden"]});}catch(e){}
+  size();frame();addEventListener("resize",function(){size();wake();});})();
 
 /* ===== exit to the main site (works when embedded in the app) ===== */
 (function(){const b=$("#exitBtn");if(!b)return;
