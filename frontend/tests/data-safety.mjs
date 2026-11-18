@@ -508,6 +508,36 @@ export async function run() {
     assert(r.mid === "suspended" && r.after === "running", "sound stayed off " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Vocal Training: own home section + hub, Ear Training routes there, Range Finder saves a range that fits the guide voice, daily/weekly flow, rap timing score, belting daily cap — and a saved guide-voice choice is kept", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, { "mjk-tonevoice": JSON.stringify("piano") });
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const out = {};
+      out.door = !!document.querySelector('.door[data-d="voice"]') && !!document.getElementById("voiceGrid") && document.getElementById("voiceGrid").children.length === VOX_CARDS.length;
+      out.keptVoice = toneVoice === "piano"; out.realVoices = VOICES.filter((v) => v.kind === "sf").length;
+      window.toneAnalyser = window.toneAnalyser || { fftSize: 2048, getFloatTimeDomainData() {} };
+      const sim = { m: 45.1, rms: 0.05 }; window.voxPitch = () => sim.m; window.voxRms = () => sim.rms;
+      toneMenu(); out.hub = document.querySelectorAll("#tGrid .card").length;
+      renderVoxRange(); await w(700); document.getElementById("vrNext").click(); sim.m = 67.1; await w(700); document.getElementById("vrNext").click(); await w(100);
+      const rg = voxRange(); out.range = rg && rg.lo + "-" + rg.hi + " " + rg.type; out.shift = voxShift();
+      renderWarmups(); out.warmStart = WARM.start;
+      /* weekly check: range → hiss → hold, skipping through, saves one entry */
+      renderVoxDaily(0, true); sim.m = 45.1; await w(700); document.getElementById("vrNext").click(); sim.m = 67.1; await w(700); document.getElementById("vrNext").click(); await w(100); document.getElementById("vrDone").click(); await w(100);
+      for (let i = 0; i < 4 && !document.getElementById("vdOk"); i++) { const s = document.getElementById("vdSkip"); if (s) s.click(); await w(120); }
+      out.weekly = load(mk("voice", "weekly"), []).length;
+      /* rap timing: onsets right on the grid score high, scattered ones score low */
+      VF.mode = "pocket"; const lat = 0, mkExp = () => { const e = []; for (let bar = 0; bar < 4; bar++) for (let i = 0; i < 7; i++) e.push({ t: 10 + bar * 2 + i * 0.25, bar, i }); return e; };
+      renderVoxFlow(); const ex = mkExp(); vfScore(ex, ex.filter((e) => e.bar > 0).map((e) => e.t + 0.02), lat); out.flowGood = parseInt(document.getElementById("vfFb").textContent);
+      vfScore(mkExp(), mkExp().filter((e) => e.bar > 0).map((e, k) => e.t + (k % 2 ? 0.12 : -0.11)), lat); out.flowOff = parseInt(document.getElementById("vfFb").textContent);
+      /* belting: a daily cap protects the voice */
+      save(mk("voice", "belt-" + dayKey()), 99); renderVoxBelt(); out.beltCapped = /enough belting/.test(document.getElementById("vbtBody").textContent);
+      openEar("tone"); await w(300); out.earRoute = /Vocal Training/.test((document.querySelector(".ttitle") || {}).textContent || "");
+      return out; });
+    assert(r.door && r.hub === 12 && r.keptVoice && r.realVoices === 2, "section/hub/voice " + JSON.stringify(r));
+    assert(r.range === "45-67 Baritone" && r.shift === -12 && r.warmStart === 47, "range fit " + JSON.stringify(r));
+    assert(r.weekly === 1, "weekly check not saved " + JSON.stringify(r));
+    assert(r.flowGood >= 90 && r.flowOff <= 20 && r.beltCapped, "flow/belt " + JSON.stringify(r));
+    assert(r.earRoute, "Ear Training card does not open Vocal Training " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("Halftime: Trap + D&B halftime grooves play a real kit in Metronome Flow at their own tempo, and Lyric Lab keeps the song at the felt tempo with drums at double — song words untouched", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
     const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const out = {};
