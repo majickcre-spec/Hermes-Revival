@@ -600,6 +600,18 @@ export async function run() {
     assert(r.surf, "journey waves are not the crashing surf " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Lucid Dream: 'Full journey' opens the descent with every journey sound setting; when it ends the silent night + REM cues start, timed from lying down", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); LUC.view = "home"; renderLucid(); await w(200);
+      const row = !!document.querySelector('[data-lw="journey"]'); document.querySelector('[data-lw="journey"]').click(); await w(100); document.getElementById("lucGo").click(); await w(100); document.getElementById("lucGo2").click(); await w(400);
+      const txt = view.textContent, j = { banner: /night takes over/.test(txt), name: /Lucid Dream Descent/.test(txt), locked: !document.getElementById("jTypes"), breathe: /Breathe with it/.test(txt) };
+      try { teardown && teardown(); } catch (e) {} teardown = null; medStop();
+      lucStart({ elapsed: 1800, fromJourney: true }); await w(400); const a = ac(), first = LUC.windows[0] && (LUC.windows[0].t - a.currentTime) / 3600, since = (Date.now() - LUC.at) / 1000;
+      const c = lucCfg(); lucEnd(); return { row, ...j, first, want: c.first - 0.5, since }; });
+    assert(r.row && r.banner && r.name && r.locked && r.breathe, "lucid descent journey " + JSON.stringify(r));
+    assert(Math.abs(r.first - r.want) < 0.01 && Math.abs(r.since - 1800) < 3, "night cues not timed from lying down " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("Home: Vocal Training and Lyric Lab each have a main menu button; Lyric Lab's opens it directly", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
     const r = await pg.evaluate(async () => { goHome(); const v = !!document.querySelector('.door[data-d="voice"]'), l = document.querySelector('.door[data-d="lyric"]'); if (l) l.click(); await new Promise((z) => setTimeout(z, 500));
