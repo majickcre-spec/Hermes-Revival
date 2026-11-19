@@ -626,6 +626,14 @@ export async function run() {
     assert(r.keepAwake && r.stopped, "night: audio slept or stars kept drawing " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Heart sensor: during a lucid night a dropped sensor keeps reconnecting once a minute all night (not just 6 tries)", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r = await pg.evaluate(async () => { const delays = []; const st = window.setTimeout; window.setTimeout = function (f, ms) { if (ms >= 1000) delays.push(ms); return st(() => {}, 0); };
+      HR.connected = false; HR.userOff = false; LUC.on = true; hrAutoReconnect({ gatt: { connect: () => Promise.reject(0) } }, null, 6); LUC.on = false; hrAutoReconnect({ gatt: { connect: () => Promise.reject(0) } }, null, 6);
+      window.setTimeout = st; return delays; });
+    assert(r.length === 1 && r[0] === 60000, "no all-night reconnect " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("Home: Vocal Training and Lyric Lab each have a main menu button; Lyric Lab's opens it directly", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
     const r = await pg.evaluate(async () => { goHome(); const v = !!document.querySelector('.door[data-d="voice"]'), l = document.querySelector('.door[data-d="lyric"]'); if (l) l.click(); await new Promise((z) => setTimeout(z, 500));
