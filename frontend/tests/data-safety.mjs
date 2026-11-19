@@ -612,6 +612,20 @@ export async function run() {
     assert(Math.abs(r.first - r.want) < 0.01 && Math.abs(r.since - 1800) < 3, "night cues not timed from lying down " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Phone heat at night: lucid descent goes to a black sleep screen after a minute (tap brings it back, breath cues keep playing); the night dims and stops its stars; audio never sleeps during a night", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); save("mjk-jbreath", "coherent"); BRCUE.chime = true;
+      renderJourney({ type: "lucid", lock: true, len: 30 }); await w(300); document.getElementById("jPlay").click(); await w(900);
+      const armed = NB.armed; nbShow(); const black = !!document.getElementById("nightBlack"); const cues = (ac()._brCueSrc || []).filter((x) => x.e > ac().currentTime).length;
+      document.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); await w(100); const back = !document.getElementById("nightBlack");
+      medStop(); await w(100); const disarmed = !NB.armed;
+      LUC.view = "home"; renderLucid(); lucStart(); await w(400); const keepAwake = (() => { _acLastUse = Date.now() - 300000; _acQuietSince = Date.now() - 300000; acIdleCheck(); return !_acIdle && ac().state === "running"; })();
+      const nv = document.getElementById("lucNight"); LUC.starsPaused = true; await w(400); const stopped = !LUC.starsRaf; lucEnd();
+      return { armed, black, cues, back, disarmed, keepAwake, stopped, nv: !!nv }; });
+    assert(r.armed && r.black && r.cues > 10 && r.back && r.disarmed, "black sleep screen " + JSON.stringify(r));
+    assert(r.keepAwake && r.stopped, "night: audio slept or stars kept drawing " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("Home: Vocal Training and Lyric Lab each have a main menu button; Lyric Lab's opens it directly", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
     const r = await pg.evaluate(async () => { goHome(); const v = !!document.querySelector('.door[data-d="voice"]'), l = document.querySelector('.door[data-d="lyric"]'); if (l) l.click(); await new Promise((z) => setTimeout(z, 500));
