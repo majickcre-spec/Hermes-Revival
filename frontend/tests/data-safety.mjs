@@ -564,6 +564,27 @@ export async function run() {
     assert(d.btn && d.askedFirst && d.gone, "single take could not be deleted " + JSON.stringify(d)); await ctx.close();
   });
 
+  await S.test("Jam: chords + groove loop while everything records; review shows rounds cut on the 1 with waveforms; slide, keep, save as takes or make a melody; lyrics never touched", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); renderIdeaLab(); await w(700);
+      const D = swData(), song = swSong(); song.setup = true; song.bpm = 160; if (!song.sections.length) song.sections.push(swSec("Verse")); const sec = song.sections[0];
+      ["What if there is only one", "I feel so alone", "I can't tell", "the way I do"].forEach((x, i) => { sec.lines[i] = sec.lines[i] || swLine(); sec.lines[i].t = x; });
+      song.mel[sec.tag] = swCand(song, sec.tag, 1); song.prog = {}; song.prog[sec.tag] = 1; song.takes = { [sec.tag]: 1 }; D.acc = "block"; const m = swMix(); m.clk = 0.5; swSave(); swDraw(); SW.active = { s: sec.id, l: 0 }; await w(200);
+      const lyr0 = swSong().sections[0].lines.map((l) => l.t).join("|");
+      const a = ac(); const o = a.createOscillator(), g = a.createGain(), dd = a.createMediaStreamDestination(); o.frequency.value = 220; g.gain.value = 0; o.connect(g); g.connect(dd); o.start(); micStream = dd.stream; toneAnalyser = a.createAnalyser(); window.ensureMic = () => Promise.resolve(true);
+      document.getElementById("swJam").click(); await w(300); const J = JAM, round = J.round; /* sing through round 2 only */ g.gain.setValueAtTime(0.4, J.start + round + 0.1); g.gain.setValueAtTime(0, J.start + 2 * round - 0.1);
+      await w(Math.round((2 * round + 1.2) * 1000)); const chordsPlayed = J.nb >= 8, groove = BK.play; document.getElementById("swJam").click(); await w(1500);
+      const rv = JAM && JAM.review, levels = JAM.rounds.map((x) => x.level), n = JAM.rounds.length, waves = document.querySelectorAll("[data-jw]").length, overview = !!document.getElementById("jmAll");
+      JAM.rounds[1].keep = true; JAM.rounds[1].shift = JAM.beat / 2; swJamDraw(); document.getElementById("jmSave").click(); await w(200);
+      const s2 = swSong(), takes = s2.takes[sec.tag], meta = s2.takeMeta[swTakeKey(s2, sec.tag, takes)];
+      document.getElementById("jmMel").click(); await w(300); const s3 = swSong();
+      return { chordsPlayed, groove, rv, n, sung2: levels[1] > 0.5 && levels[0] < 0.12, waves, overview, takes, lines: meta && Object.keys(meta.at).length, melSung: /jam round 2/.test((s3.mel[sec.tag] || {}).label || ""), lyrSame: s3.sections[0].lines.map((l) => l.t).join("|") === lyr0, micOff: !micStream, reviewClosed: !JAM }; });
+    assert(r.chordsPlayed && r.groove && r.rv && r.n >= 2 && r.sung2, "jam/rounds " + JSON.stringify(r));
+    assert(r.waves >= 1 && r.overview, "waveforms " + JSON.stringify(r));
+    assert(r.takes === 2 && r.lines === 4, "kept round not saved as a take (existing take must stay) " + JSON.stringify(r));
+    assert(r.melSung && r.lyrSame && r.micOff && r.reviewClosed, "melody/lyrics/mic " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("Home: Vocal Training and Lyric Lab each have a main menu button; Lyric Lab's opens it directly", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
     const r = await pg.evaluate(async () => { goHome(); const v = !!document.querySelector('.door[data-d="voice"]'), l = document.querySelector('.door[data-d="lyric"]'); if (l) l.click(); await new Promise((z) => setTimeout(z, 500));
