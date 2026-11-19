@@ -585,6 +585,21 @@ export async function run() {
     assert(r.melSung && r.lyrSame && r.micOff && r.reviewClosed, "melody/lyrics/mic " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Journeys: breath cues are scheduled on the audio clock far ahead (survive a locked screen and leaving the screen); stop clears them; waves are crashing surf", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); save("mjk-jbreath", "coherent"); save("mjk-jlen", 20); BRCUE.click = true; BRCUE.chime = true; MEDOCEAN.on = true;
+      renderJourney(); await w(400); document.getElementById("jPlay").click(); await w(1500); const a = ac(), now = a.currentTime;
+      const src = (a._brCueSrc || []), ahead = src.length ? Math.max(...src.map((x) => x.e)) - now : 0, tone = !!MED.jBrG;
+      try { teardown && teardown(); } catch (e) {} teardown = null; renderMeditation(); await w(300);
+      const src2 = (a._brCueSrc || []).filter((x) => x.e > a.currentTime), tone2 = !!MED.jBrG, surf = !!(MED.ocean && MED.ocean.nat && MED.ocean.nat.L && MED.ocean.nat.L.surf && MED.ocean.nat.L.surf.srcs.length);
+      medStop(); await w(200); const left = (a._brCueSrc || []).filter((x) => x.e > a.currentTime + 1).length;
+      return { n: src.length, ahead, tone, kept: src2.length, tone2, surf, left, toneAfter: !!MED.jBrG }; });
+    assert(r.n > 50 && r.ahead > 300 && r.tone, "breath cues not scheduled ahead " + JSON.stringify(r));
+    assert(r.kept > 50 && r.tone2, "leaving the screen silenced the breath cues " + JSON.stringify(r));
+    assert(r.left === 0 && !r.toneAfter, "stopping the journey left cues playing " + JSON.stringify(r));
+    assert(r.surf, "journey waves are not the crashing surf " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("Home: Vocal Training and Lyric Lab each have a main menu button; Lyric Lab's opens it directly", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
     const r = await pg.evaluate(async () => { goHome(); const v = !!document.querySelector('.door[data-d="voice"]'), l = document.querySelector('.door[data-d="lyric"]'); if (l) l.click(); await new Promise((z) => setTimeout(z, 500));
