@@ -158,8 +158,8 @@ export async function run() {
       swData().loop = "sec"; swSave(); swDraw(); document.getElementById("swRecB").click(); await new Promise((z) => setTimeout(z, 8500));
       const s2 = swSong(), key = swTakeKey(s2, "Verse", 1), meta = s2.takeMeta && s2.takeMeta[key];
       swPlaySecs(s2.sections, {}); await new Promise((z) => setTimeout(z, 2000)); const vox = (SW.voxSrc || []).length; swStopPlay();
-      return { takes: s2.takes && s2.takes.Verse, lines: Object.keys((meta && meta.at) || {}), lyr: s2.sections[0].lines.map((l) => l.t).join("|"), melSame: JSON.stringify(s2.mel) === melBefore, vox, blob: !!(await idbGet("swtake:" + key)) }; });
-    assert(r.takes === 1 && r.blob, "take not saved " + JSON.stringify(r)); assert(JSON.stringify(r.lines) === '["0","1"]', "line timing missing " + JSON.stringify(r.lines));
+      return { first: meta && meta.at && meta.at["0"], takes: s2.takes && s2.takes.Verse, lines: Object.keys((meta && meta.at) || {}), lyr: s2.sections[0].lines.map((l) => l.t).join("|"), melSame: JSON.stringify(s2.mel) === melBefore, vox, blob: !!(await idbGet("swtake:" + key)) }; });
+    assert(r.takes === 1 && r.blob, "take not saved " + JSON.stringify(r)); assert(r.first != null && r.first < 1, "take keeps the lead-in instead of starting at the first line " + JSON.stringify(r)); assert(JSON.stringify(r.lines) === '["0","1"]', "line timing missing " + JSON.stringify(r.lines));
     assert(r.lyr === "am I the only one|I feel so alone at night" && r.melSame, "recording changed lyrics or melody"); assert(r.vox >= 1, "your voice did not play back with the music");
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
   });
@@ -513,7 +513,7 @@ export async function run() {
     const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); renderIdeaLab(); await w(700);
       const D = swData(), song = swSong(); song.setup = true; song.bpm = 120; if (!song.sections.length) song.sections.push(swSec("Verse")); const sec = song.sections[0];
       ["What if there is only one", "I feel so alone"].forEach((x, i) => { sec.lines[i] = sec.lines[i] || swLine(); sec.lines[i].t = x; });
-      song.mel[sec.tag] = swCand(song, sec.tag, 1); song.prog = {}; song.prog[sec.tag] = 1; D.acc = "block"; D.loop = 0; const m = swMix(); m.ch = 0.7; m.clk = 0.5; swSave(); swDraw(); await w(200);
+      song.mel[sec.tag] = swCand(song, sec.tag, 1); song.prog = {}; song.prog[sec.tag] = 1; D.acc = "block"; D.loop = 0; D.recLead = "count"; const m = swMix(); m.ch = 0.7; m.clk = 0.5; swSave(); swDraw(); await w(200);
       const clicks = [], notes = []; const oc = window.click; window.click = function (t, k, v) { clicks.push({ t: t - SW.t0, k, v }); return oc.apply(this, arguments); };
       const on = window.swNote; window.swNote = function (mi, t, d, layer) { notes.push({ layer, at: ac().currentTime + t - SW.t0 }); return on.apply(this, arguments); };
       const msgs = []; swPlaySecs(song.sections, { rec: true, noVox: true }); for (let i = 0; i < 26; i++) { await w(200); msgs.push((document.getElementById("swRecMsg") || {}).textContent || ""); } swStopPlay(); window.click = oc; window.swNote = on;
@@ -525,6 +525,21 @@ export async function run() {
     assert(r.leadClicks === 8 && r.leadChord && r.counted, "lead-in " + JSON.stringify(r));
     assert(r.takeClicks >= 3 && r.clickOffLead === 0, "steady click / toggle " + JSON.stringify(r));
     assert(r.lyric && r.hear && r.chordLevel, "lyric / hear back / chords " + JSON.stringify(r)); await ctx.close();
+  });
+
+  await S.test("Lyric Lab takes (default): a practice round plays one pass of the chords you'll sing with the groove, not recorded, then a silent 4-3-2-1 on screen", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); renderIdeaLab(); await w(700);
+      const D = swData(), song = swSong(); song.setup = true; song.bpm = 160; if (!song.sections.length) song.sections.push(swSec("Verse")); const sec = song.sections[0];
+      ["What if there is only one", "I feel so alone", "I can't tell if anyone", "the way I do"].forEach((x, i) => { sec.lines[i] = sec.lines[i] || swLine(); sec.lines[i].t = x; });
+      song.mel[sec.tag] = swCand(song, sec.tag, 1); song.prog = {}; song.prog[sec.tag] = 1; D.acc = "block"; D.loop = 0; delete D.recLead; const m = swMix(); m.clk = 0.5; swSave(); swDraw(); await w(200);
+      const want = swRecLeadChords(song, song.sections).map((c) => c.name), clicks = [], ch = []; const oc = window.click; window.click = function (t, k, v) { clicks.push(v); return oc.apply(this, arguments); };
+      const on = window.swNote; window.swNote = function (mi, t, d, layer) { if (layer === "ch") ch.push(ac().currentTime + t - SW.t0); return on.apply(this, arguments); };
+      swPlaySecs(song.sections, { rec: true, noVox: true }); const bar = 1.5, msgs = []; for (let i = 0; i < 32; i++) { await w(200); msgs.push((document.getElementById("swRecMsg") || {}).textContent || ""); }
+      const firstLine = SW.lastLines[0] && SW.lastLines[0].at; swStopPlay(); window.click = oc; window.swNote = on; D.recLead = "count";
+      return { want, lead: firstLine, bars: want.length * bar, leadChordHits: ch.filter((x) => x < want.length * bar - 0.05).length, countClicks: clicks.filter((v) => v === 0.7 || v === 0.95).length, groove: !!BK || true, feel: msgs.some((x) => /not recording/.test(x) && x.indexOf(want[0]) >= 0 && x.indexOf("What if there is only one") >= 0), counted: ["4", "3", "2", "1"].every((n) => msgs.some((x) => new RegExp("recording in\\s*" + n).test(x))) }; });
+    assert(r.want.length === 4 && Math.abs(r.lead - r.bars) < 0.01, "lead is not one pass of the chords " + JSON.stringify(r));
+    assert(r.leadChordHits >= 12 && r.countClicks === 0 && r.feel && r.counted, "practice round " + JSON.stringify(r)); await ctx.close();
   });
 
   await S.test("Home: Vocal Training and Lyric Lab each have a main menu button; Lyric Lab's opens it directly", async () => {
