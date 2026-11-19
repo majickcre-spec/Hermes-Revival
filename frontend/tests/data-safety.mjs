@@ -155,7 +155,7 @@ export async function run() {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "Only One", ["am I the only one", "I feel so alone at night"], { bpm: 160, prog: { Verse: 1 } })], cur: "a1" } });
     await open(pg); const r = await pg.evaluate(async () => { SW.lib = false; const sg = swSong(); sg.mel.Verse = swCand(sg, "Verse", 0); const melBefore = JSON.stringify(sg.mel); swSave(); swDraw(); unlockAudio(); const a = ac(); await a.resume();
       const o = a.createOscillator(), d = a.createMediaStreamDestination(); o.connect(d); o.start(); micStream = d.stream; window.ensureMic = () => Promise.resolve(true);
-      swData().loop = "sec"; swSave(); swDraw(); document.getElementById("swRecB").click(); await new Promise((z) => setTimeout(z, 8500));
+      swData().loop = "sec"; swSave(); swDraw(); document.getElementById("swRecB").click(); await new Promise((z) => setTimeout(z, 11500));
       const s2 = swSong(), key = swTakeKey(s2, "Verse", 1), meta = s2.takeMeta && s2.takeMeta[key];
       swPlaySecs(s2.sections, {}); await new Promise((z) => setTimeout(z, 2000)); const vox = (SW.voxSrc || []).length; swStopPlay();
       return { first: meta && meta.at && meta.at["0"], takes: s2.takes && s2.takes.Verse, lines: Object.keys((meta && meta.at) || {}), lyr: s2.sections[0].lines.map((l) => l.t).join("|"), melSame: JSON.stringify(s2.mel) === melBefore, vox, blob: !!(await idbGet("swtake:" + key)) }; });
@@ -191,7 +191,7 @@ export async function run() {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "Only One", ["am I the only one", "I feel so alone at night"], { bpm: 160, prog: { Verse: 1 } })], cur: "a1" } });
     await open(pg); const r = await pg.evaluate(async () => { SW.lib = false; const sg = swSong(); sg.mel.Verse = swCand(sg, "Verse", 0); swSave(); swDraw(); unlockAudio(); const a = ac(); await a.resume();
       const o = a.createOscillator(), d = a.createMediaStreamDestination(); o.connect(d); o.start(); micStream = d.stream; window.ensureMic = () => Promise.resolve(true);
-      swData().loop = "sec"; swSave(); swDraw(); document.getElementById("swRecB").click(); await new Promise((z) => setTimeout(z, 8500));
+      swData().loop = "sec"; swSave(); swDraw(); document.getElementById("swRecB").click(); await new Promise((z) => setTimeout(z, 11500));
       const after = swSong().takes && swSong().takes.Verse, btn = !!document.getElementById("swThrow"); document.getElementById("swThrow").click(); await new Promise((z) => setTimeout(z, 200));
       const s2 = swSong(), gone = !(s2.takes && s2.takes.Verse), blob = null;
       const kept = { lines: s2.sections[0].lines.map((l) => l.t).join("|"), mel: !!s2.mel.Verse, prog: s2.prog.Verse };
@@ -259,9 +259,9 @@ export async function run() {
       const d = a.createMediaStreamDestination(), dl = a.createDelay(1); dl.delayTime.value = 0.15; dl.connect(d); const g = a.createGain(); g.gain.value = 0; const o = a.createOscillator(); o.frequency.value = 220; o.connect(g); g.connect(dl); o.start();
       clickBus(a).connect(dl); micStream = d.stream; window.ensureMic = () => Promise.resolve(true);   // simulated 150 ms speaker→mic delay; the mic hears the count-in
       toneAnalyser = a.createAnalyser(); toneAnalyser.fftSize = 2048; a.createMediaStreamSource(d.stream).connect(toneAnalyser);
-      const s16 = 60 / 120 / 4, start = a.currentTime + 0.2, t0 = start + 16 * s16; for (const st of [0, 8, 16]) { const T = t0 + st * s16; g.gain.setValueAtTime(0.5, T); g.gain.setValueAtTime(0, T + 3 * s16); }
+      const s16 = 60 / 120 / 4, start = a.currentTime + 0.2, t0 = start + 4 * 16 * s16; /* one full progression (4 chords) plays first */ for (const st of [0, 8, 16]) { const T = t0 + st * s16; g.gain.setValueAtTime(0.5, T); g.gain.setValueAtTime(0, T + 3 * s16); }
       let FR = null; const of = window.swSingFill; window.swSingFill = function (sg, sec, R, S, s) { FR = swGridNotes(R.frames, S * 3, s).map((n) => n.step); return of.apply(this, arguments); };
-      document.querySelector('[data-m="singsec"]').click(); await new Promise((z) => setTimeout(z, 5600)); if (SW.rec && SW.rec.done) SW.rec.done(); await new Promise((z) => setTimeout(z, 1800));
+      document.querySelector('[data-m="singsec"]').click(); await new Promise((z) => setTimeout(z, 11600)); if (SW.rec && SW.rec.done) SW.rec.done(); await new Promise((z) => setTimeout(z, 1800));
       const sg = swSong(), key = swTakeKey(sg, "Verse", (sg.takes && sg.takes.Verse) || 1); return { FR, meta: sg.takeMeta && sg.takeMeta[key] }; });
     assert(r.FR && JSON.stringify(r.FR.filter((x) => x <= 19)) === "[0,8,16]" && r.FR.filter((x) => x > 19).length <= 1, "notes not where sung: " + JSON.stringify(r.FR));   // a busy test machine can hear one count-in click after the last note; sung notes must still land exactly assert(r.meta && r.meta.at && r.meta.at[0] != null && r.meta.at[1] != null, "take has no line timing " + JSON.stringify(r.meta));
     assert(Math.abs((r.meta.at[1] - r.meta.at[0]) - 2) < 0.01, "line timing spacing wrong " + JSON.stringify(r.meta.at)); await ctx.close();
@@ -508,12 +508,12 @@ export async function run() {
     assert(r.mid === "suspended" && r.after === "running", "sound stayed off " + JSON.stringify(r)); await ctx.close();
   });
 
-  await S.test("Lyric Lab takes: 2-bar lead-in (groove + first chord, then a loud 4-3-2-1), steady click while you sing (toggle), chords at full level, lyric shown as you sing, and Hear it back after the take", async () => {
+  await S.test("Lyric Lab takes with no chords picked: 2-bar 4-3-2-1 count-in, steady click while you sing (toggle), chords at full level, lyric shown as you sing, and Hear it back after the take", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
     const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); renderIdeaLab(); await w(700);
       const D = swData(), song = swSong(); song.setup = true; song.bpm = 120; if (!song.sections.length) song.sections.push(swSec("Verse")); const sec = song.sections[0];
       ["What if there is only one", "I feel so alone"].forEach((x, i) => { sec.lines[i] = sec.lines[i] || swLine(); sec.lines[i].t = x; });
-      song.mel[sec.tag] = swCand(song, sec.tag, 1); song.prog = {}; song.prog[sec.tag] = 1; D.acc = "block"; D.loop = 0; D.recLead = "count"; const m = swMix(); m.ch = 0.7; m.clk = 0.5; swSave(); swDraw(); await w(200);
+      song.mel[sec.tag] = swCand(song, sec.tag, 1); song.prog = {}; D.acc = "block"; D.loop = 0; const m = swMix(); m.ch = 0.7; m.clk = 0.5; swSave(); swDraw(); await w(200);
       const clicks = [], notes = []; const oc = window.click; window.click = function (t, k, v) { clicks.push({ t: t - SW.t0, k, v }); return oc.apply(this, arguments); };
       const on = window.swNote; window.swNote = function (mi, t, d, layer) { notes.push({ layer, at: ac().currentTime + t - SW.t0 }); return on.apply(this, arguments); };
       const msgs = []; swPlaySecs(song.sections, { rec: true, noVox: true }); for (let i = 0; i < 26; i++) { await w(200); msgs.push((document.getElementById("swRecMsg") || {}).textContent || ""); } swStopPlay(); window.click = oc; window.swNote = on;
@@ -522,12 +522,12 @@ export async function run() {
       SW.lastRec = [{ song: song.id, tag: sec.tag, tn: 1 }]; SW.takeSnap = { id: song.id, json: JSON.stringify(song) }; SW.recNote = "✓ Take saved."; swDraw(); const hear = !!document.getElementById("swHear"); SW.lastRec = null; SW.recNote = "";
       return { leadClicks, takeClicks, leadChord, counted: ["4", "3", "2", "1"].every((n) => msgs.some((x) => x.trim() === n)), lyric: msgs.some((x) => /What if there is only one/.test(x)) && msgs.some((x) => /next: I feel so alone/.test(x)), clickOffLead: c2, hear,
         chordLevel: /v\*=0\.85/.test(swNote.toString()) }; });
-    assert(r.leadClicks === 8 && r.leadChord && r.counted, "lead-in " + JSON.stringify(r));
+    assert(r.leadClicks === 8 && r.counted, "lead-in " + JSON.stringify(r));
     assert(r.takeClicks >= 3 && r.clickOffLead === 0, "steady click / toggle " + JSON.stringify(r));
     assert(r.lyric && r.hear && r.chordLevel, "lyric / hear back / chords " + JSON.stringify(r)); await ctx.close();
   });
 
-  await S.test("Lyric Lab takes (default): a practice round plays one pass of the chords you'll sing with the groove, not recorded, then a silent 4-3-2-1 on screen", async () => {
+  await S.test("Lyric Lab takes: a practice round plays one full progression with click + groove, not recorded, then a silent 4-3-2-1 on screen", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
     const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); renderIdeaLab(); await w(700);
       const D = swData(), song = swSong(); song.setup = true; song.bpm = 160; if (!song.sections.length) song.sections.push(swSec("Verse")); const sec = song.sections[0];
@@ -537,9 +537,31 @@ export async function run() {
       const on = window.swNote; window.swNote = function (mi, t, d, layer) { if (layer === "ch") ch.push(ac().currentTime + t - SW.t0); return on.apply(this, arguments); };
       swPlaySecs(song.sections, { rec: true, noVox: true }); const bar = 1.5, msgs = []; for (let i = 0; i < 32; i++) { await w(200); msgs.push((document.getElementById("swRecMsg") || {}).textContent || ""); }
       const firstLine = SW.lastLines[0] && SW.lastLines[0].at; swStopPlay(); window.click = oc; window.swNote = on; D.recLead = "count";
-      return { want, lead: firstLine, bars: want.length * bar, leadChordHits: ch.filter((x) => x < want.length * bar - 0.05).length, countClicks: clicks.filter((v) => v === 0.7 || v === 0.95).length, groove: !!BK || true, feel: msgs.some((x) => /not recording/.test(x) && x.indexOf(want[0]) >= 0 && x.indexOf("What if there is only one") >= 0), counted: ["4", "3", "2", "1"].every((n) => msgs.some((x) => new RegExp("recording in\\s*" + n).test(x))) }; });
+      return { want, lead: firstLine, bars: want.length * bar, leadChordHits: ch.filter((x) => x < want.length * bar - 0.05).length, countClicks: clicks.filter((v) => v === 0.7 || v === 0.95).length, pracClicks: clicks.filter((v) => v === 0.6).length, groove: !!BK || true, feel: msgs.some((x) => /not recording/.test(x) && x.indexOf(want[0]) >= 0 && x.indexOf("What if there is only one") >= 0), counted: ["4", "3", "2", "1"].every((n) => msgs.some((x) => new RegExp("recording in\\s*" + n).test(x))) }; });
     assert(r.want.length === 4 && Math.abs(r.lead - r.bars) < 0.01, "lead is not one pass of the chords " + JSON.stringify(r));
-    assert(r.leadChordHits >= 12 && r.countClicks === 0 && r.feel && r.counted, "practice round " + JSON.stringify(r)); await ctx.close();
+    assert(r.leadChordHits >= 12 && r.countClicks === 0 && r.pracClicks >= 12 && r.feel && r.counted, "practice round " + JSON.stringify(r)); await ctx.close();
+  });
+
+  await S.test("Sing it in: one full progression first (chords + click + groove, not recorded), recording on the 2nd time around; mic off after; only take can be deleted; backing bar shows the section's chords", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); renderIdeaLab(); await w(700);
+      const D = swData(), song = swSong(); song.setup = true; song.bpm = 160; if (!song.sections.length) song.sections.push(swSec("Verse")); const sec = song.sections[0];
+      ["What if there is only one", "I feel so alone", "I can't tell", "the way I do"].forEach((x, i) => { sec.lines[i] = sec.lines[i] || swLine(); sec.lines[i].t = x; });
+      song.mel[sec.tag] = swCand(song, sec.tag, 1); song.prog = {}; song.prog[sec.tag] = 1; song.bk = { p: 0 }; D.acc = "block"; const m = swMix(); m.clk = 0.5; m.ch = 0.7; swSave(); swDraw(); await w(200);
+      const want = swProgPass(song, sec.tag, 0).map((c) => c.name).join(""), barTxt = document.getElementById("bkCh").textContent.replace(/[^A-G#bm]/g, "").replace(/[a-l]/g, "");
+      const ac0 = ac(); const o = ac0.createOscillator(), dd = ac0.createMediaStreamDestination(); o.connect(dd); o.start(); micStream = dd.stream; toneAnalyser = ac0.createAnalyser(); window.ensureMic = () => Promise.resolve(true);
+      const ch = []; const on = window.swNote; window.swNote = function (mi, t, d, layer) { if (layer === "ch") ch.push(performance.now() / 1000 + t); return on.apply(this, arguments); };
+      const st = performance.now() / 1000; view.querySelector('.sw-sec [data-m="singsec"]').click(); await w(400);
+      const lead = SW.rec && SW.rec.t0 - SW.rec.start, msgs = [], gr = []; for (let i = 0; i < 12; i++) { await w(250); msgs.push((document.getElementById("swRecMsg") || {}).textContent || ""); gr.push(BK.play && R.running); }
+      window.swNote = on; if (SW.rec) SW.rec.done(); await w(2500);
+      return { want, barHasSec: want.split("").every(Boolean) && document.getElementById("bkCh").textContent.indexOf("Am") >= 0, lead, bar: 1.5, leadCh: ch.filter((x) => x - st < lead - 0.05).length, prac: msgs.some((x) => /not recording/.test(x)), groove: gr.filter(Boolean).length >= 8, grooveStopped: !BK.play, micOff: !micStream }; });
+    assert(r.barHasSec, "backing bar is not showing the section's chords " + JSON.stringify(r));
+    assert(Math.abs(r.lead - 4 * r.bar) < 0.01 && r.leadCh >= 12 && r.prac && r.groove, "practice round " + JSON.stringify(r));
+    assert(r.grooveStopped && r.micOff, "groove/mic left on after the take " + JSON.stringify(r));
+    /* a single take can be deleted (asks once) */
+    const d = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const song = swSong(), tag = song.sections[0].tag; song.takes = { [tag]: 1 }; song.takeSel = { [tag]: 1 }; swSave(); SW.tkOpen = tag; swDraw(); await w(100);
+      const b = view.querySelector('[data-m="tkdel"]'); if (!b) return { btn: false }; b.click(); await w(50); const still = swTakeN(swSong(), tag); view.querySelector('[data-m="tkdel"]').click(); await w(600); return { btn: true, askedFirst: still === 1, gone: swTakeN(swSong(), tag) === 0 }; });
+    assert(d.btn && d.askedFirst && d.gone, "single take could not be deleted " + JSON.stringify(d)); await ctx.close();
   });
 
   await S.test("Home: Vocal Training and Lyric Lab each have a main menu button; Lyric Lab's opens it directly", async () => {

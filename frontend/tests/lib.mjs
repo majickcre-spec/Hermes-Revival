@@ -66,6 +66,7 @@ export function suite(name) {
   const results = [];
   return {
     async test(label, fn) {
+      if (process.env.ONLY && !label.includes(process.env.ONLY)) return;   // ONLY="part of a name" runs just that test
       const t0 = Date.now();
       try { await fn(); results.push({ label, ok: true, ms: Date.now() - t0 }); console.log("  ✓ " + label); }
       catch (e) { results.push({ label, ok: false, err: e.message }); console.log("  ✗ " + label + "\n      " + e.message); }
