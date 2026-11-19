@@ -12133,16 +12133,18 @@ function lucCfg(){if(!LUC.cfg){LUC.cfg=Object.assign({hours:8,first:4.5,style:"c
 function lucSaveCfg(){try{save(mk("lucid","cfg"),LUC.cfg);}catch(e){}}
 function lucPadLoad(name){return fetch("/sounds/lucid/"+name+".mp3").then(function(r){if(!r.ok)throw 0;return r.arrayBuffer();}).then(function(b){return ac().decodeAudioData(b);}).catch(function(){return null;});}
 /* one 30-second cue, gentle attack, through the live volume bus */
-function lucCueAt(a,t){var g=LUC.g,st=lucCfg().style;
-  if(st==="pad"&&LUC.pads.cue){var s=a.createBufferSource();s.buffer=LUC.pads.cue;var e=a.createGain();e.gain.setValueAtTime(0.0001,t);e.gain.linearRampToValueAtTime(1,t+2);e.gain.setValueAtTime(1,t+27);e.gain.linearRampToValueAtTime(0.0001,t+30);s.connect(e);e.connect(g);s.start(t);s.stop(t+30.2);return [s];}
+/* cue loudness: last night's cue woke Travis twice — everything is ~55% quieter, and each window starts softer and builds */
+var LUC_TRIM=0.45;
+function lucCueAt(a,t,lv){lv=(lv==null?1:lv)*LUC_TRIM;var g=LUC.g,st=lucCfg().style;
+  if(st==="pad"&&LUC.pads.cue){var s=a.createBufferSource();s.buffer=LUC.pads.cue;var e=a.createGain();e.gain.setValueAtTime(0.0001,t);e.gain.linearRampToValueAtTime(lv,t+2);e.gain.setValueAtTime(lv,t+27);e.gain.linearRampToValueAtTime(0.0001,t+30);s.connect(e);e.connect(g);s.start(t);s.stop(t+30.2);return [s];}
   var ns=[];
   if(st==="pulse"){var o=a.createOscillator();o.type="sine";o.frequency.value=210;var am=a.createGain();am.gain.value=0;var lfo=a.createOscillator();lfo.frequency.value=4;var dep=a.createGain();dep.gain.value=0.22;lfo.connect(dep);dep.connect(am.gain);
-    var env=a.createGain();env.gain.setValueAtTime(0.0001,t);env.gain.linearRampToValueAtTime(0.5,t+4);env.gain.setValueAtTime(0.5,t+26);env.gain.linearRampToValueAtTime(0.0001,t+30);
+    var env=a.createGain();env.gain.setValueAtTime(0.0001,t);env.gain.linearRampToValueAtTime(0.5*lv,t+4);env.gain.setValueAtTime(0.5*lv,t+26);env.gain.linearRampToValueAtTime(0.0001,t+30);
     o.connect(am);am.connect(env);env.connect(g);o.start(t);o.stop(t+30.3);lfo.start(t);lfo.stop(t+30.3);ns.push(o,lfo);return ns;}
-  for(var k=0;k<6;k++){var tt=t+k*5,f=k%2?528:660;var o2=a.createOscillator();o2.type="sine";o2.frequency.value=f;var e2=a.createGain();e2.gain.setValueAtTime(0.0001,tt);e2.gain.linearRampToValueAtTime(0.34,tt+1.4);e2.gain.exponentialRampToValueAtTime(0.0001,tt+4.6);o2.connect(e2);e2.connect(g);o2.start(tt);o2.stop(tt+4.8);ns.push(o2);}
+  for(var k=0;k<6;k++){var tt=t+k*5,f=k%2?528:660;var o2=a.createOscillator();o2.type="sine";o2.frequency.value=f;var e2=a.createGain();e2.gain.setValueAtTime(0.0001,tt);e2.gain.linearRampToValueAtTime(0.34*lv,tt+1.4);e2.gain.exponentialRampToValueAtTime(0.0001,tt+4.6);o2.connect(e2);e2.connect(g);o2.start(tt);o2.stop(tt+4.8);ns.push(o2);}
   return ns;}
 /* a cue window = 3 cue sets with 2-minute gaps */
-function lucWindowAt(a,t){var ns=[];[0,150,300].forEach(function(off){ns=ns.concat(lucCueAt(a,t+off));});return ns;}
+function lucWindowAt(a,t){var ns=[];[[0,0.6],[150,0.8],[300,1]].forEach(function(p){ns=ns.concat(lucCueAt(a,t+p[0],p[1]));});return ns;}
 function lucCancel(ns){(ns||[]).forEach(function(n){try{n.stop(0);}catch(e){}try{n.disconnect();}catch(e){}});}
 function lucPlan(){var c=lucCfg(),ws=[c.first,c.first+1.5,c.first+3,c.first+4.25].filter(function(h){return h<c.hours-0.4;});return ws;}
 function lucStart(o){o=o||{};var el0=Math.max(0,o.elapsed||0);unlockAudio();if(APPVOL<0.3)setAppVol(0.7);/* a silent night defeats the cues — restore master volume */var a=ac(),c=lucCfg();try{bgKeep(true,"Lucid Dream Journey");if(c.gate&&HR.connected)medWake(true);}catch(e){}LUC.on=true;LUC.at=Date.now()-el0*1000;LUC.fromJ=!!o.fromJourney;
@@ -15153,6 +15155,9 @@ async function museConnect(statusEl,all){
   if(!navigator.bluetooth)throw new Error("no-bt");
   statusEl.textContent="Opening Bluetooth…";
   M.dev=await navigator.bluetooth.requestDevice(all?{acceptAllDevices:true,optionalServices:[MUSE_SVC]}:{filters:[{services:[MUSE_SVC]},{namePrefix:"Muse"}],optionalServices:[MUSE_SVC]});
+  M.userOff=false;return museAttach(statusEl);}
+/* connect (or reconnect) to the Muse we already picked — no Bluetooth picker needed */
+async function museAttach(statusEl){statusEl=statusEl||{set textContent(v){}};if(M.bandT)clearInterval(M.bandT);if(M.ppgT)clearInterval(M.ppgT);M.bandT=M.ppgT=null;
   /* every step reports where it failed; some browsers (Bluefy) throw bare numeric codes */
   const TO=(pr,ms,step)=>Promise.race([Promise.resolve(pr).catch(e=>{const m=(e&&(e.message||e.name))||String(e);throw new Error(step+": "+(/^\d+$/.test(String(m))?"Bluetooth error "+m:m));}),new Promise((_,rj)=>setTimeout(()=>rj(new Error(step+": timed out")),ms))]);
   statusEl.textContent="Connecting to "+(M.dev.name||"Muse")+"… (step 1 of 4)";
@@ -15163,7 +15168,7 @@ async function museConnect(statusEl,all){
       svc=await TO(M.gatt.getPrimaryService(MUSE_SVC),10000,"data service");}
     catch(e){lastErr=e;try{if(M.dev.gatt.connected)M.dev.gatt.disconnect();}catch(_){}await museSleep(1500);}}
   if(!svc)throw lastErr||new Error("data service: not found");
-  M.dev.addEventListener("gattserverdisconnected",()=>{M.connected=false;const s=$("#bioStatus");if(s)s.textContent="Disconnected.";});
+  if(!M.dev._mjkL){M.dev._mjkL=1;M.dev.addEventListener("gattserverdisconnected",()=>{M.connected=false;const s=$("#bioStatus");if(s)s.textContent="Disconnected.";if(M.bandT)clearInterval(M.bandT);if(M.ppgT)clearInterval(M.ppgT);M.bandT=M.ppgT=null;museAutoReconnect(0);});}
   statusEl.textContent="Reading the headband… (step 3 of 4)";
   M.ctrl=await TO(svc.getCharacteristic(MUSE_CTRL),10000,"control channel");
   // telemetry (battery)
@@ -15184,7 +15189,11 @@ async function museConnect(statusEl,all){
   M.connected=true;
   M.bandT=setInterval(museBands,500);M.ppgT=setInterval(musePPG,150);
 }
-function museDisconnect(){
+/* the headband dropped (taken off, walked away, switched off): during a lucid night or a journey keep trying to come back —
+   quickly at first, then once a minute until morning — so turning the Muse back on is all it takes */
+function museAutoReconnect(n){if(M.userOff||M.connected||!M.dev||M.reconT)return;const longRun=(typeof LUC!=="undefined"&&LUC.on)||(typeof MED!=="undefined"&&MED.jSess)||(typeof PLR!=="undefined"&&PLR&&PLR.on);
+  if(n>=6&&!longRun)return;M.reconT=setTimeout(async function(){M.reconT=null;if(M.userOff||M.connected)return;try{await museAttach(null);try{const s=$("#bioStatus");if(s)s.textContent="Reconnected.";}catch(e){}}catch(e){museAutoReconnect(n+1);}},n<6?[2000,4000,8000,10000,15000,20000][n]:60000);}
+function museDisconnect(){M.userOff=true;if(M.reconT){clearTimeout(M.reconT);M.reconT=null;}
   if(M.bandT)clearInterval(M.bandT);if(M.ppgT)clearInterval(M.ppgT);if(M.uiT)clearInterval(M.uiT);
   M.bandT=M.ppgT=M.uiT=null;
   try{if(M.gatt&&M.gatt.connected)M.gatt.disconnect();}catch(e){}

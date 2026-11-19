@@ -634,6 +634,17 @@ export async function run() {
     assert(r.length === 1 && r[0] === 60000, "no all-night reconnect " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Lucid night: cues are ~55% quieter and each window builds 60% -> 80% -> 100%; a dropped Muse keeps reconnecting all night", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r = await pg.evaluate(async () => { const peak = async (lv) => { const oc = new OfflineAudioContext(1, 44100 * 8, 44100); LUC.g = oc.createGain(); LUC.g.gain.value = 1; LUC.g.connect(oc.destination); const sv = lucCfg().style; lucCfg().style = "chime"; lucCueAt(oc, 0.1, lv); lucCfg().style = sv; const b = await oc.startRendering(); const d = b.getChannelData(0); let m = 0; for (const x of d) m = Math.max(m, Math.abs(x)); LUC.g = null; return m; };
+      const full = await peak(1), first = await peak(0.6);
+      const delays = []; const st = window.setTimeout; window.setTimeout = function (f, ms) { if (ms >= 1000) delays.push(ms); return 1; };
+      M.connected = false; M.userOff = false; M.reconT = null; M.dev = { gatt: {} }; LUC.on = true; museAutoReconnect(6); M.reconT = null; LUC.on = false; museAutoReconnect(6); M.reconT = null; M.userOff = true; LUC.on = true; museAutoReconnect(0); LUC.on = false; M.userOff = false;
+      window.setTimeout = st; return { full, first, delays, win: lucWindowAt.toString().indexOf("[0,0.6],[150,0.8],[300,1]") >= 0 }; });
+    assert(Math.abs(r.full - 0.34 * 0.45) < 0.01 && Math.abs(r.first - 0.34 * 0.45 * 0.6) < 0.01 && r.win, "cue level " + JSON.stringify(r));
+    assert(r.delays.length === 1 && r.delays[0] === 60000, "Muse all-night reconnect " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("Home: Vocal Training and Lyric Lab each have a main menu button; Lyric Lab's opens it directly", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
     const r = await pg.evaluate(async () => { goHome(); const v = !!document.querySelector('.door[data-d="voice"]'), l = document.querySelector('.door[data-d="lyric"]'); if (l) l.click(); await new Promise((z) => setTimeout(z, 500));
