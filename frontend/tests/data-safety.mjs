@@ -655,6 +655,23 @@ export async function run() {
     assert(r.ok && r.vid && r.playing && r.gone && r.held && r.released, "keep-awake " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("REM finder (HeartMath beats): deep sleep reads deep, REM reads REM, a movement spike reads moving; a due window waits for REM, then plays; moving cuts a window short", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r = await pg.evaluate(async () => { let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+      const minute = (kind) => { const rr = []; let tsec = 0, k = 0; while (tsec < 60) { let hr; /* deep: slow + strong regular breathing rhythm (high beat-to-beat variability, flat 10-beat average); REM: faster, wandering, weaker breathing rhythm */ if (kind === "deep") hr = 55 + 4 * Math.sin(2 * Math.PI * k / 4.5); else if (kind === "rem") hr = 61 + 5 * Math.sin(k / 9) + 1.5 * Math.sin(2 * Math.PI * k / 4) + 1.2 * (rnd() - 0.5); else hr = 88 + 8 * rnd(); const x = 60000 / hr; rr.push(x); tsec += x / 1000; k++; } return rr; };
+      HR.connected = true; HR.rr = []; HR.n = 0; LUC.ep = []; LUC.lastN = null; const feed = (kind) => { const rr = minute(kind); HR.rr.push(...rr); while (HR.rr.length > 800) HR.rr.shift(); HR.n += rr.length; HR.updated = performance.now(); const e = lucEpoch(), B = lucBase(); if (!e.gap && B) e.mv = e.hr > B.hr * 1.22 || e.max > B.hr * 1.5; LUC.ep.push(e); return lucStage(); };
+      let s; for (let i = 0; i < 60; i++) s = feed("deep"); const deep = s; for (let i = 0; i < 4; i++) s = feed("rem"); const rem = s; s = feed("move"); s = feed("move"); const moving = s;
+      /* gating with a fake window */
+      LUC.ep = LUC.ep.slice(0, 64); for (let i = 0; i < 10; i++) feed("deep"); LUC.stage = lucStage(); const a = ac(); LUC.on = true; LUC.at = Date.now(); LUC.lastEp = Date.now(); lucCfg().gate = true; LUC.stats = { rem: 0, held: [], cut: 0 };
+      LUC.g = a.createGain(); LUC.g.connect(a.destination); LUC.windows = [{ i: 0, t: a.currentTime + 3, nodes: [], shift: 0 }]; lucTick(); const held = LUC.windows[0].held;
+      for (let i = 0; i < 4; i++) feed("rem"); LUC.stage = lucStage(); lucTick(); const w = LUC.windows[0], released = !w.held && w.released && w.nodes.length > 0;
+      w.t = a.currentTime - 30; feed("move"); feed("move"); LUC.stage = lucStage(); lucTick(); const cut = w.cut && LUC.stats.cut === 1;
+      LUC.windows.forEach((x) => lucCancel(x.nodes)); LUC.windows = []; LUC.on = false; HR.connected = false;
+      return { deep, rem, moving, held, released, cut }; });
+    assert(r.deep === "deep" && r.rem === "rem" && r.moving === "moving", "stages " + JSON.stringify(r));
+    assert(r.held && r.released && r.cut, "gating " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("Home: Vocal Training and Lyric Lab each have a main menu button; Lyric Lab's opens it directly", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
     const r = await pg.evaluate(async () => { goHome(); const v = !!document.querySelector('.door[data-d="voice"]'), l = document.querySelector('.door[data-d="lyric"]'); if (l) l.click(); await new Promise((z) => setTimeout(z, 500));
