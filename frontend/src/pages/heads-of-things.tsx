@@ -595,6 +595,11 @@ export default function HeadsOfThings() {
                 <p className="font-serif italic text-xl" style={{ color: celestial.textMuted }}>The Way to Remember All Knowledge</p>
                 <p className="text-sm" style={{ color: celestial.textFaint }}>Hermes Trismegistus, His First Book</p>
                 <p className="text-xs" style={{ color: celestial.goldDim }}>Dr. John Everard Translation (1650) — From The Divine Pymander</p>
+                <div className="pt-2">
+                  <Link href="/reader/heads-halves">
+                    <Button style={{ backgroundColor: celestial.gold, color: celestial.bg }}>Practice: Heads by Halves →</Button>
+                  </Link>
+                </div>
               </div>
 
               {/* Mobile progress */}
