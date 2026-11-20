@@ -645,6 +645,16 @@ export async function run() {
     assert(r.delays.length === 1 && r.delays[0] === 60000, "Muse all-night reconnect " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Screen stays awake for sensors all night: wake lock, or a tiny looping video where the browser has none (Bluefy); re-held when a sensor connects mid-night", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const ok = await fetch("/media/keepawake.mp4").then((x) => x.ok);
+      Object.defineProperty(navigator, "wakeLock", { value: undefined, configurable: true }); medWake(true); await w(300); const vid = !!document.querySelector('video[src="/media/keepawake.mp4"]'), playing = MED_VID && !MED_VID.paused;
+      medWake(false); const gone = !document.querySelector('video[src="/media/keepawake.mp4"]');
+      LUC.view = "home"; renderLucid(); lucStart(); HR.connected = true; await w(1300); const held = MED_WANT; HR.connected = false; lucEnd(); const released = !MED_WANT;
+      return { ok, vid, playing, gone, held, released }; });
+    assert(r.ok && r.vid && r.playing && r.gone && r.held && r.released, "keep-awake " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("Home: Vocal Training and Lyric Lab each have a main menu button; Lyric Lab's opens it directly", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
     const r = await pg.evaluate(async () => { goHome(); const v = !!document.querySelector('.door[data-d="voice"]'), l = document.querySelector('.door[data-d="lyric"]'); if (l) l.click(); await new Promise((z) => setTimeout(z, 500));
