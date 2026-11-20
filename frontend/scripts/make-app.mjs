@@ -11,3 +11,7 @@ let html = readFileSync(new URL("../src/pages/music-theory.game.html", import.me
 html = "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\"><script>window.__MJK_API__=" + JSON.stringify(api) + ";window.__MJK_FULLPAGE__=true;window.__MJK_BUILD__=" + JSON.stringify(build) + ";try{var q=new URLSearchParams(location.search);if(q.get(\"for\"))window.__MJK_FOR__=q.get(\"for\");if(q.get(\"focus\"))window.__MJK_FOCUS__=q.get(\"focus\");}catch(e){}</scr" + "ipt></head><body>" + html + "</body></html>";
 writeFileSync(new URL("../public/app.html", import.meta.url), html);
 console.log("app.html written" + (api ? " (api " + api + ")" : ""));
+
+// Heads by Halves (Hermes): also served as its own page so the MMU app can open it for Star and Travis
+writeFileSync(new URL("../public/heads-halves.html", import.meta.url), readFileSync(new URL("../src/pages/heads-halves.game.html", import.meta.url), "utf8"));
+console.log("heads-halves.html written");

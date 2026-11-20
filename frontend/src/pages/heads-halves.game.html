@@ -40,6 +40,8 @@ button{font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .g.cur{outline:2px solid var(--gold)}
 .row{display:flex;gap:8px;flex-wrap:wrap}
 .note{color:var(--muted);font-size:.85rem}
+body.emb .wrap{padding:6px 2px 8px}body.emb .top h1{display:none}body.emb .top{justify-content:flex-end}body.emb .card{margin-top:8px;padding:14px}body.emb .nav .b{font-size:.92rem;padding:0 6px}
+@media (orientation:landscape) and (max-height:500px){body.emb .wrap{min-height:0;height:100vh}body.emb .card{margin-top:6px}}
 @media (orientation:landscape) and (max-height:500px){.head{margin:10px 0 6px;font-size:1.35rem}.card{padding:12px 16px}.b{min-height:48px}}
 </style></head><body>
 <div class="wrap">
@@ -140,7 +142,9 @@ function hhSplit(v,t){const w=t.split(/\s+/);let k=HH_SPLIT[v]||-1;
   if(k<0)k=Math.max(1,Math.floor(w.length/2));
   return {show:w.slice(0,k),hide:w.slice(k)};}
 
-const KEY="heads-halves-v1";
+const WHO=(function(){try{return (new URLSearchParams(location.search).get("who")||"").replace(/[^\w-]/g,"").slice(0,40);}catch(e){return "";}})();
+if(WHO)document.body.classList.add("emb"); /* opened inside the music app */
+const KEY="heads-halves-v1"+(WHO?"-"+WHO:""); /* each music-app player keeps their own progress */
 function ld(){try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s&&typeof s.i==="number")return s;}catch(e){}return {i:0,r:1,done:[],mix:false};}
 let S=ld();if(!Array.isArray(S.done))S.done=[];
 function sv(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}

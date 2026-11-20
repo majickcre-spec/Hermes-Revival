@@ -655,6 +655,29 @@ export async function run() {
     assert(r.ok && r.vid && r.playing && r.gone && r.held && r.released, "keep-awake " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Heads of Things in the music app: only Star and Trav/Travis see it; it opens inside the app; each player keeps their own progress on a shared device; others can't open it", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {}, "Trav");
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const o = {};
+      const doors = () => [...document.querySelectorAll("#doors .door b")].map((e) => e.textContent);
+      goHome(); await w(200); o.trav = doors().includes("Heads of Things");
+      [...document.querySelectorAll("#doors .door")].find((b) => /Heads of Things/.test(b.textContent)).click(); await w(1500);
+      const f = document.getElementById("hhFrame"); o.inApp = !!f && !view.hidden; o.fab = getComputedStyle(document.getElementById("sensFab")).display;
+      const d = f.contentDocument; o.head = d && d.getElementById("head").innerText.trim();
+      d.getElementById("nextB").click(); d.getElementById("revB").click(); d.getElementById("okB").click(); await w(100);
+      o.travKey = Object.keys(localStorage).filter((k) => k.startsWith("heads-halves-v1"));
+      document.getElementById("eBack").click(); await w(300); o.home = !home.hidden;
+      /* Star on the same device */
+      const P = getProfiles(); P.push({ id: "s2", name: "Star" }, { id: "b3", name: "Bob" }); save("majick-profiles", P); activate("s2"); await w(300);
+      o.star = doors().includes("Heads of Things"); renderHeadsHalves(); await w(1500);
+      const d2 = document.getElementById("hhFrame").contentDocument; o.starWhere = d2.getElementById("where").innerText;
+      activate("b3"); await w(300); o.bob = doors().includes("Heads of Things"); renderHeadsHalves(); await w(300); o.bobBlocked = view.hidden && !home.hidden;
+      o.keys = Object.keys(localStorage).filter((k) => k.startsWith("heads-halves-v1")).sort(); o.travSaved = JSON.parse(localStorage.getItem("heads-halves-v1-t1") || "{}");
+      return o; });
+    assert(r.trav && r.star && !r.bob && r.bobBlocked, "Heads button shown to the wrong players " + JSON.stringify(r));
+    assert(r.inApp && r.fab === "none" && /All things that are moved/.test(r.head) && r.home, "Heads didn't open inside the music app " + JSON.stringify(r));
+    assert(r.travSaved && r.travSaved.i === 1 && r.travSaved.r === 2 && /Head 1 /.test(r.starWhere) && r.keys.join(",") === "heads-halves-v1-s2,heads-halves-v1-t1", "players share Heads progress " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("Guitar section: 4 cards; Chords and Play Along have tabs; switching tabs or going back stops the sound; tabs never leak into other sections; floating sensor buttons hide here only; Progressions and the last tab are remembered after a reload; ukulele gets the same menu", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
     const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const o = {};
