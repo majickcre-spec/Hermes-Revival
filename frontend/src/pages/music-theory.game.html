@@ -536,7 +536,7 @@ body.fbLock #fbStatus{position:fixed;top:14px;right:max(14px,env(safe-area-inset
 #stNeck.land #stHwy{grid-area:1/1;width:100%;height:100%!important;min-height:0;border-radius:14px!important}
 #stNeck.land #stRight{grid-area:2/1;display:flex;align-items:center;justify-content:center;gap:0;min-height:0;min-width:0}
 #stNeck{position:relative}
-#stNeck #fbSvgWrap{position:absolute;top:4px;right:4px;width:46%;max-width:300px;pointer-events:none;z-index:2;filter:drop-shadow(0 8px 16px rgba(0,0,0,.55))}
+#stNeck #fbSvgWrap{position:absolute;top:4px;right:4px;width:46%;max-width:300px;pointer-events:none;z-index:2;filter:drop-shadow(0 8px 16px rgba(0,0,0,.55))} #stNeck:not(.land) #fbSvgWrap{overflow:hidden;border-radius:10px} #stNeck:not(.land) #fbSvgWrap svg{display:block;width:100%!important;height:auto!important;max-height:calc(min(44vh,340px) - 8px)}
 #stNeck.land #fbSvgWrap{position:static;width:auto;max-width:none;margin:0;filter:none;display:block;flex:0 0 auto}
 #stNeck.land #fbZone{display:block;width:auto;height:auto;min-width:0;flex:0 0 auto}
 #stNeck.land.nn{grid-template-columns:minmax(0,1fr) min(22vw,180px)}
@@ -563,6 +563,25 @@ body.fbLock #fbStatus{position:fixed;top:14px;right:max(14px,env(safe-area-inset
 
 /* during activities: freeze decorative loops (saves battery/heat on phones) */
 body.inact .brand h1,body.inact .brand .sigil,body.inact .brand .brandmark{animation:none}
+.bigsel{display:block;width:100%;min-height:48px;font:800 1rem system-ui,sans-serif;padding:11px 14px;border-radius:12px;background:rgba(255,255,255,.05);color:var(--ink,#ECEDEF);border:1px solid var(--line);margin:6px 0 8px;-webkit-appearance:none;appearance:none}
+@media (orientation:landscape){.cgWrap{display:grid;grid-template-columns:minmax(240px,320px) 1fr;gap:14px;align-items:start}.cgWrap #cgBig{margin:0!important}}
+.cgTiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px}
+.cgTile{min-height:52px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--ink,#ECEDEF);font:900 1.05rem system-ui,sans-serif;cursor:pointer;position:relative}
+.cgTile.ok::after{content:"✓";position:absolute;top:3px;right:6px;font-size:.7rem;color:#5fe0a8}
+.cgTile.on{background:var(--gold);color:#241800;border-color:var(--gold)}
+.gtrTabs{display:flex;gap:6px;overflow-x:auto;margin:0 0 10px;padding:2px 0;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.gtrTabs::-webkit-scrollbar{display:none}
+#strGrid{grid-template-columns:1fr!important;gap:10px}
+#strGrid .card{display:grid;grid-template-columns:56px 1fr;column-gap:14px;align-items:center;padding:14px 16px;min-height:0;text-align:left}
+#strGrid .card .ic{grid-row:1 / span 2;margin:0}
+#strGrid .card h3{margin:0 0 2px;font-size:1.15rem}
+#strGrid .card .blurb{margin:0;font-size:.86rem;line-height:1.35}
+select.bigsel{background-image:linear-gradient(45deg,transparent 50%,#9BA1AC 50%),linear-gradient(135deg,#9BA1AC 50%,transparent 50%);background-position:calc(100% - 20px) 52%,calc(100% - 14px) 52%;background-size:6px 6px,6px 6px;background-repeat:no-repeat;padding-right:36px}
+.gtrTabs button{flex:1 1 auto;min-width:0;min-height:46px;padding:10px 8px;font-size:.86rem!important;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--muted);font:800 .95rem system-ui,sans-serif;cursor:pointer;white-space:nowrap}
+.gtrTabs button.on{background:var(--gold);color:#241800;border-color:var(--gold)}
+@media (max-width:360px){.gtrTabs{gap:4px}.gtrTabs button{font-size:.74rem!important;padding:10px 4px}}
+body:has(#view .gtrZone) #brainFab:not(.on),body:has(#view .gtrZone) #sensFab:not(.on){display:none!important}
+#view:has(.gtrZone) .rchip.sm{min-height:42px;padding:9px 13px}
 </style>
 
 <canvas id="sky"></canvas>
@@ -1386,7 +1405,7 @@ function renderAbout(){if(teardown){try{teardown();}catch(e){}teardown=null;}hom
    '<p class="rlab" style="margin-top:14px">Your data</p><p style="margin:6px 0">Recordings, sessions and sensor logs are saved on your device. Signing in syncs your players and progress.</p>'+
    '<p class="rlab" style="margin-top:14px">Sounds &amp; credits</p><p style="margin:6px 0">Piano: Salamander Grand Piano by Alexander Holm (CC-BY 3.0). Other sampled instruments from the MusyngKite soundfonts. Nature recordings are CC0 / Pixabay-licensed field recordings collected by the open-source Moodist project. Niko Kotoulas MIDI packs are included for practice.</p></div>';
   $("#eBack").onclick=goHome;}
-function goHome(){document.body.classList.remove("djOn");if(teardown){try{teardown();}catch(e){}teardown=null;}if(NAV_MENU&&!view.hidden&&!navAtMenu()){var m=NAV_MENU;try{m();window.scrollTo(0,0);return;}catch(e){}}NAV_MENU=null;view.hidden=true;home.hidden=false;renderHome();window.scrollTo(0,0);if(window.__mjkNavConsume)window.__mjkNavConsume();}
+function goHome(){GRP=null;document.body.classList.remove("djOn");if(teardown){try{teardown();}catch(e){}teardown=null;}if(NAV_MENU&&!view.hidden&&!navAtMenu()){var m=NAV_MENU;try{m();window.scrollTo(0,0);return;}catch(e){}}NAV_MENU=null;view.hidden=true;home.hidden=false;renderHome();window.scrollTo(0,0);if(window.__mjkNavConsume)window.__mjkNavConsume();}
 /* Back button (esp. iPhone): drop to the music home first, then out to Hermes — not straight out */
 (function(){try{if(!view)return;var primed=false,inPop=false;function prime(){if(primed)return;try{history.pushState({mjk:"view"},"");}catch(e){}primed=true;}
   try{var mo=new MutationObserver(function(){if(!view.hidden)prime();});mo.observe(view,{attributes:true,attributeFilter:["hidden"]});}catch(e){}
@@ -9562,6 +9581,26 @@ function renderStrumTrainer(inst){inst=inst||"guitar";if(inst==="ukulele")ukeLoa
     $("#stSc").onclick=function(){var bx=$("#stScBox");if(bx.style.display==="none"){bx.innerHTML='<div style="font-weight:800;margin-bottom:4px">🏆 My scores · Strum Patterns</div>'+stScoresHTML();bx.style.display="";}else bx.style.display="none";};
     requestAnimationFrame(function(){stHwyDraw(ac().currentTime);});}
   draw();}
+/* ===== GUITAR / UKULELE SECTION — four groups; Chords and Play Along carry a tab strip so related tools sit one tap apart ===== */
+var GRP=null;
+function gtrGroups(inst){return {
+  learn:{tabs:[["Method",function(){renderMethod(inst);}]]},
+  neck:{tabs:[["Neck",function(){renderFretboard(inst);}]]},
+  chords:{b:"Learn the shapes, fix the hard ones, see the chords of a key, and let me name what you strum.",tabs:[["Chords",function(){strChords(inst);}]].concat(inst==="guitar"?[["Hard ones",function(){strBarre(inst);}]]:[]).concat([["By key",function(){strKey(inst);}],["Name it",function(){strChordFind(inst);}]])},
+  play:{b:"Progressions, strum patterns, melodies and your own songs — at your tempo.",tabs:[["Progressions",function(){strProg(inst);}],["Strums",function(){renderStrumTrainer(inst);}],["Melodies",function(){renderMelody(inst);}],["Songs",function(){renderLearnSong();}]]}};}
+function grpTitle(){var e=view.querySelector(".play-top .ttitle");return e?e.textContent.trim():"";}
+function grpGo(inst,g,k){var G=gtrGroups(inst)[g];if(k==null)k=Math.min(G.tabs.length-1,Math.max(0,load("mjk-grp-"+inst+"-"+g,0)));
+  try{if(typeof teardown==="function")teardown();}catch(e){}teardown=null;
+  GRP={inst:inst,g:g,k:k,title:null};save("mjk-grp-"+inst+"-"+g,k);G.tabs[k][1]();if(GRP){GRP.title=grpTitle();grpMark();}}
+function grpMark(){if(!GRP||view.hidden)return;var top=view.querySelector(".play-top");if(!top||view.querySelector(".gtrZone"))return;if(GRP.title&&grpTitle()!==GRP.title)return;
+  var G=gtrGroups(GRP.inst)[GRP.g],el;
+  if(G.tabs.length>1){el=document.createElement("div");el.className="gtrTabs gtrZone";G.tabs.forEach(function(tb,i){var b=document.createElement("button");b.textContent=tb[0];if(i===GRP.k)b.className="on";
+      b.onclick=function(){if(i===GRP.k)return;grpGo(GRP.inst,GRP.g,i);};el.appendChild(b);});}
+  else{el=document.createElement("i");el.className="gtrZone";el.hidden=true;}
+  top.after(el);
+  /* back always returns to the section menu, after the screen's own clean-up */
+  var bk=view.querySelector("#eBack");if(bk&&!bk.dataset.grp){bk.dataset.grp="1";var old=bk.onclick,inst=GRP.inst;bk.onclick=function(e){try{if(old)old.call(bk,e);}catch(x){}GRP=null;if(!document.getElementById("strGrid")){try{if(typeof teardown==="function")teardown();}catch(x){}teardown=null;renderStrings(inst);}};}}
+try{new MutationObserver(function(){if(GRP)grpMark();}).observe(document.getElementById("view"),{childList:true});}catch(e){}
 function renderStrings(inst){try{sfLoadInst("guitar");}catch(e){}
   if(toneRAF)cancelAnimationFrame(toneRAF);prgStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{prgStop();};
   const I=STRING_INSTR[inst],total=Object.keys(CHORDS[inst]).length,learned=strLearned(inst).length;
@@ -9570,44 +9609,38 @@ function renderStrings(inst){try{sfLoadInst("guitar");}catch(e){}
       <div class="intro">Learn the chords, see which chords live in a key, then strum along to progressions. You level up as you learn more chords.</div>
       <div class="biobar-row"><span class="biobar-l">Chords learned · ${strRank(learned)}</span><div class="biobar"><div class="biobar-f" style="width:${Math.round(100*learned/total)}%;background:linear-gradient(90deg,var(--gold),var(--gold-deep))"></div></div><span class="biobar-v">${learned}/${total}</span></div>
     </div>
-    <div class="grid" id="strGrid" data-navmenu="1"></div>`;
+    <div class="grid" id="strGrid" data-navmenu="1"></div><i class="gtrZone" hidden></i>`;
   navMenu(function(){renderStrings(inst);});
   $("#eBack").onclick=goHome;
-  const cards=[{t:"Play the Neck",ic:"🎸",b:"The full "+I.name.toLowerCase()+" fretboard — play real strings up and down the neck, fret chords, and learn every note.",go:()=>renderFretboard(inst)},
-    {t:"Neck Trainer",ic:"🎓",b:"Learn the strings, walk the notes, take the quizzes, and play Fret Rush — all on the real neck.",go:()=>renderFretboard(inst,"train")},
-    {t:"Learn Chords",ic:"🎵",b:"Chord diagrams you can hear — mark the ones you can play.",go:()=>strChords(inst)},
-    {t:"Chords in a Key",ic:"🔑",b:"The chord family of a major key (I ii iii IV V vi).",go:()=>strKey(inst)},
-    {t:"Progressions",ic:"🔁",b:"Strum along to common progressions, on tempo.",go:()=>strProg(inst)},
-    {t:"Chord Finder",ic:"👂",b:"Strum a chord and I'll name it — with capo shapes — and work out what key you're in.",go:()=>strChordFind(inst)},
-    {t:"Melodies",ic:"🎼",b:"Play real melodies on a scrolling highway \u2014 classics and cool originals across genres. Watch it, tap the neck, or play your own "+I.name.toLowerCase()+" and get scored.",go:()=>renderMelody(inst)},
-    {t:"Strum Patterns",ic:"↕️",b:"15 strum patterns fall down a highway onto the neck, over chord progressions — watch, play along, or call & response, at any speed, scored by swipe or your real guitar.",go:()=>renderStrumTrainer(inst)},
-    {t:"Scales on the Neck",ic:"🎶",b:"See and play scales across the neck — major, pentatonic, blues — with the root and degrees labeled.",go:()=>renderFretboard(inst,"scale")},
-    {t:"Bring a Song",ic:"🎼",b:"Paste a chord sheet, snap a photo of one, or build a progression — then play along with loop, tempo and transpose.",go:()=>renderLearnSong()}];
-  if(inst==="guitar"||inst==="ukulele")cards.unshift({t:(inst==="guitar"?"Guitar":"Ukulele")+" Method",ic:"📘",b:"A step-by-step beginner course — read music and play it, one string at a time. Lessons unlock as you go.",go:()=>renderMethod(inst)});
-  if(inst==="guitar")cards.splice(2,0,{t:"Tricky Chords",ic:"💪",b:"Stuck on F or Bm? Easy versions, a step-by-step barre build-up, and fixes for buzzing and muting.",go:()=>strBarre(inst)});
+  GRP=null;
+  const G=gtrGroups(inst),cards=[];
+  if(inst==="guitar"||inst==="ukulele")cards.push({t:(inst==="guitar"?"Guitar":"Ukulele")+" Method",ic:"📘",b:"A step-by-step beginner course — one string at a time. Lessons unlock as you go.",go:()=>grpGo(inst,"learn")});
+  cards.push({t:"Chords",ic:"🎵",b:G.chords.b,go:()=>grpGo(inst,"chords")});
+  cards.push({t:"The Neck",ic:"🎸",b:"Play the full neck, learn every note, scales and quizzes.",go:()=>grpGo(inst,"neck")});
+  cards.push({t:"Play Along",ic:"🥁",b:G.play.b,go:()=>grpGo(inst,"play")});
   const g=$("#strGrid");cards.forEach(c=>{const b=document.createElement("button");b.className="card";b.innerHTML=`<span class="ic">${c.ic}</span><h3>${c.t}</h3><span class="blurb">${c.b}</span>`;b.onclick=c.go;g.appendChild(b);});
 }
 function strChords(inst){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  const names=Object.keys(CHORDS[inst]);let sel=load("mjk-strsel-"+inst,names[0]);if(names.indexOf(sel)<0)sel=names[0];
+  const hear=name=>{try{unlockAudio();strum(inst,CHORDS[inst][name],ac().currentTime+0.02,true);}catch(e){}};
   function draw(){
-    const learned=strLearned(inst);
+    const learned=strLearned(inst),frets=CHORDS[inst][sel],done=learned.indexOf(sel)>=0,hard=HARD[inst]&&HARD[inst][sel];
     view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎵 ${STRING_INSTR[inst].name} Chords</span></div>
-      <div class="panel"><div class="intro">Tap <b>▶</b> to hear a chord, then put your fingers on the dots — the number in each dot tells you which finger. Mark <b>✓ I can play it</b> to earn Beans and level up.</div>
-      <div id="fgLegend"></div>
-      <div class="chordgrid" id="cg"></div></div>`;
+      <div class="panel"><div class="intro">Tap a chord below to see and hear it, then put your fingers on the dots — the number in each dot tells you which finger. Mark <b>✓ I can play it</b> to earn Beans and level up.<div id="fgLegend"></div></div>
+      <div class="cgWrap"><div class="chordcard big${done?" learned":""}" id="cgBig" style="margin:0 auto 10px;max-width:340px;width:100%"><h4 style="font-size:1.4rem">${esc(sel)}${hard?' <span style="font-size:.75rem;color:var(--muted)">· hard</span>':''}</h4><div id="cgDia"></div>
+        <div class="actions" style="margin-top:8px"><button class="btn" id="cgHear">▶ Hear</button><button class="btn ghost" id="cgWatch">👀 On the neck</button></div>
+        <button class="btn ${done?"":"ghost"}" id="cgMark" style="width:100%;margin-top:8px">${done?"✓ I can play it":"I can play it"}</button></div>
+      <div><div class="rlab" style="display:block;margin:4px 0 6px">All chords · ${learned.length}/${names.length} learned</div>
+      <div class="cgTiles" id="cgTiles"></div></div></div></div>`;
     $("#eBack").onclick=()=>renderStrings(inst);
     const fl=$("#fgLegend");if(fl)fl.appendChild(fingerLegend());
-    const cg=$("#cg");
-    Object.keys(CHORDS[inst]).forEach(name=>{const frets=CHORDS[inst][name],done=learned.indexOf(name)>=0,hard=HARD[inst]&&HARD[inst][name];
-      const card=document.createElement("div");card.className="chordcard"+(done?" learned":"");
-      const h=document.createElement("h4");h.textContent=name+(hard?" ·hard":"");card.appendChild(h);
-      card.appendChild(chordDiagram(inst,frets,name));
-      const row=document.createElement("div");row.style.cssText="display:flex;gap:6px;margin-top:4px";
-      const hear=document.createElement("button");hear.className="rchip sm";hear.textContent="▶";hear.onclick=()=>{unlockAudio();strum(inst,frets,ac().currentTime+0.02,true);};
-      const mark=document.createElement("button");mark.className="rchip sm"+(done?" sel":"");mark.textContent=done?"✓ learned":"I can play it";
-      mark.onclick=()=>{const L=strLearned(inst),i=L.indexOf(name);if(i>=0){L.splice(i,1);}else{L.push(name);if(activeId()&&!load(mk("str",inst+"-chord-"+name+"-paid"),false)){addBeans(5);save(mk("str",inst+"-chord-"+name+"-paid"),true);beanChip();}}save(mk("str",inst+"-learned"),L);draw();};
-      const watch=document.createElement("button");watch.className="rchip sm";watch.textContent="👀 Watch";watch.onclick=()=>{FB.chord=name;FB.adv=false;FBD.auto=true;renderFretboard(inst,"chord");};
-      row.appendChild(hear);row.appendChild(watch);row.appendChild(mark);card.appendChild(row);cg.appendChild(card);});
+    const dd=chordDiagram(inst,frets,sel);dd.style.width="100%";$("#cgDia").appendChild(dd);
+    $("#cgHear").onclick=()=>hear(sel);
+    $("#cgWatch").onclick=()=>{FB.chord=sel;FB.adv=false;FBD.auto=true;renderFretboard(inst,"chord");};
+    $("#cgMark").onclick=()=>{const L=strLearned(inst),i=L.indexOf(sel);if(i>=0){L.splice(i,1);}else{L.push(sel);if(activeId()&&!load(mk("str",inst+"-chord-"+sel+"-paid"),false)){addBeans(5);save(mk("str",inst+"-chord-"+sel+"-paid"),true);beanChip();}}save(mk("str",inst+"-learned"),L);draw();};
+    const tl=$("#cgTiles");names.forEach(name=>{const b=document.createElement("button");b.className="cgTile"+(name===sel?" on":"")+(learned.indexOf(name)>=0?" ok":"");b.textContent=name;
+      b.onclick=()=>{sel=name;save("mjk-strsel-"+inst,name);hear(name);draw();const big=$("#cgBig");if(big&&big.getBoundingClientRect().top<0)big.scrollIntoView({block:"start",behavior:"smooth"});};tl.appendChild(b);});
   }
   draw();
 }
@@ -9638,9 +9671,9 @@ function strBarre(inst){
   function draw(){
     var B=BARRE_HELP[sel];
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">💪 Tricky Chords</span></div>'+
-      '<div class="panel"><div class="intro">Barre chords are the big wall. Climb the ladder: start on the <b>easy version</b>, grow into the <b>mini barre</b>, then the <b>full</b> chord. Use the easy one in real songs today — it still sounds right.</div>'+
+      '<div class="panel"><div class="intro">Barre chords are the big wall. Climb the ladder: start on the <b>easy version</b>, grow into the <b>mini barre</b>, then the <b>full</b> chord. Use the easy one in real songs today — it still sounds right.<div id="bLegend"></div></div>'+
       '<div class="rrow2"><span class="rlab">Chord</span><span class="rchips tight" id="bChips"></span></div>'+
-      '<div id="bLegend"></div><div class="chordgrid" id="bStages"></div>'+
+      '<div class="chordgrid" id="bStages"></div>'+
       '<div class="rlab" style="display:block;margin:14px 0 6px">Build it up — hold the full shape</div>'+
       '<div class="idea-fb"><div style="margin-bottom:8px">Fret the <b>full '+B.label+'</b>, then press and <b>hold</b> for 3 seconds to lock it into muscle memory.</div><div style="background:rgba(255,255,255,.08);border-radius:8px;height:10px;overflow:hidden"><div id="bBar" style="height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--teal))"></div></div><div class="actions" style="margin-top:8px"><button class="btn" id="bHold">⏱ Hold 3s</button><button class="btn ghost" id="bHear">▶ Hear it</button></div><div class="bean-note" id="bMsg"></div></div>'+
       '<div class="rlab" style="display:block;margin:14px 0 6px">When it buzzes or mutes — the fixes</div>'+
@@ -10068,18 +10101,17 @@ function renderMelody(inst){try{if((inst||MEL.inst)==="ukulele")ukeLoad();}catch
   const fbSave={mode:FB.mode,inst:FB.inst,win:FB.win,hl:FB.hl,onTap:FB.onTap};
   const restore=()=>{melStop();if(MEL.raf)cancelAnimationFrame(MEL.raf);MEL.raf=null;FB.ghost=null;FB.hl=null;FB.onTap=null;FB.mode=fbSave.mode;FB.inst=fbSave.inst;FB.win=fbSave.win;};
   teardown=restore;
-  let libOpen=load("mjk-mellib",true),optOpen=load("mjk-melopt",false);
+  let libOpen=false,optOpen=load("mjk-melopt",false);
   function pick(id){const s=melAll().find(x=>x.id===id)||MEL_LIB[0];save("mjk-melsong",s.id);melStop();FB.inst=MEL.inst;melLoad(s);draw();}
   function draw(){melStop();if(MEL.raf)cancelAnimationFrame(MEL.raf);FB.mode="play";FB.inst=MEL.inst;if(!MEL.song||!melAll().find(x=>x.id===MEL.song.id)){const id=load("mjk-melsong","mtnking");MEL.song=melAll().find(x=>x.id===id)||MEL_LIB[0];}
     melLoad(MEL.song);const S=MEL.song,groups={};melAll().forEach(s=>{(groups[s.g]=groups[s.g]||[]).push(s);});
     const tagTxt=S.tag==="pd"?"public domain":S.tag==="orig"?"MMU original":"your import",bk=load(mk("mel",S.id+"-"+MEL.inst+"-"+MEL.mode),0);
     view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎼 Melodies</span></div><div class="panel">
       <div class="rrow2"><span class="rchips tight" id="melInst"></span></div>
-      <details id="melLib" ${libOpen?"open":""} style="margin:6px 0"><summary style="cursor:pointer;list-style:none;padding:6px 2px;font:800 .9rem system-ui;color:var(--muted)">🎵 Library · ${melAll().length} melodies ▾</summary><div id="melLibBody"></div></details>
-      <div style="margin:6px 0 2px;font:900 1.2rem system-ui">${esc(S.name)}</div><div style="color:var(--muted);font-size:.85rem;margin-bottom:6px">${MEL_GENRE_IC[S.g]||"🎵"} ${esc(S.g)} · ${esc(S.by||"")} · <i>${tagTxt}</i>${bk?' · best <b style="color:#5fe0a8">'+bk+'</b>':''}</div>
+      <details id="melLib" ${libOpen?"open":""} style="margin:6px 0"><summary class="bigsel" style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center"><span>🎵 ${esc(S.name)}</span><span style="color:var(--muted);font-size:.85rem">${melAll().length} songs ▾</span></summary><div id="melLibBody"></div></details>
+      <div style="color:var(--muted);font-size:.85rem;margin:0 0 6px">${MEL_GENRE_IC[S.g]||"🎵"} ${esc(S.g)} · ${esc(S.by||"")} · <i>${tagTxt}</i>${bk?' · best <b style="color:#5fe0a8">'+bk+'</b>':''}</div>
       <div class="rchips tight" id="melModes" style="margin:4px 0"></div>
-      ${hwyOptsHTML()}${MEL.mode==="mic"?micSetupHTML():""}
-      <div id="melHud" style="min-height:24px;text-align:center;margin:4px 0"></div>
+      ${MEL.mode==="mic"?micSetupHTML():""}<div id="melHud" style="min-height:24px;text-align:center;margin:4px 0"></div>
       <div id="melStageWrap"><canvas id="melCv" style="display:block;width:100%;height:300px;border-radius:14px 14px 0 0;background:linear-gradient(#07060f,#14102a 70%,#1d1638)"></canvas>
         <div id="fbStage" style="border-radius:0 0 14px 14px"><div id="fbBox" style="position:relative"><div id="fbSvgWrap">${fbSVG()}</div><div id="fbTouch" style="position:absolute;left:0;top:0;right:0;bottom:0;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none"></div></div>
         <div id="fbZone" style="touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;position:relative;overflow:hidden;filter:drop-shadow(0 10px 20px rgba(0,0,0,.45))">${fbZoneSVG()}</div></div></div>
@@ -10087,7 +10119,7 @@ function renderMelody(inst){try{if((inst||MEL.inst)==="ukulele")ukeLoad();}catch
       ${clickVolRow("melClick",MEL.clickVol)}
       <div class="actions"><button class="btn" id="melGo" style="flex:1 1 60%">${MEL.mode==="watch"?"▶ Watch it":"▶ Start"}</button><button class="btn ghost" id="melTest" style="flex:0 1 auto">🎯 Test</button><button class="btn ghost" id="melScores" style="flex:0 1 auto">🏆 My scores</button></div>
       <div id="melRes"></div><div id="melScoreBox" style="display:none;margin-top:8px" class="panel"></div>
-      <details id="melOpt" ${optOpen?"open":""} style="margin-top:6px"><summary style="cursor:pointer;list-style:none;padding:8px 2px;font:800 .85rem system-ui;color:var(--muted)">⚙️ Settings ▾</summary>
+      <details id="melOpt" ${optOpen?"open":""} style="margin-top:6px"><summary style="cursor:pointer;list-style:none;padding:8px 2px;font:800 .85rem system-ui;color:var(--muted)">⚙️ Settings ▾</summary>${hwyOptsHTML()}
         <div class="rrow2"><span class="rchips tight"><button class="rchip sm${MEL.guide?" sel":""}" id="melGuide">🔈 Guide notes</button><button class="rchip sm${MEL.loop?" sel":""}" id="melLoop">🔁 Loop</button>${leadChip()}<button class="rchip sm${FB.showNotes?" sel":""}" id="melNames">🏷️ Note names</button></span></div>
         ${MEL.song&&MEL.bars?lbHTML("melLB",MEL.lbo||{n:0},MEL.bars):""}
         ${volSlider("melVol")}
@@ -10296,6 +10328,8 @@ function strProg(inst){
   try{cfMergeProgs();}catch(e){}
   if(toneRAF)cancelAnimationFrame(toneRAF);prgStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   let pi=0,crRaf=null;PRG.inst=inst;
+  {const sv=load("mjk-prgsel",null);if(sv){const k=PROGS.findIndex(p=>p.name===sv.name);if(k>=0)pi=k;if(sv.bpm)PRG.bpm=Math.max(40,Math.min(200,sv.bpm));}}
+  const prgRem=()=>{try{save("mjk-prgsel",{name:PROGS[pi].name,bpm:PRG.bpm});}catch(e){}};
   const fbSave={mode:FB.mode,chord:FB.chord,inst:FB.inst,win:FB.win,adv:FB.adv};const fbRestore=()=>{hwyStop();FB.ghost=null;FB.mode=fbSave.mode;FB.chord=fbSave.chord;FB.inst=fbSave.inst;FB.win=fbSave.win;FB.adv=fbSave.adv;};teardown=()=>{prgStop();fbRestore();};
   function prgHL(i){prgShow(i);const fr=keyShape(inst,PRG.chords[i]);if(fr)prgStrumViz(true,fr);}
   function prgCR(){
@@ -10367,11 +10401,10 @@ function strProg(inst){
     view.innerHTML=`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔁 Progressions</span></div>
       <div class="panel">
         <div class="intro">Pick a progression — it loops on tempo with a click, showing each chord as it comes. Strum along on your ${STRING_INSTR[inst].name.toLowerCase()}. One chord per bar. Or tap <b>Play it back</b> for call &amp; response — I'll play it, then listen to your strum timing.</div>
-        <div class="rchips" id="prgList"></div>
+        <select id="prgList" class="bigsel" aria-label="Progression"></select>
         ${prgNeckish()?"":'<div id="prgChordRow" class="prg-chordrow"></div><div class="prg-now" id="prgNow">'+P.chords[0]+'</div>'}
         <div class="hpstrip" id="prgStrip" style="display:none;margin:6px 0"></div>
-        <div class="rchips tight" id="prgView" style="justify-content:center;margin:6px 0"></div>
-        ${PRG.view==="hwy"?hwyOptsHTML()+'<div class="rchips tight" style="justify-content:center;margin:0 0 4px"><button class="rchip sm'+(PRG.mic?" sel":"")+'" id="prgMic">🎸 Score my guitar: '+(PRG.mic?"On":"Off")+'</button>'+(PRG.mic?'<button class="rchip sm'+(PRG.band?" sel":"")+'" id="prgBand">🔈 Band '+(PRG.band?"on":"off")+'</button>':'')+'</div>'+(PRG.mic?micSetupHTML()+'<div id="prgHud" style="min-height:24px;text-align:center;margin:2px 0 4px"></div>':''):""}
+        ${PRG.view==="hwy"&&PRG.mic?micSetupHTML()+'<div id="prgHud" style="min-height:24px;text-align:center;margin:2px 0 4px"></div>':''}
         ${prgNeckish()?'<div class="prg-hwyrow"><div id="prgChordRow" class="prg-chordrow one"></div></div>':""}
         <div class="${prgNeckish()?"":"chordgrid prgdia"}" id="prgDia" style="justify-content:center"></div>
         <div style="display:flex;align-items:center;gap:8px;margin:10px 0 4px"><button class="rchip sm" id="prgBpmDn" style="min-width:40px;justify-content:center;font-weight:900">−</button><span style="flex:0 0 auto;text-align:center;font:900 1.05rem system-ui,sans-serif;min-width:82px">♩ <span id="prgBpmV">${PRG.bpm}</span> <span style="font-size:.75rem;color:var(--muted)">BPM</span></span><button class="rchip sm" id="prgBpmUp" style="min-width:40px;justify-content:center;font-weight:900">+</button><input type="range" id="prgBpm" min="40" max="200" value="${PRG.bpm}" style="flex:1 1 auto;min-width:60px;accent-color:var(--gold)"></div>
@@ -10381,18 +10414,20 @@ function strProg(inst){
         <div class="idea-fb" id="prgFb" style="display:none"></div>
         <div class="bean-note" id="prgNote"></div>
         <details id="prgOpt"${PRG.optOpen?" open":""} style="margin-top:6px"><summary style="cursor:pointer;list-style:none;-webkit-user-select:none;user-select:none;padding:8px 4px;font:800 .85rem system-ui,sans-serif;color:var(--muted);display:flex;gap:6px;align-items:center"><span style="white-space:nowrap">⚙️ Settings</span><span id="prgOptSum" style="font-weight:600;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span><span id="prgOptArr">${PRG.optOpen?"▴":"▾"}</span></summary>
+          <div class="rchips tight" id="prgView" style="justify-content:center;margin:6px 0"></div>
+          ${PRG.view==="hwy"?hwyOptsHTML()+'<div class="rchips tight" style="justify-content:center;margin:0 0 4px"><button class="rchip sm'+(PRG.mic?" sel":"")+'" id="prgMic">🎸 Score my guitar: '+(PRG.mic?"On":"Off")+'</button>'+(PRG.mic?'<button class="rchip sm'+(PRG.band?" sel":"")+'" id="prgBand">🔈 Band '+(PRG.band?"on":"off")+'</button>':'')+'</div>':""}
           ${lbHTML("prgLB",PRG.lbo,P.chords.length)}
           ${volSlider("prgVol")}
           
         </details>
       </div>`;
     $("#eBack").onclick=()=>{prgStop();if(crRaf)cancelAnimationFrame(crRaf);try{stopMic();}catch(e){}fbRestore();renderStrings(inst);};
-    const pl=$("#prgList");PROGS.forEach((p,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===pi?" sel":"");b.textContent=p.name;b.onclick=()=>{prgStop();if(crRaf)cancelAnimationFrame(crRaf);pi=i;draw();};pl.appendChild(b);});
+    const pl=$("#prgList");PROGS.forEach((p,i)=>{const o=document.createElement("option");o.value=i;o.textContent=p.name;if(i===pi)o.selected=true;pl.appendChild(o);});pl.onchange=()=>{prgStop();if(crRaf)cancelAnimationFrame(crRaf);pi=+pl.value;prgRem();draw();};
     const row=$("#prgChordRow");P.chords.forEach((c,i)=>{const s=document.createElement("span");s.className="pchip"+(i===0?" on":"");s.textContent=c;row.appendChild(s);});if(leadOn()){const nx=row.children[1];if(nx)nx.classList.add("next");}
     const dia=$("#prgDia");prgGhost(0);hwyStop();if(prgNeckish()){prgNeckMount(dia,P.chords[0]);if(PRG.view==="hwy"){hwyMount(dia);hwyOptsBind(()=>prgShow(PRG.running?PRG.idx:0));}}else{P.chords.forEach((c,i)=>{const card=document.createElement("div");card.className="chordcard"+(i===0?" kgon":"");const h=document.createElement("h4");h.textContent=c;card.appendChild(h);const f=keyShape(inst,c);if(f)card.appendChild(chordDiagram(inst,f,c,keyFing(inst,c)));dia.appendChild(card);});}
     lbWire("prgLB",PRG.lbo,P.chords.length,function(){save("mjk-prglb-"+P.name,{n:PRG.lbo.n,s:PRG.lbo.s});prgStop();PRG.optOpen=true;draw();});
-    const bp=$("#prgBpm");const setBpm=v=>{PRG.bpm=Math.max(40,Math.min(200,Math.round(v)));bp.value=PRG.bpm;$("#prgBpmV").textContent=PRG.bpm;prgSum();};bp.oninput=()=>setBpm(+bp.value);$("#prgBpmDn").onclick=()=>setBpm(PRG.bpm-5);$("#prgBpmUp").onclick=()=>setBpm(PRG.bpm+5);
-    function prgSum(){const s=$("#prgOptSum");if(s)s.textContent="Click "+(PRG.clickVol>0?Math.round(PRG.clickVol*100)+"%":"off")+(PRG.zoom?" \u00b7 Close-up":"");}
+    const bp=$("#prgBpm");const setBpm=v=>{PRG.bpm=Math.max(40,Math.min(200,Math.round(v)));bp.value=PRG.bpm;$("#prgBpmV").textContent=PRG.bpm;prgSum();prgRem();};bp.oninput=()=>setBpm(+bp.value);$("#prgBpmDn").onclick=()=>setBpm(PRG.bpm-5);$("#prgBpmUp").onclick=()=>setBpm(PRG.bpm+5);
+    function prgSum(){const s=$("#prgOptSum");if(s)s.textContent=({hwy:"Highway",neck:"Neck",diagram:"Shapes"}[PRG.view]||"")+(PRG.mic?" \u00b7 scoring":"")+" \u00b7 click "+(PRG.clickVol>0?Math.round(PRG.clickVol*100)+"%":"off");}
     prgSum();
     bindClickVol("prgClickV",v=>{PRG.clickVol=v;save("mjk-prgclickvol",v);prgSum();});
     

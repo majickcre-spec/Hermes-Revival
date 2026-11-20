@@ -655,6 +655,32 @@ export async function run() {
     assert(r.ok && r.vid && r.playing && r.gone && r.held && r.released, "keep-awake " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Guitar section: 4 cards; Chords and Play Along have tabs; switching tabs or going back stops the sound; tabs never leak into other sections; floating sensor buttons hide here only; Progressions and the last tab are remembered after a reload; ukulele gets the same menu", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const o = {};
+      renderStrings("guitar"); await w(200); o.cards = [...view.querySelectorAll("#strGrid .card h3")].map((e) => e.textContent);
+      o.fabHub = getComputedStyle(document.getElementById("sensFab")).display;
+      grpGo("guitar", "play", 0); await w(500); o.tabs = [...view.querySelectorAll(".gtrTabs button")].map((e) => e.textContent);
+      const sel = document.getElementById("prgList"); sel.value = "2"; sel.onchange(); await w(200); document.getElementById("prgBpmUp").click(); await w(100);
+      document.getElementById("prgStart").click(); await w(800); o.playing = PRG.running;
+      view.querySelectorAll(".gtrTabs button")[1].click(); await w(700); o.stoppedOnTab = !PRG.running; o.onStrums = /Strum/.test(grpTitle());
+      document.getElementById("eBack").click(); await w(400); o.backToHub = !!document.getElementById("strGrid");
+      goHome(); await w(200); renderFretboard("bass"); await w(500); o.leak = !!view.querySelector(".gtrZone"); o.fabElsewhere = getComputedStyle(document.getElementById("sensFab")).display;
+      renderStrings("ukulele"); await w(200); o.uke = [...view.querySelectorAll("#strGrid .card h3")].map((e) => e.textContent); grpGo("ukulele", "chords", 0); await w(400); o.ukeTabs = [...view.querySelectorAll(".gtrTabs button")].map((e) => e.textContent);
+      o.saved = load("mjk-prgsel", null); return o; });
+    assert(r.cards.join("|") === "Guitar Method|Chords|The Neck|Play Along" && r.tabs.length === 4, "guitar menu " + JSON.stringify(r));
+    assert(r.playing && r.stoppedOnTab && r.onStrums && r.backToHub, "tabs/back left sound playing or went the wrong way " + JSON.stringify(r));
+    assert(!r.leak && r.fabHub === "none" && r.fabElsewhere !== "none", "guitar tabs/hidden buttons leaked " + JSON.stringify(r));
+    assert(r.uke.join("|") === "Ukulele Method|Chords|The Neck|Play Along" && r.ukeTabs.indexOf("Hard ones") < 0 && r.ukeTabs.length === 3, "ukulele menu " + JSON.stringify(r));
+    await pg.reload(); await pg.waitForTimeout(1200);
+    const r2 = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); try { activate(activeId()); } catch (e) {} await w(300);
+      renderStrings("guitar"); await w(200); [...view.querySelectorAll("#strGrid .card")].find((c) => /Play Along/.test(c.textContent)).click(); await w(600);
+      return { title: grpTitle(), on: (view.querySelector(".gtrTabs button.on") || {}).textContent }; });
+    assert(r2.on === "Strums", "last Play Along tab not reopened " + JSON.stringify(r2));
+    const r3 = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); view.querySelectorAll(".gtrTabs button")[0].click(); await w(600); const s = document.getElementById("prgList"); return { pi: s && s.value, bpm: PRG.bpm }; });
+    assert(r3.pi === "2" && r3.bpm === r.saved.bpm && r.saved.bpm !== 90, "Progressions forgot the pick/tempo " + JSON.stringify({ r3, saved: r.saved })); await ctx.close();
+  });
+
   await S.test("Lucid night recording: leaving the descent screen still starts the night; the night continues the descent's recording (one record, stages + cue windows saved); sensor dropouts don't split the always-on recording", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
     const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms));
