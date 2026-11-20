@@ -46,6 +46,9 @@ More get added as Travis finds issues (keep this file and the project doc `claud
 ## Scope
 When asked to revise an instrument, revise the whole section — every screen and practice mode inside it — not just the main screen.
 
+## Before building: walk the whole real session first
+Before writing code, walk through the entire real use, start to finish, as Travis: how he gets there, every screen he might open mid-way, locking the phone, a reload or app switch, the sensor/mic/internet dropping, a call or alarm interrupting, the session ending, and the morning-after report. Write the list of what could break, build for it, and test each item — not just the happy path. Example: the Lucid night was tested only with the descent screen left open; leaving it meant the night never started and a night was lost.
+
 ## How to test before calling a build done
 0. **Pre-flight (required before every push):** `cd frontend && npm run preflight` — builds, syntax-checks every inline script, writes a state baseline, runs the smoke suite (every main screen, portrait + landscape) and the data-safety regression suite (user work is never lost). If it fails, do not push.
    **Post-flight (after Railway deploys):** `cd frontend && npm run postflight` — confirms the live site serves the pushed commit and key screens open without errors.

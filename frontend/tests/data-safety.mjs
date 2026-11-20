@@ -675,6 +675,28 @@ export async function run() {
     assert(r.notSplit, "sensor dropout split the night's always-on recording " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Lucid night survives a reload: a banner offers 'Continue night'; one tap carries on with no burst of cues that were already due, no wind-down replay, and the night's recording continues (nothing overwritten)", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const a = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms));
+      HR.connected = true; HR.rr = []; HR.n = 0; window.__fk = setInterval(() => { HR.updated = performance.now(); HR.rr.push(1000); HR.n++; HR.bpm = 60; }, 500);
+      LUC.cfg = Object.assign({}, lucCfg(), { wind: "off", first: 4.5, hours: 8 }); LUC.view = "home"; renderLucid(); lucStart({ elapsed: 5 * 3600 }); await w(2500);
+      Object.assign(LUC.windows[0], { past: false, released: true, orig: LUC.windows[0].t - 360 });
+      for (let i = 0; i < 80; i++) plrTick(Date.now(), "descent", null); plrWrite(); lucLiveSave(); await w(500);
+      const rec = await idbGet("pl-" + LUC.plAt); return { plAt: LUC.plAt, n0: rec.tl.t.length, live: !!localStorage.getItem("mjk-luclive") }; });
+    await pg.reload(); await pg.waitForTimeout(1500);
+    const r = await pg.evaluate(async (a) => { const w = (ms) => new Promise((z) => setTimeout(z, ms));
+      const bar = !!document.getElementById("lucResumeBar"); document.getElementById("lrGo").click(); await w(2500);
+      const ac0 = ac(), pastScheduled = LUC.windows.filter((x) => x.t < ac0.currentTime && x.nodes && x.nodes.length).length, pastDone = LUC.windows.filter((x) => x.past).length;
+      const on = LUC.on, view = LUC.view, n1 = PLR && PLR.tl.t.length, same = PLR && PLR.at === a.plAt;
+      for (let i = 0; i < 5; i++) plrTick(Date.now(), "descent", null);
+      lucEnd(); await w(500); const rec = await idbGet("pl-" + a.plAt); const gone = !localStorage.getItem("mjk-luclive");
+      return { bar, on, view, pastScheduled, pastDone, n1, same, nEnd: rec && rec.tl.t.length, win0: rec && rec.luc && rec.luc.win[0], gone }; }, a);
+    assert(a.live && r.bar && r.on && r.view === "night", "no 'Continue night' after reload " + JSON.stringify({ a, r }));
+    assert(r.pastScheduled === 0 && r.pastDone >= 1, "cues already due would burst on resume " + JSON.stringify(r));
+    assert(r.same && r.n1 >= a.n0 && r.nEnd > a.n0 && r.win0 && r.win0.held === 6, "the night's recording was overwritten on resume " + JSON.stringify({ a, r }));
+    assert(r.gone, "ending the night left a resume marker " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("Night timeline: reads the whole night across the clock — stitches the always-on recording when the night record is short, shows REM stretches, cues (waited / stopped), movement and no-signal gaps", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
     const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const at = Date.now() - 9 * 3600000;

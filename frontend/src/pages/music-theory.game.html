@@ -12213,17 +12213,22 @@ function lucStart(o){o=o||{};var el0=Math.max(0,o.elapsed||0);unlockAudio();if(A
   LUC.keep=a.createOscillator();var kg=a.createGain();kg.gain.value=0.0004;LUC.keep.frequency.value=37;LUC.keep.connect(kg);kg.connect(a.destination);LUC.keep.start();
   var t0=a.currentTime+0.3-el0;
   var begin=function(){
-    if(c.wind==="pad"&&!o.fromJourney){if(LUC.pads.wind){var s=a.createBufferSource();s.buffer=LUC.pads.wind;var e=a.createGain();e.gain.setValueAtTime(0.0001,t0);e.gain.linearRampToValueAtTime(0.8,t0+6);e.gain.setValueAtTime(0.8,t0+480);e.gain.linearRampToValueAtTime(0.0001,t0+600);s.connect(e);e.connect(LUC.g);s.start(t0);s.stop(t0+601);}
+    if(c.wind==="pad"&&!o.fromJourney&&!o.resume){if(LUC.pads.wind){var s=a.createBufferSource();s.buffer=LUC.pads.wind;var e=a.createGain();e.gain.setValueAtTime(0.0001,t0);e.gain.linearRampToValueAtTime(0.8,t0+6);e.gain.setValueAtTime(0.8,t0+480);e.gain.linearRampToValueAtTime(0.0001,t0+600);s.connect(e);e.connect(LUC.g);s.start(t0);s.stop(t0+601);}
       else{[132,198].forEach(function(f,i){var o=a.createOscillator();o.type="sine";o.frequency.value=f;var e2=a.createGain();e2.gain.setValueAtTime(0.0001,t0);e2.gain.linearRampToValueAtTime(i?0.05:0.12,t0+8);e2.gain.setValueAtTime(i?0.05:0.12,t0+420);e2.gain.linearRampToValueAtTime(0.0001,t0+600);o.connect(e2);e2.connect(LUC.g);o.start(t0);o.stop(t0+601);});}}
-    lucPlan().forEach(function(h,i){var t=t0+h*3600;LUC.windows.push({i:i,t:t,nodes:lucWindowAt(a,t),shift:0});});
-    try{if(o.fromJourney&&PLR&&PLR.on&&Math.abs(PLR.at-LUC.at)<20*60000){PLR.kind="lucid";PLR.title="Lucid Dream Journey";srIdxPut({at:PLR.at,kind:"lucid",label:"Lucid Dream Journey · "+srWhen(PLR.at)});}
+    lucPlan().forEach(function(h,i){var t=t0+h*3600;if(t<a.currentTime+5){LUC.windows.push({i:i,t:t,nodes:[],shift:0,done:true,past:true});return;}LUC.windows.push({i:i,t:t,nodes:lucWindowAt(a,t),shift:0});});
+    try{if(o.resume){var R0=o.resume;plrStart(R0.at,"lucid","Lucid Dream Journey");if(R0.tl&&R0.tl.t){PLR.tl=R0.tl;PLR.rr=R0.rr||[];PLR.rrT=R0.rrT||[];PLR.ec=R0.eegBlocks||0;PLR.sens=R0.sens||PLR.sens;}PLR.saveT=Date.now();}
+      else if(o.fromJourney&&PLR&&PLR.on&&Math.abs(PLR.at-LUC.at)<20*60000){PLR.kind="lucid";PLR.title="Lucid Dream Journey";srIdxPut({at:PLR.at,kind:"lucid",label:"Lucid Dream Journey · "+srWhen(PLR.at)});}
       else plrStart(LUC.at,"lucid","Lucid Dream Journey");
-      PLR.luc={night:Math.round((Date.now()-PLR.at)/1000),ep:[],win:[]};LUC.plAt=PLR.at;}catch(e){}
+      var oldL=o.resume&&o.resume.luc;PLR.luc=oldL?{night:oldL.night,ep:oldL.ep||[],win:oldL.win||[],oldWin:(oldL.oldWin&&oldL.oldWin.length?oldL.oldWin:oldL.win)||[]}:{night:Math.round((Date.now()-PLR.at)/1000),ep:[],win:[]};LUC.plAt=PLR.at;}catch(e){}
+    lucLiveSave();
     if(LUC.t)clearInterval(LUC.t);LUC.t=setInterval(lucTick,1000);LUC.view="night";renderLucid();};
   Promise.all([lucPadLoad("wind-down"),lucPadLoad("cue")]).then(function(r){LUC.pads.wind=r[0];LUC.pads.cue=r[1];begin();}).catch(begin);}
 function lucWinSnap(){try{var P=PLR;if(!P||!P.luc||!LUC.windows)return;var a=ac(),now=Date.now();
-  P.luc.win=LUC.windows.map(function(w){var at=now+(w.t-a.currentTime)*1000;return {s:Math.round((at-P.at)/1000),held:w.released?Math.round((w.t-w.orig)/60):0,cut:!!w.cut,wait:!!w.held};});}catch(e){}}
-function lucEnd(){try{lucWinSnap();}catch(e){}if(LUC.on&&LUC.stats)save(mk("lucid","lastStats"),Object.assign({at:LUC.at},LUC.stats));LUC.on=false;LUC.lastAt=LUC.at;try{bgKeep(false);medWake(false);}catch(e){}if(LUC.t)clearInterval(LUC.t);LUC.t=null;
+  P.luc.win=LUC.windows.map(function(w){var old=w.past&&P.luc.oldWin&&P.luc.oldWin[w.i];if(old)return old;var at=now+(w.t-a.currentTime)*1000;return {s:Math.round((at-P.at)/1000),held:w.released?Math.round((w.t-w.orig)/60):0,cut:!!w.cut,wait:!!w.held};});}catch(e){}}
+/* a reload mid-night (call, app switch, iOS clearing memory) must not end the night: remember it so one tap carries on */
+function lucLiveSave(){try{if(!LUC.on)return;localStorage.setItem("mjk-luclive",JSON.stringify({at:LUC.at,plAt:LUC.plAt||LUC.at,until:LUC.at+lucCfg().hours*3600000}));}catch(e){}}
+function lucResume(r){unlockAudio();idbGet("pl-"+r.plAt).catch(function(){return null;}).then(function(rec){LUC.view="night";lucStart({elapsed:(Date.now()-r.at)/1000,resume:rec||{at:r.plAt}});});}
+function lucEnd(){try{lucWinSnap();}catch(e){}try{localStorage.removeItem("mjk-luclive");}catch(e){}if(LUC.on&&LUC.stats)save(mk("lucid","lastStats"),Object.assign({at:LUC.at},LUC.stats));LUC.on=false;LUC.lastAt=LUC.at;try{bgKeep(false);medWake(false);}catch(e){}if(LUC.t)clearInterval(LUC.t);LUC.t=null;
   LUC.windows.forEach(function(w){lucCancel(w.nodes);});LUC.windows=[];
   try{if(LUC.keep){LUC.keep.stop();LUC.keep=null;}}catch(e){}
   try{if(LUC.g){LUC.g.disconnect();LUC.g=null;}}catch(e){}
@@ -12250,7 +12255,7 @@ function lucTick(){if(!LUC.on)return;try{const sens=(typeof HR!=="undefined"&&HR
   var next=LUC.windows.find(function(w){return w.t>a.currentTime-330;});
   LUC.state=!next?"after cues":(a.currentTime>=next.t&&a.currentTime<next.t+330)?"cue window "+(next.i+1):"descent";
   /* REM gating: just before a window, if clearly not REM yet, slide it 12 min (at most twice) */
-  if(!LUC.ep)LUC.ep=[];if(!LUC.lastEp||Date.now()-LUC.lastEp>=60000){LUC.lastEp=Date.now();var ep=lucEpoch(),B0=lucBase();if(!ep.gap&&B0)ep.mv=ep.hr>B0.hr*1.22||ep.max>B0.hr*1.5;LUC.ep.push(ep);if(LUC.ep.length>600)LUC.ep.shift();
+  if(!LUC.ep)LUC.ep=[];if(!LUC.lastEp||Date.now()-LUC.lastEp>=60000){LUC.lastEp=Date.now();lucLiveSave();var ep=lucEpoch(),B0=lucBase();if(!ep.gap&&B0)ep.mv=ep.hr>B0.hr*1.22||ep.max>B0.hr*1.5;LUC.ep.push(ep);if(LUC.ep.length>600)LUC.ep.shift();
     LUC.stage=lucStage();LUC.stats=LUC.stats||{rem:0,held:[],cut:0};if(LUC.stage==="rem")LUC.stats.rem++;
     try{if(PLR&&PLR.on&&PLR.luc)PLR.luc.ep.push([Math.round((ep.t-PLR.at)/1000),ep.gap?4:({unknown:0,deep:1,rem:2,moving:3})[LUC.stage]||0]);}catch(e){}}
   if(c.gate){LUC.windows.forEach(function(w){if(w.done)return;
@@ -12288,7 +12293,7 @@ function renderLucid(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true
   if(LUC.view==="night"){
     view.innerHTML='<div id="lucNight" style="position:relative;height:'+Math.max(300,window.innerHeight-(window.innerWidth>window.innerHeight?130:70))+'px;border-radius:14px;overflow:hidden;background:#0A0C11;transition:opacity 1.4s">'
      +'<canvas id="lucCv" style="position:absolute;inset:0;width:100%;height:100%"></canvas>'
-     +'<div style="position:absolute;left:0;right:0;top:0;padding:10px;display:flex;align-items:center"><button class="rchip sm" id="eBack">←</button><span style="margin-left:auto" class="rchip sm" id="lucHr"></span></div>'
+     +'<div style="position:absolute;left:0;right:0;top:0;padding:10px;display:flex;align-items:center"><button class="rchip sm" id="eBack">←</button><span style="margin-left:auto" class="rchip sm" id="lucHr" onclick="if(!HR.connected)hrConnect(function(){try{if(HR.connected&&lucCfg().gate)medWake(true);}catch(e){}})"></span></div>'
      +'<div style="position:absolute;left:0;right:0;top:24%;text-align:center"><div id="lucClock" style="font:200 64px system-ui;letter-spacing:2px;color:#ECEDEF">'+(new Date().getHours()%12||12)+':'+String(new Date().getMinutes()).padStart(2,"0")+'</div>'
      +'<div id="lucPhase" style="font:700 13px system-ui;color:#9BA1AC;margin-top:6px;padding:0 20px">Silent descent</div>'
      +'<div class="site-note" id="lucSub" style="margin:8px 0 0;font-size:.72rem;color:#6d7380">'+LUC.windows.length+' cue windows tonight · '+(c.gate?(HR.connected?"REM-smart timing on":"no heart sensor — cues on schedule"):"cues on schedule")+'</div></div>'
@@ -16182,7 +16187,7 @@ function showCreate(){
   setTimeout(()=>$("#newName").focus(),60);
 }
 function activate(id){save("majick-active",id);showHome();}
-function showHome(){document.body.classList.remove("gated");gate.hidden=true;view.hidden=true;home.hidden=false;
+function showHome(){document.body.classList.remove("gated");if(window.__lucPending){var lp0=window.__lucPending;window.__lucPending=null;setTimeout(function(){lucResume(lp0);},0);}gate.hidden=true;view.hidden=true;home.hidden=false;
   const p=getProfiles().find(x=>x.id===activeId());if($("#profileName"))$("#profileName").textContent=p?p.name:"—";
   renderHome();window.scrollTo(0,0);
   try{if(!window.__fsLinkDone&&/session/.test(linkParams().focus||"")&&fsIsStar(activeProfile())){window.__fsLinkDone=true;renderFocusSession();}}catch(e){}}
@@ -16234,6 +16239,21 @@ $("#switchProfile").onclick=()=>{save("majick-active",null);renderGate();window.
   function chk(){fetch(location.pathname,{method:"HEAD",cache:"no-store"}).then(function(r){var v=r.headers.get("last-modified")||r.headers.get("etag");if(!v)return;if(cur===null){cur=v;return;}if(v!==cur){cur=v;show();}}).catch(function(){});}
   setTimeout(chk,8000);setInterval(chk,180000);})();
 
+/* ===== resume an interrupted LUCID NIGHT after a reload ===== */
+(function(){var r=null;try{r=JSON.parse(localStorage.getItem("mjk-luclive")||"null");}catch(e){}
+  if(!r||!r.at||!activeId())return;if(Date.now()>(r.until||0)){try{localStorage.removeItem("mjk-luclive");}catch(e){}return;}
+  try{localStorage.removeItem("mjk-livej");}catch(e){}/* the night supersedes the descent's own resume */
+  var w=document.createElement("div");w.id="lucResumeBar";
+  w.style.cssText="position:fixed;left:12px;right:12px;bottom:84px;z-index:9999;background:#0d1020;border:1px solid rgba(180,156,255,.55);border-radius:14px;padding:14px;display:flex;gap:10px;align-items:center;box-shadow:0 8px 24px rgba(0,0,0,.6)";
+  w.innerHTML='<div style="flex:1;font:600 .9rem system-ui;color:#e6e0ff;line-height:1.35">🌙 Your night was interrupted</div><button id="lrGo" style="background:#b49cff;color:#120c20;border:0;border-radius:999px;padding:12px 16px;font:800 .95rem system-ui;white-space:nowrap">▶ Continue night</button><button id="lrX" style="background:none;border:0;color:#78808f;font:700 1.1rem system-ui;padding:6px">✕</button>';
+  document.body.appendChild(w);
+  w.querySelector("#lrX").onclick=function(){try{localStorage.removeItem("mjk-luclive");}catch(e){}w.remove();};
+  w.querySelector("#lrGo").onclick=function(){w.remove();
+    /* the app opens on "Who's playing?": enter as the player who started the night (their code first, if they set one) */
+    var p=null;try{p=getProfiles().find(function(x){return x.id===activeId();});}catch(e){}
+    if(document.body.classList.contains("gated")&&p){if(p.pin){window.__lucPending=r;selectProfile(p);return;}activate(p.id);}
+    lucResume(r);};
+})();
 /* ===== resume an interrupted journey: a reload (update, Bluefy refresh) lands back where the session left off ===== */
 (function(){var r=null;try{r=JSON.parse(localStorage.getItem("mjk-livej")||"null");}catch(e){}
   if(!r||!r.ln||!activeId())return;
