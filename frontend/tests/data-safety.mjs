@@ -655,6 +655,49 @@ export async function run() {
     assert(r.ok && r.vid && r.playing && r.gone && r.held && r.released, "keep-awake " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Lucid night recording: leaving the descent screen still starts the night; the night continues the descent's recording (one record, stages + cue windows saved); sensor dropouts don't split the always-on recording", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms));
+      HR.connected = true; HR.rr = []; HR.n = 0; const fk = setInterval(() => { HR.updated = performance.now(); HR.rr.push(1000); HR.n++; HR.bpm = 60; }, 500);
+      LUC.cfg = Object.assign({}, lucCfg(), { wind: "journey", jLen: 1 });
+      LUC.view = "home"; renderLucid(); await w(100); document.getElementById("lucGo").click(); await w(100); document.getElementById("lucGo2").click(); await w(300); document.getElementById("jPlay").click(); await w(2500);
+      const jAt = PLR && PLR.at; try { teardown && teardown(); } catch (e) {} teardown = null; home.hidden = false; view.hidden = true;
+      await w(64000); const night = LUC.on, same = PLR && PLR.at === jAt, kind = PLR && PLR.kind, hasLuc = !!(PLR && PLR.luc), nightView = LUC.view;
+      /* sensor drops out for 2 minutes mid-night: the always-on recording stays one session */
+      const sid = SENS.sid; HR.connected = false; SENS.offSince = Date.now() - 120000; sensTick(); const notSplit = SENS.rec && SENS.sid === sid; HR.connected = true;
+      LUC.ep.push({ t: Date.now(), hr: 60, rmssd: 30, wand: 2, max: 66 }); PLR.luc.ep.push([600, 2]);
+      lucEnd(); await w(400); const rec = await idbGet("pl-" + jAt); clearInterval(fk);
+      const ix = srIdx().filter((e) => e.at === jAt);
+      return { jAt: !!jAt, night, same, kind, hasLuc, nightView, notSplit, recKind: rec && rec.kind, ep: rec && rec.luc && rec.luc.ep.length, win: rec && rec.luc && rec.luc.win.length, n: rec && rec.tl.t.length, ix: ix.length, ixKind: ix[0] && ix[0].kind }; });
+    assert(r.jAt && r.night && r.nightView === "night", "night didn't start after leaving the descent screen " + JSON.stringify(r));
+    assert(r.same && r.kind === "lucid" && r.hasLuc && r.recKind === "lucid" && r.ix === 1 && r.ixKind === "lucid", "night isn't one recording with the descent " + JSON.stringify(r));
+    assert(r.ep >= 1 && r.win >= 1 && r.n > 60, "night stages / cue windows not saved " + JSON.stringify(r));
+    assert(r.notSplit, "sensor dropout split the night's always-on recording " + JSON.stringify(r)); await ctx.close();
+  });
+
+  await S.test("Night timeline: reads the whole night across the clock — stitches the always-on recording when the night record is short, shows REM stretches, cues (waited / stopped), movement and no-signal gaps", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const at = Date.now() - 9 * 3600000;
+      /* night record: only the first 30 min (as on Nov 19), plus REM/cue info */
+      const tl = { stages: ["Settling in"], t: [], st: [], hr: [], hrv: [], co: [], de: [], th: [], al: [], be: [], ga: [], ra: [], rt: [], q: [], bh: [], hp: [], cas: [], br: [] };
+      for (let s = 0; s < 1800; s += 5) { tl.t.push(s); tl.st.push(0); tl.hr.push(56); tl.hrv.push(60); ["co","de","th","al","be","ga","ra","rt","q","bh","hp","cas","br"].forEach((k) => tl[k].push(null)); }
+      const ep = []; for (let m = 200; m < 225; m++) ep.push([m * 60, 2]);
+      await idbPut("pl-" + at, { at, kind: "lucid", title: "Lucid Dream Journey", tl, rr: [], rrT: [], eegBlocks: 0, sens: { hr: "HeartMath" }, luc: { night: 1800, ep, win: [{ s: 3.5 * 3600, held: 12, cut: false }, { s: 5 * 3600, held: 0, cut: true }] } });
+      srIdxPut({ at, kind: "lucid", label: "Lucid Dream Journey", mins: 30 });
+      /* always-on recorder: two pieces (split by an old dropout) covering the rest of the night, with a 20-min gap and a wake spike */
+      const mk2 = (id, start, secs, spikeAt) => { const d = []; for (let s = 0; s < secs; s += 10) d.push({ t: s, hr: spikeAt != null && Math.abs(s - spikeAt) < 90 ? 84 : 55, hrv: 58, act: "Lucid" }); return idbPut("sens-" + id, { id, start, data: d, tags: [] }).then(() => ({ id, start, dur: secs, n: d.length })); };
+      const a1 = await mk2("sa", at + 1700000, 4 * 3600, 1.5 * 3600), a2 = await mk2("sb", at + 1700000 + 4 * 3600000 + 20 * 60000, 3.5 * 3600);
+      save("mjk-sens-list", [a2, a1]);
+      plReport(at); await w(1500);
+      const txt = (document.getElementById("plNight") || {}).textContent || "", cv = document.getElementById("plNightCv");
+      const N = await lucNightLoad(await idbGet("pl-" + at), at);
+      document.getElementById("srRead").click(); await w(1200); const brTxt = (document.getElementById("brNight") || {}).textContent || "";
+      return { mins: N.m.length, stitched: N.stitched, rem: /REM likely · .*25 min/.test(txt), waited: /waited 12 min/.test(txt), stopped: /stopped, you were moving/.test(txt), moving: /Moving \/ awake/.test(txt), gap: /No heart signal · (19|2\d) min/.test(txt), txt: txt.slice(0, 700), cv: !!(cv && cv.width > 0), br: /Your night/.test(brTxt) && /REM likely/.test(brTxt) }; });
+    assert(r.stitched && r.mins > 7 * 60, "timeline didn't read the whole night " + JSON.stringify(r));
+    assert(r.rem && r.waited && r.stopped && r.moving && r.gap && r.cv, "timeline events missing " + JSON.stringify(r));
+    assert(r.br, "Session read has no night timeline " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("REM finder (HeartMath beats): deep sleep reads deep, REM reads REM, a movement spike reads moving; a due window waits for REM, then plays; moving cuts a window short", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
     const r = await pg.evaluate(async () => { let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };

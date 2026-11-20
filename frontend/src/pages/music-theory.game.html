@@ -12081,7 +12081,7 @@ var PLR=null;const PLR_ST=["base","opener","desc","edge","target","ret"];
 function plrStart(at,kind,title,sub){if(PLR&&PLR.on)plrEnd();kind=kind||"perception";title=title||"Perception Lab";srIdxPut({at:at,kind:kind,label:title+(sub?" · "+sub:"")+" · "+srWhen(at),v:0});PLR={at:at,on:true,kind:kind,title:title,tl:{stages:[],t:[],st:[],hr:[],hrv:[],co:[],de:[],th:[],al:[],be:[],ga:[],ra:[],rt:[],q:[],bh:[],hp:[],cas:[],br:[]},rr:[],rrT:[],lastN:HR.n||0,lastIbiT:(M.ibis&&M.ibis.length?M.ibis[M.ibis.length-1].t:0),eb:[0,1,2,3].map(function(){return {cur:new Int16Array(256*90),n:0};}),ec:0,saveT:0,flushT:Date.now(),sens:{hr:false,eeg:false}};}
 function plrEEG(ch,s){var P=PLR;if(!P||!P.on)return;var b=P.eb[ch];for(var i=0;i<s.length;i++){if(b.n===b.cur.length){var g=new Int16Array(b.cur.length*2);g.set(b.cur);b.cur=g;}var v=Math.round(s[i]*10);b.cur[b.n++]=v>32767?32767:v<-32768?-32768:v;}}
 function plrFlush(){var P=PLR;if(!P)return;var ch=P.eb.map(function(b){var a=b.cur.slice(0,b.n);b.n=0;return a;});if(ch.every(function(a){return !a.length;}))return;var i=P.ec++;try{idbPut("pl-"+P.at+"-e"+i,{i:i,t:Date.now(),ch:ch});}catch(e){}}
-function plrWrite(){var P=PLR;if(!P)return;try{idbPut("pl-"+P.at,{at:P.at,kind:P.kind,title:P.title,tl:P.tl,rr:P.rr,rrT:P.rrT,eegBlocks:P.ec,fs:256,eegScale:0.1,sens:P.sens}).then(function(){setTimeout(srSync,200);});}catch(e){}var n=P.tl.t.length,e=srIdx().find(function(x){return x.at===P.at;})||{};srIdxPut({at:P.at,mins:n?Math.round(P.tl.t[n-1]/6)/10:0,sens:P.sens,eegBlocks:P.ec,v:(e.v||0)+1});}
+function plrWrite(){var P=PLR;if(!P)return;if(P.luc&&P.on&&typeof LUC!=="undefined"&&LUC.on)lucWinSnap();try{idbPut("pl-"+P.at,{at:P.at,kind:P.kind,title:P.title,tl:P.tl,rr:P.rr,rrT:P.rrT,eegBlocks:P.ec,fs:256,eegScale:0.1,sens:P.sens,luc:P.luc||null}).then(function(){setTimeout(srSync,200);});}catch(e){}var n=P.tl.t.length,e=srIdx().find(function(x){return x.at===P.at;})||{};srIdxPut({at:P.at,mins:n?Math.round(P.tl.t[n-1]/6)/10:0,sens:P.sens,eegBlocks:P.ec,v:(e.v||0)+1});}
 function plrTick(now,stage,beat){var P=PLR;if(!P||!P.on)return;var T=P.tl,r1=function(x){return x==null||!isFinite(x)?null:Math.round(x*10)/10;};
   T.t.push(Math.round((now-P.at)/100)/10);T.st.push(srStIdx(T,stage));T.bh.push(r1(beat));T.br.push(BRPH&&now-BRPH.at<BRPH.d*1000+2500?[BRPH.n,Math.max(0,Math.ceil(BRPH.d-(now-BRPH.at)/1000)),BRPH.d]:null);
   T.hr.push(r1(bioHR()));T.hrv.push(r1(bioHRV()));var co=null;try{var c=bioCoherence();if(c)co=Math.round(c.score/(1+c.score)*100);}catch(e){}T.co.push(co);
@@ -12092,8 +12092,58 @@ function plrTick(now,stage,beat){var P=PLR;if(!P||!P.on)return;var T=P.tl,r1=fun
   if(M.connected)P.sens.eeg=true;
   if(HR.connected&&HR.rr){P.sens.hr=HR.src||"heart sensor";var k=Math.min((HR.n||0)-P.lastN,HR.rr.length);if(k>0){HR.rr.slice(-k).forEach(function(v){P.rr.push(Math.round(v));P.rrT.push(Math.round((now-P.at)/100)/10);});}P.lastN=HR.n||0;}
   else if(M.connected&&M.ibis&&M.ibis.length){P.sens.hr=P.sens.hr||"Muse";M.ibis.forEach(function(x){if(x.t>P.lastIbiT){P.rr.push(Math.round(x.ibi));P.rrT.push(Math.round((now-P.at)/100)/10);P.lastIbiT=x.t;}});}
-  if(now-P.flushT>=60000){P.flushT=now;plrFlush();}if(now-P.saveT>=30000){P.saveT=now;plrWrite();}}
+  if(now-P.flushT>=60000){P.flushT=now;plrFlush();}if(now-P.saveT>=(P.kind==="lucid"?120000:30000)){P.saveT=now;plrWrite();}}
 function plrEnd(){var P=PLR;if(!P)return;P.on=false;if(P.kind!=="perception"&&(P.tl.t.length<60||!(P.sens.hr||P.sens.eeg))){srIdxDel(P.at);idbDel("pl-"+P.at);for(var i=0;i<P.ec;i++)idbDel("pl-"+P.at+"-e"+i);return;}plrFlush();plrWrite();}
+/* ===== 🌙 NIGHT TIMELINE — a lucid night read across the clock: heart, REM signs, cues, movement, sensor gaps ===== */
+function lucNightLoad(D,at){var T=(D&&D.tl)||{t:[],hr:[],hrv:[]},mT={},mS={},put=function(m,sec,hr,hrv){var k=Math.floor(sec/60),o=m[k]||(m[k]={h:0,hn:0,v:0,vn:0});if(hr>0){o.h+=hr;o.hn++;}if(hrv>0){o.v+=hrv;o.vn++;}};
+  for(var i=0;i<T.t.length;i++)put(mT,T.t[i],T.hr&&T.hr[i],T.hrv&&T.hrv[i]);
+  /* the always-on recorder may hold the rest of the night (older nights split on sensor dropouts): chain what continues it */
+  var end=at+(T.t.length?T.t[T.t.length-1]:0)*1000,pick=[];
+  sensList().filter(function(s){return s.start>=at-600000&&s.start<=at+14*3600000;}).sort(function(a,b){return a.start-b.start;}).forEach(function(s){if(s.start<=end+90*60000){pick.push(s);end=Math.max(end,s.start+(s.dur||0)*1000);}});
+  return Promise.all(pick.map(function(s){return idbGet("sens-"+s.id).catch(function(){return null;});})).then(function(Ss){
+    Ss.forEach(function(S){if(!S||!S.data)return;S.data.forEach(function(p){var sec=(S.start-at)/1000+(p.t||0);if(sec>=0)put(mS,sec,p.hr,p.hrv);});});
+    var keys=Object.keys(mT).concat(Object.keys(mS)).map(Number),last=keys.length?Math.max.apply(null,keys):0,L=D&&D.luc||null,m=[];
+    for(var k=0;k<=last;k++){var o=(mT[k]&&mT[k].hn)?mT[k]:mS[k];m.push(o&&o.hn?{hr:o.h/o.hn,hrv:o.vn?o.v/o.vn:null}:null);}
+    var st=m.map(function(){return null;});if(L&&L.ep)L.ep.forEach(function(e){var k2=Math.floor(e[0]/60);if(k2>=0&&k2<st.length)st[k2]=e[1];});
+    /* no saved REM reading (older nights): still mark movement from the heart itself */
+    var hrs=m.filter(function(x){return x;}).map(function(x){return x.hr;}).sort(function(a,b){return a-b;}),med=hrs.length?hrs[Math.floor(hrs.length/2)]:0;
+    m.forEach(function(x,k3){if(x&&st[k3]!==4&&med&&x.hr>med*1.22)st[k3]=3;if(!x)st[k3]=4;});
+    return {at:at,m:m,st:st,night:L?L.night:null,win:(L&&L.win)||[],hasRem:!!(L&&L.ep&&L.ep.length),stitched:pick.length>0};});}
+function lucNightHTML(id,inner){return '<div '+(inner?'style="border:1px solid var(--line);border-radius:12px;padding:10px;margin:0 0 12px"':'class="panel"')+' id="'+id+'"><div class="rlab" style="display:block;margin-bottom:6px">🌙 Your night</div><div class="site-note">Reading the night…</div></div>';}
+function lucNightPaint(id,N){var box=document.getElementById(id);if(!box)return;var n=N.m.length;
+  if(n<5){box.innerHTML='<div class="rlab" style="display:block;margin-bottom:6px">🌙 Your night</div><div class="site-note">Not enough heart data from this night to draw it.</div>';return;}
+  var clk=function(k){return new Date(N.at+k*60000).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});};
+  /* plain-words events, in clock order */
+  var ev=[],runs=function(code,minLen,fn){var s=-1;for(var k=0;k<=n;k++){var on=k<n&&N.st[k]===code;if(on&&s<0)s=k;if(!on&&s>=0){if(k-s>=minLen)fn(s,k-1);s=-1;}}};
+  ev.push([0,"Lay down"+(N.night!=null&&N.night>120?" · descent began":"")]);
+  if(N.night!=null&&N.night>120)ev.push([N.night/60,"Silent night began"]);
+  runs(2,5,function(a,b){ev.push([a,"REM likely · "+(b-a+1)+" min",1]);});
+  runs(3,1,function(a,b){ev.push([a,(b>a?"Moving / awake · "+(b-a+1)+" min":"Moving / awake")]);});
+  runs(4,5,function(a,b){if(b<n-1)ev.push([a,"No heart signal · "+(b-a+1)+" min (sensor off or slipped)"]);});
+  N.win.forEach(function(w,i){if(w.s/60>n)return;ev.push([w.s/60,"Cue set "+(i+1)+(w.cut?" · stopped, you were moving":w.held?" · waited "+w.held+" min for REM":w.wait?" · still waiting for REM":"")]);});
+  ev.push([n,"Ended"]);ev.sort(function(a,b){return a[0]-b[0];});
+  var remMin=N.st.filter(function(x){return x===2;}).length,movN=0;runs(3,1,function(){movN++;});var gapMin=N.st.filter(function(x){return x===4;}).length;
+  box.innerHTML='<div class="rlab" style="display:block;margin-bottom:6px">🌙 Your night</div>'
+    +'<div style="font-size:.92rem;margin:0 0 6px"><b>'+clk(0)+' – '+clk(n)+'</b> · '+Math.floor(n/60)+' h '+(n%60)+' min'+(N.hasRem?' · <span style="color:#b49cff">'+remMin+' min REM likely</span>':'')+' · '+movN+' time'+(movN===1?'':'s')+' moving'+(gapMin?' · '+gapMin+' min no signal':'')+'</div>'
+    +'<canvas id="'+id+'Cv" style="width:100%;height:180px;display:block;border-radius:10px;background:rgba(0,0,0,.25)"></canvas>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.72rem;margin:6px 0 8px;color:var(--muted)"><span style="color:#ff8fa3">— heart rate</span><span style="color:#7ff0d6">— HRV</span>'+(N.hasRem?'<span style="color:#b49cff">▮ REM likely</span>':'')+'<span style="color:#f4b740">| cues</span><span style="color:#ff6b6b">▴ moving</span><span>▨ no signal</span></div>'
+    +(N.hasRem?'':'<div class="site-note" style="margin:0 0 8px;font-size:.74rem">REM shading starts with nights recorded from now on.</div>')
+    +'<div style="font-size:.86rem;line-height:1.7">'+ev.map(function(e){return '<div style="display:flex;gap:10px"><b style="flex:none;width:68px;color:'+(e[2]?"#b49cff":"var(--muted)")+'">'+clk(e[0])+'</b><span>'+esc(e[1])+'</span></div>';}).join("")+'</div>';
+  var cv=document.getElementById(id+"Cv"),r=cv.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);cv.width=Math.round(r.width*dpr);cv.height=Math.round(r.height*dpr);var g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);
+  var W=r.width,H=r.height,top=8,bot=H-20,X=function(k){return 6+k/n*(W-12);};
+  for(var k=0;k<n;k++){var s=N.st[k];if(s===2){g.fillStyle="rgba(180,156,255,.28)";g.fillRect(X(k),top,Math.max(1,X(k+1)-X(k))+0.5,bot-top);}
+    else if(s===4){g.fillStyle="rgba(255,255,255,.07)";g.fillRect(X(k),top,Math.max(1,X(k+1)-X(k))+0.5,bot-top);}}
+  if(N.night!=null&&N.night>120){g.fillStyle="rgba(127,240,214,.06)";g.fillRect(X(0),top,X(N.night/60)-X(0),bot-top);}
+  var line=function(key,col){var v=N.m.filter(function(x){return x&&x[key]!=null;}).map(function(x){return x[key];});if(v.length<3)return;v.sort(function(a,b){return a-b;});
+    var lo=v[Math.floor(v.length*0.03)],hi=v[Math.floor(v.length*0.97)],need=key==="hr"?20:40;if(hi-lo<need){var mid=(hi+lo)/2;lo=mid-need/2;hi=mid+need/2;}g.strokeStyle=col;g.lineWidth=1.8;g.beginPath();var on=false;
+    N.m.forEach(function(x,k2){if(!x||x[key]==null){on=false;return;}var y=bot-4-Math.max(0,Math.min(1,(x[key]-lo)/(hi-lo)))*(bot-top-8);if(on)g.lineTo(X(k2+0.5),y);else{g.moveTo(X(k2+0.5),y);on=true;}});g.stroke();};
+  line("hrv","#7ff0d6");line("hr","#ff8fa3");
+  N.win.forEach(function(w){var k3=w.s/60;if(k3>n)return;g.strokeStyle=w.cut?"rgba(244,183,64,.5)":"#f4b740";g.lineWidth=2;g.beginPath();g.moveTo(X(k3),top);g.lineTo(X(k3),bot);g.stroke();});
+  g.fillStyle="#ff6b6b";for(k=0;k<n;k++)if(N.st[k]===3){g.beginPath();g.moveTo(X(k+0.5),bot-7);g.lineTo(X(k+0.5)-4,bot);g.lineTo(X(k+0.5)+4,bot);g.fill();}
+  /* hour ticks */
+  g.fillStyle="rgba(255,255,255,.55)";g.font="600 10px system-ui";g.textAlign="center";var d0=new Date(N.at),first=60-d0.getMinutes(),step=n>600?120:60;
+  for(var m2=first;m2<=n;m2+=60){var hh=new Date(N.at+m2*60000).getHours();if(step===120&&hh%2)continue;g.fillRect(X(m2),bot,1,4);g.fillText((hh%12||12)+(hh<12?"a":"p"),Math.min(W-12,Math.max(12,X(m2))),H-5);}}
+function lucNightShow(id,D,at){lucNightLoad(D,at).then(function(N){lucNightPaint(id,N);}).catch(function(){var b=document.getElementById(id);if(b)b.innerHTML='<div class="site-note">Couldn’t read this night.</div>';});}
 /* ---- session report: stage table + charts + exports ---- */
 function plHemiHTML(T){if(!T.hp||!T.hp.some(function(x){return x;}))return '<div class="rlab" style="display:block;margin:12px 0 2px">Hemisphere sync</div><div class="site-note" style="margin:0">No left–right sync recorded (needs the Muse with good contact on both sides).</div>';
   var bands={delta:0,theta:0,alpha:0,beta:0,gamma:0},any=0,oct=0,gold=0;T.hp.forEach(function(pk){if(!pk)return;any++;var seen={};pk.forEach(function(p){var b=plBandOf(p[0]);if(!seen[b]){seen[b]=1;bands[b]++;}});
@@ -12166,10 +12216,14 @@ function lucStart(o){o=o||{};var el0=Math.max(0,o.elapsed||0);unlockAudio();if(A
     if(c.wind==="pad"&&!o.fromJourney){if(LUC.pads.wind){var s=a.createBufferSource();s.buffer=LUC.pads.wind;var e=a.createGain();e.gain.setValueAtTime(0.0001,t0);e.gain.linearRampToValueAtTime(0.8,t0+6);e.gain.setValueAtTime(0.8,t0+480);e.gain.linearRampToValueAtTime(0.0001,t0+600);s.connect(e);e.connect(LUC.g);s.start(t0);s.stop(t0+601);}
       else{[132,198].forEach(function(f,i){var o=a.createOscillator();o.type="sine";o.frequency.value=f;var e2=a.createGain();e2.gain.setValueAtTime(0.0001,t0);e2.gain.linearRampToValueAtTime(i?0.05:0.12,t0+8);e2.gain.setValueAtTime(i?0.05:0.12,t0+420);e2.gain.linearRampToValueAtTime(0.0001,t0+600);o.connect(e2);e2.connect(LUC.g);o.start(t0);o.stop(t0+601);});}}
     lucPlan().forEach(function(h,i){var t=t0+h*3600;LUC.windows.push({i:i,t:t,nodes:lucWindowAt(a,t),shift:0});});
-    try{plrStart(LUC.at,"lucid","Lucid Dream Journey");}catch(e){}
+    try{if(o.fromJourney&&PLR&&PLR.on&&Math.abs(PLR.at-LUC.at)<20*60000){PLR.kind="lucid";PLR.title="Lucid Dream Journey";srIdxPut({at:PLR.at,kind:"lucid",label:"Lucid Dream Journey · "+srWhen(PLR.at)});}
+      else plrStart(LUC.at,"lucid","Lucid Dream Journey");
+      PLR.luc={night:Math.round((Date.now()-PLR.at)/1000),ep:[],win:[]};LUC.plAt=PLR.at;}catch(e){}
     if(LUC.t)clearInterval(LUC.t);LUC.t=setInterval(lucTick,1000);LUC.view="night";renderLucid();};
   Promise.all([lucPadLoad("wind-down"),lucPadLoad("cue")]).then(function(r){LUC.pads.wind=r[0];LUC.pads.cue=r[1];begin();}).catch(begin);}
-function lucEnd(){if(LUC.on&&LUC.stats)save(mk("lucid","lastStats"),Object.assign({at:LUC.at},LUC.stats));LUC.on=false;LUC.lastAt=LUC.at;try{bgKeep(false);medWake(false);}catch(e){}if(LUC.t)clearInterval(LUC.t);LUC.t=null;
+function lucWinSnap(){try{var P=PLR;if(!P||!P.luc||!LUC.windows)return;var a=ac(),now=Date.now();
+  P.luc.win=LUC.windows.map(function(w){var at=now+(w.t-a.currentTime)*1000;return {s:Math.round((at-P.at)/1000),held:w.released?Math.round((w.t-w.orig)/60):0,cut:!!w.cut,wait:!!w.held};});}catch(e){}}
+function lucEnd(){try{lucWinSnap();}catch(e){}if(LUC.on&&LUC.stats)save(mk("lucid","lastStats"),Object.assign({at:LUC.at},LUC.stats));LUC.on=false;LUC.lastAt=LUC.at;try{bgKeep(false);medWake(false);}catch(e){}if(LUC.t)clearInterval(LUC.t);LUC.t=null;
   LUC.windows.forEach(function(w){lucCancel(w.nodes);});LUC.windows=[];
   try{if(LUC.keep){LUC.keep.stop();LUC.keep=null;}}catch(e){}
   try{if(LUC.g){LUC.g.disconnect();LUC.g=null;}}catch(e){}
@@ -12197,7 +12251,8 @@ function lucTick(){if(!LUC.on)return;try{const sens=(typeof HR!=="undefined"&&HR
   LUC.state=!next?"after cues":(a.currentTime>=next.t&&a.currentTime<next.t+330)?"cue window "+(next.i+1):"descent";
   /* REM gating: just before a window, if clearly not REM yet, slide it 12 min (at most twice) */
   if(!LUC.ep)LUC.ep=[];if(!LUC.lastEp||Date.now()-LUC.lastEp>=60000){LUC.lastEp=Date.now();var ep=lucEpoch(),B0=lucBase();if(!ep.gap&&B0)ep.mv=ep.hr>B0.hr*1.22||ep.max>B0.hr*1.5;LUC.ep.push(ep);if(LUC.ep.length>600)LUC.ep.shift();
-    LUC.stage=lucStage();LUC.stats=LUC.stats||{rem:0,held:[],cut:0};if(LUC.stage==="rem")LUC.stats.rem++;}
+    LUC.stage=lucStage();LUC.stats=LUC.stats||{rem:0,held:[],cut:0};if(LUC.stage==="rem")LUC.stats.rem++;
+    try{if(PLR&&PLR.on&&PLR.luc)PLR.luc.ep.push([Math.round((ep.t-PLR.at)/1000),ep.gap?4:({unknown:0,deep:1,rem:2,moving:3})[LUC.stage]||0]);}catch(e){}}
   if(c.gate){LUC.windows.forEach(function(w){if(w.done)return;
       if(!w.held&&!w.released&&a.currentTime>=w.t-6&&a.currentTime<w.t-1&&hrFresh()&&(LUC.stage==="deep"||LUC.stage==="moving")){lucCancel(w.nodes);w.nodes=[];w.held=true;w.orig=w.t;w.holdUntil=w.t+1800;}
       if(w.held){if(LUC.stage==="rem"||a.currentTime>=w.holdUntil||!hrFresh()){w.held=false;w.released=true;w.t=a.currentTime+3;w.nodes=lucWindowAt(a,w.t);(LUC.stats=LUC.stats||{rem:0,held:[],cut:0}).held.push(Math.round((w.t-w.orig)/60));}else w.t=a.currentTime+60;}
@@ -12225,7 +12280,7 @@ function lucStars(cv){var g=cv.getContext("2d"),W=cv.clientWidth,H=cv.clientHeig
   if(LUC.starsRaf){cancelAnimationFrame(LUC.starsRaf);clearTimeout(LUC.starsRaf);}draw();}
 function lucSaveLog(txt,signs,voiceKey,lucid){var L=lucLogs();L.unshift({at:Date.now(),txt:txt||"",signs:signs||[],voice:voiceKey||null,lucid:!!lucid,night:LUC.lastAt||null});save(mk("lucid","logs"),L.slice(0,60));}
 var LUC_SIGNS=["Flying","Hands looked odd","Text kept changing","Lights / glow","Familiar people","Falling","Déjà vu"];
-function lucLastNight(){try{return srIdx().filter(function(e){return e.kind==="lucid"&&(e.mins||0)>=1;}).sort(function(a,b){return b.at-a.at;})[0]||null;}catch(e){return null;}}
+function lucLastNight(){try{return srIdx().filter(function(e){return /^lucid/.test(e.kind||"")&&(e.mins||0)>=1;}).sort(function(a,b){return b.at-a.at;})[0]||null;}catch(e){return null;}}
 function renderLucid(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);var c=lucCfg();
   teardown=function(){if(LUC.starsRaf){cancelAnimationFrame(LUC.starsRaf);clearTimeout(LUC.starsRaf);LUC.starsRaf=null;}if(LUC.dimT){clearTimeout(LUC.dimT);LUC.dimT=null;}if(LUC.recMr){try{LUC.recMr.stop();}catch(e){}LUC.recMr=null;}};
   if(LUC.on)LUC.view="night";
@@ -12283,7 +12338,7 @@ function renderLucid(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true
   /* ---- MORNING RECALL ---- */
   if(LUC.view==="morning"){
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌅 Morning recall</span></div>'
-     +'<div class="panel"><div class="sw-sub">Before it fades — say it or type it. Fragments count.</div>'+(function(){var s=load(mk("lucid","lastStats"),null);if(!s||s.at!==LUC.lastAt)return "";return '<div class="site-note" style="margin:6px 0">❤️ Your heart showed about <b>'+s.rem+' min</b> of REM-like rhythm.'+(s.held&&s.held.length?' Cues waited '+s.held.join(", ")+' min for REM.':'')+(s.cut?' '+s.cut+' window'+(s.cut>1?"s were":" was")+' cut short when you started moving.':'')+'</div>';})()
+     +(LUC.plAt?'<button class="btn ghost" style="width:100%;margin:0 0 10px" onclick="plReport(LUC.plAt)">🌙 See your night — timeline</button>':'')+'<div class="panel"><div class="sw-sub">Before it fades — say it or type it. Fragments count.</div>'+(function(){var s=load(mk("lucid","lastStats"),null);if(!s||s.at!==LUC.lastAt)return "";return '<div class="site-note" style="margin:6px 0">❤️ Your heart showed about <b>'+s.rem+' min</b> of REM-like rhythm.'+(s.held&&s.held.length?' Cues waited '+s.held.join(", ")+' min for REM.':'')+(s.cut?' '+s.cut+' window'+(s.cut>1?"s were":" was")+' cut short when you started moving.':'')+'</div>';})()
      +'<div class="actions" style="margin:8px 0"><button class="btn ghost" id="lucVo">🎙 Record what you remember</button></div><div id="lucVoSt" class="site-note" style="margin:0 0 6px"></div>'
      +'<textarea id="lucTxt" placeholder="The dream, in any order…" style="width:100%;box-sizing:border-box;min-height:110px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;color:inherit;padding:10px;font:600 1rem system-ui">'+esc(LUC.draft||"")+'</textarea>'
      +'<div class="actions" style="margin:10px 0 0"><button class="rchip'+(LUC.mLucid?" sel":"")+'" id="lucYes" style="width:100%;justify-content:center;padding:12px;font-weight:800">🌟 I knew I was dreaming</button></div>'
@@ -12969,19 +13024,20 @@ function srReadD(T){var D2=[],stN=srStages(T),tt0=(T.t&&T.t[0])||0;
   }return D2;}
 function plReport(at){home.hidden=true;view.hidden=false;window.scrollTo(0,0);var ix=srIdx().find(function(x){return x.at===at;})||{},isPL=(ix.kind||"perception")==="perception",res=(isPL&&plStore().find(function(x){return x.at===at;}))||{at:at,mins:ix.mins};
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">📈 Session report</span></div><div class="panel" id="plRep">Loading…</div>';$("#eBack").onclick=renderSessions;
-  idbGet("pl-"+at).then(function(D){if(D||!syncOn()||!acctTok())return D;return _api("/api/sessions/"+at,{}).then(function(s){ix.label=ix.label||s.label;return {tl:s.timeline||{t:[]},rr:(s.rr&&s.rr.rr)||[],rrT:(s.rr&&s.rr.rrT)||[],eegBlocks:0,sens:(s.report&&s.report.sensors)||{},fromServer:true};}).catch(function(){return null;});}).then(function(D){var box=$("#plRep");if(!box)return;var head='<div style="font:900 1.05rem system-ui;margin:0 0 2px">'+esc(ix.label||("Perception Lab · "+srWhen(at)))+'</div><div class="site-note" style="margin:0 0 8px">'+(res.minsDone!=null?res.minsDone:(ix.mins||res.mins||"–"))+(res.mins&&isPL?' of '+res.mins:'')+' min'+(res.rank?' · target ranked #'+res.rank+(res.hit?' ✓':''):res.pending?' · photo target not judged yet':'')+(ix.syncedAt?' · ☁︎ backed up':'')+'</div>';
+  idbGet("pl-"+at).then(function(D){if(D||!syncOn()||!acctTok())return D;return _api("/api/sessions/"+at,{}).then(function(s){ix.label=ix.label||s.label;return {tl:s.timeline||{t:[]},rr:(s.rr&&s.rr.rr)||[],rrT:(s.rr&&s.rr.rrT)||[],eegBlocks:0,sens:(s.report&&s.report.sensors)||{},fromServer:true};}).catch(function(){return null;});}).then(function(D){var box=$("#plRep");if(!box)return;var head='<div style="font:900 1.05rem system-ui;margin:0 0 2px">'+esc(ix.label||("Perception Lab · "+srWhen(at)))+'</div><div class="site-note" style="margin:0 0 8px">'+(/^lucid/.test(ix.kind||"")?"":(res.minsDone!=null?res.minsDone:(ix.mins||res.mins||"–")))+(res.mins&&isPL?' of '+res.mins:'')+(/^lucid/.test(ix.kind||"")?'':' min')+(res.rank?' · target ranked #'+res.rank+(res.hit?' ✓':''):res.pending?' · photo target not judged yet':'')+(ix.syncedAt?' · ☁︎ backed up':'')+'</div>';
     if(!D||!D.tl||!D.tl.t.length){box.innerHTML=head+'<div class="site-note">No detailed data was recorded for this session (sessions before Nov 9 kept only summaries).</div><div class="actions"><button class="btn" id="plAll">All results</button></div>';$("#plAll").onclick=isPL?plResults:renderSessions;return;}
     var T=D.tl,N=T.t.length,stN=function(i){return srStN(T,i);};var av=function(a,idx){var v=idx.map(function(i){return a[i];}).filter(function(x){return x!=null;});return v.length?Math.round(v.reduce(function(p,q){return p+q;},0)/v.length*10)/10:null;};
     var rows=srStages(T).map(function(s,si){var idx=[];for(var i=0;i<N;i++)if(T.st[i]===si)idx.push(i);if(!idx.length)return "";var t0=T.t[idx[0]],t1=T.t[idx[idx.length-1]],rr=D.rr.filter(function(_,k){return D.rrT[k]>=t0&&D.rrT[k]<=t1;});
       return '<tr><td>'+stN(si)+'</td><td>'+Math.round((t1-t0)/6)/10+'</td><td>'+(av(T.hr,idx)??"–")+'</td><td>'+(plRmssd(rr)??"–")+'</td><td>'+(av(T.co,idx)??"–")+'</td><td>'+(av(T.ra,idx)??"–")+'</td><td>'+(av(T.rt,idx)??"–")+'</td></tr>';}).join("");
-    var sens=D.sens||{};box.innerHTML=head+'<div class="site-note" style="margin:0 0 8px">Heart: '+(sens.hr?esc(String(sens.hr))+' · '+D.rr.length+' beats recorded':'no heart sensor connected')+' · Brain: '+(sens.eeg?'Muse · raw EEG '+D.eegBlocks+' min':'no headband connected')+'</div>'+
+    var isNight=/^lucid/.test(ix.kind||D.kind||"");var sens=D.sens||{};box.innerHTML=head+(isNight?lucNightHTML("plNight",1):'')+'<div class="site-note" style="margin:0 0 8px">Heart: '+(sens.hr?esc(String(sens.hr))+' · '+D.rr.length+' beats recorded':'no heart sensor connected')+' · Brain: '+(sens.eeg?'Muse · raw EEG '+D.eegBlocks+' min':'no headband connected')+'</div>'+
       '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font:700 .78rem system-ui" class="plTab"><tr style="color:var(--muted)"><td>Stage</td><td>min</td><td>HR</td><td>HRV (RMSSD)</td><td>Coherence %</td><td>Alpha %</td><td>Theta %</td></tr>'+rows+'</table></div>'+
       ['hr|Heart rate (bpm)|#ff8fa3','co|Coherence %|#7ff0d6','ra|Alpha % (relative)|#5fe0a8','rt|Theta % (relative)|#5fc8e0'].map(function(x){var p=x.split("|");return T[p[0]].some(function(v){return v!=null;})?'<div class="rlab" style="display:block;margin:10px 0 2px">'+p[1]+'</div><canvas class="plCh" data-k="'+p[0]+'" data-c="'+p[2]+'" style="width:100%;height:90px;background:rgba(255,255,255,.03);border-radius:8px"></canvas>':'';}).join("")+
       plHemiHTML(T)+
       '<div class="actions" style="margin:10px 0 4px"><button class="btn" id="srRead" style="width:100%">\ud83d\udcd6 Read this session in plain words</button></div><div class="actions" style="margin:8px 0 4px"><button class="btn ghost" id="plWatch" style="width:100%">🎬 Watch this session as video</button></div>'+
       '<div class="actions" style="flex-wrap:wrap"><button class="btn ghost" data-x="hs">⬇ Hemisphere sync CSV</button><button class="btn ghost" data-x="cas">⬇ Cascades CSV</button><button class="btn ghost" data-x="tl">⬇ Second-by-second CSV</button><button class="btn ghost" data-x="rr">⬇ Heartbeat intervals CSV</button>'+(D.eegBlocks&&!D.fromServer?'<button class="btn ghost" data-x="eeg">⬇ Raw EEG CSV</button>':'')+(res.pending&&!res.rank&&res.ids?'<button class="btn" id="plJ2">Judge the photo target</button>':'')+'<button class="btn" id="plAll">'+(isPL?"All results":"All sessions")+'</button></div>';
     $("#plAll").onclick=isPL?plResults:renderSessions;if($("#plJ2"))$("#plJ2").onclick=function(){plJudge(res);};
-    var rb=document.getElementById("srRead");if(rb)rb.onclick=function(){renderBioRead(srReadD(T),(typeof stamp!=="undefined"?stamp:"Session"),function(){plReport(at);},{start:at});};
+    if(isNight)lucNightShow("plNight",D,at);
+    var rb=document.getElementById("srRead");if(rb)rb.onclick=function(){renderBioRead(srReadD(T),isNight?"🌙 Night of "+new Date(at).toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"}):(typeof stamp!=="undefined"?stamp:"Session"),function(){plReport(at);},{start:at,night:isNight?D:null});};
     if($("#plWatch"))$("#plWatch").onclick=function(){
       if((ix.eegBlocks||0)>0){BC.src="rec";BC.playing=false;renderBrainCharts();bcLoadRec(at,ix.label||"Session");}
       else rpOpenPl(at,ix.label||"Session",function(){plReport(at);});};
@@ -14281,7 +14337,9 @@ function renderJourney(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(to
     else{if(humPh){humPh="";medHumCue("off");}if(hb)hb.style.display="none";}
     if(t>=total){finish();}}
   function finish(){try{nbStop();}catch(e){}playing=false;clearTimeout(jOpT);if(jBrAuto){jBrAuto=false;jBr="off";}if(MED.timer){clearInterval(MED.timer);MED.timer=null;}try{medMarkDone();}catch(e){}if(activeId()){try{addBeans(10);beanChip();}catch(e){}}
-    try{var a=ac();if(MED.master)MED.master.gain.setTargetAtTime(0.0001,a.currentTime,2.5);}catch(e){}setTimeout(function(){medStop();try{bgKeep(false);}catch(e){}},9000);MED.jSess=null;if(MED.uiOff)return;
+    try{var a=ac();if(MED.master)MED.master.gain.setTargetAtTime(0.0001,a.currentTime,2.5);}catch(e){}setTimeout(function(){medStop();try{bgKeep(false);}catch(e){}},9000);MED.jSess=null;
+    /* the night must take over even if another screen (or the black sleep screen) is open */
+    if(MED.uiOff){if(opts.done){try{opts.done();}catch(e){}}else if(jType==="lucid"&&!LUC.on){try{lucStart({elapsed:jLen*60,fromJourney:true});}catch(e){}}return;}
     draw();var J=JOURNEYS.find(function(j){return j.id===jType;})||JOURNEYS.find(function(j){return j.id==="dive";})||JOURNEYS[0],fh=plan[plan.length-1].h1;var ph=$("#jPhase");if(ph)ph.innerHTML='<b style="color:#5fe0a8">'+J.end+'</b>'+(J.focus?fsSummary():'')+bioSummary();var hz=$("#jHz");if(opts.done){try{opts.done();}catch(e){}}else if(jType==="lucid"&&!LUC.on){try{lucStart({elapsed:jLen*60,fromJourney:true});}catch(e){}}if(hz)hz.textContent=fh.toFixed(1)+" Hz";var bl=$("#jBandL");if(bl)bl.textContent=jBand(fh);}
   draw();if(LIVEJ&&jType==="lucid"&&!LIVEJ.paused)nbArm();if(LIVEJ){playing=true;paused=!!LIVEJ.paused;pausedAt=LIVEJ.pausedAt||0;t0=LIVEJ.t0;plan=LIVEJ.plan;jLen=LIVEJ.len;carrier=LIVEJ.carrier;vol=LIVEJ.vol;humPh="";lastMap=0;MED.uiOff=false;if(MED.timer){clearInterval(MED.timer);MED.timer=null;}if(!paused)MED.timer=setInterval(tick,250);draw();try{jBrRun();}catch(e){}var jp=document.getElementById("jPlay");if(jp)setTimeout(function(){jp.scrollIntoView({behavior:"smooth",block:"center"});},100);}else if(opts.auto)begin();}
 function renderBreathwork(opts){opts=(opts&&!(opts instanceof Event))?opts:{};if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);
@@ -15240,10 +15298,10 @@ function sensSave(final){if(!SENS.sid||!SENS.data.length)return;const d=SENS.dat
   idbPut("sens-"+SENS.sid,{id:SENS.sid,start:SENS.t0,data:d,tags:(SENS.tags||[]).slice()}).catch(()=>{});
   const L=sensList().filter(x=>x.id!==SENS.sid);L.unshift({id:SENS.sid,start:SENS.t0,dur:Math.round((d[d.length-1].t||0)),n:d.length,hr:av("hr"),hrv:av("hrv"),al:av("al"),th:av("th"),be:av("be"),co:(function(){const v=d.map(p=>p.co).filter(x=>x!=null&&x>0);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length*100)/100:null;})(),hs:av("hs"),ga:av("ga"),acts:[...new Set(d.map(p=>p.act.split(" · ")[0]))].slice(0,6),tags:(SENS.tags||[]).slice()});save("mjk-sens-list",L.slice(0,200));SENS.lastSave=Date.now();
   if(final){SENS.rec=false;SENS.sid=null;SENS.data=[];}sensUI();}
-function sensTick(){try{if(HR.connected&&HR.updated&&performance.now()-HR.updated>20000){HR.connected=false;HR_ERR="The heart sensor went quiet. Reconnecting\u2026";if(HR.dev)hrAutoReconnect(HR.dev,null,0);}}catch(e){}try{tgtTick();}catch(e){}const on=HR.connected||M.connected;if(!on){if(SENS.rec){if(!SENS.offSince)SENS.offSince=Date.now();else if(Date.now()-SENS.offSince>90000){sensSave(true);}}sensUI();return;}SENS.offSince=0;
+function sensTick(){try{if(HR.connected&&HR.updated&&performance.now()-HR.updated>20000){HR.connected=false;HR_ERR="The heart sensor went quiet. Reconnecting\u2026";if(HR.dev)hrAutoReconnect(HR.dev,null,0);}}catch(e){}try{tgtTick();}catch(e){}const on=HR.connected||M.connected;if(!on){if(SENS.rec){if(!SENS.offSince)SENS.offSince=Date.now();else if(Date.now()-SENS.offSince>90000&&!(typeof LUC!=="undefined"&&LUC.on)){sensSave(true);}}sensUI();return;}SENS.offSince=0;
   if(!SENS.rec&&load("mjk-sens-auto",true))sensBegin();
   if(SENS.rec){const co=bioCoherence();SENS.data.push({t:Math.round((Date.now()-SENS.t0)/1000),hr:bioHR(),hrv:bioHRV(),co:co?Math.round(co.score*100)/100:null,al:M.connected?Math.round(M.alpha):null,th:M.connected?Math.round(M.theta):null,be:M.connected?Math.round(M.beta):null,ga:(M.connected&&M.gamma!=null)?Math.round(M.gamma):null,hs:(function(){try{var h=M.connected?eegHemiSync():null;return h?Math.round(h.al*100):null;}catch(e){return null;}})(),act:sensActivity(),pl:sensPlaying()?1:0});
-    if(Date.now()-SENS.lastSave>30000)sensSave(false);}
+    if(Date.now()-SENS.lastSave>((typeof LUC!=="undefined"&&LUC.on)?120000:30000))sensSave(false);}
   sensUI();}
 function sensEnsureTimer(){if(!SENS.timer)SENS.timer=setInterval(sensTick,1000);}
 function sensState(){if(!M.connected)return "";const t=M.theta||0,a=M.alpha||0,b=M.beta||0;if(t>a&&t>b)return t>45?"drowsy / deep":"dreamy";if(a>=b)return "calm";return "focused";}
@@ -15593,7 +15651,7 @@ function renderBioRead(D,title,backFn,mt){home.hidden=true;view.hidden=false;win
       '<div class="site-note" style="margin-top:2px;font-size:.74rem">Averages of your recorded sessions \u00b7 \u201cToday\u201d = earlier today. Coherence and sync columns fill in as new sessions record them.</div></div>';
   })();
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">\u2190</button><span class="ttitle">\ud83d\udcd6 Session read</span></div>'+
-    '<div class="panel"><div class="intro"><b>'+esc(title||"Session")+'</b> \u00b7 '+(Math.round(T/60)>=1?Math.round(T/60)+" min":Math.round(T)+" s")+(mins.length<5?'<div class="site-note">Short window \u2014 the story sharpens with a few more minutes of data.</div>':'')+'</div></div>'+stateHtml+stripHtml+
+    '<div class="panel"><div class="intro"><b>'+esc(title||"Session")+'</b>'+(meta.night?'':' \u00b7 '+(Math.round(T/60)>=1?Math.round(T/60)+" min":Math.round(T)+" s"))+(mins.length<5?'<div class="site-note">Short window \u2014 the story sharpens with a few more minutes of data.</div>':'')+'</div></div>'+(meta.night?lucNightHTML("brNight"):"")+stateHtml+stripHtml+
     (out.length?out.map(function(sec){return '<div class="panel"><div class="rlab" style="display:block;margin-bottom:6px">'+sec[0]+'</div><div style="font-size:.95rem;line-height:1.55">'+sec[1]+'</div></div>';}).join(""):'<div class="panel"><div class="site-note">Not enough sensor data in this window \u2014 connect the heart strap or Muse and give it a few minutes, then come back.</div></div>')+
     '<div class="panel"><details><summary style="cursor:pointer;font-weight:800">\ud83d\udcd6 How to read these numbers \u25be</summary><div class="site-note" style="line-height:1.6;margin-top:8px">'+
     '<b>HRV (ms)</b> \u2014 the variety between heartbeats. Higher usually means your nervous system is relaxed and adaptable.<br>'+
@@ -15602,7 +15660,7 @@ function renderBioRead(D,title,backFn,mt){home.hidden=true;view.hidden=false;win
     '<b>Hemi-sync</b> \u2014 how much the left and right hemispheres\u2019 alpha rhythms lock together (Muse, ear to ear).<br>'+
     '<b>\u03c6 &amp; octaves</b> \u2014 \u03b1:\u03b8 near 1.618 is the golden-ratio balance; an octave is one rhythm doubling another, like \u03b1 over \u03b8.<br><b>\u03b3 (gamma)</b> \u2014 the fastest band; brief flashes often ride on moments of insight or vivid imagery.<br><b>Remote viewing target</b> \u2014 the profile we expect at that state: deep sustained hemi-sync on strong \u03b1, \u03b8 an octave below, \u03b2 quiet, heart coherent, \u03b1:\u03b8 at \u03c6, \u03b3 flashing as impressions land.</div></details>'+
     '<div class="actions" style="margin-top:10px"><button class="btn" id="brIns" style="width:100%">\ud83d\udcc8 Which activities work best for you \u2014 all sessions</button></div></div>';
-  $("#eBack").onclick=backFn||goHome;$("#brIns").onclick=renderInsights;
+  $("#eBack").onclick=backFn||goHome;$("#brIns").onclick=renderInsights;if(meta.night)lucNightShow("brNight",meta.night,meta.start);
 }
 function renderInsights(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){};
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">📈 What works for you</span></div><div class="panel"><div class="site-note">Reading your sessions…</div></div>';$("#eBack").onclick=renderSensSessions;
