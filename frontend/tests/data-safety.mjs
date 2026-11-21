@@ -655,6 +655,24 @@ export async function run() {
     assert(r.ok && r.vid && r.playing && r.gone && r.held && r.released, "keep-awake " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Bass Grooves: opens from Bass; plays the right chord tones with drums after a count-in; Your turn drops the bass every other bar; back stops; settings remembered per player", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {}, "Trav");
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const o = {};
+      window.__bv = []; window.__dk = []; const ob = bassVoice; bassVoice = function (m) { __bv.push(m); return ob.apply(this, arguments); };
+      const od = dkTrigger; dkTrigger = function (id) { __dk.push(id); return od.apply(this, arguments); };
+      renderBass(); await w(200); document.getElementById("bgGroove").click(); await w(400); o.open = /Bass Grooves/.test(grpTitle());
+      const s = document.getElementById("bgvPat"); s.value = "r58"; s.onchange(); const k = document.getElementById("bgvKey"); k.value = "A"; k.onchange();
+      const bp = document.getElementById("bgvBpm"); bp.value = "140"; bp.oninput();
+      document.getElementById("bgvGo").click(); await w(1900 + 1800); o.notes = __bv.slice(0, 4); o.kick = __dk.filter((x) => x === "kick").length; o.snare = __dk.filter((x) => x === "snare").length;
+      document.getElementById("bgvGo").click(); [...document.querySelectorAll("#bgvModes button")].find((b) => b.dataset.m === "turn").click(); __bv = [];
+      document.getElementById("bgvGo").click(); await w(1714 + 1714 * 1.6); o.turnNotes = __bv.length;
+      document.getElementById("eBack").click(); await w(200); o.stopped = !BGV.running; o.backBass = /Bass Guitar/.test(grpTitle());
+      o.saved = load(mk("bassgroove", "st"), {}); return o; });
+    assert(r.open && r.notes.join() === "33,40,45,40" && r.kick >= 2 && r.snare >= 2, "Bass Grooves didn't play A root–fifth–octave with drums " + JSON.stringify(r));
+    assert(r.turnNotes === 4, "Your turn didn't drop the bass every other bar " + JSON.stringify(r));
+    assert(r.stopped && r.backBass && r.saved.pat === "r58" && r.saved.key === "A" && r.saved.bpm === 140 && r.saved.mode === "turn", "back/remember failed " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("Heart/brain sessions and progress are separate per player: old shared history goes to Trav, Star keeps only her own (backup kept); Star's new sessions go to Star only; a player switch mid-recording splits it; reports file to who started them; age/practice marks separate; Move to… works; survives reload", async () => {
     const ctx = await fresh();
     const old = [{ id: "sOld1", start: Date.now() - 86400000, dur: 600, n: 600, hr: 62, hrv: 70 }, { id: "sOld2", start: Date.now() - 2 * 86400000, dur: 900, n: 900, hr: 70, hrv: 40 }];
