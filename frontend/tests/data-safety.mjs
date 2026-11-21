@@ -1117,6 +1117,38 @@ export async function run() {
     assert(!errs.length, errs.join(" | ")); await ctx.close();
   });
 
+  await S.test("REAL TAPS: Piano Scales — tempo on the main screen, 3 runs up and down, a stop isn't clean, clean at the goal tempo = mastered (✓ on the root), tempo + mastery kept after reload", async () => {
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+    await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); });
+    const open = async () => { await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(500);
+      await pg.locator("#homeSearch").click(); await pg.keyboard.type("Piano"); await pg.waitForTimeout(400);
+      await pg.locator("#searchResults .card:visible").filter({ has: pg.locator("h3", { hasText: /^Piano$/ }) }).first().click(); await pg.waitForTimeout(1200);
+      if ((await pg.evaluate(() => PK.mode)) !== "scales") { await pg.locator("#pkTabs button").filter({ hasText: /Scales/ }).click(); await pg.waitForTimeout(700); } };
+    await pg.goto(url + "/app.html"); await pg.waitForTimeout(700); await open();
+    assert(await pg.evaluate(() => { const e = document.getElementById("pkBpmUp"); return !!e && !e.closest("#czA") && e.getBoundingClientRect().width > 0; }), "tempo is not on the main screen");
+    await pg.locator("#pkModes [data-pm='you']").click();
+    for (let i = 0; i < 40 && (await pg.evaluate(() => PK.bpm)) < 160; i++) await pg.locator("#pkBpmUp").click();
+    assert((await pg.evaluate(() => PK.bpm)) === 160, "couldn't reach ♩160 with +");
+    // no piano here: a player that presses each note on time, through the same judge a MIDI keyboard uses
+    const play = (skip) => pg.evaluate((skip) => new Promise((res) => { const evs = PK.ev.filter((e) => !e.auto).sort((a, b) => a.b - b.b); let i = 0;
+      const tk = setInterval(() => { if (!PK.running) { clearInterval(tk); res(); return; } const now = ac().currentTime; while (i < evs.length && now >= pkT(evs[i].b)) { if (skip.indexOf(i) < 0) pkJudge(evs[i].notes[0], now); i++; } }, 5); }), skip);
+    await pg.locator("#pkGo").click(); await pg.waitForTimeout(50);
+    const shape = await pg.evaluate(() => ({ n: PK.ev.length, runs: [...new Set(PK.ev.map((e) => e.run))].length }));
+    assert(shape.n === 43 && shape.runs === 3, "not 3 runs up and down " + JSON.stringify(shape));
+    await play([20, 21]); await pg.waitForTimeout(1200);
+    let msg = await pg.evaluate(() => document.getElementById("pkMsg").innerText);
+    assert(/stopped in run 2/.test(msg) && /Try ♩\s*150/.test(msg), "a stop wasn't called out: " + msg);
+    assert(!(await pg.evaluate(() => pkScaleRec().best)), "a run with a stop counted as clean");
+    await pg.locator("#pkGo").click(); await pg.waitForTimeout(50); await play([]); await pg.waitForTimeout(1200);
+    msg = await pg.evaluate(() => document.getElementById("pkMsg").innerText);
+    assert(/Mastered/.test(msg), "clean ×3 at the goal tempo wasn't mastered: " + msg);
+    assert(/✓/.test(await pg.locator("[data-sroot='0']").innerText()), "no ✓ on the mastered root");
+    await pg.reload(); await pg.waitForTimeout(800); await open();
+    const r = await pg.evaluate(() => ({ bpm: PK.bpm, st: document.getElementById("pkScStat").innerText }));
+    assert(r.bpm === 160 && /Mastered/.test(r.st), "tempo or mastery lost after reload " + JSON.stringify(r));
+    assert(!errs.length, errs.join(" | ")); await ctx.close();
+  });
+
   await b.close(); srv.close();
   return S.done();
 }
