@@ -1156,6 +1156,25 @@ export async function run() {
     assert(!errs.length, errs.join(" | ")); await ctx.close();
   });
 
+  await S.test("REAL TAPS: Moonlight Sonata (1st mvt) is in Piano → Melodies → Classical: full piece, melody + triplets + bass together, exact timing, not on the guitar list", async () => {
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+    await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); });
+    await pg.goto(url + "/app.html"); await pg.waitForTimeout(700); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(500);
+    await pg.locator("#homeSearch").click(); await pg.keyboard.type("Piano"); await pg.waitForTimeout(400);
+    await pg.locator("#searchResults .card:visible").filter({ has: pg.locator("h3", { hasText: /^Piano$/ }) }).first().click(); await pg.waitForTimeout(1200);
+    await pg.locator("#pkTabs button").filter({ hasText: /Melodies/ }).click(); await pg.waitForTimeout(600);
+    await pg.locator("[data-melf='Classical']").click(); await pg.waitForTimeout(300);
+    await pg.locator("[data-mel='moonlight1']").scrollIntoViewIfNeeded(); await pg.locator("[data-mel='moonlight1']").click(); await pg.waitForTimeout(400);
+    await pg.locator("#pkModes [data-pm='watch']").click(); await pg.locator("#pkGo").click(); await pg.waitForTimeout(400);
+    const r = await pg.evaluate(() => { const at = (b, h) => PK.ev.filter((e) => Math.abs(e.b - b) < 1e-6 && e.hand === h).map((e) => e.notes.map(pkNameOct).join("+")).sort().join(" ");
+      return { R: PK.ev.filter((e) => e.hand === "R").reduce((a, e) => a + e.notes.length, 0), L: PK.ev.filter((e) => e.hand === "L").reduce((a, e) => a + e.notes.length, 0), len: PK.len,
+        b0: at(0, "R") + " | " + at(0, "L"), b19: at(19, "R"), b1975: at(19.75, "R"), b16L: at(16, "L"), bars: pkMelBars(melAll().find((x) => x.id === "moonlight1")) }; });
+    assert(r.R === 795 && r.L === 349 && r.len === 276 && r.bars === 69, "piece incomplete " + JSON.stringify(r));
+    assert(r.b0 === "G♯3 | C♯3+C♯2" && /G♯4/.test(r.b19) && r.b1975 === "G♯4" && /C♯3\+G♯2\+C♯2/.test(r.b16L), "notes/timing wrong " + JSON.stringify(r));
+    await pg.locator("#pkGo").click();
+    assert(!errs.length, errs.join(" | ")); await ctx.close();
+  });
+
   await b.close(); srv.close();
   return S.done();
 }
