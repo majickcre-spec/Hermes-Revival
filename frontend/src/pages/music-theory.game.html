@@ -1271,6 +1271,13 @@ function buildSearchIndex(){var idx=[];
   add(typeof INSTRUMENT_CARDS!=="undefined"?INSTRUMENT_CARDS:null,"Instrument");
   add(typeof MAKE_CARDS!=="undefined"?MAKE_CARDS:null,"Make music");
   add(typeof BIO_CARDS!=="undefined"?BIO_CARDS:null,"Meditation");
+  /* guitar tools live inside the guitar menu's cards and tabs — list each one so search finds it (e.g. "strum") */
+  try{[["Guitar Method","📘","A step-by-step beginner course, one string at a time.","learn",0],["Learn Chords","🎵","Chord shapes you can see and hear — mark the ones you can play.","chords",0],
+    ["Tricky Chords","🔥","Stuck on F or Bm? Easy versions and a step-by-step barre build-up.","chords",1],["Chords in a Key","🔑","The chord family of a key (I ii iii IV V vi).","chords",2],
+    ["Chord Finder","🎧","Strum a chord and I'll name it, with capo shapes and the key.","chords",3],["Guitar Neck","🎸","The full fretboard — every note, scales and quizzes.","neck",0],
+    ["Progressions","🎶","Strum along to common progressions, on tempo.","play",0],["Strum Patterns","🥁","Strumming patterns fall onto the neck — watch, play along, call & response, scored.","play",1],
+    ["Guitar Melodies","🎼","Play real melodies on a scrolling highway.","play",2],["Bring a Song","🎼","Paste or snap a chord sheet and play along.","play",3]].forEach(function(r){
+      idx.push({ic:r[1],title:r[0],blurb:r[2]+" (Guitar)",sec:"Instrument",kw:r[0]==="Strum Patterns"?"strum strumming rhythm guitar":"guitar",go:function(){home.hidden=true;view.hidden=false;renderStrings("guitar");grpGo("guitar",r[3],r[4]);}});});}catch(e){}
   var _lyr={"Lyric Lab":1,"Write + Beat Lab":1,"Songwriting":1,"AABA Class":1,"Practice Sessions":1};idx.forEach(function(e){if(_lyr[e.title])e.sec="Lyrics";});
   return idx;}
 function renderHome(){
@@ -1316,11 +1323,13 @@ function renderHome(){
     var IDX=buildSearchIndex();
     function _card(e){var b=document.createElement("button");b.className="card";b.innerHTML='<span class="ic">'+(e.ic||"🎵")+'</span><h3>'+esc(e.title)+'</h3><span class="blurb">'+esc(e.blurb)+'</span><span class="done-pill" style="color:var(--muted);border-color:var(--line);background:transparent">'+esc(e.sec)+'</span>';b.onclick=e.go;return b;}
     function _clear(){home.classList.remove("searching");if(sr){sr.hidden=true;sr.innerHTML="";}if(az)az.querySelectorAll("button").forEach(function(x){x.classList.remove("sel");});var _cb=document.getElementById("catBar");if(_cb)_cb.querySelectorAll("button").forEach(function(x){x.classList.remove("sel");});}
-    function _show(list,heading){if(!sr)return;home.classList.add("searching");sr.hidden=false;sr.innerHTML='<div class="label" style="margin-top:4px">'+heading+'</div>';var g=document.createElement("div");g.className="grid";list.sort(function(a,b){var pa=(a.title==="Guitar")?0:1,pb=(b.title==="Guitar")?0:1;return pa-pb||(a.title||"").localeCompare(b.title||"");}).forEach(function(e){g.appendChild(_card(e));});sr.appendChild(g);}
+    function _show(list,heading,keep){if(!sr)return;home.classList.add("searching");sr.hidden=false;sr.innerHTML='<div class="label" style="margin-top:4px">'+heading+'</div>';var g=document.createElement("div");g.className="grid";(keep?list:list.sort(function(a,b){var pa=(a.title==="Guitar")?0:1,pb=(b.title==="Guitar")?0:1;return pa-pb||(a.title||"").localeCompare(b.title||"");})).forEach(function(e){g.appendChild(_card(e));});sr.appendChild(g);}
     if(si){si.oninput=function(){var q=si.value.trim().toLowerCase();if(az)az.querySelectorAll("button").forEach(function(x){x.classList.remove("sel");});
       if(!q){_clear();return;}
       var terms=q.split(/\s+/),hits=IDX.filter(function(e){var hay=((e.title||"")+" "+(e.blurb||"")+" "+(e.sec||"")).toLowerCase();return terms.every(function(t){return hay.indexOf(t)>=0;});});
-      _show(hits,hits.length?(hits.length+" result"+(hits.length>1?"s":"")):"No matches — try another word");};}
+      /* names that match come first ("strum" → Strum Patterns before Guitar) */
+      hits.sort(function(a,b){var ta=(a.title||"").toLowerCase(),tb=(b.title||"").toLowerCase(),sa=ta.indexOf(q)===0?0:ta.indexOf(q)>=0?1:2,sb=tb.indexOf(q)===0?0:tb.indexOf(q)>=0?1:2;return sa-sb||(a.title==="Guitar"?-1:b.title==="Guitar"?1:0)||ta.localeCompare(tb);});
+      _show(hits,hits.length?(hits.length+" result"+(hits.length>1?"s":"")):"No matches — try another word",true);};}
     if(az){az.innerHTML="";
       var _hs=az.parentNode,catBar=_hs?_hs.querySelector("#catBar"):null;
       if(!catBar&&_hs){catBar=document.createElement("div");catBar.id="catBar";catBar.className="catbar";_hs.insertBefore(catBar,az);}
