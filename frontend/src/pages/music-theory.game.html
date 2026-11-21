@@ -15256,17 +15256,25 @@ function musePpgIn(s,nowSec,seq){
 function musePPG(){
   const HZ=M.ppgHz||64,buf=M.ppg;if(buf.length<Math.round(1.5*HZ))return;
   const win=buf.slice(Math.max(0,buf.length-Math.round(10*HZ))); // ~10 s at the measured rate
-  let mean=0;for(const s of win)mean+=s.v;mean/=win.length;
-  let sd=0;for(const s of win)sd+=(s.v-mean)*(s.v-mean);sd=Math.sqrt(sd/win.length);
-  const thr=mean+0.45*sd,tEnd=win[win.length-1].t;
-  /* true pulse period by autocorrelation (40–180 bpm): a full beat matches itself better than its
-     dicrotic echo does, so this can't lock onto double-counting the way plain peak-picking can */
-  if(sd>0&&win.length>=Math.round(5*HZ)&&(!M.acT||tEnd-M.acT>1||tEnd<M.acT)){M.acT=tEnd;const N=win.length,x=new Float32Array(N);for(let i=0;i<N;i++)x[i]=(win[i].v-mean)/sd;
-    const L0=Math.max(2,Math.round(0.33*HZ)),L1=Math.round(1.6*HZ);let bl=0,br=-1;for(let L=L0;L<=L1;L++){let a=0;for(let i=0;i+L<N;i++)a+=x[i]*x[i+L];a/=(N-L);a*=1-0.05*(L/HZ);if(a>br){br=a;bl=L;}}
-    if(br>0.3){M.acPer=bl/HZ;M.acR=br;}else{M.acR=br;}}
-  const refr=(M.acPer&&M.acR>0.3)?Math.max(0.3,0.62*M.acPer):0.33;
-  for(let i=1;i<win.length-1;i++){const s=win[i];
-    if(s.v>thr&&s.v>win[i-1].v&&s.v>=win[i+1].v&&s.t-M.lastPeakT>refr){
+  const N=win.length,tEnd=win[N-1].t;
+  /* remove slow drift (band shifting, breathing, skin contact) first: subtract a ~0.75 s moving average.
+     Without this, drift looks like a very fast "pulse" — the forehead read 160–183 bpm with no beat in it. */
+  const W=Math.max(3,Math.round(0.75*HZ)),cs=new Float64Array(N+1);for(let i=0;i<N;i++)cs[i+1]=cs[i]+win[i].v;
+  const x=new Float32Array(N);for(let i=0;i<N;i++){const lo=Math.max(0,i-(W>>1)),hi=Math.min(N,i+(W>>1)+1);x[i]=win[i].v-(cs[hi]-cs[lo])/(hi-lo);}
+  let sd=0;for(let i=0;i<N;i++)sd+=x[i]*x[i];sd=Math.sqrt(sd/N);
+  /* true pulse period by autocorrelation (40–180 bpm): only a real repeat (a local peak) counts — never the
+     edge of the search range — and a full beat matches itself better than its dicrotic echo does */
+  if(sd>0&&N>=Math.round(5*HZ)&&(!M.acT||tEnd-M.acT>1||tEnd<M.acT)){M.acT=tEnd;const z=new Float32Array(N);for(let i=0;i<N;i++)z[i]=x[i]/sd;
+    const L0=Math.max(2,Math.round(0.33*HZ)),L1=Math.round(1.6*HZ),ac=new Float32Array(L1+2);
+    for(let L=L0-1;L<=L1+1;L++){let s2=0;for(let i=0;i+L<N;i++)s2+=z[i]*z[i+L];ac[L]=s2/(N-L);}
+    /* each peak's true height and position between samples (parabola through 3 points): a fast pulse whose beat falls
+       between samples would otherwise lose to its double-length repeat and read half the real rate */
+    let bl=0,br=-1;for(let L=L0;L<=L1;L++){if(!(ac[L]>ac[L-1]&&ac[L]>=ac[L+1]))continue;const p=ac[L-1],q=ac[L],r=ac[L+1],den=p-2*q+r,d=den?Math.max(-0.5,Math.min(0.5,0.5*(p-r)/den)):0,pk=q-0.25*(p-r)*d,Lr=L+d;
+      const sc=pk*(1-0.05*(Lr/HZ));if(sc>br){br=sc;bl=Lr;}}
+    if(bl&&br>0.3){M.acPer=bl/HZ;M.acR=br;}else{M.acPer=0;M.acR=Math.max(0,br);}}
+  const thr=0.45*sd,refr=(M.acPer&&M.acR>0.3)?Math.max(0.3,0.62*M.acPer):0.33;
+  for(let i=1;i<N-1;i++){const s=win[i];
+    if(x[i]>thr&&x[i]>x[i-1]&&x[i]>=x[i+1]&&s.t-M.lastPeakT>refr){
       const ibi=(s.t-M.lastPeakT)*1000;M.lastPeakT=s.t;
       if(ibi>=300&&ibi<=2000){M.ibis.push({t:s.t,ibi});
         const dot=$("#bioPulse");if(dot){dot.classList.add("beat");setTimeout(()=>dot.classList.remove("beat"),120);}}
@@ -15280,6 +15288,7 @@ function musePPG(){
   else{const arr=rrClean(M.ibis.map(x=>x.ibi));
     if(arr.length>=4){let ss=0,n=0;for(let i=1;i<arr.length;i++){const d=arr[i]-arr[i-1];ss+=d*d;n++;}M.rmssd=Math.round(Math.sqrt(ss/n));}
     const rec=arr.slice(-8).slice().sort((a,b)=>a-b);if(rec.length)M.hr=Math.round(60000/rec[rec.length>>1]);
+    if(!(M.acPer&&M.acR>0.3)){M.hr=0;M.rmssd=0;}/* no clear pulse in the signal: say so ("—") rather than show a wrong number */
     if(M.acPer&&M.acR>0.3){const hAc=Math.round(60/M.acPer);if(!M.hr||Math.abs(M.hr-hAc)/hAc>0.2){M.hr=hAc;M.rmssd=0;}}
     /* lost Bluetooth packets are bridged for heart rate, but beat-to-beat variability can't be trusted across them */
     let nf=0;for(const x of win)if(x.fill)nf++;if(nf>win.length*0.08)M.rmssd=0;}

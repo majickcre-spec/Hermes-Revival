@@ -655,6 +655,21 @@ export async function run() {
     assert(r.ok && r.vid && r.playing && r.gone && r.held && r.released, "keep-awake " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Muse forehead pulse: reads the real heart rate through drift, echo and noise (45–150 bpm), and shows no number instead of a false 160–183 when there's no clear pulse", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
+    const out = await pg.evaluate(() => { const res = [];
+      for (const [bpm, echo, noise, drift] of [[45,0.4,0.08,1],[55,0.85,0.1,0.5],[62,0.3,0.05,0.2],[72,1.0,0.15,0.2],[80,0.5,0.15,8],[70,0.5,0.1,4],[95,0.6,0.1,2],[130,0.4,0.08,1],[150,0.3,0.05,0.2],[0,0,0.3,6],[0,0,1,0.5]]) {
+        M.ppg=[];M.ppgN=0;M.ibis=[];M.lastPeakT=0;M.acT=0;M.acPer=0;M.acR=0;M.hr=0;M.rmssd=0;M.ppgHz=64;M.ppgHzOk=true;
+        const HZ=64,T=bpm?60/bpm:1;let seed=11;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647-0.5;};const hrs=[];
+        for(let n=0;n<HZ*40;n++){const tt=n/HZ,ph=(tt%T)/T;
+          const v=(bpm?Math.exp(-Math.pow((ph-0.15)/0.06,2))+echo*Math.exp(-Math.pow((ph-0.55)/0.07,2)):0)+noise*rnd()*2+drift*(Math.sin(2*Math.PI*tt/9)+0.6*Math.sin(2*Math.PI*tt/23+1));
+          M.ppg.push({v:v*1000,t:M.ppgN/HZ});M.ppgN++;if(n%10===0){musePPG();if(tt>15)hrs.push(M.hr);}}
+        hrs.sort((a,b)=>a-b);res.push([bpm,hrs[hrs.length>>1],hrs[hrs.length-1]]);}
+      return res; });
+    const bad = out.filter(([bpm, med, max]) => bpm ? Math.abs(med - bpm) > Math.max(3, bpm * 0.04) : max !== 0);
+    assert(!bad.length, "Muse pulse misread " + JSON.stringify(bad) + " all " + JSON.stringify(out)); await ctx.close();
+  });
+
   await S.test("Heads of Things in the music app: only Star and Trav/Travis see it; it opens inside the app; each player keeps their own progress on a shared device; others can't open it", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}, "Trav");
     const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const o = {};
