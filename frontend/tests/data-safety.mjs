@@ -1043,6 +1043,80 @@ export async function run() {
     await ctx.close();
   });
 
+  // ---------- brain dashboards in plain words ----------
+  async function brainPage(vp) {
+    const ctx = await b.newContext({ viewport: vp, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+    await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); });
+    await pg.goto(url + "/app.html"); await pg.waitForTimeout(700); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(500);
+    // no headband here: a simulated Muse feeds raw EEG through the same path real samples take
+    await pg.evaluate(() => { M.connected = true; let t = 0; window.__sim = setInterval(() => { const S = [[], [], [], []]; for (let i = 0; i < 26; i++) { t += 1 / 256; for (let ch = 0; ch < 4; ch++) S[ch].push(30 * Math.sin(2 * Math.PI * 10 * t + ch) + 8 * Math.sin(2 * Math.PI * 20 * t) + 6 * Math.sin(2 * Math.PI * 6 * t) + (Math.random() - 0.5) * 6); }
+      for (let ch = 0; ch < 4; ch++) { for (const v of S[ch]) M.eeg[ch].push(v); if (PLR && PLR.on) plrEEG(ch, S[ch]); } try { museBands(); } catch (e) {} }, 100); try { sensEnsureTimer(); bioStart(); } catch (e) {} });
+    await pg.waitForTimeout(3000); return { ctx, pg, errs };
+  }
+  const GREEK = /[αβγδθ]/;
+  await S.test("REAL TAPS: 🧠 panel speaks plain words (Calm / Dreamy / Focused / Peak, a 'Right now' sentence, meanings) — no Greek-only labels", async () => {
+    const { ctx, pg, errs } = await brainPage({ width: 390, height: 844 });
+    await pg.locator("#brainFab").click(); await pg.waitForTimeout(1500);
+    const txt = await pg.evaluate(() => document.getElementById("brainPanel").innerText);
+    assert(/Right now: mostly (Calm|Dreamy|Focused)/.test(txt), "no plain 'Right now' sentence: " + txt.slice(0, 200));
+    for (const w of ["Calm", "Dreamy", "Focused", "Peak", "What do these mean"]) assert(txt.includes(w), "panel missing " + w);
+    assert(!GREEK.test(txt.replace(/\(.*?\)/g, "")), "Greek label in the panel: " + txt);
+    assert(/Calm \d+%/.test(await pg.locator("#brainFab").innerText()), "brain button not in plain words");
+    const cols = await pg.evaluate(() => BC_BANDS.map((b) => b[2])); assert(new Set(cols).size === 5, "band colors not distinct");
+    assert(!errs.length, errs.join(" | ")); await ctx.close();
+  });
+
+  await S.test("REAL TAPS: 'Open dashboard' starts on the Simple view; ⓘ explains the chart and every band; More charts has plain names; the heart panel opens the Vitals dashboard", async () => {
+    for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
+      const { ctx, pg, errs } = await brainPage(vp);
+      await pg.locator("#brainFab").click(); await pg.waitForTimeout(800); await pg.locator("#bpFull").click(); await pg.waitForTimeout(2500);
+      assert(await pg.evaluate(() => BC.view === "simple"), vp.width + ": dashboard didn't open on Simple");
+      await pg.locator("#bcHelp").click(); await pg.waitForTimeout(400);
+      const help = await pg.evaluate(() => document.getElementById("bcHelpBox").innerText);
+      for (const w of ["Deep sleep", "Dreamy", "Calm", "Focused", "Peak"]) assert(help.includes(w), "help missing " + w);
+      await pg.locator("#bcHelpX").click(); await pg.locator("#bcFold").click(); await pg.waitForTimeout(500);
+      const chips = (await pg.locator("[data-bcv]").allTextContents()).join("|");
+      for (const w of ["Head map", "Left vs right", "Rest vs effort"]) assert(chips.includes(w), "chart list missing " + w + ": " + chips);
+      assert(!/LF·HF|Ridge|Mirror/.test(chips), "old jargon chart names: " + chips);
+      await pg.locator("#eBack").click(); await pg.waitForTimeout(400);
+      await pg.locator("#sensFab").click(); await pg.waitForTimeout(600); await pg.locator("#sensDash").click(); await pg.waitForTimeout(1500);
+      assert(await pg.evaluate(() => BC.view === "vitals"), vp.width + ": heart dashboard didn't open Vitals");
+      assert(!errs.length, errs.join(" | ")); await ctx.close();
+    }
+  });
+
+  await S.test("REAL TAPS: dashboards are one tap away inside Piano, Handpan and Djembe (small icons, panels open)", async () => {
+    for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
+      const { ctx, pg, errs } = await brainPage(vp);
+      for (const inst of ["Piano", "Handpan", "Djembe Groove"]) {
+        for (let i = 0; i < 6 && !(await pg.evaluate(() => document.getElementById("view").hidden)); i++) { await pg.locator("#view .back:visible").first().click().catch(() => {}); await pg.waitForTimeout(400); }
+        await pg.evaluate(() => window.scrollTo(0, 0)); const s = pg.locator("#homeSearch"); await s.fill(""); await s.click(); await pg.keyboard.type(inst); await pg.waitForTimeout(400);
+        await pg.locator("#searchResults .card:visible").filter({ has: pg.locator("h3", { hasText: new RegExp("^" + inst + "$") }) }).first().click(); await pg.waitForTimeout(1200);
+        await pg.locator("#brainFab").click(); await pg.waitForTimeout(700);
+        assert(await pg.evaluate(() => !document.getElementById("brainPanel").hidden && document.getElementById("brainPanel").getBoundingClientRect().height > 50), vp.width + " " + inst + ": brain panel didn't open");
+        await pg.locator("#bpX").click(); await pg.locator("#sensFab").click(); await pg.waitForTimeout(600);
+        assert(await pg.evaluate(() => !document.getElementById("sensPanel").hidden && document.getElementById("sensPanel").getBoundingClientRect().height > 50), vp.width + " " + inst + ": heart panel didn't open");
+        await pg.locator("#sensX").click(); await pg.waitForTimeout(200);
+      }
+      assert(!errs.length, errs.join(" | ")); await ctx.close();
+    }
+  });
+
+  await S.test("REAL TAPS: record a meditation with the Muse, unplug it, and '📼 My last brain session' replays it on the Simple view", async () => {
+    const { ctx, pg, errs } = await brainPage({ width: 390, height: 844 });
+    await pg.locator("#home :is(button,.card,.kb)").filter({ hasText: /Afternoon/ }).filter({ visible: true }).first().click(); await pg.waitForTimeout(1200);
+    await pg.locator("#jPlay").click(); await pg.waitForTimeout(75000);
+    for (let i = 0; i < 6 && !(await pg.evaluate(() => document.getElementById("view").hidden)); i++) { await pg.locator("#view .back:visible").first().click().catch(() => {}); await pg.waitForTimeout(500); }
+    await pg.waitForTimeout(17000);
+    await pg.evaluate(() => { clearInterval(window.__sim); M.connected = false; });
+    await pg.locator("#brainFab").click(); await pg.waitForTimeout(1000);
+    assert(await pg.locator("#bpLast").count(), "no 'My last brain session' button with the Muse off");
+    await pg.locator("#bpLast").click(); await pg.waitForTimeout(3500);
+    const r = await pg.evaluate(() => ({ src: BC.src, view: BC.view, rec: !!BC.rec, frames: BC.rec ? BC.rec.frames.length : 0, now: (bcSimpleData().now || null) }));
+    assert(r.src === "rec" && r.view === "simple" && r.rec && r.frames > 30 && r.now, "past session didn't open on Simple " + JSON.stringify(r));
+    assert(!errs.length, errs.join(" | ")); await ctx.close();
+  });
+
   await b.close(); srv.close();
   return S.done();
 }

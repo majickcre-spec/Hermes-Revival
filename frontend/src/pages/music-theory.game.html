@@ -294,7 +294,7 @@ a.link-card .lc-go{flex:none;color:var(--sky);font-size:.84rem;font-weight:800}
 .djDrumWrap{display:flex;justify-content:center}.djDrumWrap .drum{margin-top:6px}@media (orientation:portrait){.djDrumWrap{width:100vw;max-width:560px;margin-left:50%;transform:translateX(-50%)}}@media (orientation:landscape) and (max-height:520px){.panel:has(> .djDrumWrap,> .bmperf > .djDrumWrap){display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);column-gap:14px;align-items:start;grid-auto-flow:row dense}.panel:has(> .djDrumWrap,> .bmperf > .djDrumWrap) > *{grid-column:2}.panel:has(> .djDrumWrap,> .bmperf > .djDrumWrap) > .djDrumWrap,.panel:has(> .djDrumWrap,> .bmperf > .djDrumWrap) > .bmperf{grid-column:1;grid-row:1 / span 40;position:sticky;top:6px;align-self:start}}.djZoneHit{position:absolute;left:6px;top:6px;width:188px;height:188px;border-radius:50%;pointer-events:none;opacity:0;z-index:3}.djZoneHit.on{animation:djzh .32s ease-out}@keyframes djzh{0%{opacity:1}100%{opacity:0}}.djZoneHit.bass{background:radial-gradient(circle closest-side,rgba(52,224,198,.6) 0 42%,transparent 43%)}.djZoneHit.tone{background:radial-gradient(circle closest-side,transparent 0 45%,rgba(255,170,80,.5) 46% 84%,transparent 85%)}.djZoneHit.slap{background:radial-gradient(circle closest-side,transparent 0 86%,rgba(140,215,255,.85) 87% 100%)}
 .drum-zl{position:absolute;font:700 .55rem "Hanken Grotesk",system-ui,sans-serif;letter-spacing:1px;color:rgba(50,34,16,.5);pointer-events:none}.drum-zl.t{left:0;width:200px;text-align:center;top:44px}.drum-zl.s{left:0;width:200px;text-align:center;top:6px}
 .djMore{justify-content:center;margin:10px 0 4px}.djZone{position:absolute;left:6px;top:6px;width:188px;height:188px;border-radius:50%;pointer-events:none;opacity:0;transition:opacity .2s}.djZone.bass{opacity:1;background:radial-gradient(circle closest-side,rgba(201,179,255,.55) 0 42%,transparent 43%)}.djZone.tone{opacity:1;background:radial-gradient(circle closest-side,transparent 0 45%,rgba(255,206,110,.45) 46% 84%,transparent 85%)}.djZone.slap{opacity:1;background:radial-gradient(circle closest-side,transparent 0 86%,rgba(191,227,255,.6) 87% 100%)}.drum.playable .drum-lbl{font-size:.85rem;top:158px}.djGo+.czOpen,.djMore+.czOpen{display:block;margin:6px auto 0}
-body.djOn #metFab,body.djOn #sensFab{display:none!important}
+body.djOn #metFab{display:none!important}
 @media (orientation:landscape) and (min-width:640px){.djLay{flex-direction:row;align-items:flex-start;gap:14px}.djSide{flex:1 1 42%;order:2}.djDrumWrap{flex:1 1 58%;order:1}.djSide .rcells{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:4px 0 6px}.djSide .rbeat{gap:3px}.djSide .rcell{width:auto;flex:1;height:40px;min-width:0}}
 .dpad{flex:1;height:92px;border-radius:14px;border:2px solid var(--line);background:var(--card2);color:var(--cream);font-family:"Hanken Grotesk",system-ui,sans-serif;font-size:1.05rem;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
 .dpad .pl{font-size:.72rem;color:var(--muted);letter-spacing:2px}
@@ -11138,8 +11138,8 @@ function bioPaint(){const el=document.getElementById("bioLive");if(!el)return;co
   else if(RPX){var ix3=0,t3=RPX.tl.t;while(ix3<t3.length-1&&t3[ix3+1]<=RPX.tc)ix3++;
     var ral=RPX.tl.ra?RPX.tl.ra[ix3]:null,rth=RPX.tl.rt?RPX.tl.rt[ix3]:null;
     if(ral!=null||rth!=null)BB={alpha:ral||0,theta:rth||0};}
-  if(BB){const cols={theta:"#4aa8ff",alpha:"#4fe08a",beta:"#ffc94a"},ks=Object.keys(BB).filter(k=>k!=="bat"),dom=ks.slice().sort((a,b)=>BB[b]-BB[a])[0];
-    h+='<div style="margin:6px 0">'+ks.map(k=>'<div style="display:flex;align-items:center;gap:6px;margin:2px 0"><span style="width:46px;font-size:.75rem;font-weight:800;text-transform:capitalize">'+k+'</span><div style="flex:1;height:10px;border-radius:5px;background:rgba(255,255,255,.07);overflow:hidden"><div style="height:100%;width:'+Math.round(BB[k])+'%;background:'+cols[k]+'"></div></div><span style="width:34px;text-align:right;font-size:.75rem">'+Math.round(BB[k])+'%</span></div>').join("")+'</div><div class="site-note" style="font-size:.8rem">Strongest '+(RPX?"at this moment":"right now")+': <b style="text-transform:capitalize">'+dom+'</b>'+(BB.bat!=null?' · Muse battery '+Math.round(BB.bat)+'%':'')+'</div>';}
+  if(BB){const cols={theta:bandC("t"),alpha:bandC("a"),beta:bandC("b"),gamma:bandC("g")},ks=Object.keys(BB).filter(k=>k!=="bat"),dom=ks.slice().sort((a,b)=>BB[b]-BB[a])[0];
+    h+='<div style="margin:6px 0">'+ks.map(k=>'<div style="display:flex;align-items:center;gap:6px;margin:2px 0"><span style="width:64px;font-size:.75rem;font-weight:800;color:'+(cols[k]||"inherit")+'">'+(BANDK[k]!=null?bandN(k):k)+'</span><div style="flex:1;height:10px;border-radius:5px;background:rgba(255,255,255,.07);overflow:hidden"><div style="height:100%;width:'+Math.round(BB[k])+'%;background:'+cols[k]+'"></div></div><span style="width:34px;text-align:right;font-size:.75rem">'+Math.round(BB[k])+'%</span></div>').join("")+'</div><div class="site-note" style="font-size:.8rem">Strongest '+(RPX?"at this moment":"right now")+': <b>'+(BANDK[dom]!=null?bandL(dom):dom)+'</b>'+(BB.bat!=null?' · Muse battery '+Math.round(BB.bat)+'%':'')+'</div>';}
   el.innerHTML=h+tgtHTML("tgtBio")+ansHTML("ansBio");tgtPaint("tgtBio");ansPaint("ansBio");}
 /* ---- Ideal right now: targets set automatically from time of day, your age, and your own history ---- */
 var TGT={sec:0,inSec:0,last:0};
@@ -11156,7 +11156,7 @@ function tgtNow(){var G=tgtGoal(),A=typeof ansCalc==="function"?ansCalc():null,c
   r.items.push({k:"Nervous system",cur:A?(A.v>0?"+":"")+A.v:null,tgt:"+"+G.ns,ok:!!A&&A.v>=G.ns,p:A?Math.max(0,Math.min(1,A.v/G.ns)):0});
   r.items.push({k:"HRV",cur:hv!=null?hv+" ms":null,tgt:G.hrv+" ms",ok:hv!=null&&hv>=G.hrv,p:hv!=null?Math.min(1,hv/G.hrv):0});
   if(G.hrDrop&&A)r.items.push({k:"Heart rate",cur:Math.round(A.hn)+" bpm",tgt:"≤ "+Math.round(A.hb-G.hrDrop),ok:A.hn<=A.hb-G.hrDrop,p:Math.max(0,Math.min(1,(A.hb-A.hn)/G.hrDrop))});
-  if(M.connected&&!RPX){var al=M.alpha||0,th=M.theta||0,be=M.beta||0,b=tgtBand(),ok=b==="n"?th>=al*0.9:b==="m"?al>=be*0.8:al>=be;r.items.push({k:"Brain",cur:b==="n"?"θ "+Math.round(th)+"%":"α "+Math.round(al)+"%",tgt:b==="n"?"theta rising":b==="m"?"alpha ≈ beta":"alpha > beta",ok:ok,p:ok?1:0.5});}
+  if(M.connected&&!RPX){var al=M.alpha||0,th=M.theta||0,be=M.beta||0,b=tgtBand(),ok=b==="n"?th>=al*0.9:b==="m"?al>=be*0.8:al>=be;r.items.push({k:"Brain",cur:b==="n"?"Dreamy "+Math.round(th)+"%":"Calm "+Math.round(al)+"%",tgt:b==="n"?"Dreamy rising":b==="m"?"Calm ≈ Focused":"Calm > Focused",ok:ok,p:ok?1:0.5});}
   var known=r.items.filter(function(x){return x.cur!=null;});r.all=known.length>=2&&known.every(function(x){return x.ok;});r.score=known.length?known.reduce(function(a,x){return a+x.p;},0)/known.length:0;return r;}
 function tgtTick(){var now=Date.now();if(!(HR.connected||M.connected)){TGT.last=0;return;}if(TGT.last&&now-TGT.last<5000){var d=(now-TGT.last)/1000;TGT.sec+=d;if(tgtNow().all)TGT.inSec+=d;}TGT.last=now;}
 function tgtReset(){TGT.sec=0;TGT.inSec=0;TGT.last=0;}
@@ -11674,8 +11674,8 @@ function brainDraw(id,run){var cv=document.getElementById(id);if(!cv)return;var 
   var all=run.lh||[];if(all.length<2||L.length<2){g.fillStyle="rgba(255,255,255,.5)";g.font="11px system-ui";g.fillText("Reading your brainwaves…",8,H/2);return;}
   var t0=all[0].t,T=Math.max(60000,all[all.length-1].t-t0),X=function(t){return (t-t0)/T*W;},Y=function(v){return H-6-v*(H-12);};
   for(var i=1;i<all.length;i++){var a=all[i-1],b=all[i];if(a.hf>=a.lf&&b.hf>=b.lf){g.fillStyle="rgba(95,200,224,.08)";g.fillRect(X(a.t),0,X(b.t)-X(a.t),H);}if(a.hf<a.lf&&b.hf>=b.lf){g.strokeStyle="#5fd38d";g.setLineDash([3,3]);g.beginPath();g.moveTo(X(b.t),0);g.lineTo(X(b.t),H);g.stroke();g.setLineDash([]);}if(b.sync){g.fillStyle="#fff";g.beginPath();g.arc(X(b.t),8,3,0,7);g.fill();}}
-  [["hs","#c9a0ff",1],["al","#5fd38d",100],["th","#4aa8ff",100]].forEach(function(z){g.strokeStyle=z[1];g.lineWidth=2;g.beginPath();var st=false;L.forEach(function(p){if(p[z[0]]==null)return;var y=Y(Math.min(1,p[z[0]]/z[2]));if(!st){g.moveTo(X(p.t),y);st=true;}else g.lineTo(X(p.t),y);});g.stroke();});}
-function brainLegend(){return '<div class="site-note" style="font-size:.74rem;margin:3px 0 8px"><span style="color:#c9a0ff">━ hemi-sync</span> left and right brain in step · <span style="color:#5fd38d">━ alpha</span> · <span style="color:#4aa8ff">━ theta</span> · blue shading: rest branch leading · green dashes: crossovers · <b>●</b> everything in sync</div>';}
+  [["hs","#c9a0ff",1],["al",bandC("a"),100],["th",bandC("t"),100]].forEach(function(z){g.strokeStyle=z[1];g.lineWidth=2;g.beginPath();var st=false;L.forEach(function(p){if(p[z[0]]==null)return;var y=Y(Math.min(1,p[z[0]]/z[2]));if(!st){g.moveTo(X(p.t),y);st=true;}else g.lineTo(X(p.t),y);});g.stroke();});}
+function brainLegend(){return '<div class="site-note" style="font-size:.74rem;margin:3px 0 8px"><span style="color:#c9a0ff">━ hemi-sync</span> left and right brain in step · <span style="color:'+bandC("a")+'">━ Calm (alpha)</span> · <span style="color:'+bandC("t")+'">━ Dreamy (theta)</span> · blue shading: rest branch leading · green dashes: crossovers · <b>●</b> everything in sync</div>';}
 /* ---- LF / HF crossover ("the X"): sliding-window heart-rhythm power; where the breathing (HF, rest) line rises through the blood-pressure (LF) line ---- */
 function lhAt(B,tEnd,win){var seg=B.filter(function(b){return b.t>tEnd-win*1000&&b.t<=tEnd;});if(seg.length<win*0.6)return null;var fs=4,t0=tEnd-win*1000,n=Math.floor(win*fs),y=new Array(n),k=0;
   for(var j=0;j<n;j++){var tt=t0+j*1000/fs;while(k<seg.length-2&&seg[k+1].t<tt)k++;var a=seg[k],b=seg[k+1]||a,u=b.t>a.t?Math.min(1,Math.max(0,(tt-a.t)/(b.t-a.t))):0;y[j]=a.rr+(b.rr-a.rr)*u;}
@@ -11800,7 +11800,7 @@ function mfToneTest(){if(MF.run&&MF.timer){var o0=$("#mfRun");if(o0)o0.scrollInt
     if(M.connected){var E2=run.eegS=run.eegS||[];if(!run._hsT||nowP-run._hsT>1900){run._hsT=nowP;var hq2=eegHemiSync();run._hsV=hq2?Math.round(hq2.al*100):null;}
       E2.push({t:nowP,al:M.alpha,th:M.theta,hs:run._hsV});if(E2.length>4200)E2.splice(0,E2.length-4200);
       CF.brain=mfBrainCurve(run,MP,50,600,52);if(run.stage===2)C.brain=mfBrainCurve(run,MP,run.lo,run.hi,run.nb);
-      var bl2=$("#mfBrainL");if(bl2){var bp2=null;(CF.brain||[]).forEach(function(b){if(b.asc!=null&&(bp2==null||b.asc>bp2.asc))bp2=b;});bl2.textContent=bp2?"\ud83e\udde0 \u03b1 response peak so far: "+bp2.hz.toFixed(1)+" Hz":"\ud83e\udde0 listening to the brain\u2026";}}
+      var bl2=$("#mfBrainL");if(bl2){var bp2=null;(CF.brain||[]).forEach(function(b){if(b.asc!=null&&(bp2==null||b.asc>bp2.asc))bp2=b;});bl2.textContent=bp2?"\ud83e\udde0 Calm (alpha) peak so far: "+bp2.hz.toFixed(1)+" Hz":"\ud83e\udde0 listening to the brain\u2026";}}
     var lg=$("#mfLag");if(lg)lg.textContent=bl?"Measured response delay (sensor + body): "+lag.toFixed(2)+" s · match "+Math.round(Math.max(0,bl.r)*100)+"%":(HR.connected?"Measuring your response delay…":"");
     mfSweepDraw(CF,p&&p.f,50,600);if(run.stage===2)mfSweepDraw(C,p&&p.f,run.lo,run.hi,"mfCv2");if(HR.connected||M.connected){run.lhStart=run.lhStart||run.segs[0].sp;lhTrack(run,lag,function(tp){var q=MP(tp);return q?q.f:null;});if(HR.connected)lhDraw("mfX",run);brainDraw("mfBr",run);}
     if(t>=run.D+Math.max(1,lag)){if(run.stage===1){var pk=mfPeak(C);run.c1=pk.hz;run.lag1=lag;run.stage=2;var fw=$("#mfFineW");if(fw)fw.style.display="";var lo=pk.hz/1.09,hi=pk.hz*1.09;run.lo=lo;run.hi=hi;run.nb=run.dp[2]>=60?30:24;run.taps=run.taps.filter(function(f){return f>lo&&f<hi;});start(mfLegs(lo,hi,run.dp[2],run.dp[3]));}else{var fin=mfSweepFinish(run,true);if(fin)run.sweepRes=fin;if(fin)try{mfSet("lastSweep",{hz:fin.hz,unc:fin.unc,lag:fin.lag,date:Date.now()});}catch(e){}if(fin&&HR.connected){var kv=MF.tone&&MF.tone.keep?MF.tone.keep():null;MF.tone=null;mfHold(fin.hz,fin.lag,kv,run);}else if(fin){run.done=false;mfSweepFinish(run);}}}};
@@ -11819,8 +11819,8 @@ function mfSweepDraw(C,cur,lo,hi,cid){var cv=$("#"+(cid||"mfCv"));if(!cv||!C)ret
   var rf=mfGet().ref;if(rf&&rf.hz>lo&&rf.hz<hi){g.strokeStyle="#c9a0ff";g.setLineDash([4,3]);g.beginPath();g.moveTo(X(rf.hz),0);g.lineTo(X(rf.hz),H);g.stroke();g.setLineDash([]);g.fillStyle="#c9a0ff";g.font="10px system-ui";g.fillText(rf.hz.toFixed(1),Math.min(W-34,X(rf.hz)+3),22);}
   g.fillStyle="rgba(255,255,255,.5)";g.font="10px system-ui";[0,0.25,0.5,0.75,1].forEach(function(u){var f=lo*Math.pow(hi/lo,u);g.fillText(f.toFixed(hi/lo<1.5?1:0),Math.min(W-30,u*W+2),H-3);});
   if(C.brain){var bb=C.brain.filter(function(b){return b.asc!=null;});if(bb.length>3){var bmx=Math.max.apply(null,bb.map(function(b){return Math.abs(b.asc);}).concat([2]));
-    g.strokeStyle="#5fc8e0";g.lineWidth=2;g.beginPath();var pen=false;C.brain.forEach(function(b){if(b.asc==null){pen=false;return;}var x=X(b.hz),y=H/2-b.asc/bmx*(H/2-10);if(!pen){g.moveTo(x,y);pen=true;}else g.lineTo(x,y);});g.stroke();
-    g.fillStyle="#5fc8e0";g.font="10px system-ui";g.fillText("\u03b1 brain",W-44,12);}}}
+    g.strokeStyle=bandC("a");g.lineWidth=2;g.beginPath();var pen=false;C.brain.forEach(function(b){if(b.asc==null){pen=false;return;}var x=X(b.hz),y=H/2-b.asc/bmx*(H/2-10);if(!pen){g.moveTo(x,y);pen=true;}else g.lineTo(x,y);});g.stroke();
+    g.fillStyle=bandC("a");g.font="10px system-ui";g.fillText("Calm brain",W-58,12);}}}
 function mfSweepFinish(run,cont){if(MF.timer){clearInterval(MF.timer);MF.timer=null;}MF.run=null;medWake(false);var C=run.C;if(cont&&run.done)return null;if(!C||!C.bins.some(function(b){return b.body!=null||b.tap>0;})){renderMyFreq();var o0=$("#mfOut");if(o0)o0.innerHTML='<div class="site-note">No heart data and no taps, so there was nothing to measure. Connect a heart sensor or tap “This one” next time.</div>';return;}
   var pk=mfPeak(C),upC=C.bins.map(function(b){return {hz:b.hz,sc:b.up==null?-9:b.up};}),dnC=C.bins.map(function(b){return {hz:b.hz,sc:b.dn==null?-9:b.dn};}),pu=mfPeak({bins:upC}).hz,pd=mfPeak({bins:dnC}).hz,binW=pk.hz*(Math.pow(run.hi/run.lo,1/run.nb)-1),unc=Math.max(binW/2,Math.abs(pu-pd)/2);
   if(cont){run.done=true;return {hz:pk.hz,lag:C.lag,pu:pu,pd:pd,unc:unc,lagR:run.bl?run.bl.r:null};}
@@ -11833,7 +11833,7 @@ function mfSweepFinish(run,cont){if(MF.timer){clearInterval(MF.timer);MF.timer=n
     var bp=null,hp=null;BRW.forEach(function(b){if(b.asc!=null&&(bp==null||b.asc>bp.asc))bp=b;if(b.hs!=null&&(hp==null||b.hs>hp.hs))hp=b;});
     var xs=[],ys=[];((run.CF&&run.CF.bins)||[]).forEach(function(b,k){var e=BRW[k];if(e&&e.asc!=null&&(b.body!=null||b.tap>0)){xs.push(b.sc);ys.push(e.asc);}});
     var r2=(typeof brPearson==="function")?brPearson(xs,ys):null;
-    return '<div class="site-note" style="margin-top:6px;color:#9fdce8">\ud83e\udde0 Brain: \u03b1 rose most around <b>'+(bp?bp.hz.toFixed(1)+" Hz":"\u2014")+'</b>'+(hp&&hp.hs!=null?' \u00b7 hemisphere sync peaked near <b>'+hp.hz.toFixed(1)+' Hz</b>':'')+(r2!=null?' \u00b7 body\u2013brain agreement <b>r '+r2.toFixed(2)+'</b> \u2014 '+(Math.abs(r2)>=0.5?(r2>0?'the brain lit up at the same tones your body did.':'brain and body answered opposite tones \u2014 interesting.'):Math.abs(r2)>=0.3?'a moderate link \u2014 run another sweep to confirm.':'no clear link this sweep.'):'')+(bp&&Math.abs(Math.log(bp.hz/pk.hz))<Math.log(1.12)?' The \u03b1 peak sits right on your body\u2019s resonance.':'')+'</div>';})());mfSweepDraw(C,null,run.lo,run.hi);}}
+    return '<div class="site-note" style="margin-top:6px;color:#9fdce8">\ud83e\udde0 Brain: Calm (alpha) rose most around <b>'+(bp?bp.hz.toFixed(1)+" Hz":"\u2014")+'</b>'+(hp&&hp.hs!=null?' \u00b7 hemisphere sync peaked near <b>'+hp.hz.toFixed(1)+' Hz</b>':'')+(r2!=null?' \u00b7 body\u2013brain agreement <b>r '+r2.toFixed(2)+'</b> \u2014 '+(Math.abs(r2)>=0.5?(r2>0?'the brain lit up at the same tones your body did.':'brain and body answered opposite tones \u2014 interesting.'):Math.abs(r2)>=0.3?'a moderate link \u2014 run another sweep to confirm.':'no clear link this sweep.'):'')+(bp&&Math.abs(Math.log(bp.hz/pk.hz))<Math.log(1.12)?' The Calm peak sits right on your body\u2019s resonance.':'')+'</div>';})());mfSweepDraw(C,null,run.lo,run.hi);}}
 /* ---- Daily practice: a curated day — morning, afternoon, bedtime ---- */
 var DAY_PLAN=[
  {k:"m",ic:"\u2600\ufe0f",when:"Morning",tag:"🌬 Breathwork",what:"Coherent breathing",len:"10 min",go:function(done){renderBreathwork({pat:"coherent",mins:10,title:"\u2600\ufe0f Morning \u00b7 Breathwork",note:"<b>Coherent breathing, 10 minutes.</b> Breathe in as the circle grows, out as it settles, about five and a half breaths a minute. Press Begin.",done:done});}},
@@ -12670,10 +12670,19 @@ function renderLucid(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true
   view.querySelectorAll("[data-ld]").forEach(function(b){b.onclick=function(){if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Tap again to delete";return;}
     var L=lucLogs(),i=+b.dataset.ld;if(L[i]&&L[i].voice)try{idbDel(L[i].voice);}catch(e){}L.splice(i,1);save(mk("lucid","logs"),L);LUC.logOpen=null;renderLucid();};});}
 /* ===== BRAIN CHARTS — full-screen EEG views: mirror spectrum, flow (waterfall), 3D ridge; live or recorded ===== */
-const BC={on:false,view:"mirror",src:"live",hist:[],t:null,win:null,norm:1,fl:null,rec:null,ri:0,playing:false,load:""};
+const BC={on:false,view:"simple",src:"live",hist:[],t:null,win:null,norm:1,fl:null,rec:null,ri:0,playing:false,load:""};
 /* one palette for brainwaves everywhere: slow=deep blues → fast=hot. Gold stays reserved for sync/coherence, red for the heart. */
-const BC_BANDS=[[1,4,"#8f9dff","Delta","δ","deep sleep"],[4,8,"#5fc8e0","Theta","θ","dreaming"],[8,13,"#5fe0a8","Alpha","α","calm flow"],[13,30,"#ff9349","Beta","β","busy mind"],[30,45,"#c9b3ff","Gamma","γ","insight"]];
-function bcCol(f){for(var i=0;i<BC_BANDS.length;i++)if(f<BC_BANDS[i][1])return BC_BANDS[i][2];return "#c9b3ff";}
+const BC_BANDS=[[1,4,"#9a7bff","Delta","δ","Deep sleep","sleep · stillness","The slowest waves. Big in deep, dreamless sleep. While you're awake a high number usually means blinking, moving or a loose sensor — not deep sleep."],
+  [4,8,"#3d9dff","Theta","θ","Dreamy","drifting · imagery","Drowsy and dreamy: deep meditation, the edge of sleep, daydreams. Where images and lucid dreams begin."],
+  [8,13,"#33e07c","Alpha","α","Calm","relaxed · awake","Relaxed but awake: eyes closed, slow breath, quiet mind. The main meditation wave — more is usually better while you sit."],
+  [13,30,"#ffb020","Beta","β","Focused","thinking · doing","Thinking, planning, talking, solving. Good for practice and work; very high while meditating means a busy or anxious mind."],
+  [30,45,"#ff5ca8","Gamma","γ","Peak","bursts · insight","The fastest waves: moments of intense focus or insight. Jaw clenching and face tension also show up here, so relax your jaw."]];
+/* plain-word band helpers used by every brain screen: k = d t a b g */
+var BANDK={d:0,t:1,a:2,b:3,g:4,delta:0,theta:1,alpha:2,beta:3,gamma:4};
+function bandC(k){return BC_BANDS[BANDK[k]][2];}
+function bandN(k){return BC_BANDS[BANDK[k]][5];}
+function bandL(k){var b=BC_BANDS[BANDK[k]];return b[5]+" ("+b[3].toLowerCase()+")";}
+function bcCol(f){for(var i=0;i<BC_BANDS.length;i++)if(f<BC_BANDS[i][1])return BC_BANDS[i][2];return BC_BANDS[4][2];}
 function bcWin(){if(!BC.win){var w=new Float64Array(512);for(var i=0;i<512;i++)w[i]=0.5-0.5*Math.cos(2*Math.PI*i/511);BC.win=w;}return BC.win;}
 /* Welch PSD (0.5 Hz bins) over an array of sample buffers; each buffer may end at a different length */
 function bcPSD(bufs){var N=512,H=256,K=256,win=bcWin(),acc=new Float64Array(K),used=0;
@@ -12709,7 +12718,7 @@ function bcMirror(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);if(!f)r
   [5,10,20,30,40].forEach(function(fz){var yy=bcY(fz,y,h);g.strokeStyle="rgba(255,255,255,.07)";g.beginPath();g.moveTo(x+36,yy);g.lineTo(x+w-8,yy);g.stroke();
     g.fillStyle="#9BA1AC";g.font="700 10px system-ui";g.textAlign="left";g.fillText(fz+" Hz",x+4,yy+3);});
   BC_BANDS.forEach(function(b){var y1=bcY(b[1],y,h),y0=bcY(b[0],y,h);g.fillStyle=b[2]+"14";g.fillRect(x+36,y1,w-44,y0-y1);
-    g.fillStyle=b[2];g.font="800 9px system-ui";g.textAlign="right";g.globalAlpha=0.9;g.fillText(b[4]+" "+b[3].toUpperCase(),x+w-10,y1+11);g.globalAlpha=1;});
+    g.fillStyle=b[2];g.font="800 9px system-ui";g.textAlign="right";g.globalAlpha=0.9;g.fillText(b[5].toUpperCase()+" · "+b[3].toLowerCase(),x+w-10,y1+11);g.globalAlpha=1;});
   for(var k=2;k<=90;k++){var fz=k/2,yy=bcY(fz,y,h),hh=Math.max(1.4,h/90),col=bcCol(fz);
     if(f.L){var lv=bcV(f.L[k]);g.fillStyle=col;g.globalAlpha=0.25+0.65*lv;g.fillRect(cx-lv*half,yy-hh/2,lv*half,hh);}
     if(f.R){var rv=bcV(f.R[k]);g.fillStyle=col;g.globalAlpha=0.25+0.65*rv;g.fillRect(cx,yy-hh/2,rv*half,hh);}}
@@ -12718,7 +12727,7 @@ function bcMirror(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);if(!f)r
   (f.pk||[]).forEach(function(p){var fz=p[0],c=p[1];if(c<0.6)return;var yy=bcY(fz,y,h),al=fz>=8&&fz<13;
     g.strokeStyle=al?"#f4b740":"rgba(255,255,255,.55)";g.lineWidth=al?2.5:1.2;g.shadowColor=al?"#f4b740":"transparent";g.shadowBlur=al?10:0;
     g.beginPath();g.moveTo(x+36,yy);g.lineTo(x+w-8,yy);g.stroke();g.shadowBlur=0;g.lineWidth=1;
-    g.fillStyle=al?"#f4b740":"#ECEDEF";g.font="800 11px system-ui";g.textAlign="right";g.fillText((al?"α sync ":"sync ")+fz.toFixed(1)+" Hz · "+Math.round(c*100)+"%",x+w-10,yy-5);});
+    g.fillStyle=al?"#f4b740":"#ECEDEF";g.font="800 11px system-ui";g.textAlign="right";g.fillText((al?"Calm sync ":"sync ")+fz.toFixed(1)+" Hz · "+Math.round(c*100)+"%",x+w-10,yy-5);});
   /* harmonic structure: octave (2:1), twelfth (3:1) and golden-ratio (φ) relations between sync peaks */
   var hp=(f.pk||[]).filter(function(p){return p[1]>=0.5&&p[0]>=1&&p[0]<=45;}).sort(function(a,b){return a[0]-b[0];}),rel=[];
   for(var i3=0;i3<hp.length;i3++)for(var j3=i3+1;j3<hp.length;j3++){var rr2=hp[j3][0]/hp[i3][0];
@@ -12774,7 +12783,7 @@ function bcRidge(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);var H2=B
     if(last&&H2[r2].pk)H2[r2].pk.forEach(function(pk2){if(pk2[1]<0.6)return;var px=GE.x0+(pk2[0]*2-2)/88*GE.ww;g.fillStyle=pk2[0]>=8&&pk2[0]<13?"#f4b740":"#ECEDEF";g.beginPath();g.arc(px,GE.yb+8,3,0,7);g.fill();});}
   BC_BANDS.forEach(function(b){var c1=x+20+(b[1]*2-2)/88*(w-40),px=x+20+(((b[0]+b[1])/2)*2-2)/88*(w-40);
     if(b[1]<45){g.setLineDash([2,5]);g.strokeStyle="rgba(255,255,255,.1)";g.beginPath();g.moveTo(c1,y+h*0.12);g.lineTo(c1,y+h-26);g.stroke();g.setLineDash([]);}
-    g.fillStyle=b[2];g.font="900 14px system-ui";g.textAlign="center";g.fillText(b[4],px,y+h-14);
+    g.fillStyle=b[2];g.font="800 10px system-ui";g.textAlign="center";g.fillText(b[5],px,y+h-14);
     g.font="700 8.5px ui-monospace,monospace";g.fillText(b[0]+"–"+b[1]+" Hz",px,y+h-3);});}
 function bcT(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
 function bcSeries(){if(BC.src==="rec"){var R=BC.rec;if(!R||!R.tl||!R.tl.t||!R.tl.t.length)return null;var f=R.frames[BC.ri];return {S:R.tl,cur:f?f.t:0,coPct:true};}
@@ -12808,12 +12817,12 @@ function bcVitals(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);var D=b
     if(co!=null){g.strokeStyle="#f4b740";g.beginPath();g.arc(cx,cy,r,Math.PI*0.75,Math.PI*(0.75+1.5*Math.min(100,co)/100));g.stroke();}
     g.fillStyle="#ECEDEF";g.font="900 22px system-ui";g.textAlign="center";g.fillText(co!=null?Math.round(co)+"%":"—",cx,cy+7);
     g.fillStyle="#9BA1AC";g.font="800 10px system-ui";g.fillText("coherence",cx,cy+22);});
-  tile(2,function(tw,thh){var bars=[["α",al,"#5fe0a8"],["θ",th,"#5fc8e0"],["β",be,"#ff9349"]],bw=Math.min(34,tw/4),x0=tw/2-bw*1.5-6;
+  tile(2,function(tw,thh){var bars=[["Calm",al,bandC("a")],["Dreamy",th,bandC("t")],["Focused",be,bandC("b")]],bw=Math.min(44,(tw-24)/3),x0=tw/2-bw*1.5-6;
     g.font="800 11px system-ui";g.textAlign="center";
-    bars.forEach(function(b,i){var v=b[1]!=null?Math.min(100,b[1]):null,bx=x0+i*(bw+6),bhh=v!=null?(thh-30)*v/100:0;
-      g.fillStyle="rgba(255,255,255,.08)";g.fillRect(bx,8,bw,thh-30);
-      if(v!=null){g.fillStyle=b[2];g.fillRect(bx,8+(thh-30)-bhh,bw,bhh);}
-      g.fillStyle="#9BA1AC";g.fillText(b[0]+(v!=null?" "+Math.round(v):""),bx+bw/2,thh-6);});
+    bars.forEach(function(b,i){var v=b[1]!=null?Math.min(100,b[1]):null,bx=x0+i*(bw+6),bhh=v!=null?(thh-42)*v/100:0;
+      g.fillStyle="rgba(255,255,255,.08)";g.fillRect(bx,8,bw,thh-42);
+      if(v!=null){g.fillStyle=b[2];g.fillRect(bx,8+(thh-42)-bhh,bw,bhh);}
+      g.fillStyle=b[2];g.font="800 9px system-ui";g.fillText(b[0],bx+bw/2,thh-20);g.fillStyle="#ECEDEF";g.font="800 11px system-ui";g.fillText(v!=null?Math.round(v)+"%":"—",bx+bw/2,thh-6);});
     if(al==null&&th==null&&be==null){g.fillStyle="#9BA1AC";g.fillText("no EEG",tw/2,thh/2);}});}
 function bcWrapTxt(g,txt,x,y,maxW,lh){var words=String(txt).split(" "),line="",yy=y;g.textAlign="center";
   for(var i=0;i<words.length;i++){var t=line?line+" "+words[i]:words[i];if(g.measureText(t).width>maxW&&line){g.fillText(line,x,yy);yy+=lh;line=words[i];}else line=t;}
@@ -12823,7 +12832,7 @@ function bcGridFrame(g,x,y,w,h,dim){var a=dim?0.55:1;
   [5,10,15,20,25,30,35,40].forEach(function(fz){var yy=bcY(fz,y,h),maj=fz%10===0||fz===5;g.strokeStyle="rgba(255,255,255,"+(maj?0.07:0.035)*a+")";g.beginPath();g.moveTo(x+36,yy);g.lineTo(x+w-8,yy);g.stroke();
     if(maj){g.fillStyle="rgba(155,161,172,"+0.9*a+")";g.font="700 10px ui-monospace,monospace";g.textAlign="left";g.fillText(fz+" Hz",x+4,yy+3);}});
   BC_BANDS.forEach(function(b){var y1=bcY(b[1],y,h),y0=bcY(b[0],y,h);g.fillStyle=b[2]+(dim?"0C":"14");g.fillRect(x+36,y1,w-44,y0-y1);
-    g.fillStyle=b[2];g.font="800 9px system-ui";g.textAlign="right";g.globalAlpha=0.9*a;g.fillText(b[4]+" "+b[3].toUpperCase()+" "+b[0]+"–"+b[1]+" Hz",x+w-10,y1+11);g.globalAlpha=1;});}
+    g.fillStyle=b[2];g.font="800 9px system-ui";g.textAlign="right";g.globalAlpha=0.9*a;g.fillText(b[5].toUpperCase()+" · "+b[3].toLowerCase()+" "+b[0]+"–"+b[1]+" Hz",x+w-10,y1+11);g.globalAlpha=1;});}
 /* standby: the instrument stays powered — scale, montage schematic, status — even with no input */
 function bcNoData(g,x,y,w,h,msg){var h2=Math.max(240,bcResv(h));
   bcGridFrame(g,x,y,w,h2,true);
@@ -12934,7 +12943,7 @@ function bcHead(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);if(!f)ret
     var col=BC_BANDS[dom][2],inten=Math.max(0.25,Math.min(1,(sh[dom]-0.2)/0.5)),rr=r0*(0.72+0.38*inten);
     var gr=g.createRadialGradient(sx,sy,2,sx,sy,rr);gr.addColorStop(0,col+"E6");gr.addColorStop(0.55,col+"77");gr.addColorStop(1,col+"00");
     g.fillStyle=gr;g.beginPath();g.arc(sx,sy,rr,0,7);g.fill();
-    g.fillStyle="#0E0F13";g.font="900 17px system-ui";g.textAlign="center";g.fillText(BC_BANDS[dom][4],sx,sy+2);
+    g.fillStyle="#0E0F13";g.font="900 12px system-ui";g.textAlign="center";g.fillText(BC_BANDS[dom][5],sx,sy+2);
     g.fillStyle="#ECEDEF";g.font="800 10px system-ui";g.fillText(Math.round(sh[dom]*100)+"%",sx,sy+16);
     g.fillStyle="#9BA1AC";g.font="700 9px system-ui";g.fillText(s.lab,sx,sy+rr+11);});
   /* gold bridge when the hemispheres sync in alpha */
@@ -12943,24 +12952,24 @@ function bcHead(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);if(!f)ret
     g.strokeStyle="#f4b740";g.lineWidth=2+3*bw;g.globalAlpha=0.35+0.6*bw;g.shadowColor="#f4b740";g.shadowBlur=14*bw;
     g.beginPath();g.moveTo(cx-R*0.44,cy-ry*0.5);g.quadraticCurveTo(cx,cy-ry*0.86,cx+R*0.44,cy-ry*0.5);g.stroke();
     g.globalAlpha=1;g.shadowBlur=0;
-    g.fillStyle="#f4b740";g.font="900 13px system-ui";g.textAlign="center";g.fillText("α sync "+Math.round(aC*100)+"%",cx,cy-ry*0.72);}
+    g.fillStyle="#f4b740";g.font="900 13px system-ui";g.textAlign="center";g.fillText("Calm sync "+Math.round(aC*100)+"%",cx,cy-ry*0.72);}
   /* how every wave is correlating across hemispheres */
   if(land){var lx=x+w*0.56,ly=y+30,rstep=(h2-54)/5,bx0=lx+118,bx1=x+w-64;
     g.textAlign="left";g.fillStyle="#9BA1AC";g.font="800 10px system-ui";g.fillText("HEMISPHERES IN SYNC, WAVE BY WAVE",lx,ly);
     BC_BANDS.forEach(function(b,i){var yy=ly+26+i*rstep,v=f.cb?f.cb[i]:null;
-      g.textAlign="left";g.fillStyle=b[2];g.font="900 13px system-ui";g.fillText(b[4]+" "+b[3],lx,yy);
-      g.fillStyle="rgba(155,161,172,.75)";g.font="600 9px system-ui";g.fillText(b[5],lx,yy+12);
+      g.textAlign="left";g.fillStyle=b[2];g.font="900 13px system-ui";g.fillText(b[5],lx,yy);
+      g.fillStyle="rgba(155,161,172,.75)";g.font="600 9px system-ui";g.fillText(b[6],lx,yy+12);
       if(v!=null&&bx1>bx0+30){g.fillStyle="rgba(255,255,255,.08)";g.fillRect(bx0,yy-8,bx1-bx0,6);g.fillStyle=b[2];g.fillRect(bx0,yy-8,(bx1-bx0)*Math.min(1,v),6);}
       g.textAlign="right";g.fillStyle=v!=null?"#ECEDEF":"#9BA1AC";g.font="800 13px system-ui";g.fillText(v!=null?Math.round(v*100)+"%":"—",x+w-18,yy);});
     g.textAlign="center";g.fillStyle="rgba(155,161,172,.65)";g.font="700 9px system-ui";g.fillText("glow = loudest wave per sensor",cx,cy+ry+16);}
   else{var by=y+h2-68;g.textAlign="center";g.fillStyle="#9BA1AC";g.font="800 10px system-ui";g.fillText("HEMISPHERES IN SYNC, WAVE BY WAVE",cx,by-26);
     BC_BANDS.forEach(function(b,i){var bx=x+w*(0.1+0.2*i),v=f.cb?f.cb[i]:null;
-      g.fillStyle=b[2];g.font="900 15px system-ui";g.fillText(b[4],bx,by-6);
+      g.fillStyle=b[2];g.font="900 11px system-ui";g.fillText(b[5],bx,by-6);
       g.fillStyle=v!=null?"#ECEDEF":"#9BA1AC";g.font="800 12px system-ui";g.fillText(v!=null?Math.round(v*100)+"%":"—",bx,by+10);
-      g.fillStyle="#9BA1AC";g.font="700 8px system-ui";g.fillText(b[3],bx,by+22);g.fillStyle="rgba(155,161,172,.7)";g.font="600 8px system-ui";g.fillText(b[5],bx,by+32);});
+      g.fillStyle="rgba(155,161,172,.7)";g.font="600 8px system-ui";g.fillText(b[6],bx,by+22);});
     g.fillStyle="rgba(155,161,172,.65)";g.font="700 9px system-ui";g.fillText("glow color = the loudest wave at each sensor",cx,cy+ry+34);}}
 /* ---- heart views: waves monitor, LF/HF crossover, beat-by-beat rhythm ---- */
-function bcResv(h){return h-(BC.src==="rec"?160:52);}
+function bcResv(h){return h-(BC.src==="rec"?208:52);}/* recordings: room for the playback bar plus the 🫀/🧠 buttons */
 /* LF/HF over the whole recording, computed once from the saved beats and cached */
 function bcLH(){var R=BC.rec;if(!R)return null;if(R.lh)return R.lh;var rr=R.rr||[],rt=R.rrT||[];R.lh=[];
   if(rr.length<40)return R.lh;var end=rt[rt.length-1]||0;
@@ -13071,13 +13080,13 @@ function bcSync(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);if(!f)ret
     var ax=cx+a[0]*R,ay=cy+a[1]*ry,bx2=cx+b[0]*R,by=cy+b[1]*ry,mx=(ax+bx2)/2+(P[0]==="B"?0:(P[0]==="F"?0:(P[0]==="L"?-R*0.3:R*0.3))),my=(ay+by)/2+(P[0]==="F"?-ry*0.34:(P[0]==="B"?ry*0.3:0));
     g.strokeStyle="#f4b740";g.lineWidth=1.5+4*Math.min(1,(v-0.4)/0.5);g.globalAlpha=0.3+0.65*Math.min(1,(v-0.4)/0.5);g.shadowColor="#f4b740";g.shadowBlur=10*v;
     g.beginPath();g.moveTo(ax,ay);g.quadraticCurveTo(mx,my,bx2,by);g.stroke();g.globalAlpha=1;g.shadowBlur=0;});
-  g.fillStyle="#9BA1AC";g.font="800 10px system-ui";g.textAlign="center";g.fillText("WHERE α IS IN SYNC NOW",cx,yT+6);
+  g.fillStyle="#9BA1AC";g.font="800 10px system-ui";g.textAlign="center";g.fillText("WHERE CALM (ALPHA) IS IN SYNC NOW",cx,yT+6);
   /* grid, top-right: every band × every pair */
   var gx0=narrow?x+44:x+hw+86,gx1=x+w-14,cw2=(gx1-gx0)/4,gy0=narrow?cy+ry+40:yT+26,rh=narrow?26:Math.min(34,(cy+ry-gy0)/5);
   g.font="800 10px ui-monospace,monospace";g.textAlign="center";g.fillStyle="#9BA1AC";
   ["FRONT","BACK","LEFT","RIGHT"].forEach(function(t,i2){g.fillText(t,gx0+cw2*(i2+0.5),gy0-8);});
   BC_BANDS.forEach(function(b,bi){var yy=gy0+bi*rh;
-    g.fillStyle=b[2];g.font="900 13px system-ui";g.textAlign="right";g.fillText(b[4],gx0-10,yy+rh*0.62);
+    g.fillStyle=b[2];g.font="800 10px system-ui";g.textAlign="right";g.fillText(b[5],gx0-6,yy+rh*0.62);
     PAIRS.forEach(function(P,pi){var cbv=f[P[1]],v=cbv?cbv[bi]:null,cx2=gx0+cw2*pi;
       g.fillStyle="rgba(255,255,255,.04)";g.fillRect(cx2+2,yy,cw2-4,rh-5);
       if(v!=null){g.fillStyle=b[2];g.globalAlpha=0.12+0.78*Math.min(1,v);g.fillRect(cx2+2,yy,(cw2-4)*Math.min(1,v),rh-5);g.globalAlpha=1;
@@ -13087,7 +13096,7 @@ function bcSync(g,x,y,w,h,f){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);if(!f)ret
   var sy0=Math.max(cy+ry+34,gy0+5*rh+26),sh2=(y+h2-sy0-16)/5,n=Math.min(src.length,Math.floor(600/dt)),x0=x+44,x1=x+w-168;
   g.fillStyle="#9BA1AC";g.font="800 10px system-ui";g.textAlign="left";g.fillText("HEMISPHERES IN SYNC — LAST "+Math.round(n*dt/60)+" MIN (front pair · ≥60%)",x0,sy0-8);
   BC_BANDS.forEach(function(b,bi){var yy=sy0+bi*sh2,hh=Math.max(8,sh2-7);
-    g.fillStyle=b[2];g.font="900 12px system-ui";g.textAlign="right";g.fillText(b[4],x0-8,yy+hh*0.8);
+    g.fillStyle=b[2];g.font="800 10px system-ui";g.textAlign="right";g.fillText(b[5],x0-6,yy+hh*0.8);
     g.fillStyle="rgba(255,255,255,.045)";g.fillRect(x0,yy,x1-x0,hh);
     for(var i3=0;i3<n;i3++){var fr=src[src.length-n+i3];if(!fr||!fr.cb)continue;var v=fr.cb[bi];if(v!=null&&v>=0.6){g.fillStyle=b[2];g.globalAlpha=0.35+0.6*Math.min(1,(v-0.6)/0.35);g.fillRect(x0+(x1-x0)*i3/n,yy,Math.max(1,(x1-x0)/n),hh);}}
     g.globalAlpha=1;var runs=bcSyncRuns(src,bi,0.6);
@@ -13112,8 +13121,8 @@ function bcBXO(g,x,y,w,h){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);
     for(var i2=0;i2<n;i2++){var v=pts[i2][key];if(v==null){st=false;continue;}var px=X(i2),py=Y(v);st?g.lineTo(px,py):g.moveTo(px,py);st=true;}g.stroke();};
   line("b","#ff9349");line("c","#f4b740");
   g.font="800 11px system-ui";g.textAlign="left";
-  g.fillStyle="#f4b740";g.fillText("▬ α hemisphere sync (coherence)",x0,yT+14);
-  g.fillStyle="#ff9349";g.fillText("▬ busy balance (β vs α)",x0+226,yT+14);
+  g.fillStyle="#f4b740";g.fillText("▬ left–right Calm sync",x0,yT+14);
+  g.fillStyle="#ff9349";g.fillText("▬ busy mind (Focused vs Calm)",x0+190,yT+14);
   g.fillStyle="#ECEDEF";g.font="800 11px ui-monospace,monospace";
   g.fillText("coherence-led "+bcT(led*dt)+" of "+bcT(n*dt)+" · "+cross+" crossover"+(cross===1?"":"s"),x0,yT+30);
   /* support lane: what was running under it */
@@ -13125,13 +13134,70 @@ function bcBXO(g,x,y,w,h){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);
     if(p4.c!=null){(p4.s&1?wBr:woBr).push(p4.c);}}
   var avg=function(a){return a.reduce(function(q,v){return q+v;},0)/a.length;};
   if(wBr.length*dt>=45&&woBr.length*dt>=45){g.fillStyle="#ECEDEF";g.font="800 10.5px ui-monospace,monospace";
-    g.fillText("α sync with breath "+Math.round(avg(wBr)*100)+"% · without "+Math.round(avg(woBr)*100)+"%",x0,ly+32);}
+    g.fillText("Calm sync with breath "+Math.round(avg(wBr)*100)+"% · without "+Math.round(avg(woBr)*100)+"%",x0,ly+32);}
   else{g.fillStyle="#9BA1AC";g.font="700 10px system-ui";g.fillText("Run part of the session with the breath pacer — this line will compare sync with and without it.",x0,ly+32);}}
+/* ===== SIMPLE view: what your brain is doing, in plain words (live = same numbers as the 🧠 panel; recordings = the saved timeline) ===== */
+function bcSimpleData(){var out={now:null,hist:[],heart:null,delta:null};
+  if(BC.src==="live"){if(!M.connected)return out;out.now={a:M.alpha||0,t:M.theta||0,b:M.beta||0,g:M.gamma||0};out.hist=(BC.mh||[]).slice(-600);
+    var f=BC.hist[BC.hist.length-1];if(f){var p=bcPows(f.L||f.R);if(p)out.delta=p[0];}
+    var hr=bioHR(),hv=bioHRV(),co=null;try{var c=bioCoherence();co=c?c.score:null;}catch(e){}if(hr||hv)out.heart={hr:hr,hrv:hv,co:co};return out;}
+  var R=BC.rec;if(!R||!R.tl||!R.tl.t||!R.tl.t.length)return out;var fr=R.frames[BC.ri],tt=fr?fr.t:0,T=R.tl.t,i=0;while(i<T.length-1&&T[i+1]<=tt)i++;
+  var al=R.tl.al[i];if(al!=null)out.now={a:al,t:R.tl.th[i]||0,b:R.tl.be[i]||0,g:null};
+  for(var j=0;j<=i;j++){if(T[j]<tt-300)continue;if(R.tl.al[j]!=null)out.hist.push([T[j],R.tl.al[j],R.tl.th[j]||0,R.tl.be[j]||0,null]);}
+  if(R.tl.hr[i]||R.tl.hrv[i])out.heart={hr:R.tl.hr[i],hrv:R.tl.hrv[i],co:R.tl.co[i]};
+  if(fr&&R.hasEEG){var p2=bcPows(fr.L||fr.R);if(p2)out.delta=p2[0];}return out;}
+function bcWrap(g,txt,x,y,maxW,lh){var words=txt.split(" "),line="",yy=y;words.forEach(function(w2){var test=line?line+" "+w2:w2;if(g.measureText(test).width>maxW&&line){g.fillText(line,x,yy);line=w2;yy+=lh;}else line=test;});if(line)g.fillText(line,x,yy);return yy+lh;}
+function bcSimple(g,x,y,w,h){g.fillStyle="#0E0F13";g.fillRect(x,y,w,h);try{var _cv=document.getElementById("bcCv"),_vis=window.innerHeight-Math.max(0,_cv.getBoundingClientRect().top)-58;if(_vis>200)h=Math.min(h,_vis+(BC.src==="rec"?208:52));}catch(e){}var D=bcSimpleData(),land=w>h*1.3||w>620,_tb=document.getElementById("bcTop"),top=y+(_tb?_tb.offsetHeight-6:56)+14,pad=16,colW=land?w*0.48:w-pad*2;
+  if(!D.now){return bcNoData(g,x,y,w,h,BC.src==="live"?"Connect your Muse (🧠 button) to see your brain right now — or tap 📼 to look back at a session.":"Pick a session below — or this one has no brain data.");}
+  var tot=(D.now.a+D.now.t+D.now.b)||1,pc={a:Math.round(D.now.a/tot*100),t:Math.round(D.now.t/tot*100),b:Math.round(D.now.b/tot*100),g:D.now.g!=null?Math.round(D.now.g):null};
+  var nw=brainNowText(pc.a,pc.t,pc.b,pc.g),tight=land&&(y+bcResv(h)-top)<250;g.textAlign="left";/* short landscape + playback bar: drop the small print (it is all in ⓘ) */
+  g.fillStyle="#9BA1AC";g.font="700 11px system-ui";g.fillText(BC.src==="live"?"RIGHT NOW":"AT THIS MOMENT",x+pad,top);
+  g.fillStyle=nw.c;g.font="900 "+(land?22:24)+"px system-ui";g.fillText("Mostly "+nw.name,x+pad,top+26);
+  g.fillStyle="#C9CDD4";g.font="600 13px system-ui";var yy=bcWrap(g,nw.say,x+pad,top+46,colW,17);
+  yy+=land?2:8;var rstep=tight?24:land?30:36;var rows=[["a",pc.a],["t",pc.t],["b",pc.b]];if(pc.g!=null)rows.push(["g",pc.g]);
+  rows.forEach(function(r){var b=BC_BANDS[BANDK[r[0]]],bx=x+pad+86,bw=colW-86-44;
+    g.fillStyle=b[2];g.font="900 15px system-ui";g.textAlign="left";g.fillText(b[5],x+pad,yy+12);
+    if(!tight){g.fillStyle="#8A909B";g.font="600 10px system-ui";g.fillText(b[6],x+pad,yy+25);}
+    g.fillStyle="rgba(255,255,255,.07)";g.fillRect(bx,yy+2,bw,14);g.fillStyle=b[2];g.fillRect(bx,yy+2,Math.max(2,bw*Math.min(100,r[1])/100),14);
+    g.fillStyle="#ECEDEF";g.font="800 13px ui-monospace,monospace";g.textAlign="right";g.fillText(r[1]+"%",x+pad+colW,yy+14);yy+=rstep;});
+  g.textAlign="left";
+  if(D.delta!=null){g.fillStyle=BC_BANDS[0][2];g.font="800 12px system-ui";g.fillText("Deep sleep (delta) "+Math.round(D.delta*100)+"%",x+pad,yy+6);
+    if(tight)yy+=12;else{g.fillStyle="#8A909B";g.font="600 10px system-ui";yy=bcWrap(g,"While you're awake this is mostly blinks and movement, so it isn't counted above.",x+pad,yy+20,colW,13);}}
+  var heartAt=function(hx,hy,hw){g.textAlign="left";g.fillStyle="#ff8f8c";g.font="800 12px system-ui";var hs=[D.heart.hr?"Heart "+Math.round(D.heart.hr)+" bpm":"",D.heart.hrv?"Variability "+Math.round(D.heart.hrv)+" ms":"",D.heart.co!=null?"Coherence "+Math.round(D.heart.co/(1+D.heart.co)*100)+"%":""].filter(Boolean).join(" · ");
+    g.fillText("❤️ "+hs,hx,hy+6);g.fillStyle="#8A909B";g.font="600 10px system-ui";return bcWrap(g,"Higher variability = more relaxed and recovered. Coherence = how smooth and steady your heart rhythm is.",hx,hy+20,hw,13);};
+  if(D.heart&&!land)yy=heartAt(x+pad,yy+6,colW);
+  /* timeline: last 5 minutes, stacked by band */
+  var tx=land?x+w*0.52:x+pad,tw=land?w*0.48-pad:w-pad*2,ty=land?top:yy+18,th2=land?Math.max(80,bcResv(h)-top-66-(D.heart?44:0)):Math.max(90,Math.min(170,y+bcResv(h)-ty-46));
+  g.fillStyle="#9BA1AC";g.font="700 11px system-ui";g.fillText("LAST 5 MINUTES",tx,ty);var gy=ty+8;
+  g.fillStyle="rgba(255,255,255,.04)";g.fillRect(tx,gy,tw,th2);var H5=D.hist,n=H5.length;
+  if(n>2){var t1=H5[n-1][0],t0=t1-300;var order=[["t",2],["a",1],["b",3]];
+    for(var i=0;i<n;i++){var p=H5[i],s=(p[1]+p[2]+p[3])||1,x1=tx+(p[0]-t0)/300*tw,x2=i<n-1?tx+(H5[i+1][0]-t0)/300*tw:tx+tw;if(x2<tx)continue;x1=Math.max(tx,x1);var cy=gy+th2;
+      order.forEach(function(o){var hh=th2*p[o[1]]/s;g.fillStyle=bandC(o[0]);g.fillRect(x1,cy-hh,Math.max(1,x2-x1+0.6),hh);cy-=hh;});}
+    g.fillStyle="#8A909B";g.font="600 10px system-ui";g.textAlign="left";g.fillText("5 min ago",tx,gy+th2+13);g.textAlign="right";g.fillText(BC.src==="live"?"now":"this moment",tx+tw,gy+th2+13);g.textAlign="left";}
+  else{g.fillStyle="#8A909B";g.font="600 11px system-ui";g.fillText("Builds up as you go…",tx+10,gy+th2/2);}
+  var lx=tx,ly=gy+th2+30;[["t","Dreamy"],["a","Calm"],["b","Focused"]].forEach(function(l){g.fillStyle=bandC(l[0]);g.fillRect(lx,ly-9,10,10);g.fillStyle="#C9CDD4";g.font="700 11px system-ui";g.fillText(l[1],lx+14,ly);lx+=g.measureText(l[1]).width+30;});
+  if(!tight){g.fillStyle="#8A909B";g.font="600 10px system-ui";g.fillText("Taller color = more of that state.",tx,ly+16);}
+  if(D.heart&&land)heartAt(tx,ly+34,tw);}
+/* plain explanation of every chart (ⓘ button) */
+var BC_HELP={simple:"Your brain in plain words: which state you're mostly in right now, how much of each band, and the last 5 minutes as colored layers. Start here.",
+  monitor:"Everything at once for a recorded session — heart, breath and brain over time. Best for looking back, not live.",
+  head:"Your head seen from above. Each glow is one Muse sensor; its color is the band that's strongest there. Below: how much the left and right sides move together in each band (higher = more in step).",
+  sync:"Where Calm (alpha) is in step between sensors right now, and how in step the left and right sides are in each band over the last minutes.",
+  bxo:"Crossover: when Dreamy rises up to meet Calm — the doorway into deep meditation. Needs about 90 seconds of data.",
+  mirror:"Left brain on one side, right brain on the other, from slow (bottom) to fast (top). Wide bars = strong. Bright lines mark speeds where both sides lock together.",
+  flow:"The same left/right picture moving over time, like a waterfall — watch bands brighten and fade.",
+  ridge:"A 3-D landscape of your brain speeds over time; peaks are the strongest speeds.",
+  pair:"Mirror on top, Flow underneath.",
+  vitals:"Heart rate, heart variability (HRV) and coherence, plus your three main brain bands as bars.",
+  waves:"Heart rate, variability and coherence as moving lines.",
+  xo:"Your nervous system balance from the heart: rest (breathing wave) versus effort. Builds up after about 2 minutes with a heart sensor.",
+  beat:"Each heartbeat as it lands — the spacing between beats shows your heart rhythm."};
 function bcDraw(){var cv=document.getElementById("bcCv");if(!cv)return;var dpr=Math.min(2,window.devicePixelRatio||1),W=cv.clientWidth,H=cv.clientHeight;
   if(cv.width!==Math.round(W*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
   var g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);
   var f=BC.src==="live"?BC.hist[BC.hist.length-1]:(BC.rec&&BC.rec.frames[BC.ri]);
   if(BC.src==="rec"&&BC.rec&&!BC.rec.hasEEG&&["mirror","flow","ridge","head","pair","sync","bxo"].indexOf(BC.view)>=0){g.fillStyle="#0E0F13";g.fillRect(0,0,W,H);return bcNoData(g,0,0,W,H,"No EEG in this session — try ❤️ Waves, LF·HF or Rhythm.");}
+  if(BC.view==="simple"){bcSimple(g,0,0,W,H);return;}
   if(BC.view==="pair"){bcMirror(g,0,0,W,H*0.55-2,f);bcFlow(g,0,H*0.55+2,W,H*0.45-2,f);}
   else if(BC.view==="mirror")bcMirror(g,0,0,W,H,f);
   else if(BC.view==="flow")bcFlow(g,0,0,W,H,f);
@@ -13145,7 +13211,7 @@ function bcDraw(){var cv=document.getElementById("bcCv");if(!cv)return;var dpr=M
   else if(BC.view==="beat")bcBeat(g,0,0,W,H);
   else bcRidge(g,0,0,W,H,f);}
 function bcTick(){if(!BC.on)return;
-  if(BC.src==="live"){bcPush(bcFrameLive());}
+  if(BC.src==="live"){bcPush(bcFrameLive());if(M.connected){BC.mh=BC.mh||[];BC.mh.push([Date.now()/1000,M.alpha||0,M.theta||0,M.beta||0,M.gamma||0]);if(BC.mh.length>700)BC.mh.splice(0,BC.mh.length-700);}}
   else if(BC.rec&&BC.playing){var dt=BC.rec.frameDt||1,n=BC.rec.frames.length;
     if(BC.pos==null)BC.pos=BC.ri;BC.pos+=(BC.dir||1)*(BC.spd||1)*0.5/dt;
     if(BC.pos>=n-1){BC.pos=n-1;BC.playing=false;}if(BC.pos<=0){BC.pos=0;if((BC.dir||1)<0)BC.playing=false;}
@@ -13185,22 +13251,23 @@ function bcLoadRec(at,label){BC.rec=null;BC.ri=0;BC.playing=false;BC.load="Loadi
       fin(frames,total/fs,stride/fs,true);};
     step();});}
 function renderBrainCharts(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  try{bioStart();}catch(e){}if(!BC._vload){BC._vload=1;try{BC.view=load(mk("bc","view"),BC.view);}catch(e){}}var bcFresh=!BC.on;BC.on=true;if(BC.src==="live"&&bcFresh)BC.hist=[];BC.fl=null;BC.lastFlow=null;teardown=function(){BC.on=false;if(BC.t)clearInterval(BC.t);BC.t=null;};
-  var recs=srIdx().filter(function(e){return (e.eegBlocks||0)>0||(e.sens&&e.sens.hr);}).sort(function(a,b){return b.at-a.at;}).slice(0,12);
+  try{bioStart();}catch(e){}if(!BC._vload){BC._vload=1;try{if(!load("bc:simple-v1",false)){save("bc:simple-v1",true);save(mk("bc","view"),"simple");}if(!BC._req)BC.view=load(mk("bc","view"),BC.view);}catch(e){}}BC._req=0;/* everyone starts on Simple once; after that the last chart is remembered */var bcFresh=!BC.on;BC.on=true;if(BC.src==="live"&&bcFresh)BC.hist=[];BC.fl=null;BC.lastFlow=null;teardown=function(){BC.on=false;if(BC.t)clearInterval(BC.t);BC.t=null;};
+  var recs=srIdx().filter(function(e){return (e.eegBlocks||0)>0||(e.sens&&(e.sens.hr||e.sens.eeg));}).sort(function(a,b){return b.at-a.at;}).slice(0,12);
   var isRec=BC.src==="rec",H=Math.max(420,window.innerHeight-64);
   var chip=function(sel,attr,txt){return '<button class="rchip sm'+(sel?" sel":"")+'" '+attr+' style="backdrop-filter:blur(6px)">'+txt+'</button>';};
-  var VLIST=[["monitor","🫀 Monitor"],["head","🧠 Head"],["sync","🧭 Sync"],["bxo","🌉 Crossover"],["mirror","🪞 Mirror"],["flow","🌊 Flow"],["ridge","⛰ Ridge"],["pair","◫ Pair"],["vitals","💓 Vitals"],["waves","❤️ Waves"],["xo","🔀 LF·HF"],["beat","📈 Rhythm"]];
-  var fold=load(mk("bc","fold"),false),curV=VLIST.filter(function(v){return v[0]===BC.view;})[0];
+  var VLIST=[["simple","📖 Simple"],["head","🧠 Head map"],["sync","🧭 In sync"],["bxo","🌉 Crossover"],["mirror","🪞 Left vs right"],["flow","🌊 Waterfall"],["ridge","⛰ Landscape"],["pair","◫ Both"],["vitals","💓 Vitals"],["waves","❤️ Heart lines"],["xo","🔀 Rest vs effort"],["beat","📈 Heartbeats"],["monitor","🫀 Monitor"]];
+  var more=load(mk("bc","more"),false),curV=VLIST.filter(function(v){return v[0]===BC.view;})[0];
   view.innerHTML='<div id="bcWrap" style="position:relative;height:'+H+'px;border-radius:14px;overflow:hidden;background:#0E0F13">'
    +'<canvas id="bcCv" style="position:absolute;inset:0;width:100%;height:100%;display:block"></canvas>'
    +'<div id="bcTop" style="position:absolute;left:0;right:0;top:0;padding:8px 8px 18px;display:flex;gap:5px;align-items:center;flex-wrap:wrap;background:linear-gradient(rgba(10,11,14,.88),rgba(10,11,14,.5) 60%,transparent);transition:opacity .35s">'
     +'<button class="rchip sm" id="eBack" aria-label="Back">←</button>'
-    +(fold?chip(true,'id="bcFold"',(curV?curV[1]:BC.view)+" ▾")
-      :VLIST.map(function(v){return chip(BC.view===v[0],'data-bcv="'+v[0]+'"',v[1]);}).join("")
-       +chip(!isRec,'data-bcs="live"',"● Live")+chip(isRec,'data-bcs="rec"',"📼")
-       +chip(false,'id="bcFold"',"▴"))
+    +chip(BC.view==="simple",'data-bcv="simple"',"📖 Simple")
+    +chip(BC.view!=="simple"||more,'id="bcFold"',(BC.view!=="simple"&&curV?curV[1]:"More charts")+(more?" ▴":" ▾"))
+    +chip(!isRec,'data-bcs="live"',"● Live")+chip(isRec,'data-bcs="rec"',"📼 Past")
+    +chip(false,'id="bcHelp" aria-label="What am I looking at?"',"ⓘ")
+    +(more?'<div style="flex-basis:100%;display:flex;gap:5px;flex-wrap:wrap">'+VLIST.filter(function(v){return v[0]!=="simple";}).map(function(v){return chip(BC.view===v[0],'data-bcv="'+v[0]+'"',v[1]);}).join("")+'</div>':'')
     +'<span id="bcMuse" style="margin-left:auto;font:700 .72rem system-ui;color:'+(M.connected?"#5fe0a8":"#9BA1AC")+'">'+(M.connected?"Muse live":(isRec?"":"Muse off"))+'</span></div>'
-   +'<div id="bcBot" style="position:absolute;left:0;right:0;bottom:0;padding:26px 10px 10px;background:linear-gradient(transparent,rgba(10,11,14,.6) 20%,rgba(10,11,14,.92));transition:opacity .35s;'+(isRec?"":"display:none")+'">'
+   +'<div id="bcBot" style="position:absolute;left:0;right:0;bottom:0;padding:26px 10px 58px;background:linear-gradient(transparent,rgba(10,11,14,.6) 20%,rgba(10,11,14,.92));transition:opacity .35s;'+(isRec?"":"display:none")+'">'
     +'<canvas id="bcMk" style="display:block;width:100%;height:14px;border-radius:4px;background:rgba(255,255,255,.05)"></canvas>'
     +'<div style="display:flex;gap:8px;align-items:center;margin:4px 0"><input type="range" id="bcSlide" min="0" max="'+(BC.rec?BC.rec.frames.length-1:0)+'" value="'+BC.ri+'" style="flex:1;accent-color:var(--gold)"><span id="bcTime" style="font:800 .74rem ui-monospace,monospace;color:#ECEDEF;white-space:nowrap">'+(BC.rec?bcT(BC.rec.frames[BC.ri]?BC.rec.frames[BC.ri].t:0)+" / "+bcT(BC.rec.dur):"–:–")+'</span></div>'
     +'<div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">'
@@ -13208,14 +13275,18 @@ function renderBrainCharts(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
      +'<button class="rchip sm" id="bcPlayB" style="min-width:52px;justify-content:center;font-size:1rem">'+(BC.playing?"⏸":"▶")+'</button>'
      +'<button class="rchip sm" id="bcFw">30s ⏩</button>'
      +[1,2,4,8].map(function(sp){return '<button class="rchip sm'+((BC.spd||1)===sp?" sel":"")+'" data-spd="'+sp+'">'+sp+'×</button>';}).join("")
-     +'<button class="rchip sm" data-find="sync" style="color:var(--gold)">⏭ α</button><button class="rchip sm" data-find="co" style="color:#5fe0a8">⏭ ❤️</button></div>'
+     +'<button class="rchip sm" data-find="sync" style="color:var(--gold)">⏭ Calm</button><button class="rchip sm" data-find="co" style="color:#5fe0a8">⏭ ❤️</button></div>'
     +'<div style="display:flex;gap:8px;align-items:center;margin:4px 0 0"><div id="bcLoad" class="site-note" style="margin:0;font-size:.72rem;flex:1">'+(BC.load||(BC.rec?BC.rec.label:"Pick a session:"))+'</div><button class="rchip sm" id="bcFullMon" style="flex:none'+(BC.rec?'':';display:none')+'">🫀 Full monitor</button></div>'
     +'<div id="bcRecs" class="rchips tight" data-nocz style="margin-top:4px;display:flex;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px">'+(recs.length?recs.map(function(e){return '<button class="rchip sm" data-bcr="'+e.at+'" style="flex:none">'+((e.eegBlocks||0)>0?"🧠 ":"❤️ ")+esc((e.label||"Session").slice(0,24))+'</button>';}).join(""):'<span class="site-note" style="margin:0;white-space:nowrap">No recorded sessions yet — do any meditation with the HeartMath or Muse connected.</span>')+'</div></div></div>';
   $("#eBack").onclick=goHome;
-  var fb=document.getElementById("bcFold");if(fb)fb.onclick=function(){save(mk("bc","fold"),!fold);renderBrainCharts();};
+  var fb=document.getElementById("bcFold");if(fb)fb.onclick=function(){save(mk("bc","more"),!more);renderBrainCharts();};
+  var hb=document.getElementById("bcHelp");if(hb)hb.onclick=function(){var o=document.getElementById("bcHelpBox");if(o){o.remove();return;}o=document.createElement("div");o.id="bcHelpBox";
+    o.style.cssText="position:absolute;left:8px;right:8px;top:56px;max-height:calc(100% - 70px);overflow:auto;z-index:5;background:rgba(18,19,25,.97);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:12px 14px;font-size:.85rem;line-height:1.4;color:#ECEDEF";
+    o.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>ⓘ '+esc(curV?curV[1].replace(/^\S+\s/,""):"This chart")+'</b><button class="rchip sm" id="bcHelpX">✕</button></div><div style="margin:6px 0 4px">'+(BC_HELP[BC.view]||"")+'</div>'+brainMeaningsHTML().replace("<details","<details open");
+    document.getElementById("bcWrap").appendChild(o);document.getElementById("bcHelpX").onclick=function(){o.remove();};};
   var top=document.getElementById("bcTop"),bot=document.getElementById("bcBot");
   var dim=function(){var d=BC.playing&&isRec;if(top)top.style.opacity=d?0.15:1;if(bot)bot.style.opacity=d?0.25:1;};
-  view.querySelectorAll("[data-bcv]").forEach(function(b){b.onclick=function(){BC.view=b.dataset.bcv;BC.fl=null;BC.lastFlow=null;try{save(mk("bc","view"),BC.view);}catch(e){}renderBrainCharts();};});
+  view.querySelectorAll("[data-bcv]").forEach(function(b){b.onclick=function(){save(mk("bc","more"),false);BC.view=b.dataset.bcv;BC.fl=null;BC.lastFlow=null;try{save(mk("bc","view"),BC.view);}catch(e){}renderBrainCharts();};});
   view.querySelectorAll("[data-bcs]").forEach(function(b){b.onclick=function(){if(BC.src!==b.dataset.bcs)BC.hist=[];BC.src=b.dataset.bcs;BC.playing=false;BC.fl=null;BC.lastFlow=null;renderBrainCharts();};});
   view.querySelectorAll("[data-bcr]").forEach(function(b){b.onclick=function(){var e=srIdx().find(function(x){return String(x.at)===b.dataset.bcr;});bcLoadRec(+b.dataset.bcr,(e&&e.label)||"Session");};});
   var ld0=document.getElementById("bcLoad");if(ld0)ld0.onclick=function(){var rl=document.getElementById("bcRecs");if(rl)rl.style.display=rl.style.display==="none"?"flex":"none";};
@@ -13235,7 +13306,7 @@ function renderBrainCharts(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
       if(kind==="sync")hit=(f2.pk||[]).some(function(p){return p[1]>=0.6&&p[0]>=8&&p[0]<13;});
       else hit=f2.co!=null&&f2.co>=60;
       if(hit){jump(i);return;}}
-    var st=document.getElementById("bcLoad");if(st)st.textContent=kind==="sync"?"No more α sync ahead — scrub back to search earlier.":"No more high coherence ahead.";};});
+    var st=document.getElementById("bcLoad");if(st)st.textContent=kind==="sync"?"No more Calm sync ahead — scrub back to search earlier.":"No more high coherence ahead.";};});
   dim();if(BC.t)clearInterval(BC.t);BC.t=setInterval(bcTick,500);bcMarks();bcDraw();}
 /* marker strip above the slider: gold ticks = alpha hemi-sync, white = other sync, green curve = heart coherence */
 function bcMarks(){var cv=document.getElementById("bcMk");if(!cv)return;var dpr=Math.min(2,window.devicePixelRatio||1),W=cv.clientWidth||300,H=16;
@@ -15585,10 +15656,10 @@ function sensState(){if(!M.connected)return "";const t=M.theta||0,a=M.alpha||0,b
 function sensFmt(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
 function sensUI(){const f=document.getElementById("sensFab");if(f){const on=HR.connected||M.connected,hr=bioHR(),hv=bioHRV();f.classList.toggle("on",on);f.classList.toggle("rec",SENS.rec);
     f.innerHTML=on?"🫀 "+(hr?hr:"…")+(hv!=null?" · "+hv+"ms":"")+(M.connected?" · "+(sensState()||"🧠"):"")+(SENS.rec?' <span class="sdot"></span>':""):"🫀";}
-  const bf2=document.getElementById("brainFab");if(bf2){bf2.classList.toggle("on",M.connected);bf2.innerHTML=M.connected?"🧠 α "+Math.round(M.alpha)+"%":"🧠";}
+  const bf2=document.getElementById("brainFab");if(bf2){bf2.classList.toggle("on",M.connected);bf2.innerHTML=M.connected?"🧠 Calm "+Math.round(M.alpha)+"%":"🧠";}
   const p=document.getElementById("sensPanel");if(!p||p.hidden)return;const L=document.getElementById("sensLive");if(L){const hr=bioHR(),hv=bioHRV(),co=bioCoherence();
     const tile=(l,v)=>'<div class="stile"><div class="sl">'+l+'</div><div class="sv">'+v+'</div></div>';
-    L.innerHTML='<div class="sgrid">'+tile("Heart rate",hr?hr+" bpm":"—")+tile("HRV",hv!=null?hv+" ms":"—")+tile("Coherence",co?Math.round(co.score/(1+co.score)*100)+"%":"—")+(M.connected?tile("Alpha",Math.round(M.alpha)+"%")+tile("Theta",Math.round(M.theta)+"%")+tile("Beta",Math.round(M.beta)+"%"):"")+'</div>'+
+    L.innerHTML='<div class="sgrid">'+tile("Heart rate",hr?hr+" bpm":"—")+tile("HRV",hv!=null?hv+" ms":"—")+tile("Coherence",co?Math.round(co.score/(1+co.score)*100)+"%":"—")+(M.connected?tile("Calm",Math.round(M.alpha)+"%")+tile("Dreamy",Math.round(M.theta)+"%")+tile("Focused",Math.round(M.beta)+"%"):"")+'</div>'+
       (SENS.rec?'<div class="snote" style="display:flex;align-items:center;gap:6px"><span class="sdot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff5d6c"></span>Recording '+sensFmt((Date.now()-SENS.t0)/1000)+' · '+esc(sensActivity().split(" · ")[0])+'</div>':'');}
   if(HR.connected||M.connected){let vz=document.getElementById("sensViz");if(!vz&&L){vz=document.createElement("div");vz.id="sensViz";vz.innerHTML=tgtHTML("sensTgt")+'<div class="snote" style="margin:8px 0 2px"><b>Heart rhythm</b> · last minute</div><canvas id="sensWv" style="width:100%;height:80px;display:block;border:1px solid var(--line,#3a3160);border-radius:10px;background:rgba(0,0,0,.25)"></canvas>'+ansHTML("sensAns")+hrvWavesHTML("sensWaves")+'<button class="mbtn" id="sensRst" style="flex:none;padding:5px 9px;font-size:.76rem">↺ Measure from now</button>';L.after(vz);document.getElementById("sensRst").onclick=()=>{BIO.t0=Date.now();tgtReset();ansPaint("sensAns");tgtPaint("sensTgt");};}
     if(vz){sensWave();ansPaint("sensAns");tgtPaint("sensTgt");if(!SENS.wvT||Date.now()-SENS.wvT>3000){SENS.wvT=Date.now();hrvWavesPaint("sensWaves");}}}
@@ -15607,7 +15678,7 @@ function sensPanelOpen(o){SENS.open=o;const p=document.getElementById("sensPanel
   p.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><b style="font-size:1.05rem">🫀 Body readings</b><button class="mbtn" id="sensX" style="flex:none;width:36px;height:36px;padding:0;border-radius:50%">✕</button></div>'+
     fullPageNote()+'<div class="srow"><button class="mbtn" id="sensHRb"></button><button class="mbtn" id="sensMb"></button></div><div id="sensMsg" class="snote"></div>'+
     '<div id="sensLive"></div>'+
-    '<div class="srow"><button class="mbtn" id="sensRead">\ud83d\udcd6 Read my last 10 min</button></div><div class="srow"><button class="mbtn" id="sensGo">📊 My sessions</button><button class="mbtn" id="sensIns">📈 What works</button></div>'+
+    '<div class="srow"><button class="mbtn" id="sensDash">💓 Heart dashboard</button><button class="mbtn" id="sensRead">\ud83d\udcd6 Read my last 10 min</button></div><div class="srow"><button class="mbtn" id="sensGo">📊 My sessions</button><button class="mbtn" id="sensIns">📈 What works</button></div>'+
     '<details style="margin-top:6px"><summary class="snote" style="cursor:pointer;list-style:none">⚙︎ Tags, recording and connection help ▾</summary><div id="sensTags" style="margin:8px 0"></div>'+
     '<div class="srow"><button class="mbtn" id="sensRec"></button></div>'+
     '<label class="snote" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="sensAuto"'+(load("mjk-sens-auto",true)?" checked":"")+'> record automatically when a sensor connects</label>'+
@@ -15622,6 +15693,7 @@ function sensPanelOpen(o){SENS.open=o;const p=document.getElementById("sensPanel
   document.getElementById("sensGo").onclick=()=>{sensPanelOpen(false);try{if(typeof teardown==="function")teardown();}catch(e){}teardown=null;renderSensSessions();};
   document.getElementById("sensRead").onclick=()=>{var D=(SENS.data||[]).slice(-600);if(D.length<120){msg("Give it a couple of minutes with a sensor connected, then tap again.");return;}sensPanelOpen(false);try{if(typeof teardown==="function")teardown();}catch(e){}teardown=null;renderBioRead(D.map(function(p){return Object.assign({},p,{t:p.t-D[0].t});}),"The last "+Math.round(D.length/60)+" minutes",null,{live:true,start:Date.now(),id:SENS.sid});};
   document.getElementById("sensAuto").onchange=e=>save("mjk-sens-auto",e.target.checked);
+  document.getElementById("sensDash").onclick=()=>{sensPanelOpen(false);try{if(typeof teardown==="function")teardown();}catch(e){}teardown=null;BC.view="vitals";BC._req=1;renderBrainCharts();};
   document.getElementById("sensIns").onclick=()=>{sensPanelOpen(false);try{if(typeof teardown==="function")teardown();}catch(e){}teardown=null;renderInsights();};sensTagsUI();
   sensUI();try{brainLayout();}catch(e){}}
 const BRP={open:false,t:null,hist:[]};
@@ -15630,43 +15702,57 @@ function brainLayout(){var b=document.getElementById("brainPanel"),sp=document.g
   if(sp)sp.style.maxHeight=both?"34vh":"";b.style.maxHeight=both?"44vh":"";
   var base=66;if(both)base=66+sp.offsetHeight+10;
   b.style.bottom="calc("+base+"px + env(safe-area-inset-bottom))";}
+/* plain-words reading of the main bands — shared by the brain panel and the Simple dashboard */
+function brainNowText(a,th,be,ga){if(a==null)return null;var top=[["a",a],["t",th],["b",be]].sort(function(x,y){return y[1]-x[1];})[0][0];
+  var say={a:"Relaxed and awake — a good meditation state.",t:"Drifting, dreamy or drowsy — deep meditation or the edge of sleep.",b:"Thinking and busy. To settle: slow your breath, soften your eyes."}[top];
+  var tip=ga!=null&&ga>25?" Peak is high — relax your jaw and forehead (tension shows up there).":"";return {k:top,name:bandN(top),c:bandC(top),say:say+tip};}
+function brainSignalText(){var q=(M.qual&&M.qual.length?M.qual:[0,0,0,0]),ok=q.filter(function(x){return x>=0.5;}).length;
+  return ok===4?["Signal good","#5fe0a8"]:ok>=2?["Signal OK — "+(4-ok)+" sensor"+(4-ok>1?"s":"")+" loose","#f4b740"]:["Signal weak — wet the pads and press the band to your forehead and behind the ears","#ff5d6c"];}
+function brainMeaningsHTML(){return '<details style="margin-top:8px"><summary class="snote" style="cursor:pointer;list-style:none;margin:0">ⓘ What do these mean? ▾</summary><div style="margin-top:6px">'+
+  BC_BANDS.map(function(b){return '<div style="margin:6px 0;font-size:.8rem;line-height:1.35"><b style="color:'+b[2]+'">'+b[5]+'</b> <span style="color:var(--muted)">('+b[3].toLowerCase()+', '+b[0]+'–'+b[1]+' Hz)</span><br>'+b[7]+'</div>';}).join("")+
+  '<div class="snote" style="margin:6px 0 0">The % is how much of your brain activity is in each speed right now. Calm, Dreamy and Focused add up to 100%; Peak is counted on its own.</div></div></details>';}
 function brainPanelTick(){var p=document.getElementById("brainPanel");if(!p||p.hidden)return;var L=document.getElementById("bpLive");if(!L)return;
-  if(!M.connected){if(!L.dataset.nc){L.dataset.nc="1";L.innerHTML='<div class="snote">Muse not connected yet \u2014 one tap below.</div>';}brainLayout();return;}
-  delete L.dataset.nc;
-  var a=Math.round(M.alpha||0),th=Math.round(M.theta||0),be=Math.round(M.beta||0);
-  BRP.hist.push(a);if(BRP.hist.length>48)BRP.hist.shift();
-  var lead=(a>=th&&a>=be)?["\u03b1 \u00b7 calm flow","#5fe0a8"]:(th>=be?["\u03b8 \u00b7 deep & dreamy","#5fc8e0"]:["\u03b2 \u00b7 busy mind","#ff9349"]);
-  var q=(M.qual&&M.qual.length?M.qual:[1,1,1,1]).map(function(x){return '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:3px;background:'+(x>=0.5?"#5fe0a8":"#ff5d6c")+'"></span>';}).join("");
-  function bar(nm,v,c){return '<div style="display:flex;align-items:center;gap:8px;margin:5px 0"><b style="width:16px;font:800 .85rem system-ui;color:'+c+'">'+nm+'</b><div style="flex:1;height:10px;border-radius:5px;background:rgba(255,255,255,.07);overflow:hidden"><div style="height:100%;width:'+Math.max(2,Math.min(100,v))+'%;background:'+c+'"></div></div><span style="width:40px;text-align:right;font:700 .8rem ui-monospace,monospace">'+v+'%</span></div>';}
-  var w=150,h=26,n=BRP.hist.length,pts=BRP.hist.map(function(v,i){return (i/Math.max(1,n-1)*w).toFixed(1)+","+(h-2-Math.max(0,Math.min(100,v))/100*(h-4)).toFixed(1);}).join(" ");
-  L.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin:2px 0 6px"><b style="color:'+lead[1]+';font:800 .9rem system-ui">'+lead[0]+'</b><span class="snote" style="margin:0">signal'+q+(M.battery!=null?" \u00b7 \ud83d\udd0b"+Math.round(M.battery)+"%":"")+'</span></div>'
-    +bar("\u03b1",a,"#5fe0a8")+bar("\u03b8",th,"#5fc8e0")+bar("\u03b2",be,"#ff9349")
-    +'<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><span class="snote" style="margin:0;flex:none">\u03b1 trend</span><svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" style="flex:1" preserveAspectRatio="none"><polyline points="'+pts+'" fill="none" stroke="#5fe0a8" stroke-width="1.6" stroke-linejoin="round"/></svg></div>';
+  if(!M.connected){if(!L.dataset.nc){L.dataset.nc="1";var brainRec=function(e){return (e.mins||0)>=1&&((e.eegBlocks||0)>0||(e.sens&&e.sens.eeg));},has=srIdx().some(brainRec);
+      L.innerHTML='<div class="snote" style="margin:0 0 4px">Muse not connected. You can still look back at past sessions.</div>'+(has?'<div class="srow"><button class="mbtn" id="bpLast">📼 My last brain session</button></div>':'')+brainMeaningsHTML();
+      var lb=document.getElementById("bpLast");if(lb)lb.onclick=function(){var e=srIdx().filter(brainRec).sort(function(x,y){return y.at-x.at;})[0];if(!e)return;brainPanelOpen(false);try{if(typeof teardown==="function")teardown();}catch(er){}teardown=null;BC.src="rec";BC.view="simple";BC._req=1;renderBrainCharts();bcLoadRec(e.at,e.label||"Session");};}
+    brainLayout();return;}
+  if(L.dataset.nc){delete L.dataset.nc;L.innerHTML="";}
+  var a=Math.round(M.alpha||0),th=Math.round(M.theta||0),be=Math.round(M.beta||0),ga=Math.round(M.gamma||0);
+  BRP.hist.push([a,th,be]);if(BRP.hist.length>48)BRP.hist.shift();
+  var now=brainNowText(a,th,be,ga),sig=brainSignalText();
+  function bar(k,v){var b=BC_BANDS[BANDK[k]];return '<div style="display:flex;align-items:center;gap:8px;margin:5px 0"><div style="width:96px;line-height:1.1"><b style="font:800 .85rem system-ui;color:'+b[2]+'">'+b[5]+'</b><br><span style="font-size:.64rem;color:var(--muted)">'+b[6]+'</span></div><div style="flex:1;height:12px;border-radius:6px;background:rgba(255,255,255,.07);overflow:hidden"><div style="height:100%;width:'+Math.max(2,Math.min(100,v))+'%;background:'+b[2]+'"></div></div><span style="width:40px;text-align:right;font:700 .82rem ui-monospace,monospace">'+v+'%</span></div>';}
+  var w=150,h=30,n=BRP.hist.length,line=function(i,k){return '<polyline points="'+BRP.hist.map(function(v,j){return (j/Math.max(1,n-1)*w).toFixed(1)+","+(h-2-Math.max(0,Math.min(100,v[i]))/100*(h-4)).toFixed(1);}).join(" ")+'" fill="none" stroke="'+bandC(k)+'" stroke-width="1.6" stroke-linejoin="round"/>';};
+  var keep=L.querySelector("details");var open=keep&&keep.open;
+  L.innerHTML='<div style="margin:2px 0 6px"><div style="font:800 1rem system-ui">Right now: <span style="color:'+now.c+'">mostly '+now.name+'</span></div><div class="snote" style="margin:2px 0 0">'+now.say+'</div></div>'
+    +bar("a",a)+bar("t",th)+bar("b",be)+bar("g",ga)
+    +'<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><span class="snote" style="margin:0;flex:none">last 30 s</span><svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" style="flex:1" preserveAspectRatio="none">'+line(1,"t")+line(2,"b")+line(0,"a")+'</svg></div>'
+    +'<div class="snote" style="margin:4px 0 0;color:'+sig[1]+'">● '+sig[0]+(M.battery!=null?' <span style="color:var(--muted)">· battery '+Math.round(M.battery)+'%</span>':'')+'</div>'+brainMeaningsHTML();
+  if(open){var d2=L.querySelector("details");if(d2)d2.open=true;}
   brainLayout();}
 function brainPanelOpen(o){BRP.open=o;var p=document.getElementById("brainPanel");if(!p)return;p.hidden=!o;if(BRP.t){clearInterval(BRP.t);BRP.t=null;}if(!o){brainLayout();return;}
-  p.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><b style="font-size:1.05rem">\ud83e\udde0 Brain live</b><button class="mbtn" id="bpX" style="flex:none;width:36px;height:36px;padding:0;border-radius:50%">\u2715</button></div>'
+  p.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><b style="font-size:1.05rem">🧠 Brain live</b><button class="mbtn" id="bpX" style="flex:none;width:36px;height:36px;padding:0;border-radius:50%">✕</button></div>'
     +'<div id="bpLive"></div><div id="bpMsg" class="snote" style="margin:4px 0 0"></div>'
-    +'<div class="srow"><button class="mbtn" id="bpConn"></button><button class="mbtn" id="bpFull">\u26f6 Full Brain Charts</button></div>';
+    +'<div class="srow"><button class="mbtn" id="bpConn"></button><button class="mbtn" id="bpFull">📊 Open dashboard</button></div>';
   document.getElementById("bpX").onclick=function(){brainPanelOpen(false);};
-  var cb=document.getElementById("bpConn");function cLbl(){cb.textContent=M.connected?"\ud83c\udfa7 Muse connected":"\ud83d\udd17 Connect Muse";}cLbl();
-  cb.onclick=async function(){if(M.connected)return;var st=document.getElementById("bpMsg");if(!bioBT()){st.innerHTML="<b>This browser can\u2019t use Bluetooth.</b> On iPhone use the <b>Bluefy</b> app; on a computer use Chrome.";return;}
-    try{await museConnect(st);st.innerHTML="\ud83e\udde0 Muse connected \u2014 sit still a moment while it settles.";}
-    catch(e){var r=String((e&&(e.message||e.name))||e||"");st.innerHTML=/cancel|chooser/i.test(r)?"No Muse picked. Turn it on (hold the button until the lights move), close the Muse app, then tap again.":"Couldn\u2019t connect. The \u2764\ufe0f sensors button has full connection help.";}
+  var cb=document.getElementById("bpConn");function cLbl(){cb.textContent=M.connected?"🎧 Muse connected":"🔗 Connect Muse";}cLbl();
+  cb.onclick=async function(){if(M.connected)return;var st=document.getElementById("bpMsg");if(!bioBT()){st.innerHTML="<b>This browser can’t use Bluetooth.</b> On iPhone use the <b>Bluefy</b> app; on a computer use Chrome.";return;}
+    try{await museConnect(st);st.innerHTML="🧠 Muse connected — sit still a moment while it settles.";}
+    catch(e){var r=String((e&&(e.message||e.name))||e||"");st.innerHTML=/cancel|chooser/i.test(r)?"No Muse picked. Turn it on (hold the button until the lights move), close the Muse app, then tap again.":"Couldn’t connect. The ❤️ sensors button has full connection help.";}
     try{sensEnsureTimer();bioStart();sensUI();}catch(e){}cLbl();};
-  document.getElementById("bpFull").onclick=function(){brainPanelOpen(false);try{if(typeof teardown==="function")teardown();}catch(e){}teardown=null;renderBrainCharts();};
-  brainPanelTick();BRP.t=setInterval(function(){brainPanelTick();var c2=document.getElementById("bpConn");if(c2&&!document.getElementById("brainPanel").hidden)c2.textContent=M.connected?"\ud83c\udfa7 Muse connected":"\ud83d\udd17 Connect Muse";},700);brainLayout();}
+  document.getElementById("bpFull").onclick=function(){brainPanelOpen(false);try{if(typeof teardown==="function")teardown();}catch(e){}teardown=null;BC.view="simple";BC._req=1;renderBrainCharts();};
+  brainPanelTick();BRP.t=setInterval(function(){brainPanelTick();var c2=document.getElementById("bpConn");if(c2&&!document.getElementById("brainPanel").hidden)c2.textContent=M.connected?"🎧 Muse connected":"🔗 Connect Muse";},700);brainLayout();}
 (function(){try{const s=document.createElement("style");s.textContent=
 "#sensFab{position:fixed;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:2147482500;padding:9px 14px;border-radius:999px;border:1px solid rgba(255,93,108,.55);background:rgba(20,14,40,.92);color:#ffb3ba;font:800 .9rem system-ui;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.35)}"+
 "#sensFab.on{background:#2a1220;color:#fff;border-color:#ff5d6c}#sensFab .sdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff5d6c;margin-left:4px;animation:sblink 1.2s infinite}@keyframes sblink{50%{opacity:.25}}"+
 "#sensPanel{position:fixed;right:12px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:2147482500;width:min(360px,calc(100vw - 24px));max-height:70vh;overflow:auto;background:var(--card,#1a1430);border:1px solid var(--line,#3a3160);border-radius:16px;padding:12px;color:var(--cream,#f4ead2);box-shadow:0 10px 30px rgba(0,0,0,.5)}"+
 "#sensPanel .mbtn,#brainPanel .mbtn{flex:1;border:1px solid var(--line,#3a3160);background:var(--card2,#241c42);color:inherit;border-radius:10px;padding:9px 10px;font:800 .85rem system-ui;cursor:pointer}#sensPanel .srow,#brainPanel .srow{display:flex;gap:8px;margin:8px 0}"+
 "#sensPanel .snote,#brainPanel .snote{font-size:.78rem;color:var(--muted,#9a93b8);margin:6px 0}#sensPanel .sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:6px 0}#sensPanel .stile{background:var(--bg,#0f0b1e);border:1px solid var(--line,#3a3160);border-radius:10px;padding:6px;text-align:center}#sensPanel .sl{font-size:.68rem;color:var(--muted,#9a93b8);font-weight:800}#sensPanel .sv{font:900 1.05rem system-ui}"+
-".pkWide #sensFab{display:none!important}"+
+"/* full-screen instruments: the device buttons shrink to small icons on the right edge, so the dashboards are always one tap away without covering keys or drums */.pkWide #sensFab,body.djOn #sensFab,.pkWide #brainFab,body.djOn #brainFab{right:4px!important;left:auto!important;bottom:auto!important;width:38px;height:38px;padding:0!important;font-size:0!important;display:flex!important;align-items:center;justify-content:center;opacity:.85}"+".pkWide #sensFab,body.djOn #sensFab{top:calc(50% + 4px)}.pkWide #brainFab,body.djOn #brainFab{top:calc(50% - 42px)}"+"@media (orientation:portrait){body.djOn:not(.pkWide) #sensFab,body.djOn:not(.pkWide) #brainFab{top:auto!important;bottom:calc(8px + env(safe-area-inset-bottom))!important}body.djOn:not(.pkWide) #brainFab{right:auto!important;left:4px!important}}"+/* round pan/drum: the bottom corners are outside the circle */".pkWide #sensFab::before,body.djOn #sensFab::before{content:'🫀';font-size:18px}.pkWide #brainFab::before,body.djOn #brainFab::before{content:'🧠';font-size:18px}"+
 "#metFab{display:none!important}"+ /* replaced by the brain button, per Travis */
 "#brainFab{position:fixed;left:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:2147482500;padding:9px 14px;border-radius:999px;border:1px solid rgba(95,224,168,.55);background:rgba(20,14,40,.92);color:#aef0d6;font:800 .9rem system-ui;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.35)}"+
 "#brainFab.on{background:#0f2a22;color:#fff;border-color:#5fe0a8}"+
-"#brainPanel{position:fixed;left:12px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:2147482500;width:min(340px,calc(100vw - 24px));max-height:60vh;overflow:auto;background:var(--card,#1a1430);border:1px solid rgba(95,224,168,.4);border-radius:16px;padding:12px;color:var(--cream,#f4ead2);box-shadow:0 10px 30px rgba(0,0,0,.5)}"+
-".pkWide #brainFab,body.gated #brainFab,body.djOn #brainFab,.pkWide #brainPanel,body.gated #brainPanel,body.djOn #brainPanel{display:none!important}";document.head.appendChild(s);
+"@media (max-height:520px){#brainPanel,#sensPanel{max-height:calc(100vh - 84px)!important;bottom:calc(10px + env(safe-area-inset-bottom))!important}}#brainPanel{position:fixed;left:12px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:2147482500;width:min(340px,calc(100vw - 24px));max-height:min(60vh,calc(100vh - 90px));overflow:auto;background:var(--card,#1a1430);border:1px solid rgba(95,224,168,.4);border-radius:16px;padding:12px;color:var(--cream,#f4ead2);box-shadow:0 10px 30px rgba(0,0,0,.5)}"+
+"body.gated #brainFab,body.gated #brainPanel{display:none!important}";document.head.appendChild(s);
   const f=document.createElement("button");f.id="sensFab";f.type="button";f.setAttribute("aria-label","Sensors");document.body.appendChild(f);f.onclick=()=>{unlockAudio();sensPanelOpen(!SENS.open);};
   const bf=document.createElement("button");bf.id="brainFab";bf.type="button";bf.setAttribute("aria-label","Brain Charts");bf.textContent="🧠";document.body.appendChild(bf);
   bf.onclick=()=>{unlockAudio();brainPanelOpen(!BRP.open);};
@@ -15699,7 +15785,7 @@ function rpJorPaint(R2,tc){var cv=document.getElementById("rpJor");if(!cv)return
       for(var i2=0;i2<tl.t.length;i2++){var v=arr[i2];if(v==null||!isFinite(v)){pen=false;continue;}var x=X(tl.t[i2]),yy=y+h-3-(v-lo)/(hi-lo)*(h-6);if(!pen){g.moveTo(x,yy);pen=true;}else g.lineTo(x,yy);}g.stroke();});
     g.fillStyle="rgba(155,161,172,.8)";g.font="700 8px system-ui";g.textAlign="left";g.fillText(lab,8,y+10);};
   var y=y0+sh+6;lane(y,76,[{k:"hr",c:"#ff5d6c"},{k:"hrv",c:"#f3c14a"},{k:"co",c:"#7ff0d6"}],"HEART · rate / HRV / coherence");y+=82;
-  if(hasBrain){lane(y,54,[{k:"ra",c:"#5fe0a8"},{k:"rt",c:"#5fc8e0"}],"BRAIN · α green · θ cyan");y+=60;}
+  if(hasBrain){lane(y,54,[{k:"ra",c:bandC("a")},{k:"rt",c:bandC("t")}],"BRAIN · green = Calm · blue = Dreamy");y+=60;}
   /* playhead + current stage */
   g.strokeStyle="#f4b740";g.lineWidth=2;g.shadowColor="#f4b740";g.shadowBlur=6;g.beginPath();g.moveTo(X(tc),2);g.lineTo(X(tc),y-4);g.stroke();g.shadowBlur=0;
   var ix=0;while(ix<tl.t.length-1&&tl.t[ix+1]<=tc)ix++;var sn=stg[st[ix]||0]||"";
@@ -15837,8 +15923,8 @@ function renderBioRead(D,title,backFn,mt){home.hidden=true;view.hidden=false;win
     s3+="Your left and right hemispheres\u2019 alpha rhythms ran in sync <b>"+Math.round(hs)+"%</b> on average"+(hs>=60?" \u2014 strongly locked together.":hs>=40?" \u2014 moderately linked.":" \u2014 mostly doing their own thing this time.");
     if(bh&&bh.hs!=null)s3+=" Best hemi-sync: <b>"+sensFmt(bh.m*60)+"</b> ("+Math.round(bh.hs)+"%)"+(mAct(bh)?" during <b>"+esc(mAct(bh))+"</b>":"")+".";}
   if(al!=null&&th!=null&&th>0){var phi=al/th;
-    s3+=" Your \u03b1:\u03b8 power balance averaged <b>"+phi.toFixed(2)+"</b>"+(Math.abs(phi-1.618)<=0.18?" \u2014 right at the golden ratio (\u03c6 \u2248 1.618), the balance the Mirror view brackets.":phi>1.618?" \u2014 above the \u03c6 balance point: more alert than dreamy.":" \u2014 below the \u03c6 balance point: more dreamy than alert.");
-    s3+=" In frequency, \u03b1 (\u224810 Hz) already sings an octave above \u03b8 (\u22485 Hz) \u2014 minutes where both run strong are that octave stack lighting up.";}
+    s3+=" Your Calm-to-Dreamy balance averaged <b>"+phi.toFixed(2)+"</b>"+(Math.abs(phi-1.618)<=0.18?" \u2014 right at the golden ratio (\u03c6 \u2248 1.618), the balance the Mirror view brackets.":phi>1.618?" \u2014 above the \u03c6 balance point: more alert than dreamy.":" \u2014 below the \u03c6 balance point: more dreamy than alert.");
+    s3+=" In frequency, Calm (\u224810 Hz) already sings an octave above Dreamy (\u22485 Hz) \u2014 minutes where both run strong are that octave stack lighting up.";}
   if(s3)out.push(["\ud83e\ude9e Hemispheres & harmony",s3]);
   if(hs!=null&&al!=null&&mins.length>=4){
     var top3=mins.map(function(x){return x.hs;}).filter(function(v){return v!=null;}).sort(function(a,b){return b-a;}).slice(0,3);
@@ -15849,25 +15935,25 @@ function renderBioRead(D,title,backFn,mt){home.hidden=true;view.hidden=false;win
     var ga=a("ga"),ga3=null;if(ga!=null){var gt=mins.map(function(x){return x.ga;}).filter(function(v){return v!=null;}).sort(function(a,b){return b-a;}).slice(0,3);ga3=brAvg(gt);}
     var subs=[["Hemi-sync depth",Math.min(100,depth/80*100),Math.round(depth)+"% best \u00b7 target 80%+"],
       ["Holding the sync",Math.min(100,run/5*100),run+" min held \u00b7 target 5+"],
-      ["Alpha fuel",Math.min(100,(al||0)/50*100),Math.round(al)+"% \u03b1 \u00b7 target 50%+"],
-      ["\u03b8 under \u03b1 (octave)",Math.min(100,stackP/40*100),Math.round(stackP)+"% of minutes \u00b7 target 40%+"]];
-    if(be!=null)subs.push(["Quiet \u03b2",Math.min(100,15/Math.max(1,be)*100),Math.round(be)+"% \u03b2 \u00b7 target \u226415%"]);
+      ["Alpha fuel",Math.min(100,(al||0)/50*100),Math.round(al)+"% Calm \u00b7 target 50%+"],
+      ["Dreamy under Calm (octave)",Math.min(100,stackP/40*100),Math.round(stackP)+"% of minutes \u00b7 target 40%+"]];
+    if(be!=null)subs.push(["Quiet mind",Math.min(100,15/Math.max(1,be)*100),Math.round(be)+"% Focused \u00b7 target \u226415%"]);
     if(co!=null)subs.push(["Heart coherence",Math.min(100,co/1.5*100),brCoPct(co)+"% depth \u00b7 target 60%+"]);
     if(phiR!=null)subs.push(["\u03c6 balance",Math.max(0,100-Math.abs(phiR-1.618)/0.8*100),phiR.toFixed(2)+" \u00b7 target \u03c6 1.618"]);
-    if(ga3!=null)subs.push(["\u03b3 flashes",Math.min(100,ga3/8*100),Math.round(ga3)+"% best \u00b7 target 8%+"]);
+    if(ga3!=null)subs.push(["Peak flashes",Math.min(100,ga3/8*100),Math.round(ga3)+"% best \u00b7 target 8%+"]);
     var tot=Math.round(brAvg(subs.map(function(x){return x[1];}))||0);
     var weak=subs.slice().sort(function(a,b){return a[1]-b[1];})[0];
     var TIP={"Hemi-sync depth":"a deeper left\u2013right lock \u2014 eyes closed, attention resting evenly in both ears at once",
       "Holding the sync":"holding the sync \u2014 it came in flashes; come back to the breath the instant it slips and let the flashes join into minutes",
       "Alpha fuel":"more alpha fuel \u2014 eyes closed, long slow exhales, soft face",
-      "\u03b8 under \u03b1 (octave)":"\u03b8 rising underneath \u03b1 \u2014 drift one layer deeper without losing the calm",
-      "Quiet \u03b2":"the describing mind stepping aside \u2014 name nothing during the session; let impressions arrive without words",
+      "Dreamy under Calm (octave)":"Dreamy rising underneath Calm \u2014 drift one layer deeper without losing the calm",
+      "Quiet mind":"the describing mind stepping aside \u2014 name nothing during the session; let impressions arrive without words",
       "Heart coherence":"the heart carrying it \u2014 slow, even breathing until the rhythm turns to smooth waves",
       "\u03c6 balance":(phiR!=null&&phiR>1.618?"easing the alertness \u2014 this window leaned alert of the \u03c6 point":"a touch more brightness \u2014 this window leaned dreamy of the \u03c6 point"),
-      "\u03b3 flashes":"the \u03b3 flash \u2014 the pop of the image arriving; it shows up on its own once the rest is held"};
+      "Peak flashes":"the Peak (gamma) flash \u2014 the pop of the image arriving; it shows up on its own once the rest is held"};
     var bars=subs.map(function(sx){return '<div style="margin:7px 0"><div style="display:flex;justify-content:space-between;font-size:.8rem"><span>'+sx[0]+'</span><span style="color:var(--muted)">'+sx[2]+'</span></div><div style="height:8px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:3px"><div style="height:100%;width:'+Math.round(sx[1])+'%;background:linear-gradient(90deg,#7c5cff,#7ff0d6)"></div></div></div>';}).join("");
     out.push(["\ud83d\udd2d Remote viewing \u00b7 the target & your gap",
-      '<div style="margin-bottom:8px"><b>The target</b> \u2014 what we expect the needles to read in the remote-viewing state (modeled on Jean Millay\u2019s phase-sync research): the two hemispheres locked <b>80%+</b> and <b>held 5+ minutes</b>, on <b>\u03b1 50%+</b> with <b>\u03b8 stacked an octave below</b>, <b>\u03b2 \u226415%</b> (the describing mind quiet), the heart in <b>60%+ coherence</b>, \u03b1:\u03b8 at <b>\u03c6</b> \u2014 and \u03b3 flashing as the image lands.</div>'+
+      '<div style="margin-bottom:8px"><b>The target</b> \u2014 what we expect the needles to read in the remote-viewing state (modeled on Jean Millay\u2019s phase-sync research): the two hemispheres locked <b>80%+</b> and <b>held 5+ minutes</b>, on <b>Calm (alpha) 50%+</b> with <b>Dreamy (theta) stacked an octave below</b>, <b>Focused (beta) \u226415%</b> (the describing mind quiet), the heart in <b>60%+ coherence</b>, Calm-to-Dreamy at the golden ratio <b>\u03c6</b> \u2014 and Peak (gamma) flashing as the image lands.</div>'+
       '<div style="font-size:1.7rem;font-weight:900;margin:0 0 6px">'+tot+'%<span style="font-size:.85rem;font-weight:700;color:var(--muted)"> of the way there</span></div>'+bars+
       '<div style="margin-top:8px">Closest to opening: <b>'+TIP[weak[0]]+'</b>.</div>']);
   }
@@ -15906,14 +15992,14 @@ function renderBioRead(D,title,backFn,mt){home.hidden=true;view.hidden=false;win
       else if(ra<=0.85)line="<b>Wound up.</b> HRV "+Math.round(eHrv)+" ms \u2014 below "+bandNote+" ("+bHrv+" ms). A short settle \u2014 slow breath, one journey segment \u2014 would likely pay off.";
       else line="<b>Steady.</b> HRV "+Math.round(eHrv)+" ms, right at "+bandNote+" ("+bHrv+" ms).";}
     else if(eHrv!=null)line="HRV "+Math.round(eHrv)+" ms over the last stretch. A few more recorded sessions and this line starts comparing you to you.";
-    if(eAl!=null)line+=" \u03b1 "+Math.round(eAl)+"% \u2014 "+(eAl>=45?"calm attention available.":eAl>=30?"middling calm.":"busy-mind territory.");
+    if(eAl!=null)line+=" Calm "+Math.round(eAl)+"% \u2014 "+(eAl>=45?"calm attention available.":eAl>=30?"middling calm.":"busy-mind territory.");
     if(line)stateHtml='<div class="panel"><div class="rlab" style="display:block;margin-bottom:6px">'+(meta.live?"\ud83e\udded Right now":"\ud83e\udded Where this left you")+'</div><div style="font-size:.95rem;line-height:1.55">'+line+'</div></div>';
   })();
   var stripHtml="";
   (function(){if(SL.length<2)return;
     function cell(v,dec){return v==null?"\u2013":(dec?v.toFixed(2):Math.round(v));}
     function nowOf(k){return brAvg(brGet(D,k));}
-    var rows=[["HRV ms","hrv",false],["HR bpm","hr",false],["\u03b1 %","al",false],["Coher.","co",true],["Sync %","hs",false]].map(function(rw){
+    var rows=[["HRV ms","hrv",false],["HR bpm","hr",false],["Calm %","al",false],["Coher.","co",true],["Sync %","hs",false]].map(function(rw){
       var k=rw[1],dec=rw[2],nv=nowOf(k);var cT=agg(pT,k,dec),cY=agg(pY,k,dec),c7=agg(p7,k,dec),c30=agg(p30,k,dec);
       if(nv==null&&c7==null&&c30==null)return "";
       return '<tr><td style="font-weight:800">'+rw[0]+'</td><td><b>'+cell(nv,dec)+'</b></td><td>'+cell(cT,dec)+'</td><td>'+cell(cY,dec)+'</td><td>'+cell(c7,dec)+'</td><td>'+cell(c30,dec)+'</td></tr>';}).join("");
@@ -15921,7 +16007,7 @@ function renderBioRead(D,title,backFn,mt){home.hidden=true;view.hidden=false;win
     var v7=agg(p7,"hrv"),v30=agg(p30,"hrv"),vd="";
     if(v7&&v30)vd=v7>v30*1.04?"\u2191 HRV trending up \u2014 the 7-day average ("+v7+" ms) sits above the 30-day ("+v30+" ms).":v7<v30*0.96?"\u2193 HRV has slipped \u2014 7-day "+v7+" ms vs 30-day "+v30+" ms.":"\u2192 HRV steady \u2014 7-day "+v7+" ms, 30-day "+v30+" ms.";
     var a7=agg(p7,"al"),a30=agg(p30,"al");
-    if(a7&&a30)vd+=(vd?" ":"")+(a7>a30*1.04?"\u2191 \u03b1 rising week over week.":a7<a30*0.96?"\u2193 \u03b1 lower than last month.":"\u2192 \u03b1 steady.");
+    if(a7&&a30)vd+=(vd?" ":"")+(a7>a30*1.04?"\u2191 Calm rising week over week.":a7<a30*0.96?"\u2193 Calm lower than last month.":"\u2192 Calm steady.");
     stripHtml='<div class="panel"><div class="rlab" style="display:block;margin-bottom:6px">\ud83d\udcca Compared to you</div>'+
       '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font:700 .8rem system-ui" class="plTab"><tr style="color:var(--muted)"><td></td><td>This</td><td>Today</td><td>Yest.</td><td>7-day</td><td>30-day</td></tr>'+rows+'</table></div>'+
       (vd?'<div class="site-note" style="margin-top:6px">'+vd+'</div>':'')+
@@ -15933,9 +16019,9 @@ function renderBioRead(D,title,backFn,mt){home.hidden=true;view.hidden=false;win
     '<div class="panel"><details><summary style="cursor:pointer;font-weight:800">\ud83d\udcd6 How to read these numbers \u25be</summary><div class="site-note" style="line-height:1.6;margin-top:8px">'+
     '<b>HRV (ms)</b> \u2014 the variety between heartbeats. Higher usually means your nervous system is relaxed and adaptable.<br>'+
     '<b>Coherence</b> \u2014 your heartbeat rising and falling in smooth waves, usually with the breath. More time in it = deeper flow.<br>'+
-    '<b>\u03b1 / \u03b8 / \u03b2</b> \u2014 brainwave shares: \u03b1 calm &amp; open, \u03b8 dreamy &amp; deep, \u03b2 busy &amp; thinking.<br>'+
+    '<b>Brainwave bands</b> \u2014 how much of your brain activity is in each speed: <b>Calm</b> (alpha) relaxed &amp; awake, <b>Dreamy</b> (theta) drifting &amp; deep, <b>Focused</b> (beta) busy &amp; thinking, <b>Deep sleep</b> (delta) the slowest, <b>Peak</b> (gamma) the fastest.<br>'+
     '<b>Hemi-sync</b> \u2014 how much the left and right hemispheres\u2019 alpha rhythms lock together (Muse, ear to ear).<br>'+
-    '<b>\u03c6 &amp; octaves</b> \u2014 \u03b1:\u03b8 near 1.618 is the golden-ratio balance; an octave is one rhythm doubling another, like \u03b1 over \u03b8.<br><b>\u03b3 (gamma)</b> \u2014 the fastest band; brief flashes often ride on moments of insight or vivid imagery.<br><b>Remote viewing target</b> \u2014 the profile we expect at that state: deep sustained hemi-sync on strong \u03b1, \u03b8 an octave below, \u03b2 quiet, heart coherent, \u03b1:\u03b8 at \u03c6, \u03b3 flashing as impressions land.</div></details>'+
+    '<b>\u03c6 &amp; octaves</b> \u2014 Calm-to-Dreamy near 1.618 is the golden-ratio balance; an octave is one rhythm doubling another, like Calm over Dreamy.<br><b>Peak (gamma)</b> \u2014 the fastest band; brief flashes often ride on moments of insight or vivid imagery.<br><b>Remote viewing target</b> \u2014 the profile we expect at that state: deep sustained hemi-sync on strong Calm, Dreamy an octave below, Focused quiet, heart coherent, Calm-to-Dreamy at \u03c6, Peak flashing as impressions land.</div></details>'+
     '<div class="actions" style="margin-top:10px"><button class="btn" id="brIns" style="width:100%">\ud83d\udcc8 Which activities work best for you \u2014 all sessions</button></div></div>';
   $("#eBack").onclick=backFn||goHome;$("#brIns").onclick=renderInsights;if(meta.night)lucNightShow("brNight",meta.night,meta.start);
 }
@@ -15971,7 +16057,7 @@ function renderSensSessions(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidd
     (server||[]).forEach(function(x){var at=+x.id;if(seen[at]||(x.mins||0)<1)return;if(x.player_id?x.player_id!==_me:(_own&&_own!==_me))return;plr.push({at:at,label:x.label,mins:x.mins,sens:(x.report&&x.report.sensors)||{},eeg:false,srv:true});});
     var Ls=L.filter(function(s){return !plr.some(function(r){return Math.abs(r.at-s.start)<120000;});});/* same sitting → keep the richer report row */
     var rows=plr.map(function(r){return {t:r.at,h:'<button class="kb" data-rep="'+r.at+'" style="width:100%;text-align:left"><span class="kb-ic">📼</span><div class="kb-main"><div class="kb-t">'+esc(r.label||"Session")+'</div><div class="kb-s">'+(r.mins?r.mins+" min · ":"")+(r.sens.hr?"❤️ heart ":"")+(r.sens.eeg||r.eeg?"🧠 brain ":"")+(r.srv?"· ☁︎ from your account":"· tap for report & replay")+'</div></div></button>'};})
-      .concat(Ls.map(function(s){const d=new Date(s.start);return {t:s.start,h:'<button class="kb" data-sess="'+s.id+'" style="width:100%;text-align:left"><span class="kb-ic">🫀</span><div class="kb-main"><div class="kb-t">'+d.toLocaleDateString()+' · '+d.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})+' · '+sensFmt(s.dur)+'</div><div class="kb-s">'+[s.hr?"HR "+s.hr:"",s.hrv?"HRV "+s.hrv+" ms":"",s.al!=null?"α "+s.al+"%":"",s.th!=null?"θ "+s.th+"%":""].filter(Boolean).join(" · ")+(s.acts&&s.acts.length?" — "+esc(s.acts.join(", ")):"")+'</div></div></button>'};}));
+      .concat(Ls.map(function(s){const d=new Date(s.start);return {t:s.start,h:'<button class="kb" data-sess="'+s.id+'" style="width:100%;text-align:left"><span class="kb-ic">🫀</span><div class="kb-main"><div class="kb-t">'+d.toLocaleDateString()+' · '+d.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})+' · '+sensFmt(s.dur)+'</div><div class="kb-s">'+[s.hr?"HR "+s.hr:"",s.hrv?"HRV "+s.hrv+" ms":"",s.al!=null?"Calm "+s.al+"%":"",s.th!=null?"Dreamy "+s.th+"%":""].filter(Boolean).join(" · ")+(s.acts&&s.acts.length?" — "+esc(s.acts.join(", ")):"")+'</div></div></button>'};}));
     rows.sort(function(a,b){return b.t-a.t;});
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">📊 Sensor sessions</span></div><div class="panel">'+
       '<div class="intro">Everything your heart sensor and Muse recorded, with what you were doing at the time. Tap a session for the timeline and analysis.</div><div class="actions"><button class="btn" id="sensInsB">📈 What works for you</button></div>'+
@@ -15988,11 +16074,11 @@ function renderSensDetail(id){if(SENS.rec&&SENS.sid===id)sensSave(false);view.in
     const calm=best(seg=>{const h=av(seg,"hrv"),a=av(seg,"al"),t=av(seg,"th");return h!=null?h+(a||0)*0.3:(a!=null?a+(t||0)*0.5:null);}),focus=best(seg=>{const b=av(seg,"be");return b;});
     const has=k=>D.some(p=>p[k]!=null);
     const P=view.querySelector(".panel"),d=new Date(S.start);
-    P.innerHTML='<div class="intro"><b>'+d.toLocaleString()+'</b> · '+sensFmt(T)+' · '+[has("hr")?"avg HR "+f(av(D,"hr")):"",has("hrv")?"HRV "+f(av(D,"hrv")," ms"):"",has("al")?"α "+f(av(D,"al"),"%"):"",has("th")?"θ "+f(av(D,"th"),"%"):"",has("be")?"β "+f(av(D,"be"),"%"):""].filter(Boolean).join(" · ")+'</div>'+
+    P.innerHTML='<div class="intro"><b>'+d.toLocaleString()+'</b> · '+sensFmt(T)+' · '+[has("hr")?"avg HR "+f(av(D,"hr")):"",has("hrv")?"HRV "+f(av(D,"hrv")," ms"):"",has("al")?"Calm "+f(av(D,"al"),"%"):"",has("th")?"Dreamy "+f(av(D,"th"),"%"):"",has("be")?"Focused "+f(av(D,"be"),"%"):""].filter(Boolean).join(" · ")+'</div>'+
       '<canvas id="sensCv" style="width:100%;height:260px;display:block;background:var(--bg);border:1px solid var(--line);border-radius:12px"></canvas>'+
-      '<div class="site-note" style="font-size:.78rem;margin:4px 0 10px"><span style="color:#ff5d6c">■ heart rate</span> · <span style="color:#f3c14a">■ HRV</span> · <span style="color:#7ff0d6">■ coherence</span>'+(has("al")?' · brain: <span style="color:#4fe08a">■ alpha</span> <span style="color:#4aa8ff">■ theta</span> <span style="color:#ffc94a">■ beta</span>':'')+' · top strip = what you were doing</div>'+
+      '<div class="site-note" style="font-size:.78rem;margin:4px 0 10px"><span style="color:#ff5d6c">■ heart rate</span> · <span style="color:#f3c14a">■ HRV</span> · <span style="color:#7ff0d6">■ coherence</span>'+(has("al")?' · brain: <span style="color:'+bandC("t")+'">■ Dreamy</span> <span style="color:'+bandC("a")+'">■ Calm</span> <span style="color:'+bandC("b")+'">■ Focused</span>':'')+' · top strip = what you were doing</div>'+
       ((calm||focus)?'<div class="idea-fb">'+(calm?'🌿 <b>Calmest minute</b> at '+sensFmt(calm.t)+' — '+esc(calm.act)+'<br>':'')+(focus&&has("be")?'🎯 <b>Most focused minute</b> at '+sensFmt(focus.t)+' — '+esc(focus.act):'')+'</div>':'')+
-      '<div class="rlab" style="display:block;margin:12px 0 4px">By activity</div><div style="overflow-x:auto"><table class="senstab"><tr><th>Activity</th><th>min</th><th>HR</th><th>HRV</th><th>Coh</th>'+(has("al")?'<th>α</th><th>θ</th><th>β</th>':'')+'</tr>'+
+      '<div class="rlab" style="display:block;margin:12px 0 4px">By activity</div><div style="overflow-x:auto"><table class="senstab"><tr><th>Activity</th><th>min</th><th>HR</th><th>HRV</th><th>Coh</th>'+(has("al")?'<th>Calm</th><th>Dreamy</th><th>Focused</th>':'')+'</tr>'+
       rows.map(r=>'<tr><td>'+esc(r.k)+'</td><td>'+(r.n/60).toFixed(1)+'</td><td>'+f(r.hr)+'</td><td>'+f(r.hrv)+'</td><td>'+(r.co!=null?r.co.toFixed(1):"—")+'</td>'+(has("al")?'<td>'+f(r.al,"%")+'</td><td>'+f(r.th,"%")+'</td><td>'+f(r.be,"%")+'</td>':'')+'</tr>').join("")+'</table></div>'+
       '<div class="actions" style="margin:12px 0 2px"><button class="btn" id="sensRead2" style="width:100%">\ud83d\udcd6 Read this session in plain words</button></div><div class="actions" style="margin:8px 0 2px"><button class="btn ghost" id="sensWatch" style="width:100%">🎬 Watch this session as video</button></div>'+
       '<div class="actions ilacts"><button class="btn ghost" id="sensCsv">⬇ Download CSV</button><button class="btn ghost" id="sensDel">🗑 Delete</button></div>';
@@ -16002,7 +16088,7 @@ function renderSensDetail(id){if(SENS.rec&&SENS.sid===id)sensSave(false);view.in
     let st=0;for(let i=1;i<=D.length;i++){if(i===D.length||D[i].act!==D[st].act){const x0=X(D[st].t),x1=X(D[i-1].t+1);c.fillStyle=ac2[D[st].act]||"#555";c.globalAlpha=.85;c.fillRect(x0,2,Math.max(1,x1-x0),strip);c.globalAlpha=1;if(x1-x0>60){c.fillStyle="#fff";c.font="700 10px system-ui";c.fillText(D[st].act.split(" · ")[0].slice(0,Math.floor((x1-x0)/6)),x0+4,15);}st=i;}}
     const line=(k,col,y0,hh)=>{const v=D.map(p=>p[k]).filter(x=>x!=null&&x>0);if(v.length<2)return;const mn=Math.min.apply(null,v),mx=Math.max.apply(null,v),rg=Math.max(1e-6,mx-mn);c.strokeStyle=col;c.lineWidth=1.6;c.beginPath();let pen=false;D.forEach(p=>{const val=p[k];if(val==null||val<=0){pen=false;return;}const x=X(p.t),y=y0+hh-4-(val-mn)/rg*(hh-8);if(!pen){c.moveTo(x,y);pen=true;}else c.lineTo(x,y);});c.stroke();};
     line("hr","#ff5d6c",top1,h1);line("hrv","#f3c14a",top1,h1);line("co","#7ff0d6",top1,h1);
-    if(has("al")){D.forEach(p=>{if(p.al==null)return;const x=X(p.t),w=Math.max(1,(W-16)/T+0.5),tot=(p.al||0)+(p.th||0)+(p.be||0)||1;let y=top2;[["th","#4aa8ff"],["al","#4fe08a"],["be","#ffc94a"]].forEach(([k,col])=>{const hh=h2*(p[k]||0)/tot;c.fillStyle=col;c.fillRect(x,y,w,hh);y+=hh;});});}
+    if(has("al")){D.forEach(p=>{if(p.al==null)return;const x=X(p.t),w=Math.max(1,(W-16)/T+0.5),tot=(p.al||0)+(p.th||0)+(p.be||0)||1;let y=top2;[["th",bandC("t")],["al",bandC("a")],["be",bandC("b")]].forEach(([k,col])=>{const hh=h2*(p[k]||0)/tot;c.fillStyle=col;c.fillRect(x,y,w,hh);y+=hh;});});}
     c.fillStyle="rgba(255,255,255,.5)";c.font="10px system-ui";c.fillText("0:00",8,H-2);c.fillText(sensFmt(T),W-34,H-2);
     document.getElementById("sensCsv").onclick=()=>{const head="seconds,activity,playing,heart_rate,hrv_rmssd_ms,coherence,alpha_pct,theta_pct,beta_pct\n",body=D.map(p=>[p.t,'"'+String(p.act||"").replace(/"/g,"'")+'"',p.pl||0,p.hr??"",p.hrv??"",p.co??"",p.al??"",p.th??"",p.be??""].join(",")).join("\n");
       const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([head+body],{type:"text/csv"}));a.download="mmu-sensors-"+new Date(S.start).toISOString().slice(0,16).replace(/[:T]/g,"-")+".csv";document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),500);};
