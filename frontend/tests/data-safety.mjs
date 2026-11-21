@@ -1139,6 +1139,13 @@ export async function run() {
     let msg = await pg.evaluate(() => document.getElementById("pkMsg").innerText);
     assert(/stopped in run 2/.test(msg) && /Try ♩\s*150/.test(msg), "a stop wasn't called out: " + msg);
     assert(!(await pg.evaluate(() => pkScaleRec().best)), "a run with a stop counted as clean");
+    // one wrong note anywhere = not clean
+    await pg.locator("#pkGo").click(); await pg.waitForTimeout(50);
+    await pg.evaluate(() => new Promise((res) => { const evs = PK.ev.filter((e) => !e.auto).sort((a, b) => a.b - b.b); let i = 0, w = false; const tk = setInterval(() => { if (!PK.running) { clearInterval(tk); res(); return; } const now = ac().currentTime; while (i < evs.length && now >= pkT(evs[i].b)) { pkJudge(evs[i].notes[0], now); if (i === 10 && !w) { w = true; pkJudge(evs[i].notes[0] + 1, now + 0.01); } i++; } }, 5); }));
+    await pg.waitForTimeout(1200); msg = await pg.evaluate(() => document.getElementById("pkMsg").innerText);
+    assert(/1 wrong note/.test(msg) && !(await pg.evaluate(() => pkScaleRec().best)), "a wrong note still counted as clean: " + msg);
+    await pg.locator("#pkGo").click(); await pg.waitForTimeout(50); await play([30]); await pg.waitForTimeout(1200);
+    assert(!(await pg.evaluate(() => pkScaleRec().best)), "a missed note still counted as clean");
     await pg.locator("#pkGo").click(); await pg.waitForTimeout(50); await play([]); await pg.waitForTimeout(1200);
     msg = await pg.evaluate(() => document.getElementById("pkMsg").innerText);
     assert(/Mastered/.test(msg), "clean ×3 at the goal tempo wasn't mastered: " + msg);

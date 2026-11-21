@@ -7017,16 +7017,16 @@ var PK_SCALE_RUNS=3;
 function pkScaleKey(){const S=PK.scale;return S.root+"|"+S.s+"|"+S.hand+"|"+(S.oct||1);}
 function pkScaleRec(k){return load(mk("pkscale",k||pkScaleKey()),{best:0,tries:0});}
 function pkScaleGoal(){return load("mjk-pkgoal",160);}
-/* clean = 95%+ of the notes, never two misses in a row (a stop), at most 2 wrong notes */
+/* clean = every note played, zero wrong notes, no stops (two misses in a row) */
 function pkScaleJudge(){const ev=PK.ev.filter(e=>!e.auto).sort((a,b)=>a.b-b.b);if(!ev.length)return null;const ok=e=>e.hit&&e.hit!=="miss";
   let hits=0,run=0,stop=false,stopAt=null,byRun={};ev.forEach(e=>{const r=byRun[e.run||0]||(byRun[e.run||0]={n:0,h:0});r.n++;if(ok(e)){hits++;r.h++;run=0;}else{run++;if(run>=2&&!stop){stop=true;stopAt=e.run||0;}}});
-  const wrong=(PK.wrong||[]).length,acc=Math.round(100*hits/ev.length),clean=acc>=95&&!stop&&wrong<=2;
-  return {clean:clean,acc:acc,stop:stop,stopAt:stopAt,wrong:wrong,runs:Object.keys(byRun).map(k=>({r:+k,p:Math.round(100*byRun[k].h/byRun[k].n)}))};}
+  const wrong=(PK.wrong||[]).length,acc=Math.round(100*hits/ev.length),clean=hits===ev.length&&!stop&&wrong===0;
+  return {clean:clean,acc:acc,miss:ev.length-hits,stop:stop,stopAt:stopAt,wrong:wrong,runs:Object.keys(byRun).map(k=>({r:+k,p:Math.round(100*byRun[k].h/byRun[k].n)}))};}
 function pkScaleSave(J){const k=pkScaleKey(),R=pkScaleRec(k);R.tries++;R.at=Date.now();if(J.clean&&PK.bpm>R.best)R.best=PK.bpm;R.last={bpm:PK.bpm,clean:J.clean,acc:J.acc};if(R.best>=pkScaleGoal())R.mastered=true;save(mk("pkscale",k),R);return R;}
 function pkScaleStatus(){const R=pkScaleRec(),g=pkScaleGoal();return R.best>=g?'✅ <b>Mastered</b> — clean ×3 at ♩'+R.best+' (goal ♩'+g+')':R.best?'🏁 Best clean ×3: <b>♩'+R.best+'</b> · goal ♩'+g:'🏁 Goal: up and down 3 times without stopping at <b>♩'+g+'</b>';}
 function pkScaleAfter(J){const R=pkScaleSave(J),g=pkScaleGoal(),nx=J.clean?Math.min(240,PK.bpm+10):Math.max(30,PK.bpm-10);
   const head=J.clean?(PK.bpm>=g?'🏆 <b>Mastered!</b> Up and down 3 times clean at ♩'+PK.bpm+'.':'✅ <b>Clean ×3 at ♩'+PK.bpm+'.</b> Goal ♩'+g+' — '+(g-PK.bpm)+' to go.'):
-    (J.stop?'⏸ You stopped in run '+(J.stopAt+1)+'.':'Almost — '+J.acc+'% of notes'+(J.wrong>2?', '+J.wrong+' wrong notes':'')+'.')+' Clean means all 3 runs with no stops.';
+    (J.stop?'⏸ You stopped in run '+(J.stopAt+1)+'.':J.wrong?'❌ '+J.wrong+' wrong note'+(J.wrong>1?'s':'')+'.':'Almost — '+J.miss+' note'+(J.miss>1?'s':'')+' missed.')+' Clean means all 3 runs, every note, no wrong notes, no stops.';
   pkMsg(head+' <span style="color:var(--muted)">Runs: '+J.runs.map(x=>x.p+'%').join(' · ')+'</span><div class="actions" style="margin-top:6px"><button class="btn" id="pkNextT">▶ Try ♩'+nx+'</button></div>');
   try{pkDrawCtl();}catch(e){}const b=document.getElementById("pkNextT");if(b)b.onclick=()=>{PK.bpm=nx;pkBpmShow();pkScaleBpmSave();pkStart();};pkScaleStatusPaint();}
 function pkScaleStatusPaint(){const el=document.getElementById("pkScStat");if(el)el.innerHTML=pkScaleStatus();}
@@ -7148,7 +7148,7 @@ function pkTestReport(){const spb=pkSpb(),ev=PK.ev.filter(e=>!e.auto),N=ev.lengt
   /* save the result */
   const key=mk("pktest",(PK.mode==="melody"?PK.melId:PK.mode==="scales"?"scale:"+pkScaleKey():PK.mode)+"|"+(PK.mHand||"B")+"|"+(PK.secs&&PK.secs[PK.melId]?PK.secs[PK.melId].a+"-"+PK.secs[PK.melId].b:"all")),hist=load(key,[]);hist.push({t:Date.now(),g:grade,bpm:PK.bpm});save(key,hist.slice(-30));const best=Math.max(...hist.map(h=>h.g));
   const el=document.getElementById("pkReport");if(!el)return;
-  el.innerHTML='<div class="pktr"><div class="pktr-top"><div class="pktr-g '+(pass?"ok":"no")+'">'+grade+'<span>%</span></div><div><div class="pktr-st">'+"★".repeat(stars)+"☆".repeat(3-stars)+'</div><div class="pktr-v">'+(PK.mode==="scales"?(grade>=95?"Clean from memory — your tempo goal is above.":pass?"Close — clean means 95%+ with no stops.":"Not yet — slow down a little and test again."):pass?(stars===3?"Mastered. Push the tempo up.":"Passed. You know this from memory."):"Not yet — practice the red bars, then test again.")+'</div>'+
+  el.innerHTML='<div class="pktr"><div class="pktr-top"><div class="pktr-g '+(pass?"ok":"no")+'">'+grade+'<span>%</span></div><div><div class="pktr-st">'+"★".repeat(stars)+"☆".repeat(3-stars)+'</div><div class="pktr-v">'+(PK.mode==="scales"?(hits===N&&wrong===0?"Clean from memory — your tempo goal is above.":pass?"Close — clean means every note, no wrong notes, no stops.":"Not yet — slow down a little and test again."):pass?(stars===3?"Mastered. Push the tempo up.":"Passed. You know this from memory."):"Not yet — practice the red bars, then test again.")+'</div>'+
     '<div class="site-note">'+esc(PK.title)+' · ♩'+PK.bpm+' · best '+best+'%'+(hist.length>1?' · test #'+hist.length:'')+'</div></div></div>'+
     '<div class="pktr-line">🎯 <b>'+hits+'/'+N+'</b> notes'+(wrong?' · ❌ <b>'+wrong+'</b> wrong '+(wrong===1?'note':'notes'):'')+(dts.length?' · ⏱ ±'+Math.round(abs)+' ms, '+feel+trend:'')+'</div>'+
     '<div class="rlab" style="display:block;margin:10px 0 6px">'+(PK.mode==="scales"?"Run by run (up and down = one run)":"Bar by bar — tap a bar to practice it")+'</div><div class="pktr-bars">'+rows.map(r=>{const p=pct(r),dm=r.dts.length?Math.round(r.dts.reduce((a,b)=>a+b,0)/r.dts.length):null;
