@@ -12308,7 +12308,7 @@ function plrTick(now,stage,beat){var P=PLR;if(!P||!P.on)return;var T=P.tl,r1=fun
   if(HR.connected&&HR.rr){P.sens.hr=HR.src||"heart sensor";var k=Math.min((HR.n||0)-P.lastN,HR.rr.length);if(k>0){HR.rr.slice(-k).forEach(function(v){P.rr.push(Math.round(v));P.rrT.push(Math.round((now-P.at)/100)/10);});}P.lastN=HR.n||0;}
   else if(M.connected&&M.ibis&&M.ibis.length){P.sens.hr=P.sens.hr||"Muse";M.ibis.forEach(function(x){if(x.t>P.lastIbiT){P.rr.push(Math.round(x.ibi));P.rrT.push(Math.round((now-P.at)/100)/10);P.lastIbiT=x.t;}});}
   if(now-P.flushT>=60000){P.flushT=now;plrFlush();}if(now-P.saveT>=(P.kind==="lucid"?120000:30000)){P.saveT=now;plrWrite();}}
-function plrEnd(){var P=PLR;if(!P)return;P.on=false;if(P.kind!=="perception"&&(P.tl.t.length<60||!(P.sens.hr||P.sens.eeg))){srIdxDel(P.at,P.pid);idbDel("pl-"+P.at);for(var i=0;i<P.ec;i++)idbDel("pl-"+P.at+"-e"+i);return;}plrFlush();plrWrite();}
+function plrEnd(){var P=PLR;if(!P)return;P.on=false;try{bioCloud();}catch(e){}if(P.kind!=="perception"&&(P.tl.t.length<60||!(P.sens.hr||P.sens.eeg))){srIdxDel(P.at,P.pid);idbDel("pl-"+P.at);for(var i=0;i<P.ec;i++)idbDel("pl-"+P.at+"-e"+i);return;}plrFlush();plrWrite();}
 /* ===== 🌙 NIGHT TIMELINE — a lucid night read across the clock: heart, REM signs, cues, movement, sensor gaps ===== */
 function lucNightLoad(D,at){var T=(D&&D.tl)||{t:[],hr:[],hrv:[]},mT={},mS={},put=function(m,sec,hr,hrv){var k=Math.floor(sec/60),o=m[k]||(m[k]={h:0,hn:0,v:0,vn:0});if(hr>0){o.h+=hr;o.hn++;}if(hrv>0){o.v+=hrv;o.vn++;}};
   for(var i=0;i<T.t.length;i++)put(mT,T.t[i],T.hr&&T.hr[i],T.hrv&&T.hrv[i]);
@@ -12392,11 +12392,54 @@ function srAnalyze(D,res,e){var T=D.tl||{t:[]},N=(T.t||[]).length,av=function(a,
   return {title:(e&&e.label)||"Session",minsDone:N?Math.round(T.t[N-1]/6)/10:0,sensors:{hr:sens.hr||false,eeg:!!sens.eeg,beats:(D.rr||[]).length},stages:stages,sync:sync,cascades:cascades,episodes:episodes,extra:extra,notes:res&&res.notes||""};}
 function srPackEeg(B){var n=B.ch.map(function(c){return c.length;}),tot=n.reduce(function(a,b){return a+b;},0),buf=new ArrayBuffer(16+tot*2),h=new Uint32Array(buf,0,4),d=new Int16Array(buf,16);n.forEach(function(x,i){h[i]=x;});var o=0;B.ch.forEach(function(c){d.set(c,o);o+=c.length;});return buf;}
 var SRSYNC={busy:false};
-function srSync(){if(SRSYNC.busy||!syncOn()||!acctTok())return Promise.resolve();var todo=srIdx().filter(function(e){return (e.v||0)>(e.sentV||0)||(e.eegSent||0)<(e.eegBlocks||0);});if(!todo.length)return Promise.resolve();SRSYNC.busy=true;
-  return todo.reduce(function(p,e){return p.then(function(){return srSyncOne(e);});},Promise.resolve()).catch(function(){}).then(function(){SRSYNC.busy=false;});}
-function srSyncOne(e){var v0=e.v||0;return idbGet("pl-"+e.at).then(function(D){if(!D)return;var res=e.kind==="perception"?srResFor(e.at):null,sum=res?Object.assign({},res,{sketch:undefined}):{};
-  var p=v0>(e.sentV||0)?_api("/api/sessions/"+e.at,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({kind:e.kind,label:e.label,startedAt:e.at,mins:e.mins||null,summary:sum,report:srAnalyze(D,res,e),timeline:D.tl,rr:{rr:D.rr,rrT:D.rrT},eegBlocks:D.eegBlocks||0})}).then(function(){srIdxPut({at:e.at,sentV:v0,syncedAt:Date.now()});}):Promise.resolve();
-  return p.then(function(){var k=e.eegSent||0,n=D.eegBlocks||0;var step=function(){if(k>=n)return null;return idbGet("pl-"+e.at+"-e"+k).then(function(B){return B?_api("/api/sessions/"+e.at+"/eeg/"+k,{method:"PUT",headers:{"Content-Type":"application/octet-stream"},body:srPackEeg(B)}):null;}).then(function(){k++;srIdxPut({at:e.at,eegSent:k});return step();});};return step();});});}
+function srSync(){if(SRSYNC.busy||!syncOn()||!acctTok())return Promise.resolve();
+  var todo=[];bioPlayers().forEach(function(p){srIdx(p.id).forEach(function(e){if((e.v||0)>(e.sentV||0)||(e.eegSent||0)<(e.eegBlocks||0))todo.push({e:e,p:p});});});
+  if(!todo.length)return Promise.resolve();SRSYNC.busy=true;
+  return todo.reduce(function(pr,x){return pr.then(function(){return srSyncOne(x.e,x.p);});},Promise.resolve()).catch(function(){}).then(function(){SRSYNC.busy=false;});}
+function srSyncOne(e,pl){pl=pl||{id:activeId()||"guest",name:activeName()||""};var pid=pl.id,v0=e.v||0;return idbGet("pl-"+e.at).then(function(D){if(!D)return;var res=e.kind==="perception"?(load(mkFor(pid,"plab","sessions"),[]).find(function(x){return x.at===e.at;})||null):null,sum=res?Object.assign({},res,{sketch:undefined}):{};
+  var p=v0>(e.sentV||0)?_api("/api/sessions/"+e.at,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({kind:e.kind,label:e.label,startedAt:e.at,mins:e.mins||null,summary:sum,report:srAnalyze(D,res,e),timeline:D.tl,rr:{rr:D.rr,rrT:D.rrT},eegBlocks:D.eegBlocks||0,player:{id:pid,name:pl.name},research:bioResearch(pid)})}).then(function(){srIdxPut({at:e.at,sentV:v0,syncedAt:Date.now()},pid);}):Promise.resolve();
+  return p.then(function(){var k=e.eegSent||0,n=D.eegBlocks||0;var step=function(){if(k>=n)return null;return idbGet("pl-"+e.at+"-e"+k).then(function(B){return B?_api("/api/sessions/"+e.at+"/eeg/"+k,{method:"PUT",headers:{"Content-Type":"application/octet-stream"},body:srPackEeg(B)}):null;}).then(function(){k++;srIdxPut({at:e.at,eegSent:k},pid);return step();});};return step();});});}
+/* ===== cloud: players on this device, research sharing, background heart recordings ===== */
+function bioPlayers(){try{var P=getProfiles();return P.length?P.map(function(p){return {id:p.id,name:p.name||""};}):[{id:activeId()||"guest",name:activeName()||""}];}catch(e){return [];}}
+function bioResearch(pid){return !!load(pkey("mjk-research",pid),false);}
+var HLSYNC={busy:false};
+function hlSync(){if(HLSYNC.busy||!syncOn()||!acctTok())return Promise.resolve();var todo=[];
+  bioPlayers().forEach(function(p){sensList(p.id).forEach(function(s){if((s.dur||0)>=45&&!(s.cloudN>=s.n))todo.push({s:s,p:p});});});
+  if(SENS.rec)todo=todo.filter(function(x){return x.s.id!==SENS.sid;});/* still recording: send it when it ends */
+  if(!todo.length)return Promise.resolve();HLSYNC.busy=true;
+  return todo.reduce(function(pr,x){return pr.then(function(){return idbGet("sens-"+x.s.id).then(function(S){if(!S||!S.data)return;
+      var d={t:[],hr:[],hrv:[],co:[],act:[]},acts=[];S.data.forEach(function(q){d.t.push(q.t);d.hr.push(q.hr==null?null:q.hr);d.hrv.push(q.hrv==null?null:q.hrv);d.co.push(q.co==null?null:q.co);var ai=acts.indexOf(q.act||"");if(ai<0){acts.push(q.act||"");ai=acts.length-1;}d.act.push(ai);});d.acts=acts;
+      return _api("/api/heartlog/"+x.s.id,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({player:{id:x.p.id,name:x.p.name},research:bioResearch(x.p.id),startedAt:x.s.start,secs:x.s.dur,
+        summary:{hr:x.s.hr||null,hrv:x.s.hrv||null,co:x.s.co||null,acts:(x.s.acts||acts).filter(Boolean)},data:d})}).then(function(){var L=sensList(x.p.id),e=L.find(function(y){return y.id===x.s.id;});if(e){e.cloudN=x.s.n;save(pkey("mjk-sens-list",x.p.id),L);}});});});},Promise.resolve())
+    .catch(function(){}).then(function(){HLSYNC.busy=false;});}
+var _bioCloudT=null;
+function bioCloud(){if(_bioCloudT)clearTimeout(_bioCloudT);_bioCloudT=setTimeout(function(){_bioCloudT=null;try{srSync().then(function(){return hlSync();});}catch(e){}},3000);}
+try{setTimeout(bioCloud,8000);}catch(e){}
+function bioSetResearch(pid,on){save(pkey("mjk-research",pid),!!on);if(syncOn()&&acctTok())_api("/api/research",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({playerId:pid,on:!!on})}).catch(function(){});}
+/* delete this player's uploads from the server; their sessions stay on this device and are not sent again */
+function bioDeleteUploads(pid){if(!syncOn()||!acctTok())return Promise.resolve(false);return _api("/api/my-data?player="+encodeURIComponent(pid),{method:"DELETE"}).then(function(){
+    srIdx(pid).forEach(function(e){srIdxPut({at:e.at,sentV:e.v||0,eegSent:e.eegBlocks||0},pid);});var L=sensList(pid);L.forEach(function(s){s.cloudN=s.n;});save(pkey("mjk-sens-list",pid),L);return true;}).catch(function(){return false;});}
+var BIOADM=null;function bioIsAdmin(){if(BIOADM!==null||!syncOn()||!acctTok())return Promise.resolve(!!BIOADM);return _api("/api/admin/me",{}).then(function(j){BIOADM=!!(j&&j.admin);return BIOADM;}).catch(function(){return false;});}
+function bioCloudPanel(host){if(!host)return;var me=activeId()||"guest",signed=syncOn()&&acctTok(),on=bioResearch(me),d=document.createElement("div");d.className="panel";d.id="bioCloud";d.style.margin="0 0 12px";
+  d.innerHTML='<div class="rlab" style="display:block;margin-bottom:6px">☁️ Share for research</div>'+
+    '<label style="display:flex;gap:10px;align-items:center;font-weight:700;cursor:pointer"><input type="checkbox" id="bioRes" '+(on?"checked":"")+' style="width:22px;height:22px"> Share '+esc(activeName()||"my")+(activeName()?"'s":"")+' heart &amp; brain sessions to help research</label>'+
+    '<div class="site-note" style="margin:6px 0 0;font-size:.78rem">Shared without your name. Turn it off any time. '+(signed?'Uploads go to your account <b>'+esc(acctName()||"")+'</b>.':'Sign in with the 👤 account button to upload; until then everything stays on this device.')+' If this player is under 18, a parent should decide.</div>'+
+    (signed?'<div class="actions ilacts" style="margin:8px 0 0"><button class="btn ghost" id="bioDel">Delete my uploads</button><button class="btn ghost" id="bioAdm" hidden>🔬 Research data</button></div>':'');
+  d.style.margin="16px 0 0";host.appendChild(d);
+  d.querySelector("#bioRes").onchange=function(){bioSetResearch(me,this.checked);};
+  var del=d.querySelector("#bioDel");if(del)del.onclick=function(){if(!del.dataset.sure){del.dataset.sure=1;del.textContent="Tap again to delete from the server";return;}del.textContent="Deleting…";bioDeleteUploads(me).then(function(ok){del.textContent=ok?"✓ Deleted from the server":"Couldn't reach the server";delete del.dataset.sure;});};
+  var adm=d.querySelector("#bioAdm");if(adm)bioIsAdmin().then(function(a){if(a){adm.hidden=false;adm.onclick=renderResearchAdmin;}});}
+function renderResearchAdmin(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=null;
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔬 Research data</span></div><div class="panel" id="radm"><div class="site-note">Loading…</div></div>';
+  $("#eBack").onclick=renderSensSessions;
+  var dl=function(path,name){return _apiRaw(path).then(function(b){var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},2000);});};
+  _api("/api/admin/summary",{}).then(function(s){var b=$("#radm");if(!b)return;
+    b.innerHTML='<div class="intro">Sessions shared for research by everyone who opted in (as a code, no names), plus every session in your own account (with names).</div>'+
+      '<div class="bgvChords" style="justify-content:flex-start;margin:8px 0 12px">'+[["Sessions",s.sessions],["Heart recordings",s.heartRecordings],["People",s.people],["Sharing from others",s.peopleSharing]].map(function(x){return '<span class="bgvCh" style="text-align:left"><small style="display:block;font-weight:600">'+x[0]+'</small>'+x[1]+'</span>';}).join("")+'</div>'+
+      '<div class="actions"><button class="btn" id="radCsv">⬇ Download spreadsheet (CSV)</button></div><div class="actions" style="margin-top:8px"><button class="btn ghost" id="radJson">⬇ Download everything (JSON)</button></div><div class="feedback" id="radMsg"></div>';
+    $("#radCsv").onclick=function(){$("#radMsg").textContent="Preparing…";dl("/api/admin/export.csv","mmu-sessions.csv").then(function(){$("#radMsg").textContent="";}).catch(function(){$("#radMsg").textContent="Couldn't download.";});};
+    $("#radJson").onclick=function(){$("#radMsg").textContent="Preparing — this can be large…";dl("/api/admin/export.json","mmu-sessions-full.json").then(function(){$("#radMsg").textContent="";}).catch(function(){$("#radMsg").textContent="Couldn't download.";});};
+  }).catch(function(){var b=$("#radm");if(b)b.innerHTML='<div class="site-note">Only the admin account can open this, and the server must be reachable.</div>';});}
 /* sessions recorded before the index existed (Perception Lab, Nov 9) join it once */
 function srBoot(){try{var have={};srIdx().forEach(function(e){have[e.at]=1;});plStore().forEach(function(s){if(have[s.at])return;idbGet("pl-"+s.at).then(function(D){if(D&&D.tl&&D.tl.t&&D.tl.t.length)srIdxPut({at:s.at,kind:"perception",label:"Perception Lab · "+srWhen(s.at),mins:s.mins,sens:D.sens,eegBlocks:D.eegBlocks||0,v:1});});});}catch(e){}setTimeout(srSync,4000);}
 setTimeout(srBoot,3000);setInterval(srSync,120000);
@@ -13211,7 +13254,8 @@ setInterval(srWatch,1000);
 /* ---- Session reports page ---- */
 function renderSessions(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);var filt=SW.srF||"all";
   var draw=function(server){var loc=srIdx(),seen={},rows=[];loc.forEach(function(e){seen[e.at]=1;rows.push({at:e.at,label:e.label,kind:e.kind,mins:e.mins,sens:e.sens||{},local:true,backed:(e.sentV||0)>=(e.v||0)&&(e.eegSent||0)>=(e.eegBlocks||0)&&!!e.syncedAt});});
-    (server||[]).forEach(function(s){var at=+s.id;if(seen[at])return;rows.push({at:at,label:s.label,kind:s.kind,mins:s.mins,sens:(s.report&&s.report.sensors)||{},local:false,backed:true});});
+    var _own=(function(){try{return JSON.parse(localStorage.getItem("bio:split-v2")||"{}").to;}catch(e){return null;}})(),_me=activeId()||"guest";
+    (server||[]).forEach(function(s){var at=+s.id;if(seen[at])return;if(s.player_id?s.player_id!==_me:(_own&&_own!==_me))return;rows.push({at:at,label:s.label,kind:s.kind,mins:s.mins,sens:(s.report&&s.report.sensors)||{},local:false,backed:true});});
     rows.sort(function(a,b){return b.at-a.at;});var stubs=rows.filter(function(r){return (r.mins||0)<1;});rows=rows.filter(function(r){return (r.mins||0)>=1;});
     var kinds={};rows.forEach(function(r){kinds[r.kind]=r.label.split(" · ")[0];});var shown=rows.filter(function(r){return filt==="all"||r.kind===filt;});
     var signed=syncOn()&&acctTok(),waiting=rows.filter(function(r){return r.local&&!r.backed;}).length;
@@ -13227,8 +13271,9 @@ function renderSessions(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=t
     if($("#srClaude"))$("#srClaude").onclick=function(){var box=$("#srClaudeBox");if(!signed){box.innerHTML='<div class="site-note"><b>Sign in first.</b> Go to the home screen → Sign In &amp; sync (top bar). That turns on session backup; then tap this again and your link appears.</div>';return;}box.innerHTML='<div class="site-note">Making your link…</div>';_api("/api/claude-key",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"}).then(function(j){var u=MMU_API+"/api/claude/"+j.key;
       box.innerHTML='<div class="site-note" style="margin:6px 0 4px">Give this link to Claude once. It opens your session reports as plain text, read-only. Anyone with the link can read them.</div><input readonly value="'+esc(u)+'" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:inherit;font:600 .8rem ui-monospace,monospace"><div class="actions"><button class="btn" id="srCopy">Copy link</button><button class="btn ghost" id="srRot">Make a new link</button></div>';
       $("#srCopy").onclick=function(){try{navigator.clipboard.writeText(u);$("#srCopy").textContent="Copied ✓";}catch(e){}};$("#srRot").onclick=function(){_api("/api/claude-key",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rotate:true})}).then(function(){$("#srClaude").click();});};}).catch(function(e){box.innerHTML='<div class="site-note">'+esc(e.message||"Could not make the link.")+'</div>';});};
+    bioCloudPanel(view.querySelector(".panel"));
     if(signed&&$("#srClaude"))$("#srClaude").click(); /* the link shows itself — nothing to hunt for */};
-  draw(null);srSync().then(function(){if(syncOn()&&acctTok())_api("/api/sessions",{}).then(function(j){if($("#srClaude")||view.querySelector(".srRow")||true)draw(j.sessions||[]);}).catch(function(){draw(null);});});}
+  draw(null);srSync().then(function(){hlSync();if(syncOn()&&acctTok())_api("/api/sessions",{}).then(function(j){if($("#srClaude")||view.querySelector(".srRow")||true)draw(j.sessions||[]);}).catch(function(){draw(null);});});}
 
 function plRmssd(rr){var d=[];for(var i=1;i<rr.length;i++){var x=rr[i]-rr[i-1];if(Math.abs(x)<250)d.push(x*x);}return d.length>=4?Math.round(Math.sqrt(d.reduce(function(a,b){return a+b;},0)/d.length)*10)/10:null;}
 function srReadD(T){var D2=[],stN=srStages(T),tt0=(T.t&&T.t[0])||0;
@@ -15526,7 +15571,7 @@ function sensBegin(){if(SENS.rec)return;SENS.rec=true;SENS.pid=activeId()||"gues
 function sensSave(final){if(!SENS.sid||!SENS.data.length)return;const d=SENS.data,av=k=>{const v=d.map(p=>p[k]).filter(x=>x!=null&&x>0);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):null;};
   idbPut("sens-"+SENS.sid,{id:SENS.sid,start:SENS.t0,data:d,tags:(SENS.tags||[]).slice()}).catch(()=>{});
   const own=SENS.pid||activeId()||"guest",L=sensList(own).filter(x=>x.id!==SENS.sid);L.unshift({id:SENS.sid,start:SENS.t0,dur:Math.round((d[d.length-1].t||0)),n:d.length,hr:av("hr"),hrv:av("hrv"),al:av("al"),th:av("th"),be:av("be"),co:(function(){const v=d.map(p=>p.co).filter(x=>x!=null&&x>0);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length*100)/100:null;})(),hs:av("hs"),ga:av("ga"),acts:[...new Set(d.map(p=>p.act.split(" · ")[0]))].slice(0,6),tags:(SENS.tags||[]).slice()});save(pkey("mjk-sens-list",own),L.slice(0,200));SENS.lastSave=Date.now();
-  if(final){SENS.rec=false;SENS.sid=null;SENS.data=[];}sensUI();}
+  if(final){SENS.rec=false;SENS.sid=null;SENS.data=[];try{bioCloud();}catch(e){}}sensUI();}
 function sensTick(){try{if(HR.connected&&HR.updated&&performance.now()-HR.updated>20000){HR.connected=false;HR_ERR="The heart sensor went quiet. Reconnecting\u2026";if(HR.dev)hrAutoReconnect(HR.dev,null,0);}}catch(e){}try{tgtTick();}catch(e){}const on=HR.connected||M.connected;if(!on){if(SENS.rec){if(!SENS.offSince)SENS.offSince=Date.now();else if(Date.now()-SENS.offSince>90000&&!(typeof LUC!=="undefined"&&LUC.on)){sensSave(true);}}sensUI();return;}SENS.offSince=0;
   if(document.body.classList.contains("gated")){if(SENS.rec)sensSave(true);return;}/* "Who's playing?" is showing: record nothing until a player is picked */if(SENS.rec&&SENS.pid&&SENS.pid!==(activeId()||"guest"))sensSave(true);/* a different player took over: close theirs, start a new one */if(!SENS.rec&&load("mjk-sens-auto",true))sensBegin();
   if(SENS.rec){const co=bioCoherence();SENS.data.push({t:Math.round((Date.now()-SENS.t0)/1000),hr:bioHR(),hrv:bioHRV(),co:co?Math.round(co.score*100)/100:null,al:M.connected?Math.round(M.alpha):null,th:M.connected?Math.round(M.theta):null,be:M.connected?Math.round(M.beta):null,ga:(M.connected&&M.gamma!=null)?Math.round(M.gamma):null,hs:(function(){try{var h=M.connected?eegHemiSync():null;return h?Math.round(h.al*100):null;}catch(e){return null;}})(),act:sensActivity(),pl:sensPlaying()?1:0});
@@ -15919,7 +15964,8 @@ function renderSensSessions(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidd
   const draw=function(server){const L=sensList().filter(s=>(s.dur||0)>=45);/* hide blips from brief sensor connects */
     /* one folder: sensor recordings + session reports (local and, when signed in, backed up on the server) */
     var seen={},plr=[];srIdx().forEach(function(e){if((e.mins||0)<1)return;seen[e.at]=1;plr.push({at:e.at,label:e.label,mins:e.mins,sens:e.sens||{},eeg:(e.eegBlocks||0)>0});});
-    (server||[]).forEach(function(x){var at=+x.id;if(seen[at]||(x.mins||0)<1)return;plr.push({at:at,label:x.label,mins:x.mins,sens:(x.report&&x.report.sensors)||{},eeg:false,srv:true});});
+    var _own=(function(){try{return JSON.parse(localStorage.getItem("bio:split-v2")||"{}").to;}catch(e){return null;}})(),_me=activeId()||"guest";
+    (server||[]).forEach(function(x){var at=+x.id;if(seen[at]||(x.mins||0)<1)return;if(x.player_id?x.player_id!==_me:(_own&&_own!==_me))return;plr.push({at:at,label:x.label,mins:x.mins,sens:(x.report&&x.report.sensors)||{},eeg:false,srv:true});});
     var Ls=L.filter(function(s){return !plr.some(function(r){return Math.abs(r.at-s.start)<120000;});});/* same sitting → keep the richer report row */
     var rows=plr.map(function(r){return {t:r.at,h:'<button class="kb" data-rep="'+r.at+'" style="width:100%;text-align:left"><span class="kb-ic">📼</span><div class="kb-main"><div class="kb-t">'+esc(r.label||"Session")+'</div><div class="kb-s">'+(r.mins?r.mins+" min · ":"")+(r.sens.hr?"❤️ heart ":"")+(r.sens.eeg||r.eeg?"🧠 brain ":"")+(r.srv?"· ☁︎ from your account":"· tap for report & replay")+'</div></div></button>'};})
       .concat(Ls.map(function(s){const d=new Date(s.start);return {t:s.start,h:'<button class="kb" data-sess="'+s.id+'" style="width:100%;text-align:left"><span class="kb-ic">🫀</span><div class="kb-main"><div class="kb-t">'+d.toLocaleDateString()+' · '+d.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})+' · '+sensFmt(s.dur)+'</div><div class="kb-s">'+[s.hr?"HR "+s.hr:"",s.hrv?"HRV "+s.hrv+" ms":"",s.al!=null?"α "+s.al+"%":"",s.th!=null?"θ "+s.th+"%":""].filter(Boolean).join(" · ")+(s.acts&&s.acts.length?" — "+esc(s.acts.join(", ")):"")+'</div></div></button>'};}));
@@ -15929,8 +15975,8 @@ function renderSensSessions(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidd
       (SENS.rec?'<div class="site-note">● A session is recording right now — it shows here as it saves (every 30 s).</div>':'')+
       (rows.length?rows.map(function(r){return r.h;}).join(""):'<div class="site-note">No sessions yet. Tap the 🫀 button (bottom right) to connect a sensor — recording starts by itself.'+(syncOn()&&acctTok()?'':' Recorded on another device or browser? Sign in (home screen → <b>Sign In &amp; sync</b>) and backed-up sessions show here too.')+'</div>')+'</div>';
     $("#sensInsB").onclick=renderInsights;$("#eBack").onclick=goHome;view.querySelectorAll("[data-sess]").forEach(b=>b.onclick=()=>renderSensDetail(b.dataset.sess));
-    view.querySelectorAll("[data-rep]").forEach(b=>b.onclick=()=>plReport(+b.dataset.rep));};
-  draw(null);if(syncOn()&&acctTok())_api("/api/sessions",{}).then(function(j){draw(j.sessions||[]);}).catch(function(){});}
+    view.querySelectorAll("[data-rep]").forEach(b=>b.onclick=()=>plReport(+b.dataset.rep));bioCloudPanel(view.querySelector(".panel"));};
+  draw(null);if(syncOn()&&acctTok())srSync().then(function(){hlSync();return _api("/api/sessions",{});}).then(function(j){if(j)draw(j.sessions||[]);}).catch(function(){});}
 function renderSensDetail(id){if(SENS.rec&&SENS.sid===id)sensSave(false);view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">📊 Session</span></div><div class="panel"><div class="site-note">Loading…</div></div>';$("#eBack").onclick=renderSensSessions;
   idbGet("sens-"+id).then(S=>{if(!S||!S.data||!S.data.length){view.querySelector(".panel").innerHTML='<div class="site-note">That session is empty.</div>';return;}const D=S.data,T=D[D.length-1].t||1;
     const av=(arr,k)=>{const v=arr.map(p=>p[k]).filter(x=>x!=null&&x>0);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;},f=(x,u)=>x==null?"—":Math.round(x)+(u||"");
@@ -16265,6 +16311,7 @@ function _syncKeys(){var a=[];for(var i=0;i<localStorage.length;i++){var k=local
 function _snapshot(){var o={};_syncKeys().forEach(function(k){try{o[k]=localStorage.getItem(k);}catch(e){}});return o;}
 function _restore(d){if(!d)return;_AID=undefined;Object.keys(d).forEach(function(k){if(_syncable(k)&&typeof d[k]==="string"){try{localStorage.setItem(k,d[k]);}catch(e){}}});}
 function _api(path,opts){opts=opts||{};opts.headers=opts.headers||{};var t=acctTok();if(t)opts.headers["Authorization"]="Bearer "+t;return fetch(MMU_API+path,opts).then(function(r){return r.json().catch(function(){return {};}).then(function(j){if(!r.ok){if(r.status===401)clearAcct();throw new Error(j&&j.error?j.error:"Something went wrong.");}return j;});});}
+function _apiRaw(path){var t=acctTok(),h={};if(t)h["Authorization"]="Bearer "+t;return fetch(MMU_API+path,{headers:h}).then(function(r){if(!r.ok)throw new Error("fail");return r.blob();});}
 function acctRegister(u,c){return _api("/api/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,code:c})});}
 function acctLogin(u,c){return _api("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,code:c})});}
 function acctLoad(){return _api("/api/state",{});}
@@ -16410,7 +16457,7 @@ function showCreate(){
     const ps=getProfiles();const id=newId();ps.push({id,name,pin:pin||null,mode});setProfiles(ps);activate(id);};
   setTimeout(()=>$("#newName").focus(),60);
 }
-function activate(id){save("majick-active",id);showHome();}
+function activate(id){save("majick-active",id);showHome();try{bioCloud();}catch(e){}}
 function showHome(){document.body.classList.remove("gated");if(window.__lucPending){var lp0=window.__lucPending;window.__lucPending=null;setTimeout(function(){lucResume(lp0);},0);}gate.hidden=true;view.hidden=true;home.hidden=false;
   const p=getProfiles().find(x=>x.id===activeId());if($("#profileName"))$("#profileName").textContent=p?p.name:"—";
   renderHome();window.scrollTo(0,0);

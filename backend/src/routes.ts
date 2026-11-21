@@ -1,8 +1,8 @@
 import express from 'express';
 import type { Express, Request, Response } from 'express';
 import { storage } from './storage.js';
-import { register, login, verifyToken, loadState, saveState, accountsMode } from './accounts.js';
-import { putSession, putEeg, listSessions, getSession, getEeg, claudeKey, accountForKey, mdIndex, mdReport, csvTimeline, csvRR } from './sessions.js';
+import { register, login, verifyToken, loadState, saveState, accountsMode, isAdmin } from './accounts.js';
+import { putSession, putEeg, listSessions, getSession, getEeg, claudeKey, accountForKey, mdIndex, mdReport, csvTimeline, csvRR, putHeartlog, setResearch, deleteMine, adminSummary, adminCsv, adminFull } from './sessions.js';
 
 function requireAuth(req: Request, res: Response): string | null {
   const h = req.headers.authorization || '';
@@ -65,6 +65,42 @@ export function registerRoutes(app: Express) {
   app.get('/api/sessions/:id/eeg/:idx', async (req: Request, res: Response) => {
     const acc = requireAuth(req, res); if (!acc) return;
     try { const b = await getEeg(acc, req.params.id, parseInt(req.params.idx, 10)); if (!b) return res.status(404).end(); res.type('application/octet-stream').send(b); } catch (e) { fail(res, e, 'Could not load EEG.'); }
+  });
+  // background heart recordings
+  app.put('/api/heartlog/:id', async (req: Request, res: Response) => {
+    const acc = requireAuth(req, res); if (!acc) return;
+    try { res.json(await putHeartlog(acc, req.params.id, req.body || {})); } catch (e) { fail(res, e, 'Could not save the recording.'); }
+  });
+  // a player's research sharing switch
+  app.post('/api/research', async (req: Request, res: Response) => {
+    const acc = requireAuth(req, res); if (!acc) return;
+    try { const b = req.body || {}; res.json(await setResearch(acc, b.playerId, !!b.on)); } catch (e) { fail(res, e, 'Could not update sharing.'); }
+  });
+  // delete my uploads (one player, or the whole account)
+  app.delete('/api/my-data', async (req: Request, res: Response) => {
+    const acc = requireAuth(req, res); if (!acc) return;
+    try { res.json(await deleteMine(acc, req.query.player ? String(req.query.player) : undefined)); } catch (e) { fail(res, e, 'Could not delete.'); }
+  });
+  // research export — admin account only (checked here on the server)
+  const requireAdmin = async (req: Request, res: Response): Promise<string | null> => {
+    const acc = requireAuth(req, res); if (!acc) return null;
+    if (!(await isAdmin(acc))) { res.status(403).json({ error: 'Admins only.' }); return null; }
+    return acc;
+  };
+  app.get('/api/admin/summary', async (req: Request, res: Response) => {
+    const acc = await requireAdmin(req, res); if (!acc) return;
+    try { res.json(await adminSummary(acc)); } catch (e) { fail(res, e, 'Could not load.'); }
+  });
+  app.get('/api/admin/export.csv', async (req: Request, res: Response) => {
+    const acc = await requireAdmin(req, res); if (!acc) return;
+    try { res.type('text/csv; charset=utf-8').set('Content-Disposition', 'attachment; filename="mmu-sessions.csv"').send(await adminCsv(acc)); } catch (e) { fail(res, e, 'Could not export.'); }
+  });
+  app.get('/api/admin/export.json', async (req: Request, res: Response) => {
+    const acc = await requireAdmin(req, res); if (!acc) return;
+    try { res.set('Content-Disposition', 'attachment; filename="mmu-sessions-full.json"').json(await adminFull(acc)); } catch (e) { fail(res, e, 'Could not export.'); }
+  });
+  app.get('/api/admin/me', async (req: Request, res: Response) => {
+    const acc = requireAuth(req, res); if (!acc) return; res.json({ admin: await isAdmin(acc) });
   });
   app.post('/api/claude-key', async (req: Request, res: Response) => {
     const acc = requireAuth(req, res); if (!acc) return;

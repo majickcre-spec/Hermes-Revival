@@ -103,6 +103,88 @@ export async function run() {
     await ph.__ctx.close();
   });
 
+  // ---------- session database: per-player uploads, research choice, delete, admin ----------
+  async function bioDevice(server) {
+    const ctx = await b.newContext(); const pg = await ctx.newPage(); const errors = []; pg.on("pageerror", (e) => errors.push(String(e.message || e)));
+    await pg.route(API + "/**", async (r) => {
+      const q = r.request(), u = new URL(q.url()), m = q.method(), j = (o) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(o) });
+      server.calls.push(m + " " + u.pathname + u.search);
+      if (u.pathname.startsWith("/api/sessions/") && m === "PUT" && !u.pathname.includes("/eeg/")) { server.sessions[u.pathname.split("/")[3]] = JSON.parse(q.postData()); return j({ ok: true }); }
+      if (u.pathname.startsWith("/api/heartlog/") && m === "PUT") { server.heart[u.pathname.split("/")[3]] = JSON.parse(q.postData()); return j({ ok: true }); }
+      if (u.pathname === "/api/sessions" && m === "GET") return j({ sessions: server.list });
+      if (u.pathname === "/api/admin/me") return j({ admin: !!server.admin });
+      if (u.pathname === "/api/admin/summary") return j({ sessions: 3, heartRecordings: 1, people: 2, fromOthers: 1, peopleSharing: 1 });
+      if (u.pathname === "/api/research") { server.research.push(JSON.parse(q.postData())); return j({ ok: true }); }
+      if (u.pathname === "/api/my-data" && m === "DELETE") return j({ ok: true });
+      return j({});
+    });
+    await pg.addInitScript((API) => { Object.defineProperty(window, "__MJK_API__", { get: () => API, set: () => {} }); if (sessionStorage.getItem("__s")) return; sessionStorage.setItem("__s", "1");
+      localStorage.setItem("mjk-auth-token", "tok"); localStorage.setItem("mjk-auth-user", "Travis");
+      localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }, { id: "s1", name: "Star" }])); localStorage.setItem("majick-active", JSON.stringify("t1"));
+      localStorage.setItem("bio:split-v2", JSON.stringify({ to: "t1" })); localStorage.setItem("bio:mjk-research@s1", "true"); }, API);
+    await pg.goto(url + "/app.html"); await pg.waitForTimeout(400);
+    await pg.evaluate(async () => { const tl = Array.from({ length: 180 }, (_, i) => ({ t: i, hr: 70, hrv: 50, co: 1 }));
+      for (const [pid, at] of [["t1", 1700000000000], ["s1", 1700000500000]]) { srIdxPut({ at, kind: "meditation", label: "Calm · " + pid, mins: 3, v: 1 }, pid); await idbPut("pl-" + at, { tl, rr: [], rrT: [] }); }
+      for (const [pid, sid] of [["t1", "sT"], ["s1", "sS"]]) { const data = Array.from({ length: 90 }, (_, i) => ({ t: i, hr: 66, hrv: 40, co: 1.2, act: "Home" })); await idbPut("sens-" + sid, { id: sid, start: 1700001000000, data });
+        localStorage.setItem("bio:mjk-sens-list@" + pid, JSON.stringify([{ id: sid, start: 1700001000000, dur: 89, n: 90, hr: 66 }])); } });
+    pg.__errors = errors; pg.__ctx = ctx; return pg;
+  }
+  const srv0 = () => ({ calls: [], sessions: {}, heart: {}, list: [], research: [], admin: false });
+
+  await S.test("every player's sessions and heart recordings upload, each tagged with its own player and sharing choice", async () => {
+    const server = srv0(); const pg = await bioDevice(server);
+    await pg.evaluate(async () => { await srSync(); await hlSync(); });
+    const a = server.sessions["1700000000000"], s = server.sessions["1700000500000"];
+    assert(a && a.player.id === "t1" && a.player.name === "Trav" && a.research === false, "Trav's session wrong " + JSON.stringify(a && { p: a.player, r: a.research }));
+    assert(s && s.player.id === "s1" && s.research === true, "Star's session wrong " + JSON.stringify(s && { p: s.player, r: s.research }));
+    assert(server.heart.sT && server.heart.sT.player.id === "t1" && server.heart.sS && server.heart.sS.player.id === "s1", "heart recordings not uploaded per player " + Object.keys(server.heart));
+    assert(server.heart.sS.data.hr.length === 90 && server.heart.sS.research === true, "heart data missing");
+    const n = server.calls.length; await pg.evaluate(async () => { await srSync(); await hlSync(); });
+    assert(server.calls.length === n, "sent again when nothing changed: " + server.calls.slice(n).join(", "));
+    assert(!pg.__errors.length, pg.__errors.join(" | ")); await pg.__ctx.close();
+  });
+
+  await S.test("a recording still in progress is not uploaded half-done", async () => {
+    const server = srv0(); const pg = await bioDevice(server);
+    await pg.evaluate(async () => { SENS.rec = true; SENS.sid = "sT"; await hlSync(); SENS.rec = false; SENS.sid = null; });
+    assert(!server.heart.sT && server.heart.sS, "in-progress recording was sent"); await pg.__ctx.close();
+  });
+
+  await S.test("My sessions shows only this player's uploads (untagged old ones stay with Trav)", async () => {
+    const server = srv0(); server.list = [{ id: "1600000000001", label: "Star old", kind: "meditation", mins: 5, player_id: "s1" }, { id: "1600000000002", label: "Trav old", kind: "meditation", mins: 5, player_id: "t1" }, { id: "1600000000003", label: "Untagged", kind: "meditation", mins: 5 }];
+    const pg = await bioDevice(server);
+    const labels = async () => { await pg.evaluate(() => renderSessions()); await pg.waitForTimeout(500); return pg.evaluate(() => [...document.querySelectorAll(".srRow")].map((b) => b.textContent).join("|")); };
+    let t = await labels(); assert(t.includes("Trav old") && t.includes("Untagged") && !t.includes("Star old"), "Trav sees: " + t);
+    await pg.evaluate(() => localStorage.setItem("majick-active", JSON.stringify("s1"))); t = await labels();
+    assert(t.includes("Star old") && !t.includes("Trav old") && !t.includes("Untagged"), "Star sees: " + t);
+    await pg.evaluate(() => { renderSensSessions(); }); await pg.waitForTimeout(500);
+    const kb = await pg.evaluate(() => [...document.querySelectorAll("[data-rep]")].map((b) => b.textContent).join("|"));
+    assert(!kb.includes("Trav old") && !kb.includes("Untagged"), "sensor list leaks: " + kb); await pg.__ctx.close();
+  });
+
+  await S.test("sharing switch is per player and tells the server; Delete my uploads stops re-sending", async () => {
+    const server = srv0(); const pg = await bioDevice(server);
+    await pg.evaluate(() => renderSessions()); await pg.waitForTimeout(500);
+    assert(!(await pg.evaluate(() => $("#bioRes").checked)), "Trav's switch should start off");
+    await pg.evaluate(() => { const c = $("#bioRes"); c.checked = true; c.dispatchEvent(new Event("change")); }); await pg.waitForTimeout(200);
+    assert(server.research.some((x) => x.playerId === "t1" && x.on), "server not told");
+    assert(await pg.evaluate(() => bioResearch("t1") && bioResearch("s1")), "choice not saved");
+    await pg.evaluate(() => { const d = $("#bioDel"); d.click(); d.click(); }); await pg.waitForTimeout(400);
+    assert(server.calls.some((c) => c === "DELETE /api/my-data?player=t1"), "delete not sent for this player only: " + server.calls.filter((c) => c.includes("my-data")));
+    server.sessions = {}; server.heart = {}; await pg.evaluate(() => { const L = srIdx("s1"); L.forEach((e) => srIdxPut({ at: e.at, v: (e.v || 0) + 1 }, "s1")); const H = sensList("s1"); H.forEach((s) => { s.n++; }); save(pkey("mjk-sens-list", "s1"), H); }); await pg.evaluate(async () => { await srSync(); await hlSync(); });
+    assert(!server.sessions["1700000000000"] && !server.heart.sT, "deleted sessions were uploaded again");
+    assert(server.sessions["1700000500000"] && server.heart.sS, "Star's uploads should be unaffected"); await pg.__ctx.close();
+  });
+
+  await S.test("🔬 Research data shows only for the admin account", async () => {
+    for (const admin of [false, true]) { const server = srv0(); server.admin = admin; const pg = await bioDevice(server);
+      await pg.evaluate(() => renderSessions()); await pg.waitForTimeout(600);
+      const vis = await pg.evaluate(() => { const a = $("#bioAdm"); return !!a && !a.hidden; });
+      assert(vis === admin, "admin button visible=" + vis + " for admin=" + admin);
+      if (admin) { await pg.evaluate(() => $("#bioAdm").click()); await pg.waitForTimeout(400); assert(await pg.evaluate(() => !!$("#radCsv") && document.body.textContent.includes("Heart recordings")), "admin screen did not open"); }
+      await pg.__ctx.close(); }
+  });
+
   await b.close(); srv.close();
   return S.done();
 }
