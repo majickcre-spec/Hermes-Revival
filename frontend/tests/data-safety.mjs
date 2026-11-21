@@ -760,11 +760,11 @@ export async function run() {
       o.keys = Object.keys(localStorage).filter((k) => k.startsWith("heads-halves-v1")).sort(); o.travSaved = JSON.parse(localStorage.getItem("heads-halves-v1-t1") || "{}");
       return o; });
     assert(r.trav && r.star && !r.bob && r.bobBlocked, "Heads button shown to the wrong players " + JSON.stringify(r));
-    assert(r.inApp && r.fab === "none" && /All things that are moved/.test(r.head) && r.home, "Heads didn't open inside the music app " + JSON.stringify(r));
+    assert(r.inApp && r.fab !== "none" && /All things that are moved/.test(r.head) && r.home, "Heads didn't open inside the music app " + JSON.stringify(r));
     assert(r.travSaved && r.travSaved.i === 1 && r.travSaved.r === 2 && /Head 1 /.test(r.starWhere) && r.keys.join(",") === "heads-halves-v1-s2,heads-halves-v1-t1", "players share Heads progress " + JSON.stringify(r)); await ctx.close();
   });
 
-  await S.test("Guitar section: 4 cards; Chords and Play Along have tabs; switching tabs or going back stops the sound; tabs never leak into other sections; floating sensor buttons hide here only; Progressions and the last tab are remembered after a reload; ukulele gets the same menu", async () => {
+  await S.test("Guitar section: 4 cards; Chords and Play Along have tabs; switching tabs or going back stops the sound; tabs never leak into other sections; the 🫀/🧠 device buttons stay visible; Progressions and the last tab are remembered after a reload; ukulele gets the same menu", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
     const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const o = {};
       renderStrings("guitar"); await w(200); o.cards = [...view.querySelectorAll("#strGrid .card h3")].map((e) => e.textContent);
@@ -779,7 +779,7 @@ export async function run() {
       o.saved = load("mjk-prgsel", null); return o; });
     assert(r.cards.join("|") === "Guitar Method|Chords|The Neck|Play Along" && r.tabs.length === 4, "guitar menu " + JSON.stringify(r));
     assert(r.playing && r.stoppedOnTab && r.onStrums && r.backToHub, "tabs/back left sound playing or went the wrong way " + JSON.stringify(r));
-    assert(!r.leak && r.fabHub === "none" && r.fabElsewhere !== "none", "guitar tabs/hidden buttons leaked " + JSON.stringify(r));
+    assert(!r.leak && r.fabHub !== "none" && r.fabElsewhere !== "none", "guitar tabs leaked or device buttons hidden " + JSON.stringify(r));
     assert(r.uke.join("|") === "Ukulele Method|Chords|The Neck|Play Along" && r.ukeTabs.indexOf("Hard ones") < 0 && r.ukeTabs.length === 3, "ukulele menu " + JSON.stringify(r));
     await pg.reload(); await pg.waitForTimeout(1200);
     const r2 = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); try { activate(activeId()); } catch (e) {} await w(300);
@@ -968,6 +968,48 @@ export async function run() {
   await S.test("the app never throws while opening Lyric Lab", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}); await open(pg);
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
+  });
+
+  await S.test("REAL TAPS: pick player → search Guitar / Bass Grooves / Heads → open → ← back home: the 🫀 and 🧠 buttons are there on every screen, both orientations", async () => {
+    for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
+      const ctx = await b.newContext({ viewport: vp, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+      await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); });
+      await pg.goto(url + "/app.html"); await pg.waitForTimeout(700);
+      const fabs = () => pg.evaluate(() => ["sensFab", "brainFab"].every((id) => { const e = document.getElementById(id); return e && getComputedStyle(e).display !== "none" && e.getBoundingClientRect().width > 0; }));
+      assert(!(await fabs()), "device buttons showed before picking a player");
+      await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(500);
+      assert(await fabs(), vp.width + ": missing on home after picking player");
+      for (const q of ["Guitar", "Bass Grooves", "Ukulele", "Bass Guitar"]) {
+        await pg.evaluate(() => window.scrollTo(0, 0)); const s = pg.locator("#homeSearch"); await s.fill(""); await s.click(); await pg.keyboard.type(q); await pg.waitForTimeout(400);
+        await pg.locator("#home :is(button,a,.kb,[data-go])").filter({ hasText: new RegExp("^\\W*" + q) }).filter({ visible: true }).first().click(); await pg.waitForTimeout(700);
+        assert(await fabs(), vp.width + ": missing inside " + q);
+        const inner = pg.locator("#view #strGrid > .card:visible").first(); if (await inner.count()) { await inner.click(); await pg.waitForTimeout(600); assert(await fabs(), vp.width + ": missing inside a " + q + " tool"); }
+        for (let i = 0; i < 6 && !(await pg.evaluate(() => document.getElementById("view").hidden)); i++) { await pg.locator("#view .back").first().click(); await pg.waitForTimeout(350); }
+        assert(await fabs(), vp.width + ": missing on home after leaving " + q);
+      }
+      await pg.evaluate(() => window.scrollTo(0, 0)); { const s = pg.locator("#homeSearch"); await s.fill(""); await s.click(); await pg.keyboard.type("Heads"); await pg.waitForTimeout(400); }
+      await pg.locator("#home :is(button,a,.card,.door,.kb,[data-go])").filter({ hasText: /Heads of Things/ }).filter({ visible: true }).first().click(); await pg.waitForTimeout(1500);
+      assert(await fabs(), vp.width + ": missing on Heads");
+      const clash = await pg.evaluate(() => { const f = document.getElementById("hhFrame"); const d = f.contentDocument; const fr = f.getBoundingClientRect(); const bad = [];
+        for (const id of ["sensFab", "brainFab"]) { const a = document.getElementById(id).getBoundingClientRect();
+          d.querySelectorAll("button").forEach((btn) => { const r = btn.getBoundingClientRect(); if (!r.width) return; const x1 = r.left + fr.left, y1 = r.top + fr.top, x2 = x1 + r.width, y2 = y1 + r.height;
+            if (a.left < x2 && a.right > x1 && a.top < y2 && a.bottom > y1) bad.push(id + " on " + btn.textContent.trim()); }); } return bad; });
+      assert(!clash.length, vp.width + ": device buttons cover Heads buttons: " + clash.join(", "));
+      await pg.locator("#view .back").first().click(); await pg.waitForTimeout(400); assert(await fabs(), vp.width + ": missing on home after Heads");
+      assert(!errs.length, errs.join(" | ")); await ctx.close();
+    }
+  });
+
+  await S.test("REAL TAPS: searching Heads finds it for Trav, and finds nothing for another player", async () => {
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); const pg = await ctx.newPage();
+    await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }, { id: "b1", name: "Bob" }])); });
+    await pg.goto(url + "/app.html"); await pg.waitForTimeout(700);
+    const look = async (name) => { await pg.locator("#profiles").getByText(name, { exact: true }).first().click(); await pg.waitForTimeout(500);
+      const s = pg.locator("#homeSearch"); await s.fill(""); await s.click(); await pg.keyboard.type("Heads"); await pg.waitForTimeout(400);
+      return pg.locator("#searchResults :is(button,.card)").filter({ hasText: /Heads of Things/ }).filter({ visible: true }).count(); };
+    assert((await look("Trav")) === 1, "Trav can't find Heads by search");
+    await pg.locator("#switchProfile").click(); await pg.waitForTimeout(400);
+    assert((await look("Bob")) === 0, "Bob can find Heads by search"); await ctx.close();
   });
 
   await b.close(); srv.close();

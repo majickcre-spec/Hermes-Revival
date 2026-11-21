@@ -49,6 +49,9 @@ When asked to revise an instrument, revise the whole section — every screen an
 ## Before building: walk the whole real session first
 Before writing code, walk through the entire real use, start to finish, as Travis: how he gets there, every screen he might open mid-way, locking the phone, a reload or app switch, the sensor/mic/internet dropping, a call or alarm interrupting, the session ending, and the morning-after report. Write the list of what could break, build for it, and test each item — not just the happy path. Example: the Lucid night was tested only with the descent screen left open; leaving it meant the night never started and a night was lost.
 
+## LAW — no shortcuts, ever
+Test exactly the way Travis uses it. Open the app fresh, tap the player card, use the real buttons, search box and ← back button to get everywhere. Never jump to a screen by calling a render function, never seed past a step, never skip a screen because "it should be fine". Every screen touched and every screen you pass through on the way (including going back home afterwards) gets checked. If a test can't reach something by real taps, that is a bug to report, not a reason to shortcut. Example: the 🫀/🧠 device buttons vanished on every screen after visiting guitar; screenshots taken by jumping straight to a screen missed it.
+
 ## How to test before calling a build done
 0. **Pre-flight (required before every push):** `cd frontend && npm run preflight` — builds, syntax-checks every inline script, writes a state baseline, runs the smoke suite (every main screen, portrait + landscape) and the data-safety regression suite (user work is never lost). If it fails, do not push.
    **Post-flight (after Railway deploys):** `cd frontend && npm run postflight` — confirms the live site serves the pushed commit and key screens open without errors.

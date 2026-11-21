@@ -580,7 +580,7 @@ select.bigsel{background-image:linear-gradient(45deg,transparent 50%,#9BA1AC 50%
 .gtrTabs button{flex:1 1 auto;min-width:0;min-height:46px;padding:10px 8px;font-size:.86rem!important;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--muted);font:800 .95rem system-ui,sans-serif;cursor:pointer;white-space:nowrap}
 .gtrTabs button.on{background:var(--gold);color:#241800;border-color:var(--gold)}
 @media (max-width:360px){.gtrTabs{gap:4px}.gtrTabs button{font-size:.74rem!important;padding:10px 4px}}
-body:has(#view .gtrZone) #brainFab:not(.on),body:has(#view .gtrZone) #sensFab:not(.on){display:none!important}
+/* the 🫀 and 🧠 device buttons are never hidden by a screen: players need them everywhere after picking who is playing */
 #view:has(.gtrZone) .rchip.sm{min-height:42px;padding:9px 13px}
 @media (orientation:landscape) and (min-width:700px){
  .bgvWrap{display:grid;grid-template-columns:minmax(300px,1fr) minmax(360px,1.15fr);column-gap:16px;align-items:start;
@@ -1304,6 +1304,7 @@ function buildSearchIndex(){var idx=[];
     ["Guitar Melodies","🎼","Play real melodies on a scrolling highway.","play",2],["Bring a Song","🎼","Paste or snap a chord sheet and play along.","play",3]].forEach(function(r){
       idx.push({ic:r[1],title:r[0],blurb:r[2]+" (Guitar)",sec:"Instrument",kw:r[0]==="Strum Patterns"?"strum strumming rhythm guitar":"guitar",go:function(){home.hidden=true;view.hidden=false;renderStrings("guitar");grpGo("guitar",r[3],r[4]);}});});}catch(e){}
   idx.push({ic:"🥁",title:"Bass Grooves",blurb:"Bass rhythm patterns — root, fifth, octave and walking lines over real chords, with drums.",sec:"Instrument",go:function(){home.hidden=true;view.hidden=false;renderBassGroove();}});
+  if(typeof hhOurs==="function"&&hhOurs())idx.push({ic:"📖",title:"Heads of Things",blurb:"Everard's Heads — first half shown, say the rest, hints word by word.",sec:"Study",go:function(){renderHeadsHalves();}});
   var _lyr={"Lyric Lab":1,"Write + Beat Lab":1,"Songwriting":1,"AABA Class":1,"Practice Sessions":1};idx.forEach(function(e){if(_lyr[e.title])e.sec="Lyrics";});
   return idx;}
 function renderHome(){
@@ -1375,7 +1376,7 @@ function renderHeadsHalves(){if(!hhOurs()){goHome();return;}if(toneRAF)cancelAni
   var fit=function(){var f=document.getElementById("hhFrame");if(!f){window.removeEventListener("resize",fit);return;}
     /* landscape: the activity takes the whole screen (header scrolls away) so Reveal stays in reach; portrait: fill below the header */
     if(window.innerWidth>window.innerHeight&&window.innerHeight<560){f.style.minHeight="0";f.style.height=(window.innerHeight-6)+"px";setTimeout(function(){try{f.scrollIntoView({block:"start"});}catch(e){}},60);}
-    else{f.style.minHeight="480px";f.style.height=Math.max(480,window.innerHeight-f.getBoundingClientRect().top+window.scrollY-10)+"px";}};fit();window.addEventListener("resize",fit);}
+    else{f.style.minHeight="480px";f.style.height=Math.max(480,window.innerHeight-f.getBoundingClientRect().top+window.scrollY-64)+"px";}};/* leaves room for the 🫀/🧠 buttons so they never sit on Back/Next */fit();window.addEventListener("resize",fit);}
 function homeDoors(){var H=document.getElementById("home"),box=document.getElementById("doors");if(!H||!box)return;var cur=null;try{cur=sessionStorage.getItem("mjk-door");}catch(e){}
   if(cur)H.setAttribute("data-door",cur);else H.removeAttribute("data-door");
   var DR=DOORS.slice();if(hhOurs()){var li=DR.findIndex(function(d){return d[0]==="lyric";});DR.splice(li+1,0,["heads","📖","Heads of Things","Everard's Heads — see the first half, say the rest"]);}
