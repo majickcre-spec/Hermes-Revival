@@ -1012,6 +1012,37 @@ export async function run() {
     assert((await look("Bob")) === 0, "Bob can find Heads by search"); await ctx.close();
   });
 
+  await S.test("REAL TAPS: leaving Piano / Handpan / Djembe by the player chip stops their sound and brings the 🫀/🧠 buttons back", async () => {
+    for (const inst of ["Piano", "Handpan", "Djembe Groove"]) {
+      const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+      await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); });
+      await pg.goto(url + "/app.html"); await pg.waitForTimeout(700); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(500);
+      const s = pg.locator("#homeSearch"); await s.click(); await pg.keyboard.type(inst); await pg.waitForTimeout(400);
+      await pg.locator("#searchResults .card:visible").filter({ has: pg.locator("h3", { hasText: new RegExp("^" + inst + "$") }) }).first().click(); await pg.waitForTimeout(900);
+      if (inst === "Djembe Groove") { await pg.locator("#view button:visible").filter({ hasText: /Start/ }).first().click(); await pg.waitForTimeout(2000); }
+      await pg.locator("#switchProfile").click(); await pg.waitForTimeout(400); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(1500);
+      const r = await pg.evaluate(() => ({ fab: ["sensFab", "brainFab"].every((id) => getComputedStyle(document.getElementById(id)).display !== "none"), cls: document.body.className, lvl: acLevel() }));
+      assert(r.fab && !/pkWide|djOn/.test(r.cls), inst + ": buttons still hidden after the chip " + JSON.stringify(r));
+      assert(r.lvl < 0.001, inst + ": still making sound after leaving " + r.lvl);
+      assert(!errs.length, errs.join(" | ")); await ctx.close();
+    }
+  });
+
+  await S.test("REAL TAPS: when nothing is making sound the app stops 'playing' within ~15 s (so dictation/other apps can use audio), and a note on the neck wakes it instantly", async () => {
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); const pg = await ctx.newPage();
+    await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); });
+    await pg.goto(url + "/app.html"); await pg.waitForTimeout(700); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(500);
+    const st = () => pg.evaluate(() => ({ eng: AC ? AC.state : "none", loop: _silentEl ? (_silentEl.paused ? "paused" : "playing") : "none" }));
+    await pg.waitForTimeout(17000); let r = await st(); assert(r.eng !== "running" && r.loop === "none", "still playing after 17 s idle " + JSON.stringify(r));
+    await pg.mouse.click(200, 300); await pg.waitForTimeout(500); r = await st(); assert(r.eng !== "running" && r.loop === "none", "a plain tap woke the sound " + JSON.stringify(r));
+    const s = pg.locator("#homeSearch"); await s.click(); await pg.keyboard.type("Guitar Neck"); await pg.waitForTimeout(400);
+    await pg.locator("#searchResults .card:visible").filter({ hasText: "Guitar Neck" }).first().click(); await pg.waitForTimeout(1200);
+    await pg.evaluate(() => window.scrollTo(0, 0)); await pg.touchscreen.tap(229, 590); await pg.waitForTimeout(150);
+    r = await st(); assert(r.eng === "running" && r.loop === "playing", "a note didn't wake the sound " + JSON.stringify(r));
+    await pg.waitForTimeout(17000); r = await st(); assert(r.eng !== "running" && r.loop === "none", "didn't go back to sleep after the note " + JSON.stringify(r));
+    await ctx.close();
+  });
+
   await b.close(); srv.close();
   return S.done();
 }

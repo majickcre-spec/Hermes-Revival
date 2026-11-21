@@ -1306,7 +1306,7 @@ function buildSearchIndex(){var idx=[];
   idx.push({ic:"🥁",title:"Bass Grooves",blurb:"Bass rhythm patterns — root, fifth, octave and walking lines over real chords, with drums.",sec:"Instrument",go:function(){home.hidden=true;view.hidden=false;renderBassGroove();}});
   if(typeof hhOurs==="function"&&hhOurs())idx.push({ic:"📖",title:"Heads of Things",blurb:"Everard's Heads — first half shown, say the rest, hints word by word.",sec:"Study",go:function(){renderHeadsHalves();}});
   var _lyr={"Lyric Lab":1,"Write + Beat Lab":1,"Songwriting":1,"AABA Class":1,"Practice Sessions":1};idx.forEach(function(e){if(_lyr[e.title])e.sec="Lyrics";});
-  return idx;}
+  return idx.filter(function(e){return !(typeof MJK_HIDE!=="undefined"&&MJK_HIDE[e.title]);});}/* hidden screens never count as results */
 function renderHome(){
   beanChip();renderQuest();
   const nm=activeName();if(nm){const h=document.querySelector(".hero h2 .nm");if(h)h.textContent=nm;}
@@ -1745,8 +1745,10 @@ function ac(){if(!AC){AC=new (window.AudioContext||window.webkitAudioContext)();
    Any sound wakes it instantly via ac(). Interruptions by the phone (screen recording, calls) are still brought back. */
 var _acIdle=false,_acLastUse=Date.now(),_acQuietSince=0,_acMeter=null,_acMeterBuf=null;
 function acLevel(){try{var c=AC;if(!c||!c.__mv)return 0;if(_acMeter&&_acMeter.context!==c)_acMeter=null;if(!_acMeter){_acMeter=c.createAnalyser();_acMeter.fftSize=512;_acMeterBuf=new Float32Array(512);c.__mv.connect(_acMeter);}_acMeter.getFloatTimeDomainData(_acMeterBuf);var m=0;for(var i=0;i<512;i++){var a=Math.abs(_acMeterBuf[i]);if(a>m)m=a;}return m;}catch(e){return 1;}}
-function acIdleCheck(){try{if(!AC||_acIdle||AC.state!=="running")return;if((typeof LUC!=="undefined"&&LUC.on)||(typeof BGK!=="undefined"&&BGK.on)||(typeof MED!=="undefined"&&(MED.master||MED.jSess))){_acQuietSince=0;return;}var now=Date.now();if(acLevel()>0.0005||micLive()||now-_acLastUse<90000){_acQuietSince=0;return;}if(!_acQuietSince){_acQuietSince=now;return;}if(now-_acQuietSince<90000)return;
-  _acIdle=true;_acQuietSince=0;try{if(_silentEl&&!_silentEl.paused)_silentEl.pause();}catch(e){}try{AC.suspend();}catch(e){}}catch(e){}}
+function acIdleCheck(){try{if(!AC||_acIdle||AC.state!=="running")return;if((typeof LUC!=="undefined"&&LUC.on)||(typeof BGK!=="undefined"&&BGK.on)||(typeof MED!=="undefined"&&(MED.master||MED.jSess))){_acQuietSince=0;return;}var now=Date.now();if(acLevel()>0.0005||micLive()||now-_acLastUse<8000){_acQuietSince=0;return;}if(!_acQuietSince){_acQuietSince=now;return;}if(now-_acQuietSince<4000)return;
+  _acIdle=true;_acQuietSince=0;silentRelease();try{AC.suspend();}catch(e){}}catch(e){}}
+/* stop AND unload the silent keep-alive loop: the browser/phone then stops showing MMU as "playing", so dictation and other apps can use audio */
+function silentRelease(){try{if(_silentEl){_silentEl.pause();_silentEl.removeAttribute("src");_silentEl.load();_silentEl=null;}}catch(e){}try{if(navigator.mediaSession)navigator.mediaSession.playbackState="none";}catch(e){}}
 /* KEEP SOUND ON (screen recording, Control Center, calls, Siri, notifications): iOS interrupts web audio when these start and never restarts it.
    The app never pauses audio on purpose, so whenever the sound is cut we bring it back on our own — right away, as the interruption ends,
    and when the page comes back into view — and re-arm the playback session. A tap always works too. */
@@ -1772,7 +1774,7 @@ var APPVOL=(function(){try{var v=parseFloat(localStorage.getItem("mjk-vol"));ret
 function setAppVol(v){APPVOL=Math.max(0,Math.min(1,v));try{localStorage.setItem("mjk-vol",String(APPVOL));}catch(e){}try{var c=ac();if(c.__mv){c.__mv.gain.cancelScheduledValues(0);c.__mv.gain.value=APPVOL*APPVOL;}}catch(e){}}
 function volSlider(id){return '<div class="rrow"><span class="rlab">🔊 Volume</span><input type="range" id="'+id+'" min="0" max="100" value="'+Math.round(APPVOL*100)+'" style="flex:1"><span class="rbpm" id="'+id+'V">'+Math.round(APPVOL*100)+'%</span></div>';}
 function bindVol(id){var s=document.getElementById(id);if(!s)return;s.oninput=function(){setAppVol(s.value/100);var l=document.getElementById(id+"V");if(l)l.textContent=s.value+"%";};}
-function unlockAudio(){if(_audioUnlocked&&_acIdle)return;audioPlaybackCategory();const a=ac();try{a.resume();}catch(e){}if(_audioUnlocked)return;_audioUnlocked=true;
+function unlockAudio(){if(_audioUnlocked&&_acIdle)return;var _lu=_acLastUse;audioPlaybackCategory();const a=ac();if(_audioUnlocked)_acLastUse=_lu;try{a.resume();}catch(e){}if(_audioUnlocked)return;_audioUnlocked=true;
   try{const b=a.createBuffer(1,1,22050),s=a.createBufferSource();s.buffer=b;s.connect(a.destination);s.start(0);}catch(e){}
   try{sfLoadInst("piano");}catch(e){}}
 document.addEventListener("pointerdown",unlockAudio,true);
@@ -1788,10 +1790,10 @@ function audioHardReset(){var now=Date.now();if(now-_lastAudioFix<4000)return;_l
   try{DRS.ready=false;DRS.loading=false;DRS.buf={};}catch(e){}
   try{DJK.ready=false;DJK.loading=false;DJK.buf={};}catch(e){}
   try{unlockAudio();}catch(e){}}
-function audioWatch(){if(!AC||!_audioUnlocked)return;try{AC.resume();}catch(e){}
+function audioWatch(){if(!AC||!_audioUnlocked||_acIdle)return;/* asleep on purpose: the next sound wakes it via ac() */try{AC.resume();}catch(e){}
   setTimeout(function(){if(AC&&_audioUnlocked&&AC.state!=="running")audioHardReset();},600);}
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")setTimeout(audioWatch,250);});
-document.addEventListener("pointerdown",function(){if(AC&&_audioUnlocked&&AC.state!=="running")audioWatch();},true);
+document.addEventListener("pointerdown",function(){if(AC&&_audioUnlocked&&!_acIdle&&AC.state!=="running")audioWatch();},true);
 function midiToFreq(m){return 440*Math.pow(2,(m-69)/12);}
 function pianoWave(a){
   if(PIANO_WAVE)return PIANO_WAVE;
@@ -16389,8 +16391,10 @@ function showCloudForm(){var f=$("#cloudForm");if(!f)return;var mode="login";
   paint();}
 /* ===== player profiles (soft login) ===== */
 const gate=$("#gate");
+/* leaving a screen by ANY route (← back, the player chip, picking a player) does the same clean-up: stop its sound, drop full-screen modes */
+function leaveScreen(){try{if(teardown){var td=teardown;teardown=null;td();}}catch(e){}try{GRP=null;}catch(e){}document.body.classList.remove("pkWide","djOn");}
 function renderGate(){
-  document.body.classList.add("gated");
+  leaveScreen();document.body.classList.add("gated");
   home.hidden=true;view.hidden=true;gate.hidden=false;
   const ps=getProfiles(),lp=linkParams();
   if(lp.name){
@@ -16459,7 +16463,7 @@ function showCreate(){
   setTimeout(()=>$("#newName").focus(),60);
 }
 function activate(id){save("majick-active",id);showHome();try{bioCloud();}catch(e){}}
-function showHome(){document.body.classList.remove("gated");if(window.__lucPending){var lp0=window.__lucPending;window.__lucPending=null;setTimeout(function(){lucResume(lp0);},0);}gate.hidden=true;view.hidden=true;home.hidden=false;
+function showHome(){leaveScreen();document.body.classList.remove("gated");if(window.__lucPending){var lp0=window.__lucPending;window.__lucPending=null;setTimeout(function(){lucResume(lp0);},0);}gate.hidden=true;view.hidden=true;home.hidden=false;
   const p=getProfiles().find(x=>x.id===activeId());if($("#profileName"))$("#profileName").textContent=p?p.name:"—";
   renderHome();window.scrollTo(0,0);
   try{if(!window.__fsLinkDone&&/session/.test(linkParams().focus||"")&&fsIsStar(activeProfile())){window.__fsLinkDone=true;renderFocusSession();}}catch(e){}}
