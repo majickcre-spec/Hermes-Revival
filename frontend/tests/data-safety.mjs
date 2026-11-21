@@ -655,6 +655,44 @@ export async function run() {
     assert(r.ok && r.vid && r.playing && r.gone && r.held && r.released, "keep-awake " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Heart/brain sessions and progress are separate per player: old shared history goes to Trav, Star keeps only her own (backup kept); Star's new sessions go to Star only; a player switch mid-recording splits it; reports file to who started them; age/practice marks separate; Move to… works; survives reload", async () => {
+    const ctx = await fresh();
+    const old = [{ id: "sOld1", start: Date.now() - 86400000, dur: 600, n: 600, hr: 62, hrv: 70 }, { id: "sOld2", start: Date.now() - 2 * 86400000, dur: 900, n: 900, hr: 70, hrv: 40 }];
+    const pg = await profilePage(ctx, url, { "majick-profiles": [{ id: "t1", name: "Trav" }, { id: "s2", name: "Star" }], "majick-active": "t1", "mjk-sens-list": old, "mjk-bioprof": { age: 50 }, "music-s2-set:mjk-sens-list": old.concat([{ id: "sStarPast", start: Date.now() - 3600000, dur: 300, n: 300, hr: 90 }]) });
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const o = {};
+      try { activate("t1"); } catch (e) {} await w(300);
+      o.travOld = sensList("t1").map((x) => x.id); o.starOld = sensList("s2").map((x) => x.id); o.legacy = !!localStorage.getItem("mjk-sens-list"); o.sharedGone = true;
+      o.travAge = tgtProf().age;
+      /* Star records a heart session */
+      activate("s2"); await w(200); o.starAge = tgtProf().age || null; const p = tgtProf(); p.age = 9; save(pkey("mjk-bioprof"), p);
+      HR.connected = true; HR.updated = performance.now(); HR.bpm = 88; HR.rr = [680, 690, 700, 690, 680, 700]; sensBegin(); const starSid = SENS.sid;
+      for (let i = 0; i < 5; i++) { HR.updated = performance.now(); sensTick(); } sensSave(false);
+      o.starHas = sensList("s2").some((x) => x.id === starSid); o.travHasStar = sensList("t1").some((x) => x.id === starSid);
+      /* Trav takes over mid-recording: Star's closes, a new one starts for Trav */
+      activate("t1"); await w(200); HR.updated = performance.now(); sensTick(); o.newOwner = SENS.pid; o.newSid = SENS.sid !== starSid;
+      for (let i = 0; i < 3; i++) { HR.updated = performance.now(); sensTick(); } sensSave(true);
+      o.travNew = sensList("t1").length; o.starStill = sensList("s2").length;
+      /* report recorder started by Star, ended after switching to Trav */
+      activate("s2"); await w(100); const at = Date.now() - 600000; plrStart(at, "journey", "Test journey"); for (let i = 0; i < 70; i++) plrTick(at + i * 1000, "x", null); PLR.sens.hr = "heart sensor";
+      activate("t1"); await w(100); plrEnd(); await w(300);
+      o.repStar = srIdx("s2").some((x) => x.at === at); o.repTrav = srIdx("t1").some((x) => x.at === at);
+      /* practice marks */
+      dayMark("m"); o.travDay = !!dayGet().m; activate("s2"); await w(100); o.starDay = !!dayGet().m; o.starAge2 = tgtProf().age; activate("t1"); await w(100); o.travAge2 = tgtProf().age;
+      /* Move to… : Trav sends an old session to Star */
+      o.moved = bioMoveSens("sOld2", "s2"); o.travAfterMove = sensList("t1").map((x) => x.id).includes("sOld2"); o.starAfterMove = sensList("s2").map((x) => x.id).includes("sOld2");
+      o.repMoved = (activate("s2"), bioMoveRep(at, "t1")); o.repNowTrav = srIdx("t1").some((x) => x.at === at) && !srIdx("s2").some((x) => x.at === at);
+      HR.connected = false; return o; });
+    assert(r.travOld.join() === "sOld1,sOld2" && r.starOld.join() === "sStarPast" && r.legacy && r.sharedGone && r.travAge === 50, "old shared history not handed to Trav safely " + JSON.stringify(r));
+    assert(r.starHas && !r.travHasStar && !r.starAge && r.starAge2 === 9 && r.travAge2 === 50, "Star's session/age leaked " + JSON.stringify(r));
+    assert(r.newOwner === "t1" && r.newSid && r.starStill === 2, "player switch mid-recording didn't split " + JSON.stringify(r));
+    assert(r.repStar && !r.repTrav, "report filed under the wrong player " + JSON.stringify(r));
+    assert(r.travDay && !r.starDay, "practice marks shared " + JSON.stringify(r));
+    assert(r.moved && !r.travAfterMove && r.starAfterMove && r.repMoved && r.repNowTrav, "Move to… failed " + JSON.stringify(r));
+    await pg.reload(); await pg.waitForTimeout(1000);
+    const r2 = await pg.evaluate(() => ({ t: sensList("t1").map((x) => x.id), s: sensList("s2").map((x) => x.id), flag: !!localStorage.getItem("bio:split-v2") }));
+    assert(r2.flag && r2.t.includes("sOld1") && !r2.t.includes("sOld2") && r2.s.includes("sOld2"), "separation didn't survive reload " + JSON.stringify(r2)); await ctx.close();
+  });
+
   await S.test("Muse forehead pulse: reads the real heart rate through drift, echo and noise (45–150 bpm), and shows no number instead of a false 160–183 when there's no clear pulse", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
     const out = await pg.evaluate(() => { const res = [];
@@ -773,7 +811,7 @@ export async function run() {
       /* always-on recorder: two pieces (split by an old dropout) covering the rest of the night, with a 20-min gap and a wake spike */
       const mk2 = (id, start, secs, spikeAt) => { const d = []; for (let s = 0; s < secs; s += 10) d.push({ t: s, hr: spikeAt != null && Math.abs(s - spikeAt) < 90 ? 84 : 55, hrv: 58, act: "Lucid" }); return idbPut("sens-" + id, { id, start, data: d, tags: [] }).then(() => ({ id, start, dur: secs, n: d.length })); };
       const a1 = await mk2("sa", at + 1700000, 4 * 3600, 1.5 * 3600), a2 = await mk2("sb", at + 1700000 + 4 * 3600000 + 20 * 60000, 3.5 * 3600);
-      save("mjk-sens-list", [a2, a1]);
+      save(pkey("mjk-sens-list"), [a2, a1]);
       plReport(at); await w(1500);
       const txt = (document.getElementById("plNight") || {}).textContent || "", cv = document.getElementById("plNightCv");
       const N = await lucNightLoad(await idbGet("pl-" + at), at);

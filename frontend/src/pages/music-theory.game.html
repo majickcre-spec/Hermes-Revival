@@ -831,11 +831,43 @@ function addBeans(n){const id=activeId();if(!id)return;
   save("majick-p-"+id+"-beans",(load("majick-p-"+id+"-beans",0)||0)+n);
   save("majick-p-"+id+"-beansLife",(load("majick-p-"+id+"-beansLife",0)||0)+n);}
 function mk(id,s){return "music-"+(activeId()||"guest")+"-"+id+"-"+s;}
+function mkFor(pid,id,s){return "music-"+(pid||activeId()||"guest")+"-"+id+"-"+s;}
+/* heart / brain data and personal practice belong to one person: each player has their own copy */
+var BIO_SPLIT=["mjk-sens-list","mjk-bioprof","mjk-myfreq","mjk-heartsync","mjk-sens-mytags","mjk-daydone","mjk-medlast","mjk-session"];
+function pkey(base,pid){return "bio:"+base+"@"+(pid||activeId()||"guest");}/* not an "mjk-" key, so it is never re-prefixed for the active player and never falls back to anyone else's copy */
+/* before this, everyone on a device shared one copy; it goes to the main account (Trav/Travis, else whoever is signed in) and stays as a backup.
+   Each session has "Move to…" so past sessions can be sent to the right person. */
+/* move one session (and its report data) to another player — for sessions recorded before players were separated */
+function bioMoveSens(id,to){var me=activeId()||"guest",L=sensList(me),e=L.find(function(x){return x.id===id;});if(!e||to===me)return false;
+  var T=sensList(to).filter(function(x){return x.id!==id;});T.push(e);T.sort(function(a,b){return (b.start||0)-(a.start||0);});save(pkey("mjk-sens-list",to),T.slice(0,200));
+  save(pkey("mjk-sens-list",me),L.filter(function(x){return x.id!==id;}));return true;}
+function bioMoveRep(at,to){var me=activeId()||"guest",e=srIdx(me).find(function(x){return x.at===at;});if(!e||to===me)return false;
+  srIdxPut(Object.assign({},e,{sentV:0}),to);var ps=load(mkFor(me,"plab","sessions"),[]),pe=ps.find(function(x){return x.at===at;});
+  if(pe){var pt=load(mkFor(to,"plab","sessions"),[]).filter(function(x){return x.at!==at;});pt.push(pe);save(mkFor(to,"plab","sessions"),pt);save(mkFor(me,"plab","sessions"),ps.filter(function(x){return x.at!==at;}));}
+  srIdxDel(at,me);return true;}
+function bioMoveMount(host,kind,key,after){if(!host)return;var me=activeId(),P=getProfiles().filter(function(p){return p.id!==me;});if(!P.length)return;
+  var d=document.createElement("div");d.className="actions ilacts";d.style.margin="10px 0 2px";d.innerHTML='<span class="site-note" style="align-self:center;margin:0 4px 0 0">Not yours?</span>';
+  P.forEach(function(p){var b=document.createElement("button");b.className="btn ghost";b.textContent="Move to "+p.name;
+    b.onclick=function(){if(!b.dataset.sure){b.dataset.sure=1;b.textContent="Tap again — move to "+p.name;return;}var ok=kind==="sens"?bioMoveSens(key,p.id):bioMoveRep(key,p.id);if(ok&&after)after();};d.appendChild(b);});
+  host.appendChild(d);}
+function bioSplitOnce(){try{if(localStorage.getItem("bio:split-v2"))return;var P=getProfiles();if(!P.length)return;
+  var own=(P.find(function(p){return /^\s*trav/i.test(p.name||"");})||P.find(function(p){return p.id===activeId();})||P[0]).id;
+  var rd=function(k){try{var r=localStorage.getItem(k);return r==null?undefined:JSON.parse(r);}catch(e){return undefined;}},idOf=function(x){return x&&typeof x==="object"?(x.id||x.at||x.t0||JSON.stringify(x)):JSON.stringify(x);};
+  BIO_SPLIT.forEach(function(b){var g=rd(b);
+    P.forEach(function(p){if(localStorage.getItem(pkey(b,p.id))!=null)return;var mine=rd("music-"+p.id+"-set:"+b),out;
+      if(Array.isArray(g)||Array.isArray(mine)){var G=Array.isArray(g)?g:[],Mn=Array.isArray(mine)?mine:[],gids={};G.forEach(function(x){gids[idOf(x)]=1;});
+        if(p.id===own){var seen={};out=[];Mn.concat(G).forEach(function(x){var k=idOf(x);if(!seen[k]){seen[k]=1;out.push(x);}});}
+        else out=Mn.filter(function(x){return !gids[idOf(x)];});/* drop copies of the shared history that leaked into this player */
+        if(b==="mjk-sens-list")out.sort(function(x,y){return (y.start||0)-(x.start||0);});}
+      else out=mine!==undefined?mine:(p.id===own?g:undefined);
+      if(out!==undefined&&out!==null)localStorage.setItem(pkey(b,p.id),JSON.stringify(out));});});
+  localStorage.setItem("bio:split-v2",JSON.stringify({at:Date.now(),to:own}));/* old copies are left in place as a backup */}catch(e){}}
 /* Lead note (blue "next" glow) was removed: too confusing. Only the note being played now is lit. */
 function leadOn(){return false;}
 function leadChip(){return "";}
 function wireLead(redraw){var b=document.getElementById("leadChip");if(b)b.onclick=function(){save("mjk-leadnote",leadOn()?0:1);redraw();};}
 function getProfiles(){return load("majick-profiles",[]);}
+try{setTimeout(function(){try{bioSplitOnce();}catch(e){}},0);}catch(e){}
 function setProfiles(p){save("majick-profiles",p);}
 function newId(){return "u"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function activeProfile(){return getProfiles().find(x=>x.id===activeId())||null;}
@@ -8403,9 +8435,9 @@ var SESSIONS=[
  {id:"sw15",len:15,icon:"🔥",title:"Mini Session",focus:"Songwriting",goal:"Write a short section (a verse or a chorus), tighten the rhymes and syllable counts, then sing the melody.",go:function(){renderIdeaLab();}},
  {id:"sw45",len:45,icon:"🏆",title:"Full Session · AABA",focus:"Songwriting",goal:"Write, perfect and understand a whole AABA section — the full class.",go:function(){renderModule1();}}
 ];
-function sessGet(){return load("mjk-session",null);}
-function sessSet(s){save("mjk-session",s);}
-function sessClear(){save("mjk-session",null);}
+function sessGet(){return load(pkey("mjk-session"),null);}
+function sessSet(s){save(pkey("mjk-session"),s);}
+function sessClear(){save(pkey("mjk-session"),null);}
 function sessDef(id){for(var i=0;i<SESSIONS.length;i++){if(SESSIONS[i].id===id)return SESSIONS[i];}return null;}
 function sessFmt(sec){sec=Math.max(0,Math.round(sec));var m=Math.floor(sec/60),s=sec%60;return m+":"+(s<10?"0":"")+s;}
 function sessRemain(st){if(!st)return 0;return st.len*60-(Date.now()-st.startedAt)/1000;}
@@ -10971,7 +11003,7 @@ function bioPaint(){const el=document.getElementById("bioLive");if(!el)return;co
   el.innerHTML=h+tgtHTML("tgtBio")+ansHTML("ansBio");tgtPaint("tgtBio");ansPaint("ansBio");}
 /* ---- Ideal right now: targets set automatically from time of day, your age, and your own history ---- */
 var TGT={sec:0,inSec:0,last:0};
-function tgtProf(){return load("mjk-bioprof",{});}
+function tgtProf(){return load(pkey("mjk-bioprof"),{});}
 function tgtAgeHRV(age){if(!age)return 35;var T=[[20,45],[30,38],[40,31],[50,26],[60,22],[70,19],[80,17]];for(var i=T.length-1;i>=0;i--)if(age>=T[i][0])return T[i][1];return 48;}
 function tgtBand(h){h=h==null?new Date().getHours():h;return h>=5&&h<11?"m":h>=11&&h<17?"d":h>=17&&h<21?"e":"n";}
 function tgtGoal(){var b=tgtBand(RPX?RPX.hour:null),P=tgtProf(),norm=tgtAgeHRV(P.age),L=sensList().filter(function(s){return s.hrv&&tgtBand(new Date(s.start).getHours())===b;}).map(function(s){return s.hrv;}).sort(function(a,c){return a-c;});
@@ -10992,7 +11024,7 @@ function tgtHTML(id){return '<div id="'+id+'" style="margin:10px 0 4px"></div><d
 function tgtAgeRow(id){var el=document.getElementById(id+"AgeRow");if(!el||el.dataset.built)return;el.dataset.built="1";var draw=function(edit){var P=tgtProf();
   if(P.age&&!edit){el.innerHTML='<div class="site-note" style="font-size:.76rem;margin:0">Age '+P.age+' \u00b7 <a href="#" id="'+id+'AgeE">change</a></div>';document.getElementById(id+"AgeE").onclick=function(e){e.preventDefault();draw(true);};return;}
   el.innerHTML='<div style="display:flex;gap:8px;align-items:center;font-size:.8rem"><span>Your age</span><input id="'+id+'AgeI" type="number" inputmode="numeric" pattern="[0-9]*" min="10" max="100" placeholder="e.g. 46" value="'+(P.age||"")+'" style="width:84px;padding:8px 10px;border-radius:10px;border:1px solid #e9c46a;background:#fff;color:#111;font:700 1rem system-ui"><button class="btn" id="'+id+'AgeS" style="flex:none;padding:8px 14px;font-size:.85rem;margin:0">Save</button><span id="'+id+'AgeM" class="site-note" style="margin:0;font-size:.74rem"></span></div>';
-  var i=document.getElementById(id+"AgeI"),sv=function(){var v=parseInt(i.value,10);if(v>=10&&v<=100){var p=tgtProf();p.age=v;save("mjk-bioprof",p);draw(false);tgtPaint(id);}else document.getElementById(id+"AgeM").textContent="Enter 10\u2013100";};
+  var i=document.getElementById(id+"AgeI"),sv=function(){var v=parseInt(i.value,10);if(v>=10&&v<=100){var p=tgtProf();p.age=v;save(pkey("mjk-bioprof"),p);draw(false);tgtPaint(id);}else document.getElementById(id+"AgeM").textContent="Enter 10\u2013100";};
   document.getElementById(id+"AgeS").onclick=sv;i.onkeydown=function(e){if(e.key==="Enter")sv();};};draw(false);}
 function tgtPaint(id){var el=document.getElementById(id);if(!el)return;tgtAgeRow(id);if(!(HR.connected||M.connected||RPX)){el.innerHTML="";return;}var R=tgtNow(),G=R.G,P=tgtProf(),f=function(s){s=Math.round(s);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");};
   el.innerHTML='<div style="border:1px solid '+(R.all?'#5fd38d':'rgba(233,196,106,.6)')+';border-radius:14px;padding:10px 12px;'+(R.all?'box-shadow:0 0 18px rgba(95,211,141,.35)':'')+'">'+
@@ -11316,9 +11348,9 @@ function hrDisconnect(){if(HR.src==="camera"||CAMP.on){camStop();return;}HR.user
 function medRemGet(){var r=load("mjk-medrem",null);return r||{on:false,time:"08:00"};}
 function medRemSet(r){save("mjk-medrem",r);}
 function medToday(){var d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();}
-function medDidToday(){return load("mjk-medlast","")===medToday();}
+function medDidToday(){return load(pkey("mjk-medlast"),"")===medToday();}
 function medDismissed(){return load("mjk-meddismiss","")===medToday();}
-function medMarkDone(){try{save("mjk-medlast",medToday());var bn=document.getElementById("medBanner");if(bn)bn.innerHTML="";}catch(e){}}
+function medMarkDone(){try{save(pkey("mjk-medlast"),medToday());var bn=document.getElementById("medBanner");if(bn)bn.innerHTML="";}catch(e){}}
 function medRemDue(){var r=medRemGet();if(!r.on||medDidToday()||medDismissed())return false;var now=new Date(),hm=(r.time||"08:00").split(":"),ti=new Date();ti.setHours(+hm[0]||0,+hm[1]||0,0,0);return now>=ti;}
 function medRemBanner(){var bn=document.getElementById("medBanner");if(!bn)return;if(!medRemDue()){bn.innerHTML="";return;}
   bn.innerHTML='<div class="idea-fb" style="border:1px solid var(--gold);margin:10px 0"><b style="color:#d4a548">\ud83e\uddd8 Your daily meditation</b><br>A few minutes to drop in \u2014 pick a binaural (\ud83c\udfa7 headphones):<div class="rchips tight" style="margin-top:8px" id="medBanPick"></div></div>';
@@ -11421,8 +11453,8 @@ function fxClose(){FX.on=false;if(FX.raf)cancelAnimationFrame(FX.raf);var w=docu
  var f=document.createElement("button");f.id="fxFab";f.type="button";f.textContent="👁 Visuals";f.onclick=function(){unlockAudio();fxOpen();};/* parked: Travis 2026-11-07 — Visuals button removed until it is reworked */
  setInterval(function(){var on=!!(typeof MED!=="undefined"&&(MED.master||MED.nat));f.classList.toggle("show",on&&!FX.on);if(!on&&FX.on&&!FX.keep){}},1000);}catch(e){}})();
 /* ---- My Frequencies: resonant tone, voice note (alpha peak + breath pace to follow) ---- */
-function mfGet(){return load("mjk-myfreq",{});}
-function mfSet(k,v){var o=mfGet();o[k]=v;save("mjk-myfreq",o);}
+function mfGet(){return load(pkey("mjk-myfreq"),{});}
+function mfSet(k,v){var o=mfGet();o[k]=v;save(pkey("mjk-myfreq"),o);}
 function mfNote(hz){var m=69+12*Math.log2(hz/440),r=Math.round(m),c=Math.round((m-r)*100);return noteNameOct(r)+(c?(c>0?" +":" ")+c+"¢":"");}
 function mfTone(hz,vol){var a=ac(),v=mfVoice(a),t=a.currentTime;v.f.value=hz;v.out.gain.setValueAtTime(0.0001,t);v.out.gain.linearRampToValueAtTime(vol||0.07,t+2.5);v.start(t);
   return {stop:function(f){var n=a.currentTime;v.out.gain.cancelScheduledValues(n);v.out.gain.setValueAtTime(Math.max(0.0001,v.out.gain.value),n);v.out.gain.linearRampToValueAtTime(0.0001,n+(f||2));v.stop(n+(f||2)+0.1);}};}
@@ -11463,9 +11495,9 @@ function renderMyFreq(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.
    '<div id="mfOut"></div></div>';
   mfHistDraw(P);view.querySelectorAll("[data-rep]").forEach(function(b){b.onclick=function(){var i=+b.dataset.rep,H=P.toneRuns||[];mfShowReport(H[i].rep,H.slice(0,i));};});
   $("#eBack").onclick=function(){mfStop();renderMeditation();};
-  $("#mfTone").onclick=function(){mfToneIntro();};$("#mfRef").onclick=function(){var v=prompt("Frequency in Hz (for example 163.5)",P.ref?P.ref.hz:"");if(v==null)return;v=parseFloat(v);if(!(v>20&&v<2000)){if(P.ref&&confirm("Remove the practitioner result?")){var o=mfGet();delete o.ref;save("mjk-myfreq",o);renderMyFreq();}return;}var src=prompt("Where was it measured? (optional)",P.ref&&P.ref.src||"")||"";mfSet("ref",{hz:v,src:src.slice(0,60)});renderMyFreq();};var rh=$("#mfRefHold");if(rh)rh.onclick=function(){mfHold(P.ref.hz,(P.tone&&P.tone.lag)||2);};$("#mfVoice").onclick=function(){mfVoiceTest();};
-  var kb2=$("#mfKeepLs");if(kb2)kb2.onclick=function(){var o=mfGet(),ls2=o.lastSweep;if(!ls2)return;var H2=(o.toneRuns||[]).slice();H2.push({hz:ls2.hz,unc:ls2.unc||1.5,lag:ls2.lag||null,date:ls2.date,partial:1});var sw=0,sx=0;H2.forEach(function(r3){var u2=Math.max(0.2,r3.unc||1.5),w2=1/(u2*u2);sw+=w2;sx+=w2*r3.hz;});o.toneRuns=H2;o.tone={hz:Math.round(sx/sw*100)/100,unc:Math.round(Math.sqrt(1/sw)*100)/100,runs:H2.length,lag:ls2.lag||((o.tone&&o.tone.lag)||null),date:Date.now()};o.lastSweep=null;save("mjk-myfreq",o);renderMyFreq();};
-  var xb2=$("#mfXLs");if(xb2)xb2.onclick=function(){var o=mfGet();o.lastSweep=null;save("mjk-myfreq",o);renderMyFreq();};
+  $("#mfTone").onclick=function(){mfToneIntro();};$("#mfRef").onclick=function(){var v=prompt("Frequency in Hz (for example 163.5)",P.ref?P.ref.hz:"");if(v==null)return;v=parseFloat(v);if(!(v>20&&v<2000)){if(P.ref&&confirm("Remove the practitioner result?")){var o=mfGet();delete o.ref;save(pkey("mjk-myfreq"),o);renderMyFreq();}return;}var src=prompt("Where was it measured? (optional)",P.ref&&P.ref.src||"")||"";mfSet("ref",{hz:v,src:src.slice(0,60)});renderMyFreq();};var rh=$("#mfRefHold");if(rh)rh.onclick=function(){mfHold(P.ref.hz,(P.tone&&P.tone.lag)||2);};$("#mfVoice").onclick=function(){mfVoiceTest();};
+  var kb2=$("#mfKeepLs");if(kb2)kb2.onclick=function(){var o=mfGet(),ls2=o.lastSweep;if(!ls2)return;var H2=(o.toneRuns||[]).slice();H2.push({hz:ls2.hz,unc:ls2.unc||1.5,lag:ls2.lag||null,date:ls2.date,partial:1});var sw=0,sx=0;H2.forEach(function(r3){var u2=Math.max(0.2,r3.unc||1.5),w2=1/(u2*u2);sw+=w2;sx+=w2*r3.hz;});o.toneRuns=H2;o.tone={hz:Math.round(sx/sw*100)/100,unc:Math.round(Math.sqrt(1/sw)*100)/100,runs:H2.length,lag:ls2.lag||((o.tone&&o.tone.lag)||null),date:Date.now()};o.lastSweep=null;save(pkey("mjk-myfreq"),o);renderMyFreq();};
+  var xb2=$("#mfXLs");if(xb2)xb2.onclick=function(){var o=mfGet();o.lastSweep=null;save(pkey("mjk-myfreq"),o);renderMyFreq();};
   var rb2=$("#mfReadLs");if(rb2)rb2.onclick=function(){var ls2=mfGet().lastSweep;if(!ls2)return;var ss=sensList().find(function(x){return x.start&&ls2.date>=x.start-180000&&ls2.date<=x.start+(x.dur||0)*1000+900000;});if(!ss){rb2.textContent="No recorded session covers it";return;}idbGet("sens-"+ss.id).then(function(o2){if(!(o2&&o2.data&&o2.data.length)){rb2.textContent="Session detail is gone";return;}renderBioRead(o2.data,new Date(ss.start).toLocaleDateString()+" "+new Date(ss.start).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}),renderMyFreq,{start:ss.start,id:ss.id});});};
   $("#mfAlpha").onclick=$("#mfBreath").onclick=function(){var o=$("#mfOut");if(o)o.innerHTML='<div class="site-note">This test is next on the build list.</div>';};
   var hb=$("#mfHoldB");if(hb)hb.onclick=function(){if(MF.play){MF.play.stop(1);MF.play=null;}mfHold(rt.hz,rt.lag||2);};
@@ -11669,8 +11701,8 @@ var DAY_PLAN=[
  {k:"n",ic:"\ud83c\udf19",when:"Bedtime",tag:"🌬 Breathwork + 🧘 Meditation",tagS:"🌬 Breath + 🧘 Meditation",what:"4\u00b77\u00b78 breathing, then the Sleep Drift journey",len:"10 + 30 min",go:function(done){renderBreathwork({pat:"478",mins:10,title:"\ud83c\udf19 Bedtime \u00b7 1 of 2 \u00b7 Breathwork",note:"<b>Bedtime is two steps.</b><br><b>Step 1:</b> 4\u00b77\u00b78 breathing, 10 minutes. Press Begin and follow the circle.<br><b>Step 2:</b> when the breathing ends, the Sleep Drift journey starts on its own: 30 minutes sinking into deep sleep, then it fades out. Nothing to touch. Headphones or speaker, lights out.",done:function(){var c=document.getElementById("brCue");if(c)c.textContent="Sleep Drift begins\u2026";try{bgKeep(true,"Bedtime");}catch(e){}setTimeout(function(){renderJourney({type:"sleep",len:30,title:"\ud83c\udf19 Bedtime \u00b7 2 of 2 \u00b7 Sleep Drift",note:"<b>Step 2 of 2: Sleep Drift.</b> 30 minutes, sinking into deep sleep and fading out. Nothing to do. Let go.",auto:true,done:done});},6000);}});}}
 ];
 function dayKey(){var d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();}
-function dayGet(){var v=load("mjk-daydone",null);return v&&v.d===dayKey()?v:{d:dayKey()};}
-function dayMark(k){var v=dayGet();v[k]=1;save("mjk-daydone",v);}
+function dayGet(){var v=load(pkey("mjk-daydone"),null);return v&&v.d===dayKey()?v:{d:dayKey()};}
+function dayMark(k){var v=dayGet();v[k]=1;save(pkey("mjk-daydone"),v);}
 function dayNow(){var h=new Date().getHours();return h<12?"m":h<18?"a":"n";}
 function dayPlanDraw(bid){bid=bid||"dayPlan";var box=document.getElementById(bid);if(!box)return;var v=dayGet(),now=dayNow(),compact=bid!=="dayPlan";
   box.innerHTML='<div style="margin:12px 0 2px;font-size:1.25rem;font-weight:700;color:var(--gold)">Today\u2019s practice</div><div class="site-note" style="margin-bottom:8px">Three short sessions to carry you through the day. Tap one, then press Begin.</div><div id="'+bid+'Rows" style="display:grid;gap:8px'+(compact?';grid-template-columns:repeat(3,minmax(0,1fr))':'')+'"></div>';
@@ -11859,7 +11891,7 @@ function renderHeartSync(){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();ho
     const R={t:Date.now(),mins:Math.round(el()/60),mode:HSX.mode,h0:md(L.slice(0,60).map(function(h){return h.hr;})),h1:md(L.slice(-60).map(function(h){return h.hr;})),lo:L.length?Math.min.apply(null,L.map(function(h){return h.hr;})):null,
       sync:S.syncAll?S.syncHit/S.syncAll:null,co:S.coN?S.coSum/S.coN:null,coPk:S.coPk||null,n0:(function(){const f=S.hist.find(function(h){return h.hr;});return f?hsNote(f.hr/60):(S.note0||S.note);})(),n1:S.note,ns:null};
     try{const A=ansCalc();if(A)R.ns=A.v;}catch(e){}hsStop();try{medMarkDone();if(activeId()){addBeans(10);if(HSX.mode!=="sleep")beanChip();}}catch(e){}
-    if(R.h0){const arr=load("mjk-heartsync",[]);arr.push(R);while(arr.length>40)arr.shift();save("mjk-heartsync",arr);}S.rep=R;draw();}
+    if(R.h0){const arr=load(pkey("mjk-heartsync"),[]);arr.push(R);while(arr.length>40)arr.shift();save(pkey("mjk-heartsync"),arr);}S.rep=R;draw();}
   function repHTML(R){if(!R)return "";if(!R.h0)return '<div class="idea-fb"><b>Session complete.</b> Connect a heart sensor next time to see how your heart followed the drum.</div>';
     const d=R.h1-R.h0,tk=[];
     tk.push(d<=-3?"Your heart slowed by <b>"+Math.abs(d).toFixed(1)+" BPM</b>, from "+R.h0.toFixed(0)+" to "+R.h1.toFixed(0)+". It followed the drum down.":d<=-1?"Your heart eased a little, from "+R.h0.toFixed(0)+" to "+R.h1.toFixed(0)+" BPM.":d<2?"Your heart held steady around "+R.h1.toFixed(0)+" BPM.":"Your heart rose from "+R.h0.toFixed(0)+" to "+R.h1.toFixed(0)+" BPM. Something kept you activated. A longer session or slower breathing can help.");
@@ -12124,10 +12156,10 @@ function plCascadeEvents(T){var ev=[],open=[];(T.cas||[]).forEach(function(cs,i)
   return ev.concat(open).map(function(o){return {f:o.f,rel:o.rel,start:o.start,dur:Math.round((o.last-o.start+1)*10)/10,gamma:o.f[o.f.length-1]>=30,st:o.st};});}
 
 var PLR=null;const PLR_ST=["base","opener","desc","edge","target","ret"];
-function plrStart(at,kind,title,sub){if(PLR&&PLR.on)plrEnd();kind=kind||"perception";title=title||"Perception Lab";srIdxPut({at:at,kind:kind,label:title+(sub?" · "+sub:"")+" · "+srWhen(at),v:0});PLR={at:at,on:true,kind:kind,title:title,tl:{stages:[],t:[],st:[],hr:[],hrv:[],co:[],de:[],th:[],al:[],be:[],ga:[],ra:[],rt:[],q:[],bh:[],hp:[],cas:[],br:[]},rr:[],rrT:[],lastN:HR.n||0,lastIbiT:(M.ibis&&M.ibis.length?M.ibis[M.ibis.length-1].t:0),eb:[0,1,2,3].map(function(){return {cur:new Int16Array(256*90),n:0};}),ec:0,saveT:0,flushT:Date.now(),sens:{hr:false,eeg:false}};}
+function plrStart(at,kind,title,sub){if(PLR&&PLR.on)plrEnd();kind=kind||"perception";title=title||"Perception Lab";var pid0=activeId()||"guest";srIdxPut({at:at,kind:kind,label:title+(sub?" · "+sub:"")+" · "+srWhen(at),v:0},pid0);PLR={pid:pid0,at:at,on:true,kind:kind,title:title,tl:{stages:[],t:[],st:[],hr:[],hrv:[],co:[],de:[],th:[],al:[],be:[],ga:[],ra:[],rt:[],q:[],bh:[],hp:[],cas:[],br:[]},rr:[],rrT:[],lastN:HR.n||0,lastIbiT:(M.ibis&&M.ibis.length?M.ibis[M.ibis.length-1].t:0),eb:[0,1,2,3].map(function(){return {cur:new Int16Array(256*90),n:0};}),ec:0,saveT:0,flushT:Date.now(),sens:{hr:false,eeg:false}};}
 function plrEEG(ch,s){var P=PLR;if(!P||!P.on)return;var b=P.eb[ch];for(var i=0;i<s.length;i++){if(b.n===b.cur.length){var g=new Int16Array(b.cur.length*2);g.set(b.cur);b.cur=g;}var v=Math.round(s[i]*10);b.cur[b.n++]=v>32767?32767:v<-32768?-32768:v;}}
 function plrFlush(){var P=PLR;if(!P)return;var ch=P.eb.map(function(b){var a=b.cur.slice(0,b.n);b.n=0;return a;});if(ch.every(function(a){return !a.length;}))return;var i=P.ec++;try{idbPut("pl-"+P.at+"-e"+i,{i:i,t:Date.now(),ch:ch});}catch(e){}}
-function plrWrite(){var P=PLR;if(!P)return;if(P.luc&&P.on&&typeof LUC!=="undefined"&&LUC.on)lucWinSnap();try{idbPut("pl-"+P.at,{at:P.at,kind:P.kind,title:P.title,tl:P.tl,rr:P.rr,rrT:P.rrT,eegBlocks:P.ec,fs:256,eegScale:0.1,sens:P.sens,luc:P.luc||null}).then(function(){setTimeout(srSync,200);});}catch(e){}var n=P.tl.t.length,e=srIdx().find(function(x){return x.at===P.at;})||{};srIdxPut({at:P.at,mins:n?Math.round(P.tl.t[n-1]/6)/10:0,sens:P.sens,eegBlocks:P.ec,v:(e.v||0)+1});}
+function plrWrite(){var P=PLR;if(!P)return;if(P.luc&&P.on&&typeof LUC!=="undefined"&&LUC.on)lucWinSnap();try{idbPut("pl-"+P.at,{at:P.at,kind:P.kind,title:P.title,tl:P.tl,rr:P.rr,rrT:P.rrT,eegBlocks:P.ec,fs:256,eegScale:0.1,sens:P.sens,luc:P.luc||null}).then(function(){setTimeout(srSync,200);});}catch(e){}var n=P.tl.t.length,e=srIdx(P.pid).find(function(x){return x.at===P.at;})||{};srIdxPut({at:P.at,mins:n?Math.round(P.tl.t[n-1]/6)/10:0,sens:P.sens,eegBlocks:P.ec,v:(e.v||0)+1},P.pid);}
 function plrTick(now,stage,beat){var P=PLR;if(!P||!P.on)return;var T=P.tl,r1=function(x){return x==null||!isFinite(x)?null:Math.round(x*10)/10;};
   T.t.push(Math.round((now-P.at)/100)/10);T.st.push(srStIdx(T,stage));T.bh.push(r1(beat));T.br.push(BRPH&&now-BRPH.at<BRPH.d*1000+2500?[BRPH.n,Math.max(0,Math.ceil(BRPH.d-(now-BRPH.at)/1000)),BRPH.d]:null);
   T.hr.push(r1(bioHR()));T.hrv.push(r1(bioHRV()));var co=null;try{var c=bioCoherence();if(c)co=Math.round(c.score/(1+c.score)*100);}catch(e){}T.co.push(co);
@@ -12139,7 +12171,7 @@ function plrTick(now,stage,beat){var P=PLR;if(!P||!P.on)return;var T=P.tl,r1=fun
   if(HR.connected&&HR.rr){P.sens.hr=HR.src||"heart sensor";var k=Math.min((HR.n||0)-P.lastN,HR.rr.length);if(k>0){HR.rr.slice(-k).forEach(function(v){P.rr.push(Math.round(v));P.rrT.push(Math.round((now-P.at)/100)/10);});}P.lastN=HR.n||0;}
   else if(M.connected&&M.ibis&&M.ibis.length){P.sens.hr=P.sens.hr||"Muse";M.ibis.forEach(function(x){if(x.t>P.lastIbiT){P.rr.push(Math.round(x.ibi));P.rrT.push(Math.round((now-P.at)/100)/10);P.lastIbiT=x.t;}});}
   if(now-P.flushT>=60000){P.flushT=now;plrFlush();}if(now-P.saveT>=(P.kind==="lucid"?120000:30000)){P.saveT=now;plrWrite();}}
-function plrEnd(){var P=PLR;if(!P)return;P.on=false;if(P.kind!=="perception"&&(P.tl.t.length<60||!(P.sens.hr||P.sens.eeg))){srIdxDel(P.at);idbDel("pl-"+P.at);for(var i=0;i<P.ec;i++)idbDel("pl-"+P.at+"-e"+i);return;}plrFlush();plrWrite();}
+function plrEnd(){var P=PLR;if(!P)return;P.on=false;if(P.kind!=="perception"&&(P.tl.t.length<60||!(P.sens.hr||P.sens.eeg))){srIdxDel(P.at,P.pid);idbDel("pl-"+P.at);for(var i=0;i<P.ec;i++)idbDel("pl-"+P.at+"-e"+i);return;}plrFlush();plrWrite();}
 /* ===== 🌙 NIGHT TIMELINE — a lucid night read across the clock: heart, REM signs, cues, movement, sensor gaps ===== */
 function lucNightLoad(D,at){var T=(D&&D.tl)||{t:[],hr:[],hrv:[]},mT={},mS={},put=function(m,sec,hr,hrv){var k=Math.floor(sec/60),o=m[k]||(m[k]={h:0,hn:0,v:0,vn:0});if(hr>0){o.h+=hr;o.hn++;}if(hrv>0){o.v+=hrv;o.vn++;}};
   for(var i=0;i<T.t.length;i++)put(mT,T.t[i],T.hr&&T.hr[i],T.hrv&&T.hrv[i]);
@@ -12206,9 +12238,9 @@ function srStN(T,i){var n=srStages(T)[i];return n==null?"":(PL_STAGE_N[n]||n);}
 function srStIdx(T,name){name=String(name||"Session");if(!T.stages)T.stages=[];var i=T.stages.indexOf(name);if(i<0){T.stages.push(name);i=T.stages.length-1;}return i;}
 function srWhen(at){return new Date(at).toLocaleString([], {weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});}
 function srKind(title){return String(title||"meditation").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"meditation";}
-function srIdx(){return load(mk("srec","index"),[]);}
-function srIdxPut(e){var a=srIdx(),i=a.findIndex(function(x){return x.at===e.at;});if(i>=0)a[i]=Object.assign(a[i],e);else a.push(e);save(mk("srec","index"),a.slice(-400));}
-function srIdxDel(at){save(mk("srec","index"),srIdx().filter(function(x){return x.at!==at;}));}
+function srIdx(pid){return load(mkFor(pid,"srec","index"),[]);}
+function srIdxPut(e,pid){var a=srIdx(pid),i=a.findIndex(function(x){return x.at===e.at;});if(i>=0)a[i]=Object.assign(a[i],e);else a.push(e);save(mkFor(pid,"srec","index"),a.slice(-400));}
+function srIdxDel(at,pid){save(mkFor(pid,"srec","index"),srIdx(pid).filter(function(x){return x.at!==at;}));}
 function srBump(at){var e=srIdx().find(function(x){return x.at===at;});if(e){srIdxPut({at:at,v:(e.v||0)+1});setTimeout(srSync,500);}}
 function srResFor(at){return plStore().find(function(x){return x.at===at;})||null;}
 /* the report as data — the same numbers the report screen shows; this is what the backend stores and Claude reads */
@@ -12263,7 +12295,7 @@ function lucStart(o){o=o||{};var el0=Math.max(0,o.elapsed||0);unlockAudio();if(A
       else{[132,198].forEach(function(f,i){var o=a.createOscillator();o.type="sine";o.frequency.value=f;var e2=a.createGain();e2.gain.setValueAtTime(0.0001,t0);e2.gain.linearRampToValueAtTime(i?0.05:0.12,t0+8);e2.gain.setValueAtTime(i?0.05:0.12,t0+420);e2.gain.linearRampToValueAtTime(0.0001,t0+600);o.connect(e2);e2.connect(LUC.g);o.start(t0);o.stop(t0+601);});}}
     lucPlan().forEach(function(h,i){var t=t0+h*3600;if(t<a.currentTime+5){LUC.windows.push({i:i,t:t,nodes:[],shift:0,done:true,past:true});return;}LUC.windows.push({i:i,t:t,nodes:lucWindowAt(a,t),shift:0});});
     try{if(o.resume){var R0=o.resume;plrStart(R0.at,"lucid","Lucid Dream Journey");if(R0.tl&&R0.tl.t){PLR.tl=R0.tl;PLR.rr=R0.rr||[];PLR.rrT=R0.rrT||[];PLR.ec=R0.eegBlocks||0;PLR.sens=R0.sens||PLR.sens;}PLR.saveT=Date.now();}
-      else if(o.fromJourney&&PLR&&PLR.on&&Math.abs(PLR.at-LUC.at)<20*60000){PLR.kind="lucid";PLR.title="Lucid Dream Journey";srIdxPut({at:PLR.at,kind:"lucid",label:"Lucid Dream Journey · "+srWhen(PLR.at)});}
+      else if(o.fromJourney&&PLR&&PLR.on&&Math.abs(PLR.at-LUC.at)<20*60000){PLR.kind="lucid";PLR.title="Lucid Dream Journey";srIdxPut({at:PLR.at,kind:"lucid",label:"Lucid Dream Journey · "+srWhen(PLR.at)},PLR.pid);}
       else plrStart(LUC.at,"lucid","Lucid Dream Journey");
       var oldL=o.resume&&o.resume.luc;PLR.luc=oldL?{night:oldL.night,ep:oldL.ep||[],win:oldL.win||[],oldWin:(oldL.oldWin&&oldL.oldWin.length?oldL.oldWin:oldL.win)||[]}:{night:Math.round((Date.now()-PLR.at)/1000),ep:[],win:[]};LUC.plAt=PLR.at;}catch(e){}
     lucLiveSave();
@@ -13087,7 +13119,7 @@ function plReport(at){home.hidden=true;view.hidden=false;window.scrollTo(0,0);va
       '<div class="actions" style="margin:10px 0 4px"><button class="btn" id="srRead" style="width:100%">\ud83d\udcd6 Read this session in plain words</button></div><div class="actions" style="margin:8px 0 4px"><button class="btn ghost" id="plWatch" style="width:100%">🎬 Watch this session as video</button></div>'+
       '<div class="actions" style="flex-wrap:wrap"><button class="btn ghost" data-x="hs">⬇ Hemisphere sync CSV</button><button class="btn ghost" data-x="cas">⬇ Cascades CSV</button><button class="btn ghost" data-x="tl">⬇ Second-by-second CSV</button><button class="btn ghost" data-x="rr">⬇ Heartbeat intervals CSV</button>'+(D.eegBlocks&&!D.fromServer?'<button class="btn ghost" data-x="eeg">⬇ Raw EEG CSV</button>':'')+(res.pending&&!res.rank&&res.ids?'<button class="btn" id="plJ2">Judge the photo target</button>':'')+'<button class="btn" id="plAll">'+(isPL?"All results":"All sessions")+'</button></div>';
     $("#plAll").onclick=isPL?plResults:renderSessions;if($("#plJ2"))$("#plJ2").onclick=function(){plJudge(res);};
-    if(isNight)lucNightShow("plNight",D,at);
+    if(isNight)lucNightShow("plNight",D,at);try{bioMoveMount(box,"rep",at,function(){renderSessions();});}catch(e){}
     var rb=document.getElementById("srRead");if(rb)rb.onclick=function(){renderBioRead(srReadD(T),isNight?"🌙 Night of "+new Date(at).toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"}):(typeof stamp!=="undefined"?stamp:"Session"),function(){plReport(at);},{start:at,night:isNight?D:null});};
     if($("#plWatch"))$("#plWatch").onclick=function(){
       if((ix.eegBlocks||0)>0){BC.src="rec";BC.playing=false;renderBrainCharts();bcLoadRec(at,ix.label||"Session");}
@@ -15352,14 +15384,14 @@ function sensActivity(){let a="";try{const tt=document.querySelector("#view .tti
   const ph=document.getElementById("jPhase"),jt=document.querySelector("#jTypes .sel");if(ph&&ph.textContent.trim())a+=" · "+(jt?((jt.querySelector("b")?jt.querySelector("b").textContent:jt.textContent).trim())+" · ":"")+ph.textContent.trim();
   if(typeof PK!=="undefined"&&PK.running&&PK.title)a+=" · "+PK.title;else if(typeof MEL!=="undefined"&&MEL.running&&MEL.song)a+=" · "+MEL.song.name;else if(typeof PRG!=="undefined"&&PRG.running)a+=" · progression";}catch(e){}return a||"App";}
 function sensPlaying(){try{return !!((typeof PK!=="undefined"&&PK.running)||(typeof MEL!=="undefined"&&MEL.running)||(typeof PRG!=="undefined"&&PRG.running)||(typeof MET!=="undefined"&&MET.on)||(typeof MED!=="undefined"&&MED.master)||document.getElementById("jPhase")&&/[0-9]/.test((document.getElementById("jLeft")||{}).textContent||""));}catch(e){return false;}}
-function sensList(){return load("mjk-sens-list",[]);}
-function sensBegin(){if(SENS.rec)return;SENS.rec=true;SENS.sid="s"+Date.now().toString(36);SENS.t0=Date.now();SENS.data=[];SENS.tags=[];SENS.lastSave=Date.now();sensUI();}
+function sensList(pid){bioSplitOnce();return load(pkey("mjk-sens-list",pid),[]);}
+function sensBegin(){if(SENS.rec)return;SENS.rec=true;SENS.pid=activeId()||"guest";SENS.sid="s"+Date.now().toString(36);SENS.t0=Date.now();SENS.data=[];SENS.tags=[];SENS.lastSave=Date.now();sensUI();}
 function sensSave(final){if(!SENS.sid||!SENS.data.length)return;const d=SENS.data,av=k=>{const v=d.map(p=>p[k]).filter(x=>x!=null&&x>0);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):null;};
   idbPut("sens-"+SENS.sid,{id:SENS.sid,start:SENS.t0,data:d,tags:(SENS.tags||[]).slice()}).catch(()=>{});
-  const L=sensList().filter(x=>x.id!==SENS.sid);L.unshift({id:SENS.sid,start:SENS.t0,dur:Math.round((d[d.length-1].t||0)),n:d.length,hr:av("hr"),hrv:av("hrv"),al:av("al"),th:av("th"),be:av("be"),co:(function(){const v=d.map(p=>p.co).filter(x=>x!=null&&x>0);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length*100)/100:null;})(),hs:av("hs"),ga:av("ga"),acts:[...new Set(d.map(p=>p.act.split(" · ")[0]))].slice(0,6),tags:(SENS.tags||[]).slice()});save("mjk-sens-list",L.slice(0,200));SENS.lastSave=Date.now();
+  const own=SENS.pid||activeId()||"guest",L=sensList(own).filter(x=>x.id!==SENS.sid);L.unshift({id:SENS.sid,start:SENS.t0,dur:Math.round((d[d.length-1].t||0)),n:d.length,hr:av("hr"),hrv:av("hrv"),al:av("al"),th:av("th"),be:av("be"),co:(function(){const v=d.map(p=>p.co).filter(x=>x!=null&&x>0);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length*100)/100:null;})(),hs:av("hs"),ga:av("ga"),acts:[...new Set(d.map(p=>p.act.split(" · ")[0]))].slice(0,6),tags:(SENS.tags||[]).slice()});save(pkey("mjk-sens-list",own),L.slice(0,200));SENS.lastSave=Date.now();
   if(final){SENS.rec=false;SENS.sid=null;SENS.data=[];}sensUI();}
 function sensTick(){try{if(HR.connected&&HR.updated&&performance.now()-HR.updated>20000){HR.connected=false;HR_ERR="The heart sensor went quiet. Reconnecting\u2026";if(HR.dev)hrAutoReconnect(HR.dev,null,0);}}catch(e){}try{tgtTick();}catch(e){}const on=HR.connected||M.connected;if(!on){if(SENS.rec){if(!SENS.offSince)SENS.offSince=Date.now();else if(Date.now()-SENS.offSince>90000&&!(typeof LUC!=="undefined"&&LUC.on)){sensSave(true);}}sensUI();return;}SENS.offSince=0;
-  if(!SENS.rec&&load("mjk-sens-auto",true))sensBegin();
+  if(SENS.rec&&SENS.pid&&SENS.pid!==(activeId()||"guest"))sensSave(true);/* a different player took over: close theirs, start a new one */if(!SENS.rec&&load("mjk-sens-auto",true))sensBegin();
   if(SENS.rec){const co=bioCoherence();SENS.data.push({t:Math.round((Date.now()-SENS.t0)/1000),hr:bioHR(),hrv:bioHRV(),co:co?Math.round(co.score*100)/100:null,al:M.connected?Math.round(M.alpha):null,th:M.connected?Math.round(M.theta):null,be:M.connected?Math.round(M.beta):null,ga:(M.connected&&M.gamma!=null)?Math.round(M.gamma):null,hs:(function(){try{var h=M.connected?eegHemiSync():null;return h?Math.round(h.al*100):null;}catch(e){return null;}})(),act:sensActivity(),pl:sensPlaying()?1:0});
     if(Date.now()-SENS.lastSave>((typeof LUC!=="undefined"&&LUC.on)?120000:30000))sensSave(false);}
   sensUI();}
@@ -15557,10 +15589,10 @@ function rpOpenSens(id,backFn){idbGet("sens-"+id).then(function(S2){if(!S2||!S2.
 /* ===== SENSOR SESSIONS — history, timeline, per-activity analysis, CSV ===== */
 /* ---- Insights: what works best for you, across every recorded session (by activity, and by the tags you add) ---- */
 var SENS_TAGS=["Coffee","Slept well","Slept poorly","Exercised","Just ate","Stressed","Calm day"];
-function sensTagsUI(){var el=document.getElementById("sensTags");if(!el)return;var cur=SENS.tags||[],all=SENS_TAGS.concat(load("mjk-sens-mytags",[])).filter(function(x,i,a){return a.indexOf(x)===i;});
+function sensTagsUI(){var el=document.getElementById("sensTags");if(!el)return;var cur=SENS.tags||[],all=SENS_TAGS.concat(load(pkey("mjk-sens-mytags"),[])).filter(function(x,i,a){return a.indexOf(x)===i;});
   el.innerHTML='<div class="snote" style="margin-bottom:4px"><b>Anything else today?</b> Tag this session so you can compare later.</div><div style="display:flex;flex-wrap:wrap;gap:5px">'+all.map(function(t){return '<button class="mbtn" data-tag="'+esc(t)+'" style="flex:none;padding:5px 9px;font-size:.76rem;'+(cur.indexOf(t)>=0?'background:#e9c46a;color:#111':'')+'">'+esc(t)+'</button>';}).join("")+'<button class="mbtn" id="sensTagAdd" style="flex:none;padding:5px 9px;font-size:.76rem">＋ Your own</button></div>';
   el.querySelectorAll("[data-tag]").forEach(function(b){b.onclick=function(){var t=b.dataset.tag;SENS.tags=SENS.tags||[];var i=SENS.tags.indexOf(t);if(i>=0)SENS.tags.splice(i,1);else SENS.tags.push(t);if(SENS.rec)sensSave(false);sensTagsUI();};});
-  document.getElementById("sensTagAdd").onclick=function(){var t=(prompt("Tag name (for example: cold plunge, fasting, a practice, a supplement)")||"").trim().slice(0,30);if(!t)return;var m=load("mjk-sens-mytags",[]);if(m.indexOf(t)<0){m.push(t);save("mjk-sens-mytags",m);}SENS.tags=SENS.tags||[];if(SENS.tags.indexOf(t)<0)SENS.tags.push(t);if(SENS.rec)sensSave(false);sensTagsUI();};}
+  document.getElementById("sensTagAdd").onclick=function(){var t=(prompt("Tag name (for example: cold plunge, fasting, a practice, a supplement)")||"").trim().slice(0,30);if(!t)return;var m=load(pkey("mjk-sens-mytags"),[]);if(m.indexOf(t)<0){m.push(t);save(pkey("mjk-sens-mytags"),m);}SENS.tags=SENS.tags||[];if(SENS.tags.indexOf(t)<0)SENS.tags.push(t);if(SENS.rec)sensSave(false);sensTagsUI();};}
 function insKey(act){var p=String(act||"App").split(" · ");return p.slice(0,p[0]==="Brainwave Journey"||p.length>2?2:p.length>1?2:1).join(" · ");}
 function insShift(a,b){var av=function(arr,k){var v=arr.map(function(p){return p[k];}).filter(function(x){return x!=null&&x>0;});return v.length?v.reduce(function(x,y){return x+y;},0)/v.length:null;};
   var h0=av(a,"hr"),h1=av(b,"hr"),v0=av(a,"hrv"),v1=av(b,"hrv");if(h0==null||h1==null||v0==null||v1==null)return null;return Math.max(-100,Math.min(100,50*Math.log(v1/v0)/0.7+50*(h0-h1)/15));}
@@ -15794,7 +15826,7 @@ function renderSensDetail(id){if(SENS.rec&&SENS.sid===id)sensSave(false);view.in
       const pl=srIdx().filter(e=>e.at>=S.start-60000&&e.at<=end).sort((a,b)=>(b.mins||0)-(a.mins||0))[0];
       if(pl)rpOpenPl(pl.at,pl.label||"Session",back);
       else rpOpenSens(id,back);};
-    const del=document.getElementById("sensDel");del.onclick=()=>{if(!del.dataset.sure){del.dataset.sure=1;del.textContent="Tap again to delete";return;}idbDel("sens-"+id);save("mjk-sens-list",sensList().filter(x=>x.id!==id));renderSensSessions();};
+    try{bioMoveMount(view.querySelector(".panel"),"sens",id,renderSensSessions);}catch(e){}const del=document.getElementById("sensDel");del.onclick=()=>{if(!del.dataset.sure){del.dataset.sure=1;del.textContent="Tap again to delete";return;}idbDel("sens-"+id);save(pkey("mjk-sens-list"),sensList().filter(x=>x.id!==id));renderSensSessions();};
   });}
 function bioBar(id,label,val,color){
   return `<div class="biobar-row"><span class="biobar-l">${label}</span><div class="biobar"><div class="biobar-f" id="${id}" style="background:${color}"></div></div><span class="biobar-v" id="${id}v">0%</span></div>`;
