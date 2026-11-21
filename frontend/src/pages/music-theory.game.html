@@ -606,6 +606,7 @@ body:has(#view .gtrZone) #brainFab:not(.on),body:has(#view .gtrZone) #sensFab:no
 .bgvNeck .bgcell.next{box-shadow:inset 0 0 0 2px rgba(244,183,64,.55)}
 .bgvNeck .bgcell.next::after{content:attr(data-l);font:900 .8rem system-ui;color:var(--gold)}
 .bgvNeck .bgcell.glow{background:var(--gold)!important}.bgvNeck .bgcell.glow::after{color:#241800}
+body.gated #sensFab,body.gated #brainFab{display:none!important}/* connect a sensor only after picking who is playing */
 </style>
 
 <canvas id="sky"></canvas>
@@ -15527,7 +15528,7 @@ function sensSave(final){if(!SENS.sid||!SENS.data.length)return;const d=SENS.dat
   const own=SENS.pid||activeId()||"guest",L=sensList(own).filter(x=>x.id!==SENS.sid);L.unshift({id:SENS.sid,start:SENS.t0,dur:Math.round((d[d.length-1].t||0)),n:d.length,hr:av("hr"),hrv:av("hrv"),al:av("al"),th:av("th"),be:av("be"),co:(function(){const v=d.map(p=>p.co).filter(x=>x!=null&&x>0);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length*100)/100:null;})(),hs:av("hs"),ga:av("ga"),acts:[...new Set(d.map(p=>p.act.split(" · ")[0]))].slice(0,6),tags:(SENS.tags||[]).slice()});save(pkey("mjk-sens-list",own),L.slice(0,200));SENS.lastSave=Date.now();
   if(final){SENS.rec=false;SENS.sid=null;SENS.data=[];}sensUI();}
 function sensTick(){try{if(HR.connected&&HR.updated&&performance.now()-HR.updated>20000){HR.connected=false;HR_ERR="The heart sensor went quiet. Reconnecting\u2026";if(HR.dev)hrAutoReconnect(HR.dev,null,0);}}catch(e){}try{tgtTick();}catch(e){}const on=HR.connected||M.connected;if(!on){if(SENS.rec){if(!SENS.offSince)SENS.offSince=Date.now();else if(Date.now()-SENS.offSince>90000&&!(typeof LUC!=="undefined"&&LUC.on)){sensSave(true);}}sensUI();return;}SENS.offSince=0;
-  if(SENS.rec&&SENS.pid&&SENS.pid!==(activeId()||"guest"))sensSave(true);/* a different player took over: close theirs, start a new one */if(!SENS.rec&&load("mjk-sens-auto",true))sensBegin();
+  if(document.body.classList.contains("gated")){if(SENS.rec)sensSave(true);return;}/* "Who's playing?" is showing: record nothing until a player is picked */if(SENS.rec&&SENS.pid&&SENS.pid!==(activeId()||"guest"))sensSave(true);/* a different player took over: close theirs, start a new one */if(!SENS.rec&&load("mjk-sens-auto",true))sensBegin();
   if(SENS.rec){const co=bioCoherence();SENS.data.push({t:Math.round((Date.now()-SENS.t0)/1000),hr:bioHR(),hrv:bioHRV(),co:co?Math.round(co.score*100)/100:null,al:M.connected?Math.round(M.alpha):null,th:M.connected?Math.round(M.theta):null,be:M.connected?Math.round(M.beta):null,ga:(M.connected&&M.gamma!=null)?Math.round(M.gamma):null,hs:(function(){try{var h=M.connected?eegHemiSync():null;return h?Math.round(h.al*100):null;}catch(e){return null;}})(),act:sensActivity(),pl:sensPlaying()?1:0});
     if(Date.now()-SENS.lastSave>((typeof LUC!=="undefined"&&LUC.on)?120000:30000))sensSave(false);}
   sensUI();}

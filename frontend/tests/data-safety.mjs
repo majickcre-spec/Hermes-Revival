@@ -655,6 +655,21 @@ export async function run() {
     assert(r.ok && r.vid && r.playing && r.gone && r.held && r.released, "keep-awake " + JSON.stringify(r)); await ctx.close();
   });
 
+  await S.test("Who's playing? screen: sensor buttons hidden and nothing records until a player is picked; then it records for that player; back to the picker closes it", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, { "majick-profiles": [{ id: "t1", name: "Trav" }, { id: "s2", name: "Star" }], "majick-active": "t1" });
+    await pg.reload(); await pg.waitForTimeout(1200);
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const o = {};
+      o.gated = document.body.classList.contains("gated"); o.fab = getComputedStyle(document.getElementById("sensFab")).display;
+      HR.connected = true; HR.updated = performance.now(); HR.bpm = 70; HR.rr = [850, 860, 840]; save("mjk-sens-auto", true);
+      for (let i = 0; i < 3; i++) { HR.updated = performance.now(); sensTick(); } o.recGated = !!SENS.rec;
+      activate("s2"); await w(300); HR.updated = performance.now(); sensTick(); o.recAfter = !!SENS.rec; o.owner = SENS.pid; o.fabAfter = getComputedStyle(document.getElementById("sensFab")).display;
+      for (let i = 0; i < 3; i++) { HR.updated = performance.now(); sensTick(); }
+      renderGate(); await w(200); HR.updated = performance.now(); sensTick(); o.closedOnGate = !SENS.rec; o.starSaved = sensList("s2").length; o.travNone = sensList("t1").length;
+      HR.connected = false; return o; });
+    assert(r.gated && r.fab === "none" && !r.recGated, "recording/buttons before a player is picked " + JSON.stringify(r));
+    assert(r.recAfter && r.owner === "s2" && r.fabAfter !== "none" && r.closedOnGate && r.starSaved === 1 && r.travNone === 0, "recording after picking a player went wrong " + JSON.stringify(r)); await ctx.close();
+  });
+
   await S.test("Bass Grooves: opens from Bass; plays the right chord tones with drums after a count-in; Your turn drops the bass every other bar; back stops; settings remembered per player", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {}, "Trav");
     const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const o = {};
