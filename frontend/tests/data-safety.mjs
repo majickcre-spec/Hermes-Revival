@@ -1169,8 +1169,10 @@ export async function run() {
     const r = await pg.evaluate(() => { const at = (b, h) => PK.ev.filter((e) => Math.abs(e.b - b) < 1e-6 && e.hand === h).map((e) => e.notes.map(pkNameOct).join("+")).sort().join(" ");
       return { R: PK.ev.filter((e) => e.hand === "R").reduce((a, e) => a + e.notes.length, 0), L: PK.ev.filter((e) => e.hand === "L").reduce((a, e) => a + e.notes.length, 0), len: PK.len,
         b0: at(0, "R") + " | " + at(0, "L"), b19: at(19, "R"), b1975: at(19.75, "R"), b16L: at(16, "L"), bars: pkMelBars(melAll().find((x) => x.id === "moonlight1")) }; });
-    assert(r.R === 795 && r.L === 349 && r.len === 276 && r.bars === 69, "piece incomplete " + JSON.stringify(r));
-    assert(r.b0 === "G♯3 | C♯3+C♯2" && /G♯4/.test(r.b19) && r.b1975 === "G♯4" && /C♯3\+G♯2\+C♯2/.test(r.b16L), "notes/timing wrong " + JSON.stringify(r));
+    assert(r.R === 899 && r.L === 245 && r.len === 276 && r.bars === 69, "piece incomplete or notes on the wrong hand " + JSON.stringify(r));
+    assert(r.b0 === "G♯3 | C♯3+C♯2" && /G♯4/.test(r.b19) && r.b1975 === "G♯4" && r.b16L === "C♯3+G♯2+C♯2", "notes/timing/hands wrong " + JSON.stringify(r));
+    const xr = await pg.evaluate(() => ({ e3R: PK.ev.some((e) => Math.abs(e.b - 16) < 1e-6 && e.hand === "R" && e.notes.map(pkNameOct).join() === "E3"), e3L: PK.ev.some((e) => Math.abs(e.b - 16) < 1e-6 && e.hand === "L" && e.notes.map(pkNameOct).join() === "E3") }));
+    assert(xr.e3R && !xr.e3L, "bar 5 triplet (printed on the bass staff) should be right hand " + JSON.stringify(xr));
     await pg.locator("#pkGo").click();
     assert(!errs.length, errs.join(" | ")); await ctx.close();
   });
