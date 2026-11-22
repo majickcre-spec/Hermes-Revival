@@ -1304,7 +1304,7 @@ function buildSearchIndex(){var idx=[];
     ["Guitar Melodies","🎼","Play real melodies on a scrolling highway.","play",2],["Bring a Song","🎼","Paste or snap a chord sheet and play along.","play",3]].forEach(function(r){
       idx.push({ic:r[1],title:r[0],blurb:r[2]+" (Guitar)",sec:"Instrument",kw:r[0]==="Strum Patterns"?"strum strumming rhythm guitar":"guitar",go:function(){home.hidden=true;view.hidden=false;renderStrings("guitar");grpGo("guitar",r[3],r[4]);}});});}catch(e){}
   idx.push({ic:"🥁",title:"Bass Grooves",blurb:"Bass rhythm patterns — root, fifth, octave and walking lines over real chords, with drums.",sec:"Instrument",go:function(){home.hidden=true;view.hidden=false;renderBassGroove();}});
-  if(typeof hhOurs==="function"&&hhOurs())idx.push({ic:"📖",title:"Heads of Things",blurb:"Everard's Heads — first half shown, say the rest, hints word by word.",sec:"Study",go:function(){renderHeadsHalves();}});
+  if(typeof hhOurs==="function"&&hhOurs())idx.push({ic:"📖",title:"Heads of Things",blurb:"Everard's 68 Heads — study guide, graded quiz in 4 levels, progress report, spoken meditation.",sec:"Study",go:function(){renderHeadsHalves();}});
   var _lyr={"Lyric Lab":1,"Write + Beat Lab":1,"Songwriting":1,"AABA Class":1,"Practice Sessions":1};idx.forEach(function(e){if(_lyr[e.title])e.sec="Lyrics";});
   return idx.filter(function(e){return !(typeof MJK_HIDE!=="undefined"&&MJK_HIDE[e.title]);});}/* hidden screens never count as results */
 function renderHome(){
@@ -1379,7 +1379,7 @@ function renderHeadsHalves(){if(!hhOurs()){goHome();return;}if(toneRAF)cancelAni
     else{f.style.minHeight="480px";f.style.height=Math.max(480,window.innerHeight-f.getBoundingClientRect().top+window.scrollY-64)+"px";}};/* leaves room for the 🫀/🧠 buttons so they never sit on Back/Next */fit();window.addEventListener("resize",fit);}
 function homeDoors(){var H=document.getElementById("home"),box=document.getElementById("doors");if(!H||!box)return;var cur=null;try{cur=sessionStorage.getItem("mjk-door");}catch(e){}
   if(cur)H.setAttribute("data-door",cur);else H.removeAttribute("data-door");
-  var DR=DOORS.slice();if(hhOurs()){var li=DR.findIndex(function(d){return d[0]==="lyric";});DR.splice(li+1,0,["heads","📖","Heads of Things","Everard's Heads — see the first half, say the rest"]);}
+  var DR=DOORS.slice();if(hhOurs()){var li=DR.findIndex(function(d){return d[0]==="lyric";});DR.splice(li+1,0,["heads","📖","Heads of Things","Everard's Heads — study, quiz, meditate"]);}
   var _vis=DR.filter(function(d){return !(typeof MJK_HIDE_DOORS!=="undefined"&&MJK_HIDE_DOORS[d[2]]);}),_lastVis=_vis[_vis.length-1];
   box.innerHTML=DR.map(function(d,i){return '<button class="door'+(cur===d[0]?" sel":"")+(d===_lastVis&&_vis.length%2&&!cur?" wide":"")+'" data-d="'+d[0]+'"><span class="di">'+d[1]+'</span><b>'+d[2]+'</b><span class="dd">'+d[3]+'</span></button>';}).join("");
   box.querySelectorAll(".door").forEach(function(b){b.onclick=function(){var d=b.getAttribute("data-d");

@@ -748,20 +748,20 @@ export async function run() {
       goHome(); await w(200); o.trav = doors().includes("Heads of Things");
       [...document.querySelectorAll("#doors .door")].find((b) => /Heads of Things/.test(b.textContent)).click(); await w(1500);
       const f = document.getElementById("hhFrame"); o.inApp = !!f && !view.hidden; o.fab = getComputedStyle(document.getElementById("sensFab")).display;
-      const d = f.contentDocument; o.head = d && d.getElementById("head").innerText.trim();
-      d.getElementById("nextB").click(); d.getElementById("revB").click(); d.getElementById("okB").click(); await w(100);
-      o.travKey = Object.keys(localStorage).filter((k) => k.startsWith("heads-halves-v1"));
+      const d = f.contentDocument; d.getElementById("tQuiz").click(); await w(100); o.head = d && d.getElementById("qv").innerText.trim(); d.getElementById("tStudy").click(); await w(100);
+      d.getElementById("goQuizB").click(); await w(100); const inp = d.querySelector("#ins input"); inp.value = "only that which is not is immovable"; d.getElementById("checkB").click(); d.getElementById("nextB").click(); await w(100);
+      o.travKey = Object.keys(localStorage).filter((k) => k.startsWith("heads-v2"));
       document.getElementById("eBack").click(); await w(300); o.home = !home.hidden;
       /* Star on the same device */
       const P = getProfiles(); P.push({ id: "s2", name: "Star" }, { id: "b3", name: "Bob" }); save("majick-profiles", P); activate("s2"); await w(300);
       o.star = doors().includes("Heads of Things"); renderHeadsHalves(); await w(1500);
-      const d2 = document.getElementById("hhFrame").contentDocument; o.starWhere = d2.getElementById("where").innerText;
+      const d2 = document.getElementById("hhFrame").contentDocument; d2.getElementById("tQuiz").click(); await w(100); o.starWhere = d2.getElementById("where").innerText;
       activate("b3"); await w(300); o.bob = doors().includes("Heads of Things"); renderHeadsHalves(); await w(300); o.bobBlocked = view.hidden && !home.hidden;
-      o.keys = Object.keys(localStorage).filter((k) => k.startsWith("heads-halves-v1")).sort(); o.travSaved = JSON.parse(localStorage.getItem("heads-halves-v1-t1") || "{}");
+      o.keys = Object.keys(localStorage).filter((k) => k.startsWith("heads-v2")).sort(); o.travSaved = JSON.parse(localStorage.getItem("heads-v2-t1") || "{}");
       return o; });
     assert(r.trav && r.star && !r.bob && r.bobBlocked, "Heads button shown to the wrong players " + JSON.stringify(r));
-    assert(r.inApp && r.fab !== "none" && /All things that are moved/.test(r.head) && r.home, "Heads didn't open inside the music app " + JSON.stringify(r));
-    assert(r.travSaved && r.travSaved.i === 1 && r.travSaved.r === 2 && /Head 1 /.test(r.starWhere) && r.keys.join(",") === "heads-halves-v1-s2,heads-halves-v1-t1", "players share Heads progress " + JSON.stringify(r)); await ctx.close();
+    assert(r.inApp && r.fab !== "none" && /All things that are, are moved/.test(r.head) && r.home, "Heads didn't open inside the music app " + JSON.stringify(r));
+    assert(r.travSaved && r.travSaved.pos && r.travSaved.pos[1] === 1 && r.travSaved.hist.length === 1 && r.travSaved.hist[0].s === 100 && /Head 1\//.test(r.starWhere) && r.keys.join(",") === "heads-v2-s2,heads-v2-t1", "players share Heads progress " + JSON.stringify(r)); await ctx.close();
   });
 
   await S.test("Guitar section: 4 cards; Chords and Play Along have tabs; switching tabs or going back stops the sound; tabs never leak into other sections; the 🫀/🧠 device buttons stay visible; Progressions and the last tab are remembered after a reload; ukulele gets the same menu", async () => {
@@ -992,12 +992,75 @@ export async function run() {
       assert(await fabs(), vp.width + ": missing on Heads");
       const clash = await pg.evaluate(() => { const f = document.getElementById("hhFrame"); const d = f.contentDocument; const fr = f.getBoundingClientRect(); const bad = [];
         for (const id of ["sensFab", "brainFab"]) { const a = document.getElementById(id).getBoundingClientRect();
-          d.querySelectorAll("button").forEach((btn) => { const r = btn.getBoundingClientRect(); if (!r.width) return; const x1 = r.left + fr.left, y1 = r.top + fr.top, x2 = x1 + r.width, y2 = y1 + r.height;
+          d.querySelectorAll("button").forEach((btn) => { const r = btn.getBoundingClientRect(); if (!r.width || r.bottom <= 0 || r.top >= fr.height) return; const x1 = r.left + fr.left, y1 = Math.max(r.top, 0) + fr.top, x2 = x1 + r.width, y2 = Math.min(r.bottom, fr.height) + fr.top;
             if (a.left < x2 && a.right > x1 && a.top < y2 && a.bottom > y1) bad.push(id + " on " + btn.textContent.trim()); }); } return bad; });
       assert(!clash.length, vp.width + ": device buttons cover Heads buttons: " + clash.join(", "));
       await pg.locator("#view .back").first().click(); await pg.waitForTimeout(400); assert(await fabs(), vp.width + ": missing on home after Heads");
       assert(!errs.length, errs.join(" | ")); await ctx.close();
     }
+  });
+
+  await S.test("REAL TAPS: Heads — study guide → typed quiz (spelling slips OK, wrong word caught) → in-my-mind → progress report → meditation → ← back; reload keeps it all; old save untouched; both orientations", async () => {
+    for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
+      const ctx = await b.newContext({ viewport: vp, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+      await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); localStorage.setItem("heads-halves-v1-t1", JSON.stringify({ i: 5, r: 2, done: [14, 15], mix: false })); });
+      const open = async () => { await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(500);
+        const s = pg.locator("#homeSearch"); await s.fill(""); await s.click(); await pg.keyboard.type("Heads"); await pg.waitForTimeout(400);
+        await pg.locator("#home :is(button,a,.card,.door,.kb,[data-go])").filter({ hasText: /Heads of Things/ }).filter({ visible: true }).first().click(); await pg.waitForTimeout(1500); };
+      await pg.goto(url + "/app.html"); await pg.waitForTimeout(700); await open();
+      const f = pg.frameLocator("#hhFrame");
+      assert(await f.locator("#study").isVisible(), vp.width + ": first visit should open the study guide");
+      assert((await f.locator("#studyList .it").count()) === 68, vp.width + ": study guide should list all 68 heads");
+      assert(/All things that are, are moved, only that which is not is immovable\./.test(await f.locator("#studyList .it").first().innerText()), vp.width + ": Head 1 wording wrong");
+      await f.locator("#goQuizB").click(); await pg.waitForTimeout(200);
+      assert(/Head 1\//.test(await f.locator("#where").innerText()), vp.width + ": quiz should start at head 1");
+      await f.locator("#ins input").first().click(); await pg.keyboard.type("only that wich is not is immoveable"); await pg.keyboard.press("Enter"); await pg.waitForTimeout(200);
+      assert(/Perfect/.test(await f.locator("#say").innerText()), vp.width + ": small spelling slips should pass: " + await f.locator("#say").innerText());
+      assert((await f.locator("#qv .ok").count()) === 7, vp.width + ": the 7 right words should show green");
+      await f.locator("#nextB").click(); await pg.waitForTimeout(200);
+      await f.locator("#ins input").first().click(); await pg.keyboard.type("is solid"); await f.locator("#checkB").click(); await pg.waitForTimeout(200);
+      assert(/50%/.test(await f.locator("#say").innerText()) && (await f.locator("#qv .no").count()) === 1, vp.width + ": a wrong word must be caught and shown red");
+      await f.locator("#againB").click(); await f.locator("#ins input").first().click(); await pg.keyboard.type("is changeable"); await f.locator("#checkB").click(); await pg.waitForTimeout(200);
+      assert(/Perfect/.test(await f.locator("#say").innerText()), vp.width + ": Again should let me retry");
+      await f.locator("#nextB").click(); await f.locator("#modeB").click(); await pg.waitForTimeout(200);
+      assert(await f.locator("#showB").isVisible() && !(await f.locator("#ins input").count()), vp.width + ": mind mode should have no typing boxes");
+      await f.locator("#showB").click(); await f.locator("#hadB").click(); await pg.waitForTimeout(200);
+      assert(/Head 4\//.test(await f.locator("#where").innerText()), vp.width + ": after Had it, the next head in order");
+      /* half-typed answer survives leaving */
+      await f.locator("#modeB").click(); await f.locator("#ins input").first().click(); await pg.keyboard.type("are dis"); await pg.waitForTimeout(100);
+      assert(!(await f.locator("#tProg").isVisible()), vp.width + ": tabs should step aside while typing");
+      await f.locator("#qv").click(); await pg.waitForTimeout(300); /* tap off the box, like closing the keyboard */
+      await f.locator("#tProg").click(); await pg.waitForTimeout(300);
+      const prog = await f.locator("#progBox").innerText();
+      assert(/Quizzes taken\s*4/.test(prog) && /Level 1 passed\s*3/.test(prog), vp.width + ": progress report wrong: " + prog.slice(0, 200));
+      await f.locator("#tMed").click(); await pg.waitForTimeout(200); await f.locator("#medGo").click(); await pg.waitForTimeout(1500);
+      assert(/HEAD 1/.test(await f.locator("#medNow").innerText()) && /Pause/.test(await f.locator("#medGo").innerText()), vp.width + ": meditation didn't start at head 1");
+      await f.locator("#tQuiz").click(); await pg.waitForTimeout(200);
+      assert(/Begin/.test(await f.locator("#medGo").innerText()), vp.width + ": leaving Meditate should stop the voice");
+      assert((await f.locator("#ins input").first().inputValue()) === "are dis", vp.width + ": half-typed answer lost");
+      await pg.locator("#view .back").first().click(); await pg.waitForTimeout(400);
+      assert(!(await pg.evaluate(() => document.getElementById("home").hidden)), vp.width + ": ← back should go home");
+      await pg.reload(); await pg.waitForTimeout(700); await open();
+      assert(/Head 4\//.test(await f.locator("#where").innerText()), vp.width + ": reload should come back to head 4 on the quiz");
+      const st = await pg.evaluate(() => ({ v2: JSON.parse(localStorage.getItem("heads-v2-t1")), v1: localStorage.getItem("heads-halves-v1-t1") }));
+      assert(st.v2.hist.length === 4 && st.v1 === JSON.stringify({ i: 5, r: 2, done: [14, 15], mix: false }), vp.width + ": saves wrong " + JSON.stringify(st).slice(0, 200));
+      assert(!errs.length, vp.width + ": page errors " + errs.join(" | ")); await ctx.close();
+    }
+  });
+
+  await S.test("Heads data safety: a damaged save is kept aside (not erased); Clear needs two taps and keeps a copy", async () => {
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 } }); const pg = await ctx.newPage();
+    await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("heads-v2-z9", "{broken"); });
+    await pg.goto(url + "/heads-halves.html?who=z9"); await pg.waitForTimeout(500);
+    let keys = await pg.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("heads-v2-z9")));
+    assert(keys.some((k) => /damaged/.test(k)), "damaged save was thrown away " + keys);
+    assert((await pg.evaluate(() => Object.keys(localStorage).filter((k) => /damaged/.test(k)).map((k) => localStorage.getItem(k))[0])) === "{broken", "damaged save not kept as-is");
+    await pg.locator("#goQuizB").click(); await pg.locator("#ins input").first().fill("only that which is not is immovable"); await pg.locator("#checkB").click();
+    await pg.locator("#tProg").click(); await pg.locator("#resetB").click();
+    assert(JSON.parse(await pg.evaluate(() => localStorage.getItem("heads-v2-z9"))).hist.length === 1, "one tap erased progress");
+    await pg.locator("#resetB").click();
+    const after = await pg.evaluate(() => ({ now: JSON.parse(localStorage.getItem("heads-v2-z9")), copy: Object.keys(localStorage).filter((k) => /cleared/.test(k)).map((k) => JSON.parse(localStorage.getItem(k)))[0] }));
+    assert(after.now.hist.length === 0 && after.copy && after.copy.hist.length === 1, "clear didn't keep a copy " + JSON.stringify(after).slice(0, 200)); await ctx.close();
   });
 
   await S.test("REAL TAPS: searching Heads finds it for Trav, and finds nothing for another player", async () => {

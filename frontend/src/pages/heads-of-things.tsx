@@ -597,7 +597,7 @@ export default function HeadsOfThings() {
                 <p className="text-xs" style={{ color: celestial.goldDim }}>Dr. John Everard Translation (1650) — From The Divine Pymander</p>
                 <div className="pt-2">
                   <Link href="/reader/heads-halves">
-                    <Button style={{ backgroundColor: celestial.gold, color: celestial.bg }}>Practice: Heads by Halves →</Button>
+                    <Button style={{ backgroundColor: celestial.gold, color: celestial.bg }}>Study &amp; Quiz the Heads →</Button>
                   </Link>
                 </div>
               </div>
