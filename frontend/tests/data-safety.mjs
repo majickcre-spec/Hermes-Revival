@@ -1035,6 +1035,7 @@ export async function run() {
       assert(/Quizzes taken\s*4/.test(prog) && /Level 1 passed\s*3/.test(prog), vp.width + ": progress report wrong: " + prog.slice(0, 200));
       await f.locator("#tMed").click(); await pg.waitForTimeout(200); await f.locator("#medGo").click(); await pg.waitForTimeout(1500);
       assert(/HEAD 1/.test(await f.locator("#medNow").innerText()) && /Pause/.test(await f.locator("#medGo").innerText()), vp.width + ": meditation didn't start at head 1");
+      assert((await f.locator("#medRate").inputValue()) === "0.6" && /Slow/.test(await f.locator("#medRate option:checked").innerText()), vp.width + ": meditation voice should default to Slow");
       await f.locator("#tQuiz").click(); await pg.waitForTimeout(200);
       assert(/Begin/.test(await f.locator("#medGo").innerText()), vp.width + ": leaving Meditate should stop the voice");
       assert((await f.locator("#ins input").first().inputValue()) === "are dis", vp.width + ": half-typed answer lost");
@@ -1044,6 +1045,28 @@ export async function run() {
       assert(/Head 4\//.test(await f.locator("#where").innerText()), vp.width + ": reload should come back to head 4 on the quiz");
       const st = await pg.evaluate(() => ({ v2: JSON.parse(localStorage.getItem("heads-v2-t1")), v1: localStorage.getItem("heads-halves-v1-t1") }));
       assert(st.v2.hist.length === 4 && st.v1 === JSON.stringify({ i: 5, r: 2, done: [14, 15], mix: false }), vp.width + ": saves wrong " + JSON.stringify(st).slice(0, 200));
+      assert(!errs.length, vp.width + ": page errors " + errs.join(" | ")); await ctx.close();
+    }
+  });
+
+  await S.test("Heads meditation voice: British, most natural voice is picked first; novelty voices sink; your pick is kept after reload; speed defaults to Slow", async () => {
+    for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
+      const ctx = await b.newContext({ viewport: vp, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+      await pg.addInitScript(() => { const V = [["Samantha", "en-US"], ["Zarvox", "en-US"], ["Daniel", "en-GB"], ["Arthur (Enhanced)", "en-GB"], ["Karen", "en-AU"], ["Thomas", "fr-FR"]].map(([name, lang]) => ({ name, lang, voiceURI: "v." + name, localService: true, default: false }));
+        speechSynthesis.getVoices = () => V; window.SpeechSynthesisUtterance = class { constructor(t) { this.text = t; } }; window.__spoken = []; speechSynthesis.speak = (u) => { window.__spoken.push({ t: u.text, v: u.voice && u.voice.name, r: u.rate }); setTimeout(() => u.onend && u.onend(), 30); }; });
+      await pg.goto(url + "/heads-halves.html?who=vv" + vp.width); await pg.waitForTimeout(500);
+      await pg.locator("#tMed").click(); await pg.waitForTimeout(200);
+      const opts = await pg.locator("#medVoice option").allInnerTexts();
+      assert(/^Arthur · Enhanced · British/.test(opts[0]) && /^Daniel.*British/.test(opts[1]) && /Zarvox/.test(opts[opts.length - 1]) && !opts.some((o) => /Thomas/.test(o)), vp.width + ": voice order wrong " + opts.join(" | "));
+      assert((await pg.locator("#medRate option:checked").innerText()) === "Slow", vp.width + ": speed should default to Slow");
+      await pg.locator("#medTry").click(); await pg.waitForTimeout(100);
+      let sp = await pg.evaluate(() => window.__spoken);
+      assert(sp.length === 1 && sp[0].v === "Arthur (Enhanced)" && sp[0].r === 0.6, vp.width + ": Try should use Arthur, slow " + JSON.stringify(sp));
+      await pg.locator("#medVoice").selectOption("v.Daniel"); await pg.locator("#medGo").click(); await pg.waitForTimeout(1800);
+      sp = await pg.evaluate(() => window.__spoken.filter((x) => x.t.trim()));
+      assert(sp[1] && sp[1].t === "Head 1." && sp[1].v === "Daniel" && sp[2] && /^All things that are, are moved/.test(sp[2].t), vp.width + ": meditation should say 'Head 1.' then the verse, in Daniel " + JSON.stringify(sp));
+      await pg.locator("#medStop").click(); await pg.reload(); await pg.waitForTimeout(500);
+      assert((await pg.locator("#medVoice").inputValue()) === "v.Daniel", vp.width + ": voice pick not kept after reload");
       assert(!errs.length, vp.width + ": page errors " + errs.join(" | ")); await ctx.close();
     }
   });

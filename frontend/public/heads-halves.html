@@ -123,11 +123,12 @@ body.emb .wrap{padding:4px 2px 80px}body.emb h1{display:none}
     <div class="note" id="medNote"></div>
   </div>
   <div class="set">
+    <label style="grid-column:1/-1">Voice<span style="display:flex;gap:8px"><select id="medVoice" style="flex:1;min-width:0"></select><button class="chip" id="medTry" type="button">▶ Try</button></span></label>
+    <label>Voice speed<select id="medRate"><option value="0.5">Very slow</option><option value="0.6">Slow</option><option value="0.72">Calm</option><option value="0.85">Normal</option></select></label>
+    <label>Pause after each<select id="medPause"><option value="8">8 seconds</option><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="60">1 minute</option></select></label>
     <label>From<select id="medFrom"></select></label>
     <label>To<select id="medTo"></select></label>
-    <label>Pause after each<select id="medPause"><option value="8">8 seconds</option><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="60">1 minute</option></select></label>
     <label>Read each<select id="medTwice"><option value="1">Once</option><option value="2">Twice</option></select></label>
-    <label>Voice speed<select id="medRate"><option value="0.75">Slow</option><option value="0.9">Calm</option><option value="1">Normal</option></select></label>
   </div>
 </section>
 </div>
@@ -413,13 +414,13 @@ const WHO=(function(){try{return (new URLSearchParams(location.search).get("who"
 if(WHO)document.body.classList.add("emb"); /* opened inside the music app */
 const KEY="heads-v2"+(WHO?"-"+WHO:""); /* each player keeps their own progress; the old "heads-halves-v1" save is left untouched */
 const TIPS={1:"First idea shown — fill in the second.",2:"Less shown — fill in both ideas.",3:"Clue words only.",4:"The whole head from memory."};
-function blank(){return {v:2,tab:"study",lvl:1,mode:"type",pos:{1:0,2:0,3:0,4:0},mix:false,rec:{},hist:[],med:{from:0,to:N-1,pause:15,twice:1,rate:0.9}};}
+function blank(){return {v:2,tab:"study",lvl:1,mode:"type",pos:{1:0,2:0,3:0,4:0},mix:false,rec:{},hist:[],med:{from:0,to:N-1,pause:15,twice:1,rate:0.6}};}
 function ld(){const d=blank();let raw=null;try{raw=localStorage.getItem(KEY);}catch(e){}
   if(!raw)return d;
   try{const s=JSON.parse(raw);if(!s||typeof s!=="object")throw 0;
     return Object.assign(d,s,{pos:Object.assign(d.pos,s.pos||{}),med:Object.assign(d.med,s.med||{}),rec:s.rec&&typeof s.rec==="object"?s.rec:{},hist:Array.isArray(s.hist)?s.hist:[]});}
   catch(e){try{localStorage.setItem(KEY+"-damaged-"+Date.now(),raw);}catch(_){}return d;}} /* never throw away a save we can't read */
-let S=ld();
+let S=ld();if([0.5,0.6,0.72,0.85].indexOf(+S.med.rate)<0)S.med.rate=0.6;
 function sv(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
 const $=id=>document.getElementById(id);
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);}
@@ -545,12 +546,24 @@ const TTS="speechSynthesis" in window&&typeof SpeechSynthesisUtterance!=="undefi
 let medGen=0,medIdx=-1,wake=null,medTimer=null;
 function opts(sel,v){sel.innerHTML=HEADS.map((h,i)=>'<option value="'+i+'">Head '+(i+1)+' · v.'+h[0]+'</option>').join("");sel.value=v;}
 function drawMed(){opts($("medFrom"),S.med.from);opts($("medTo"),S.med.to);$("medPause").value=String(S.med.pause);$("medTwice").value=String(S.med.twice);$("medRate").value=String(S.med.rate);
-  $("medNote").textContent=TTS?"Tip: keep the screen on — most phones stop the voice when the screen locks.":"This device can't speak aloud, so the heads will show one by one with the same pauses.";}
-["medFrom","medTo","medPause","medTwice","medRate"].forEach(id=>$(id).onchange=()=>{S.med={from:+$("medFrom").value,to:+$("medTo").value,pause:+$("medPause").value,twice:+$("medTwice").value,rate:+$("medRate").value};
+  fillVoices();$("medNote").textContent=TTS?"Tip: keep the screen on — most phones stop the voice when the screen locks.":"This device can't speak aloud, so the heads will show one by one with the same pauses.";}
+["medFrom","medTo","medPause","medTwice","medRate"].forEach(id=>$(id).onchange=()=>{S.med=Object.assign(S.med,{from:+$("medFrom").value,to:+$("medTo").value,pause:+$("medPause").value,twice:+$("medTwice").value,rate:+$("medRate").value});
   if(S.med.to<S.med.from){S.med.to=S.med.from;$("medTo").value=S.med.from;}sv();});
+/* English voices, British first; "Enhanced"/"Premium" ones sound the most human */
+function voiceScore(v){let n=0;if(/en[-_]GB/i.test(v.lang))n+=100;if(/premium/i.test(v.name))n+=60;if(/enhanced|natural|neural/i.test(v.name))n+=50;
+  if(/Arthur|Daniel|Serena|Kate|Martha|Oliver|Stephanie|Jamie|Google UK English/i.test(v.name))n+=20;if(/Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Good News|Jester|Organ|Superstar|Trinoids|Whisper|Wobble|Zarvox|Junior|Ralph|Fred|Grandma|Grandpa|Eddy|Flo|Reed|Rocko|Sandy|Shelley/i.test(v.name))n-=200;return n;}
+function englishVoices(){if(!TTS)return [];return speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang)).sort((a,b)=>voiceScore(b)-voiceScore(a)||a.name.localeCompare(b.name));}
+function voiceFor(){const vs=englishVoices();return vs.find(v=>v.voiceURI===S.med.voice)||vs[0]||null;}
+function fillVoices(){const sel=$("medVoice");if(!sel)return;const vs=englishVoices();
+  if(!vs.length){sel.innerHTML='<option>Phone default voice</option>';sel.disabled=true;$("medTry").disabled=!TTS;return;}
+  sel.disabled=false;$("medTry").disabled=false;const cur=voiceFor();
+  sel.innerHTML=vs.map(v=>'<option value="'+esc(v.voiceURI)+'">'+esc(v.name.replace(/\s*\(.*?\)\s*/g," ").trim())+(/premium/i.test(v.name)?" · Premium":/enhanced/i.test(v.name)?" · Enhanced":"")+(/en[-_]GB/i.test(v.lang)?" · British":/en[-_]AU/i.test(v.lang)?" · Australian":/en[-_]IE/i.test(v.lang)?" · Irish":/en[-_]US/i.test(v.lang)?" · American":"")+'</option>').join("");
+  if(cur)sel.value=cur.voiceURI;}
+$("medVoice").onchange=()=>{S.med.voice=$("medVoice").value;sv();};
+$("medTry").onclick=()=>{if(!TTS)return;try{speechSynthesis.cancel();}catch(e){}const u=new SpeechSynthesisUtterance("All things that are, are moved.");u.rate=S.med.rate;const v=voiceFor();if(v){u.voice=v;u.lang=v.lang;}speechSynthesis.speak(u);};
 function sayIt(text,gen){return new Promise(res=>{if(!TTS||gen!==medGen){setTimeout(res,TTS?0:Math.max(2500,text.split(/\s+/).length*450));return;}
-  const u=new SpeechSynthesisUtterance(text.replace(/\bIDEAS\b/g,"ideas"));u.rate=S.med.rate;u.lang="en-US";
-  const vs=speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang));const pref=vs.find(v=>/Daniel|Arthur|Serena|Google UK English Male/i.test(v.name))||vs.find(v=>v.localService)||vs[0];if(pref)u.voice=pref;
+  const u=new SpeechSynthesisUtterance(text.replace(/\bIDEAS\b/g,"ideas"));u.rate=S.med.rate;u.lang="en-GB";
+  const pref=voiceFor();if(pref){u.voice=pref;u.lang=pref.lang;}
   let done=false;const fin=()=>{if(done)return;done=true;res();};u.onend=fin;u.onerror=fin;
   setTimeout(fin,(text.split(/\s+/).length*0.6/S.med.rate+4)*1000); /* some phones never send "end" */
   speechSynthesis.speak(u);});}
@@ -559,7 +572,7 @@ async function medRun(from){const gen=++medGen;$("medGo").textContent="❚❚ Pa
   try{if(navigator.wakeLock)wake=await navigator.wakeLock.request("screen");}catch(e){wake=null;}
   for(let i=from;i<=S.med.to;i++){if(gen!==medGen)return;medIdx=i;const h=HEADS[i];
     $("medNow").innerHTML='<small>HEAD '+(i+1)+' · VERSE '+h[0]+'</small>'+esc(h[1]);$("medBar").style.width="0";
-    await sayIt("Head "+(i+1)+". "+h[1],gen);
+    await sayIt("Head "+(i+1)+".",gen);if(gen!==medGen)return;await wait(1200,gen);if(gen!==medGen)return;$("medBar").style.width="0";await sayIt(h[1],gen);
     for(let k=1;k<S.med.twice;k++){if(gen!==medGen)return;await wait(2500,gen);await sayIt(h[1],gen);}
     if(gen!==medGen)return;await wait(S.med.pause*1000,gen);}
   if(gen!==medGen)return;await sayIt("Here the Heads end. Rest in what you have heard.",gen);medEnd(true);}
@@ -575,7 +588,7 @@ $("medGo").onclick=()=>{const t=$("medGo").textContent;if(/Pause/.test(t)){medPa
 $("medStop").onclick=medStop;
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&/Pause/.test($("medGo").textContent))medPause();}); /* screen locked or app switched: pause, resume later from the same head */
 window.addEventListener("pagehide",()=>{medGen++;if(TTS)try{speechSynthesis.cancel();}catch(e){}});
-if(TTS&&speechSynthesis.onvoiceschanged!==undefined)speechSynthesis.onvoiceschanged=()=>{};
+if(TTS){try{speechSynthesis.addEventListener("voiceschanged",fillVoices);}catch(e){speechSynthesis.onvoiceschanged=fillVoices;}} /* phones load voices late */
 
 /* first visit opens the study guide; after that, where you left off */
 tab(S.hist.length||S.tab!=="study"?S.tab:"study");
