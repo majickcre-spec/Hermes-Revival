@@ -1,7 +1,7 @@
 // REGRESSION: a whole-device backup carries every player, song and recording; restoring adds and never deletes.
 import { serve, browser, song, suite, assert } from "./lib.mjs";
 export async function run() {
-  const { srv, url } = await serve(); const b = await browser(); const S = suite("Device backup & restore");
+  const { srv, url } = await serve(); const b = await browser(); const S = suite("Device backup & restore", { always: true });
   async function device(seed, active) { const ctx = await b.newContext(); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(String(e.message || e)));
     await pg.addInitScript(([seed, active]) => { if (sessionStorage.getItem("__s")) return; sessionStorage.setItem("__s", "1"); localStorage.setItem("majick-active", JSON.stringify(active));
       for (const [k, v] of Object.entries(seed)) localStorage.setItem(k, typeof v === "string" ? v : JSON.stringify(v)); }, [seed, active]);
