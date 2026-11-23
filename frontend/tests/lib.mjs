@@ -14,11 +14,33 @@ export async function loadPlaywright() {
   throw new Error("Playwright not found. Install it: npm i -D playwright && npx playwright install chromium");
 }
 
+export const HEADS_FILE = fileURLToPath(new URL("../../backend/private/heads-halves.html", import.meta.url));
+export const FAKE_API = "http://api.test";
+// A pretend account server for one browser context: the app is pointed at it, `account` is signed in (null = signed out),
+// and /api/heads hands out the private Heads page only to the travis and star accounts — like the real server.
+export async function fakeApi(ctx, account) {
+  await ctx.route((u) => u.pathname.endsWith("/app.html"), async (r) => { const res = await r.fetch(); const t = (await res.text()).replace('window.__MJK_API__=""', "window.__MJK_API__=" + JSON.stringify(FAKE_API)); await r.fulfill({ response: res, body: t }); });
+  await ctx.route(FAKE_API + "/**", async (r) => {
+    const u = new URL(r.request().url()), auth = r.request().headers()["authorization"] || "", who = auth.startsWith("Bearer tok-") ? auth.slice(11) : null;
+    const json = (status, o) => r.fulfill({ status, contentType: "application/json", headers: { "Access-Control-Allow-Origin": "*" }, body: JSON.stringify(o) });
+    if (u.pathname === "/api/auth/login" || u.pathname === "/api/auth/register") { const b = JSON.parse(r.request().postData() || "{}"); return json(200, { token: "tok-" + String(b.username).toLowerCase(), username: b.username }); }
+    if (u.pathname.startsWith("/api/heads")) {
+      if (!who) return json(401, { error: "Not signed in." });
+      if (!["travis", "star"].includes(who)) return json(403, { error: "Private." });
+      return r.fulfill({ status: 200, contentType: "text/html", headers: { "Access-Control-Allow-Origin": "*" }, body: readFileSync(HEADS_FILE, "utf8") });
+    }
+    if (u.pathname === "/api/state") return json(200, r.request().method() === "GET" ? { data: {} } : { ok: true });
+    return json(200, {});
+  });
+  if (account) await ctx.addInitScript((a) => { if (!localStorage.getItem("majick-token")) { localStorage.setItem("majick-token", "tok-" + a); localStorage.setItem("majick-acct", a); } }, account);
+}
+
 export function serve() {
   return new Promise((resolve) => {
     const srv = http.createServer((req, res) => {
       let p = decodeURIComponent((req.url || "/").split("?")[0]);
       if (p === "/") p = "/app.html";
+      if (p === "/heads-halves.html") { res.writeHead(200, { "Content-Type": "text/html", "Cache-Control": "no-store" }); res.end(readFileSync(HEADS_FILE)); return; }   // test server only: the live site never serves this
       const f = join(PUBLIC, p);
       if (!f.startsWith(PUBLIC) || !existsSync(f) || statSync(f).isDirectory()) { res.writeHead(404); res.end(); return; }
       res.writeHead(200, { "Content-Type": TYPES[extname(f)] || "application/octet-stream", "Cache-Control": "no-store" });

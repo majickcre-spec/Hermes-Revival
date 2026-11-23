@@ -12,6 +12,4 @@ html = "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta nam
 writeFileSync(new URL("../public/app.html", import.meta.url), html);
 console.log("app.html written" + (api ? " (api " + api + ")" : ""));
 
-// Heads by Halves (Hermes): also served as its own page so the MMU app can open it for Star and Travis
-writeFileSync(new URL("../public/heads-halves.html", import.meta.url), readFileSync(new URL("../src/pages/heads-halves.game.html", import.meta.url), "utf8"));
-console.log("heads-halves.html written");
+// Heads of Things is PRIVATE: it is served only by the backend (/api/heads) to the Travis and Star accounts — never written into public/.

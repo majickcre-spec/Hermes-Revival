@@ -410,7 +410,7 @@ const HEADS=[
  "[What is] man? [An unchangeable evil].",
  "[What is man? An ^unchangeable] evil."]];
 const N=HEADS.length;
-const WHO=(function(){try{return (new URLSearchParams(location.search).get("who")||"").replace(/[^\w-]/g,"").slice(0,40);}catch(e){return "";}})();
+const WHO=(function(){try{return (window.__HH_WHO__||new URLSearchParams(location.search).get("who")||"").replace(/[^\w-]/g,"").slice(0,40);}catch(e){return "";}})();
 if(WHO)document.body.classList.add("emb"); /* opened inside the music app */
 const KEY="heads-v2"+(WHO?"-"+WHO:""); /* each player keeps their own progress; the old "heads-halves-v1" save is left untouched */
 const TIPS={1:"First idea shown — fill in the second.",2:"Less shown — fill in both ideas.",3:"Clue words only.",4:"The whole head from memory."};

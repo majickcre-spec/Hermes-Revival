@@ -17,6 +17,8 @@ export function syncEnabled(): boolean { return !!API; }
 export function getToken(): string | null { try { return localStorage.getItem(TOKEN_KEY); } catch { return null; } }
 export function getUser(): string | null { try { return localStorage.getItem(USER_KEY); } catch { return null; } }
 export function isLoggedIn(): boolean { return !!getToken(); }
+/* Heads of Things study games are private: links show only for the Travis and Star accounts (the server checks too). */
+export function canSeeHeads(): boolean { return isLoggedIn() && ['travis', 'star'].includes(String(getUser() || '').trim().toLowerCase()); }
 
 function setAuth(token: string, username: string) {
   try { localStorage.setItem(TOKEN_KEY, token); localStorage.setItem(USER_KEY, username); } catch {}

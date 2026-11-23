@@ -1,5 +1,5 @@
 // REGRESSION: the user's work must never be lost. Every scenario here is a way songs have been or could be wiped.
-import { serve, browser, profilePage, song, SWKEY, suite, assert } from "./lib.mjs";
+import { serve, browser, profilePage, song, SWKEY, suite, assert, fakeApi } from "./lib.mjs";
 
 export async function run() {
   const { srv, url } = await serve();
@@ -742,7 +742,7 @@ export async function run() {
   });
 
   await S.test("Heads of Things in the music app: only Star and Trav/Travis see it; it opens inside the app; each player keeps their own progress on a shared device; others can't open it", async () => {
-    const ctx = await fresh(); const pg = await profilePage(ctx, url, {}, "Trav");
+    const ctx = await fresh(); await fakeApi(ctx, "travis"); const pg = await profilePage(ctx, url, {}, "Trav");
     const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const o = {};
       const doors = () => [...document.querySelectorAll("#doors .door b")].map((e) => e.textContent);
       goHome(); await w(200); o.trav = doors().includes("Heads of Things");
@@ -972,7 +972,7 @@ export async function run() {
 
   await S.test("REAL TAPS: pick player → search Guitar / Bass Grooves / Heads → open → ← back home: the 🫀 and 🧠 buttons are there on every screen, both orientations", async () => {
     for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
-      const ctx = await b.newContext({ viewport: vp, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+      const ctx = await b.newContext({ viewport: vp, hasTouch: true }); await fakeApi(ctx, "travis"); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
       await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); });
       await pg.goto(url + "/app.html"); await pg.waitForTimeout(700);
       const fabs = () => pg.evaluate(() => ["sensFab", "brainFab"].every((id) => { const e = document.getElementById(id); return e && getComputedStyle(e).display !== "none" && e.getBoundingClientRect().width > 0; }));
@@ -1002,7 +1002,7 @@ export async function run() {
 
   await S.test("REAL TAPS: Heads — study guide → typed quiz (spelling slips OK, wrong word caught) → in-my-mind → progress report → meditation → ← back; reload keeps it all; old save untouched; both orientations", async () => {
     for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
-      const ctx = await b.newContext({ viewport: vp, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+      const ctx = await b.newContext({ viewport: vp, hasTouch: true }); await fakeApi(ctx, "travis"); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
       await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); localStorage.setItem("heads-halves-v1-t1", JSON.stringify({ i: 5, r: 2, done: [14, 15], mix: false })); });
       const open = async () => { await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(500);
         const s = pg.locator("#homeSearch"); await s.fill(""); await s.click(); await pg.keyboard.type("Heads"); await pg.waitForTimeout(400);
@@ -1268,7 +1268,7 @@ export async function run() {
   });
 
   await S.test("REAL TAPS: searching Heads finds it for Trav, and finds nothing for another player", async () => {
-    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); const pg = await ctx.newPage();
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); await fakeApi(ctx, "travis"); const pg = await ctx.newPage();
     await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }, { id: "b1", name: "Bob" }])); });
     await pg.goto(url + "/app.html"); await pg.waitForTimeout(700);
     const look = async (name) => { await pg.locator("#profiles").getByText(name, { exact: true }).first().click(); await pg.waitForTimeout(500);
@@ -1281,6 +1281,42 @@ export async function run() {
 
   await S.test("REAL TAPS: leaving Piano / Handpan / Djembe by the player chip stops their sound and brings the 🫀/🧠 buttons back", async () => {
     for (const inst of ["Piano", "Handpan", "Djembe Groove"]) {
+  await S.test("Heads of Things is private: hidden when signed out and for any other account (even a player named Trav); signing in as Star by real taps shows it; the server refuses others; works offline after one open; signing out removes it", async () => {
+    const search = async (pg, name) => { await pg.locator("#profiles").getByText(name, { exact: true }).first().click(); await pg.waitForTimeout(500);
+      const s = pg.locator("#homeSearch"); await s.fill(""); await s.click(); await pg.keyboard.type("Heads"); await pg.waitForTimeout(400);
+      return pg.locator("#searchResults :is(button,.card)").filter({ hasText: /Heads of Things/ }).filter({ visible: true }); };
+    const seed = () => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }, { id: "s1", name: "Star" }])); };
+    for (const acct of [null, "guest"]) {   // signed out, then a stranger's account
+      const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); await fakeApi(ctx, acct); const pg = await ctx.newPage(); await pg.addInitScript(seed);
+      await pg.goto(url + "/app.html"); await pg.waitForTimeout(700);
+      assert((await (await search(pg, "Trav")).count()) === 0, "Heads found by search when " + (acct || "signed out"));
+      const doors = await pg.evaluate(() => [...document.querySelectorAll("#doors .door b")].map((e) => e.textContent));
+      assert(!doors.includes("Heads of Things"), "Heads home button shown when " + (acct || "signed out"));
+      if (acct) { const st = await pg.evaluate(() => fetch(MMU_API + "/api/heads/halves", { headers: { Authorization: "Bearer " + acctTok() } }).then((r) => r.status)); assert(st === 403, "server gave Heads to " + acct + ": " + st); }
+      await ctx.close();
+    }
+    for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
+      const ctx = await b.newContext({ viewport: vp, hasTouch: true }); await fakeApi(ctx, null); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message)); await pg.addInitScript(seed);
+      await pg.goto(url + "/app.html"); await pg.waitForTimeout(700);
+      await pg.locator("#cloudBtn").click(); await pg.waitForTimeout(300);
+      await pg.locator("#caName").fill("Star"); await pg.locator("#caCode").fill("1234"); await pg.locator("#caGo").click(); await pg.waitForTimeout(1200);
+      assert(/Synced as/i.test(await pg.locator("#cloudBar").innerText()), "Star's sign-in didn't finish (" + vp.width + ")");
+      const hit = await search(pg, "Star"); assert((await hit.count()) === 1, "Star can't find Heads after signing in (" + vp.width + ")");
+      await hit.first().click(); await pg.waitForTimeout(1500);
+      const head = await pg.frameLocator("#hhFrame").locator("body").innerText(); assert(/Heads|Head 1/i.test(head), "Heads didn't open for Star (" + vp.width + "): " + head.slice(0, 80));
+      await pg.screenshot({ path: "/tmp/aud/heads-star-" + vp.width + ".png" });
+      await pg.locator("#eBack").click(); await pg.waitForTimeout(300);
+      await ctx.route(/api\.test\/api\/heads/, (r) => r.abort());   // internet drops
+      await pg.evaluate(() => renderHeadsHalves()); await pg.waitForTimeout(1200);
+      assert(/Head/i.test(await pg.frameLocator("#hhFrame").locator("body").innerText()), "Heads didn't open offline after one visit (" + vp.width + ")");
+      await pg.locator("#eBack").click(); await pg.waitForTimeout(300);
+      await pg.evaluate(() => { clearAcct(); }); await pg.reload(); await pg.waitForTimeout(700);
+      assert((await (await search(pg, "Star")).count()) === 0, "Heads still there after signing out (" + vp.width + ")");
+      assert(await pg.evaluate(() => !localStorage.getItem("hhpage-cache")), "private page left on the device after signing out");
+      assert(!errs.length, errs.join(" | ")); await ctx.close();
+    }
+  });
+
       const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
       await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); });
       await pg.goto(url + "/app.html"); await pg.waitForTimeout(700); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(500);
@@ -1296,7 +1332,7 @@ export async function run() {
   });
 
   await S.test("REAL TAPS: when nothing is making sound the app stops 'playing' within ~15 s (so dictation/other apps can use audio), and a note on the neck wakes it instantly", async () => {
-    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); const pg = await ctx.newPage();
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); await fakeApi(ctx, "travis"); const pg = await ctx.newPage();
     await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); });
     await pg.goto(url + "/app.html"); await pg.waitForTimeout(700); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(500);
     const st = () => pg.evaluate(() => ({ eng: AC ? AC.state : "none", loop: _silentEl ? (_silentEl.paused ? "paused" : "playing") : "none" }));

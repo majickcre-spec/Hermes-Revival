@@ -1367,11 +1367,23 @@ function renderHome(){
       letters.forEach(function(L){var b=document.createElement("button");b.textContent=L;b.onclick=function(){if(b.classList.contains("sel")){_clear();return;}if(si)si.value="";_clrSel();b.classList.add("sel");var hits=IDX.filter(function(e){return (e.title||"").charAt(0).toUpperCase()===L;});_show(hits,L+" — "+hits.length+" item"+(hits.length>1?"s":"")+" (tap "+L+" again to close)");};az.appendChild(b);});}
 }
 const DOORS=[["learn","📚","Theory","Scales, intervals, keys, chords and the circle of fifths"],["ear","🎧","Ear Training","Hear a note, interval, chord or scale and name it"],["voice","🎤","Vocal Training","Find your range, warm up, sing in tune, rap in time"],["rhythm","🥁","Rhythm","Timing, counting, tap-back and inner clock"],["play","🎸","Instruments","Guitar, piano, ukulele, bass, drums, handpan, djembe"],["create","🎙️","Create","Write, record, make beats and songs"],["lyric","✍️","Lyric Lab","Write lyrics, count syllables, rhyme, write over a beat"],["relax","🧘","Meditation","Breathwork, Heart Sync, journeys, sleep"],["progress","⭐","My Progress","Your path, quests, sessions and readings"]];
-/* Heads of Things (Hermes, Everard's Heads by Halves) — only for Star and Trav/Travis; each player keeps their own progress */
-function hhOurs(){try{var id=activeId(),p=getProfiles().find(function(x){return x.id===id;});return !!(p&&/^\s*(star|trav)/i.test(p.name||""));}catch(e){return false;}}
+/* Heads of Things (Hermes, Everard's Heads by Halves) — PRIVATE: only when signed in as the Travis or Star account AND playing as Star/Trav.
+   The page itself lives on the server and is handed only to those accounts (the server checks too); each player keeps their own progress. */
+var HH_ACCTS=["travis","star"],HH_CACHE="hhpage-cache";
+function hhOurs(){try{if(!acctTok()||HH_ACCTS.indexOf(String(acctName()||"").trim().toLowerCase())<0)return false;
+  var id=activeId(),p=getProfiles().find(function(x){return x.id===id;});return !!(p&&/^\s*(star|trav)/i.test(p.name||""));}catch(e){return false;}}
+function hhPage(){return fetch(MMU_API+"/api/heads/halves",{headers:{Authorization:"Bearer "+acctTok()},cache:"no-store"}).then(function(r){
+    if(r.status===401||r.status===403){try{localStorage.removeItem(HH_CACHE);}catch(e){}throw {why:"private"};}
+    if(!r.ok)throw {why:"net"};return r.text();}).then(function(h){try{localStorage.setItem(HH_CACHE,h);}catch(e){}return h;})
+  .catch(function(e){if(e&&e.why==="private")throw e;var c=null;try{c=localStorage.getItem(HH_CACHE);}catch(x){}if(c)return c;throw {why:"net"};});}
 function renderHeadsHalves(){if(!hhOurs()){goHome();return;}if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=null;
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">📖 Heads of Things</span></div><i class="gtrZone" hidden></i>'+
-    '<iframe id="hhFrame" title="Heads of Things" src="/heads-halves.html?who='+encodeURIComponent(activeId()||"")+'" style="display:block;width:100%;border:0;border-radius:16px;background:#0a1628;min-height:480px"></iframe>';
+    '<div class="cloudnote" id="hhMsg" style="padding:30px 10px">Opening…</div>'+
+    '<iframe id="hhFrame" title="Heads of Things" style="display:block;width:100%;border:0;border-radius:16px;background:#0a1628;min-height:480px" hidden></iframe>';
+  var who=String(activeId()||"").replace(/[^\w-]/g,"").slice(0,40);
+  hhPage().then(function(h){var f=document.getElementById("hhFrame"),m=document.getElementById("hhMsg");if(!f)return;
+      var inj="<script>window.__HH_WHO__="+JSON.stringify(who)+";</scr"+"ipt>";f.srcdoc=h.indexOf("<head>")>=0?h.replace("<head>","<head>"+inj):inj+h;f.hidden=false;if(m)m.remove();fit();})
+    .catch(function(e){var m=document.getElementById("hhMsg");if(m)m.textContent=(e&&e.why==="private")?"This is private. Sign in as Travis or Star to open it.":"Can't reach the server. Check your internet and try again.";});
   $("#eBack").onclick=goHome;
   var fit=function(){var f=document.getElementById("hhFrame");if(!f){window.removeEventListener("resize",fit);return;}
     /* landscape: the activity takes the whole screen (header scrolls away) so Reveal stays in reach; portrait: fill below the header */
@@ -16520,7 +16532,7 @@ function syncOn(){return !!MMU_API;}
 function acctTok(){try{return localStorage.getItem("majick-token")||localStorage.getItem("mjk-auth-token")||null;}catch(e){return null;}}
 function acctName(){try{return localStorage.getItem("majick-acct")||localStorage.getItem("mjk-auth-user")||null;}catch(e){return null;}}
 function setAcct(tok,name){try{localStorage.setItem("majick-token",tok);localStorage.setItem("majick-acct",name||"");}catch(e){}}
-function clearAcct(){try{localStorage.removeItem("majick-token");localStorage.removeItem("majick-acct");localStorage.removeItem("mjk-auth-token");localStorage.removeItem("mjk-auth-user");}catch(e){}}
+function clearAcct(){try{localStorage.removeItem("hhpage-cache");localStorage.removeItem("majick-token");localStorage.removeItem("majick-acct");localStorage.removeItem("mjk-auth-token");localStorage.removeItem("mjk-auth-user");}catch(e){}}
 function _syncable(k){return !!k&&(k.indexOf("music-")===0||k.indexOf("majick-")===0||k.indexOf("mjk-")===0)&&k!=="majick-token"&&k!=="majick-acct"&&k!=="majick-lastacct"&&k!=="mjk-auth-token"&&k!=="mjk-auth-user";}
 function _syncKeys(){var a=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(_syncable(k))a.push(k);}return a;}
 function _snapshot(){var o={};_syncKeys().forEach(function(k){try{o[k]=localStorage.getItem(k);}catch(e){}});return o;}

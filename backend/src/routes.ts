@@ -1,7 +1,9 @@
 import express from 'express';
+import { readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 import type { Express, Request, Response } from 'express';
 import { storage } from './storage.js';
-import { register, login, verifyToken, loadState, saveState, accountsMode, isAdmin } from './accounts.js';
+import { register, login, verifyToken, loadState, saveState, accountsMode, isAdmin, canHeads } from './accounts.js';
 import { putSession, putEeg, listSessions, getSession, getEeg, claudeKey, accountForKey, mdIndex, mdReport, csvTimeline, csvRR, putHeartlog, setResearch, deleteMine, adminSummary, adminCsv, adminFull } from './sessions.js';
 
 function requireAuth(req: Request, res: Response): string | null {
@@ -98,6 +100,19 @@ export function registerRoutes(app: Express) {
   app.get('/api/admin/export.json', async (req: Request, res: Response) => {
     const acc = await requireAdmin(req, res); if (!acc) return;
     try { res.set('Content-Disposition', 'attachment; filename="mmu-sessions-full.json"').json(await adminFull(acc)); } catch (e) { fail(res, e, 'Could not export.'); }
+  });
+  // Heads of Things: private pages, served only to the Travis and Star accounts (never in the public site files)
+  app.get('/api/heads/:which', async (req: Request, res: Response) => {
+    const acc = requireAuth(req, res); if (!acc) return;
+    if (!(await canHeads(acc))) { res.status(403).json({ error: 'Private.' }); return; }
+    const file = ({ halves: 'heads-halves.html', star: 'star-heads.html' } as Record<string, string>)[req.params.which];
+    if (!file) { res.status(404).json({ error: 'Not found.' }); return; }
+    const p = [join(process.cwd(), 'private', file), join(process.cwd(), 'backend', 'private', file)].find((f) => existsSync(f));
+    if (!p) { res.status(500).json({ error: 'Missing page.' }); return; }
+    res.set('Cache-Control', 'private, no-store').type('html').send(readFileSync(p, 'utf8'));
+  });
+  app.get('/api/heads', async (req: Request, res: Response) => {
+    const acc = requireAuth(req, res); if (!acc) return; res.json({ ok: await canHeads(acc) });
   });
   app.get('/api/admin/me', async (req: Request, res: Response) => {
     const acc = requireAuth(req, res); if (!acc) return; res.json({ admin: await isAdmin(acc) });

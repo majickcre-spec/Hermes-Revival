@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Link } from "wouter";
+import { canSeeHeads } from "@/lib/sync";
 import { BookOpen, Star, Lock, Orbit, Brain, Lightbulb, Sunrise, Sparkles } from "lucide-react";
 
 const books = [
@@ -128,6 +129,7 @@ export default function Modules() {
               </CardFooter>
             </Card>
 
+            {canSeeHeads() && (<>
             <Card className="bg-gradient-to-br from-primary/10 to-card border-primary/30 transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 shadow-[0_0_20px_rgba(212,175,55,0.08)]">
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">
@@ -174,6 +176,7 @@ export default function Modules() {
               </CardFooter>
             </Card>
 
+            </>)}
             <Card className="bg-card border-white/10 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40">
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">

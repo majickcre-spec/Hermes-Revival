@@ -89,7 +89,7 @@ export async function register(username: string, code: string) {
   if (uname.length < 2 || uname.length > 24) throw err(400, 'Name must be 2–24 characters.');
   if (!code || String(code).length < 4) throw err(400, 'Code must be at least 4 characters.');
   if (await findByUsername(uname)) throw err(409, 'That name is taken — try another, or log in.');
-  if (adminNames().includes(uname)) throw err(409, 'That name is taken — try another, or log in.'); /* admin names can't be claimed by a new sign-up */
+  if (adminNames().includes(uname) || headsNames().includes(uname)) throw err(409, 'That name is taken — try another, or log in.'); /* admin + private-page names can't be claimed by a new sign-up */
   const acc = { id: randomUUID(), username: uname, display, code_hash: hashCode(String(code)) };
   await insertAccount(acc);
   return { token: sign(acc.id), username: display };
@@ -111,6 +111,17 @@ export async function saveState(id: string, data: any) {
 
 /* research admin: accounts named in ADMIN_USERS (default "travis") */
 export function adminNames(): string[] { return String(process.env.ADMIN_USERS || 'travis').toLowerCase().split(',').map((s) => s.trim()).filter(Boolean); }
+/* Heads of Things (private study pages): only these accounts, default Travis + Star */
+export function headsNames(): string[] { return String(process.env.HEADS_USERS || 'travis,star').toLowerCase().split(',').map((s) => s.trim()).filter(Boolean); }
+export async function accountName(id: string): Promise<string | null> {
+  try {
+    let u: any = null;
+    if (sql) { const r = await sql`SELECT username FROM accounts WHERE id = ${id} LIMIT 1`; u = r[0]; }
+    else for (const acc of mem.accounts.values()) if (acc.id === id) u = acc;
+    return u ? String(u.username).toLowerCase() : null;
+  } catch { return null; }
+}
+export async function canHeads(id: string): Promise<boolean> { const n = await accountName(id); return !!n && headsNames().includes(n); }
 export async function isAdmin(id: string): Promise<boolean> {
   try {
     let u: any = null;
