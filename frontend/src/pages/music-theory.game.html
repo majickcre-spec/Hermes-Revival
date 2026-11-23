@@ -1739,7 +1739,7 @@ const SONGS={
 };
 /* audio */
 let AC=null,PIANO_WAVE=null,PIANO_MASTER=null,_audioUnlocked=false;
-function ac(){if(!AC){AC=new (window.AudioContext||window.webkitAudioContext)();acWatch();}if(_acIdle){_acIdle=false;try{audioPlaybackCategory();}catch(e){}}_acLastUse=Date.now();if(AC.state==="suspended"||AC.state==="interrupted"){try{AC.resume();}catch(e){}}return AC;}
+function ac(){if(!AC){AC=new (window.AudioContext||window.webkitAudioContext)();acWatch();try{if(_silentEl&&_silentEl._sr!==AC.sampleRate)setTimeout(audioPlaybackCategory,0);}catch(e){}}if(_acIdle){_acIdle=false;try{audioPlaybackCategory();}catch(e){}}_acLastUse=Date.now();if(AC.state==="suspended"||AC.state==="interrupted"){try{AC.resume();}catch(e){}}return AC;}
 /* PHONE HEAT: a running audio engine (plus the silent keep-alive loop) keeps the phone's audio hardware awake even when nothing plays.
    After 90 s of true silence (measured at the master output) with no mic in use, the engine goes to sleep on purpose.
    Any sound wakes it instantly via ac(). Interruptions by the phone (screen recording, calls) are still brought back. */
@@ -1753,7 +1753,7 @@ function silentRelease(){try{if(_silentEl){_silentEl.pause();_silentEl.removeAtt
    The app never pauses audio on purpose, so whenever the sound is cut we bring it back on our own — right away, as the interruption ends,
    and when the page comes back into view — and re-arm the playback session. A tap always works too. */
 var _acRetry=null;
-function acKick(){try{if(!AC||AC.state==="closed"||_acIdle)return;if(AC.state!=="running"){try{audioPlaybackCategory();}catch(e){}AC.resume().then(function(){try{if(AC.state==="running"&&typeof sndPausedNote==="function")sndPausedNote(false);}catch(e){}}).catch(function(){});}else{try{if(_silentEl&&_silentEl.paused)_silentEl.play().catch(function(){});}catch(e){}}}catch(e){}}
+function acKick(){try{if(!AC||AC.state==="closed"||_acIdle)return;if(AC.state!=="running"){try{audioPlaybackCategory();}catch(e){}AC.resume().then(function(){try{if(AC.state==="running"&&typeof sndPausedNote==="function")sndPausedNote(false);}catch(e){}}).catch(function(){});}else{try{if(typeof BGK!=="undefined"&&BGK.on){if(BGK.el&&BGK.el.paused)BGK.el.play().catch(function(){});}else if(_silentEl&&_silentEl.paused)_silentEl.play().catch(function(){});}catch(e){}}}catch(e){}}
 function acWatch(){try{AC.addEventListener("statechange",function(){if(AC.state!=="running"&&AC.state!=="closed"){acKick();clearInterval(_acRetry);var n=0;_acRetry=setInterval(function(){n++;if(!AC||AC.state==="running"||n>40){clearInterval(_acRetry);return;}acKick();},500);}});
   ["visibilitychange","pageshow","focus"].forEach(function(ev){(ev==="visibilitychange"?document:window).addEventListener(ev,function(){if(!document.hidden)setTimeout(acKick,60);});});
   setInterval(function(){if(!document.hidden){acKick();acIdleCheck();}},2000);}catch(e){}}
@@ -1761,13 +1761,17 @@ function acWatch(){try{AC.addEventListener("statechange",function(){if(AC.state!
 /* a visible note when the phone has paused the sound mid-session */
 function sndPausedNote(on){var w=document.getElementById("sndPaused");if(!on){if(w)w.remove();return;}if(w)return;w=document.createElement("div");w.id="sndPaused";w.textContent="🔇 Your phone paused the sound — tap anywhere to bring it back";w.style.cssText="position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top));transform:translateX(-50%);z-index:99999;background:#f4b740;color:#120c20;font:800 .9rem system-ui;padding:10px 16px;border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.5);max-width:90vw;text-align:center";w.onclick=function(){try{AC.resume();}catch(e){}w.remove();};document.body.appendChild(w);}
 var _silentEl=null;
-function _silentWavURL(){try{var sr=8000,n=Math.floor(sr*0.25),buf=new ArrayBuffer(44+n),v=new DataView(buf);function ws(o,s){for(var i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));}ws(0,"RIFF");v.setUint32(4,36+n,true);ws(8,"WAVE");ws(12,"fmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr,true);v.setUint16(32,1,true);v.setUint16(34,8,true);ws(36,"data");v.setUint32(40,n,true);for(var i=0;i<n;i++)v.setUint8(44+i,128);var u8=new Uint8Array(buf),bin="";for(var j=0;j<u8.length;j++)bin+=String.fromCharCode(u8[j]);return "data:audio/wav;base64,"+btoa(bin);}catch(e){return "";}}
+/* The silent keep-alive MUST run at the same sample rate as the sound engine. A 44.1 kHz file next to a 48 kHz engine makes iPhone
+   switch its hardware rate back and forth — the tone speeds up, slows down and crackles. So it's built here, at the engine's own rate. */
+function _silentWavURL(sr){try{sr=sr||48000;var n=Math.floor(sr*1),buf=new ArrayBuffer(44+n*2),v=new DataView(buf);function ws(o,s){for(var i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));}ws(0,"RIFF");v.setUint32(4,36+n*2,true);ws(8,"WAVE");ws(12,"fmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);ws(36,"data");v.setUint32(40,n*2,true);for(var i=0;i<n;i++)v.setInt16(44+i*2,(i%2)?1:-1,true);return URL.createObjectURL(new Blob([buf],{type:"audio/wav"}));}catch(e){return "";}}
 /* iOS: play sound even when the ringer/silent switch is OFF (use the playback audio session like a music app) */
 var MIC_LIVE=[],MIC_PEND=0;(function(){try{var md=navigator.mediaDevices;if(md&&md.getUserMedia&&!md.__mjk){var g=md.getUserMedia.bind(md);md.getUserMedia=function(c){var au=!!(c&&c.audio);if(au){MIC_PEND++;try{if(navigator.audioSession)navigator.audioSession.type="play-and-record";}catch(e){}}return g(c).then(function(st){if(au)MIC_PEND=Math.max(0,MIC_PEND-1);if(au){try{if(navigator.audioSession)navigator.audioSession.type="play-and-record";}catch(e){}MIC_LIVE.push(st);st.getTracks().forEach(function(t){t.addEventListener("ended",function(){setTimeout(audioPlaybackCategory,50);});});}return st;},function(err){if(au)MIC_PEND=Math.max(0,MIC_PEND-1);throw err;});};md.__mjk=1;}}catch(e){}})();
 (function(){try{var T=window.MediaStreamTrack&&MediaStreamTrack.prototype;if(T&&T.stop&&!T.__mjk){var o=T.stop;T.stop=function(){var r=o.apply(this,arguments);if(this.kind==="audio")setTimeout(audioPlaybackCategory,60);return r;};T.__mjk=1;}}catch(e){}})();
 function micLive(){if(MIC_PEND>0)return true;MIC_LIVE=MIC_LIVE.filter(function(st){return st.getAudioTracks().some(function(t){return t.readyState==="live";});});return MIC_LIVE.length>0;}
 function audioPlaybackCategory(){try{if(navigator.audioSession){if(!micLive()){if(navigator.audioSession.type!=="playback")navigator.audioSession.type="playback";}}}catch(e){}
-  try{if(!_silentEl){_silentEl=new Audio("/sounds/silence.mp3");_silentEl.loop=true;_silentEl.setAttribute("playsinline","");_silentEl.setAttribute("webkit-playsinline","");_silentEl.preload="auto";_silentEl.onerror=function(){try{var u=_silentWavURL();if(u){_silentEl.src=u;_silentEl.play().catch(function(){});}}catch(e){}};}if(_silentEl.paused)_silentEl.play().catch(function(){});}catch(e){}}
+  try{if(typeof BGK!=="undefined"&&BGK.el&&BGK.on){if(_silentEl&&!_silentEl.paused)_silentEl.pause();return;} /* the session's own player keeps iPhone awake — never two players at once */
+    var sr=AC?AC.sampleRate:48000;if(_silentEl&&_silentEl._sr!==sr){try{_silentEl.pause();}catch(e){}_silentEl=null;}
+    if(!_silentEl){_silentEl=new Audio(_silentWavURL(sr));_silentEl._sr=sr;_silentEl.loop=true;_silentEl.setAttribute("playsinline","");_silentEl.setAttribute("webkit-playsinline","");_silentEl.preload="auto";}if(_silentEl.paused)_silentEl.play().catch(function(){});}catch(e){}}
 var APPVOL=(function(){try{var v=parseFloat(localStorage.getItem("mjk-vol"));return isFinite(v)?Math.max(0,Math.min(1,v)):1;}catch(e){return 1;}})();
 (function(){try{var Pn=AudioNode.prototype,orig=Pn.connect,OAC=window.OfflineAudioContext||window.webkitOfflineAudioContext;
   Pn.connect=function(dest){try{if(dest&&typeof AudioDestinationNode!=="undefined"&&dest instanceof AudioDestinationNode&&!this.__mv){var c=dest.context;if(!(OAC&&c instanceof OAC)){if(!c.__mv){var g=c.createGain();g.__mv=true;g.gain.value=APPVOL*APPVOL;orig.call(g,dest);c.__mv=g;}var args=Array.prototype.slice.call(arguments);args[0]=c.__mv;return orig.apply(this,args);}}}catch(e){}return orig.apply(this,arguments);};}catch(e){}})();
@@ -11098,7 +11102,7 @@ function medDrift(on){MEDDRIFT.on=on;save("mjk-meddrift",on);try{const a=ac();(M
 /* ---- ocean waves (generated, uneven swells) + humming guide ---- */
 const MEDOCEAN={on:load("mjk-medocean",false),lvl:load("mjk-medoceanlvl",0.55),gulls:load("mjk-medgulls",true)};
 function medOceanStart(){if(!MED.master)return;medOceanStop(true);const a=ac(),out=a.createGain();out.gain.value=MEDOCEAN.lvl;out.connect(MED.master);
-  const H=natStart({waves:0.6,surf:0.85,gulls:MEDOCEAN.gulls?0.5:0},out);MED.ocean={out:out,nat:H};}
+  const H=natStart({waves:0.6,surf:0.85,gulls:MEDOCEAN.gulls?0.5:0},out,undefined,{flat:true});MED.ocean={out:out,nat:H};} /* flat: journeys pan with a plain stereo glide — iPhone's moving 3D panner crackles */
 function medGullsSched(){}
 function medGull(){try{natGull();}catch(e){}}
 function medOceanStop(fast){const o=MED.ocean;if(!o)return;MED.ocean=null;try{o.out.gain.setTargetAtTime(0.0001,ac().currentTime,fast?0.05:1.2);o.nat.stop(fast);}catch(e){}}
@@ -11412,16 +11416,25 @@ function brCueWire(root){root=root||document;root.querySelectorAll("[data-bcue]"
   root.querySelectorAll("[data-bcuev]").forEach(function(v){v.oninput=function(){BRCUE.vol=v.value/100;var t=v.parentElement.querySelector("[data-bcuevv]");if(t)t.textContent=v.value+"%";brCueSave();try{var a=ac();if(a._brCueOut)a._brCueOut.gain.setTargetAtTime(BRCUE.vol,a.currentTime,0.05);}catch(e){}};
     v.onchange=function(){try{var a=ac(),B=brCueBufs(a),s2=a.createBufferSource(),g=a.createGain();s2.buffer=BRCUE.chime||!BRCUE.click?B.In:B.click;g.gain.value=(BRCUE.chime||!BRCUE.click?0.12:0.07)*BRCUE.vol;s2.connect(g);g.connect(a.destination);s2.start();}catch(e){}};});}
 /* keep a session playing when the user switches apps.
-   Sound goes STRAIGHT to the speakers. It used to be piped through a hidden <audio> player (MediaStream), but on iPhone that player
-   runs on its own clock: iOS keeps stretching and squeezing the sound to stay in sync — the tone slows down, speeds up and clicks.
-   Background play comes from the "playback" audio session + the silent keep-alive loop (audioPlaybackCategory); the lock screen shows
-   the session, and the clock resumes on return. */
-var BGK={on:false};
-function bgKeep(on,title){var c=ac();try{if(c.__mv){c.__mv.disconnect();c.__mv.connect(c.destination);}}catch(e){} /* undo any old pipe */
-  if(on){BGK.on=true;try{audioPlaybackCategory();}catch(e){}
-    try{if(navigator.mediaSession){navigator.mediaSession.metadata=new MediaMetadata({title:title||"Breathwork",artist:"Majick Music University"});navigator.mediaSession.playbackState="playing";}}catch(e){}}
-  else if(BGK.on){BGK.on=false;try{if(navigator.mediaSession)navigator.mediaSession.playbackState="none";}catch(e){}}}
-document.addEventListener("visibilitychange",function(){if(!BGK.on)return;try{var c=ac();if(c.state!=="running")c.resume();if(_silentEl&&_silentEl.paused)_silentEl.play().catch(function(){});}catch(e){}});
+   IN the app: sound goes straight to the speakers (clean). A media-stream player runs alongside, silent.
+   LEAVING the app (screen lock, app switch): the sound crossfades into that player, which iPhone keeps playing in the background;
+   coming back crossfades it home. The player and the engine share one sample rate, and the silent keep-alive steps aside while it runs. */
+var BGK={on:false,el:null,dest:null,gd:null,gs:null,away:false};
+function bgRoute(away){var c=ac();if(!BGK.on||!BGK.gd)return;BGK.away=away;var t=c.currentTime;try{BGK.gd.gain.cancelScheduledValues(t);BGK.gs.gain.cancelScheduledValues(t);BGK.gd.gain.setTargetAtTime(away?0:1,t,0.04);BGK.gs.gain.setTargetAtTime(away?1:0,t,0.04);}catch(e){}
+  try{if(c.state!=="running")c.resume();if(BGK.el&&BGK.el.paused)BGK.el.play().catch(function(){});}catch(e){}}
+function bgKeep(on,title){var c=ac(),mv=c.__mv;
+  if(on){if(!BGK.on){try{if(!BGK.dest||BGK.dest.context!==c){BGK.dest=c.createMediaStreamDestination();BGK.el=new Audio();BGK.el.setAttribute("playsinline","");BGK.el.srcObject=BGK.dest.stream;}
+        if(mv){BGK.gd=c.createGain();BGK.gd.__mv=true;/* straight out — not back through the master volume */BGK.gs=c.createGain();BGK.gd.gain.value=1;BGK.gs.gain.value=0;BGK.gd.connect(c.destination);BGK.gs.connect(BGK.dest);mv.disconnect();mv.connect(BGK.gd);mv.connect(BGK.gs);}
+        BGK.on=true;BGK.away=false;BGK.el.onpause=function(){if(BGK.on)setTimeout(function(){try{if(BGK.on&&BGK.el.paused)BGK.el.play().catch(function(){});}catch(e){}},250);};
+        var pr=BGK.el.play();if(pr&&pr.catch)pr.catch(function(){});
+        try{if(_silentEl&&!_silentEl.paused)_silentEl.pause();}catch(e){}}catch(e){bgUnwire();BGK.on=false;}}
+    try{if(navigator.mediaSession){navigator.mediaSession.metadata=new MediaMetadata({title:title||"Breathwork",artist:"Majick Music University"});navigator.mediaSession.playbackState="playing";}}catch(e){}
+    if(document.hidden)bgRoute(true);}
+  else if(BGK.on){BGK.on=false;bgUnwire();try{BGK.el.onpause=null;BGK.el.pause();}catch(e){}try{if(navigator.mediaSession)navigator.mediaSession.playbackState="none";}catch(e){}try{audioPlaybackCategory();}catch(e){}}}
+function bgUnwire(){try{var c=ac(),mv=c.__mv;if(mv){mv.disconnect();mv.connect(c.destination);}}catch(e){}try{if(BGK.gd)BGK.gd.disconnect();if(BGK.gs)BGK.gs.disconnect();}catch(e){}BGK.gd=BGK.gs=null;BGK.away=false;}
+document.addEventListener("visibilitychange",function(){if(!BGK.on)return;bgRoute(document.hidden);});
+window.addEventListener("pagehide",function(){if(BGK.on)bgRoute(true);});
+window.addEventListener("pageshow",function(){if(BGK.on)bgRoute(!!document.hidden);});
 let HR={dev:null,ch:null,bpm:0,rr:[],updated:0,connected:false};
 /* ===== FINGERTIP PULSE: the phone camera reads blood-flow colour changes under a fingertip (photoplethysmography) and feeds beats in as a heart sensor ===== */
 var CAMP={on:false,stream:null,track:null,video:null,cv:null,cx:null,torch:false,raf:null,vfc:null,t:[],y:[],base:null,lp:null,env:0.001,last:0,rr:[],locked:false,good:0,finger:false,status:"",bpm:0,ui:false,min:false,onState:null,hist:[],t0:0,fing0:0};
@@ -13784,7 +13797,7 @@ function natLoad(id){if(NAT.bufs[id])return Promise.resolve(NAT.bufs[id]);if(NAT
   return NAT.loading[id]=src.then(ab=>ab?new Promise((res,rej)=>ac().decodeAudioData(ab,res,rej)):null).then(b=>{delete NAT.loading[id];if(b)NAT.bufs[id]=b;return b;}).catch(()=>{delete NAT.loading[id];return null;});}
 function natAllMixes(){return NAT_SCENES.concat(load("mjk-natmixes",[]).map(m=>Object.assign({mine:true},m)));}
 /* start a mix into `out`; returns a handle with set(id,vol) and stop() */
-function natStart(mix,out,key){const a=ac(),H={L:{},dead:false,out:out,key:key};
+function natStart(mix,out,key,opt){const a=ac(),H={L:{},dead:false,out:out,key:key,flat:!!(opt&&opt.flat)};
   const layer=id=>{if(H.L[id])return H.L[id];const inf=natInfo(id)||{g:1},g=a.createGain();g.gain.value=0;g.connect(out);const Ly={id:id,g:g,inf:inf,v:0,srcs:[],tm:null,next:0};H.L[id]=Ly;return Ly;};
   const loopRun=(Ly,b)=>{const X=Math.min(4,b.duration/4),go=()=>{if(H.dead||!H.L[Ly.id])return;const now=a.currentTime;if(!Ly.next||Ly.next<now)Ly.next=now+0.05;
       while(Ly.next<now+8){const s=a.createBufferSource(),e=a.createGain(),st=Ly.next,first=!Ly.srcs.length,off=first?Math.random()*b.duration*0.6:0,len=b.duration-off;s.buffer=b;s.connect(e);e.connect(Ly.g);
@@ -13792,7 +13805,7 @@ function natStart(mix,out,key){const a=ac(),H={L:{},dead:false,out:out,key:key};
       Ly.tm=setTimeout(go,3000);};go();};
   const occRun=(Ly,b,first)=>{const inf=Ly.inf,ev=inf.occ,wait=first?(3+Math.random()*8):(ev[0]+Math.random()*(ev[1]-ev[0]));
     Ly.tm=setTimeout(()=>{if(H.dead||!H.L[Ly.id])return;const t=a.currentTime+0.05,sl=inf.slice,len=sl?Math.min(b.duration,sl[0]+Math.random()*(sl[1]-sl[0])):b.duration,off=sl?Math.random()*Math.max(0,b.duration-len):0;
-      const s=a.createBufferSource(),e=a.createGain(),high=/owl|birds|gulls|woodpecker|bowl/.test(Ly.id),p=natPlace(a,{t:t,el:high?10+Math.random()*30:(Math.random()*12-4),d:/thunder|wolf|whale/.test(Ly.id)?6+Math.random()*6:2+Math.random()*4,move:(Math.random()-0.5)*(/gulls|birds/.test(Ly.id)?90:30),dur:len}),dist=0.6+Math.random()*0.4;s.buffer=b;s.connect(e);
+      const s=a.createBufferSource(),e=a.createGain(),high=/owl|birds|gulls|woodpecker|bowl/.test(Ly.id),p=natPlace(a,{flat:H.flat,t:t,el:high?10+Math.random()*30:(Math.random()*12-4),d:/thunder|wolf|whale/.test(Ly.id)?6+Math.random()*6:2+Math.random()*4,move:(Math.random()-0.5)*(/gulls|birds/.test(Ly.id)?90:30),dur:len}),dist=0.6+Math.random()*0.4;s.buffer=b;s.connect(e);
       e.connect(p);p.connect(Ly.g);const fd=Math.min(1.2,len/4);
       e.gain.setValueAtTime(0,t);e.gain.linearRampToValueAtTime(dist,t+fd);e.gain.setValueAtTime(dist,t+len-fd);e.gain.linearRampToValueAtTime(0,t+len);s.start(t,off);s.stop(t+len+0.05);Ly.srcs.push(s);if(Ly.srcs.length>4)Ly.srcs.shift();occRun(Ly,b);},wait*1000);};
   H.set=(id,v)=>{const Ly=layer(id);Ly.v=v;const tgt=v*v*(Ly.inf.g||1)*0.8;Ly.g.gain.setTargetAtTime(tgt,a.currentTime,0.4);if(Ly.syncWet)Ly.wet.gain.setTargetAtTime(tgt,a.currentTime,0.4);
@@ -13802,7 +13815,9 @@ function natStart(mix,out,key){const a=ac(),H={L:{},dead:false,out:out,key:key};
   Object.keys(mix||{}).forEach(id=>{if(mix[id]>0)H.set(id,mix[id]);});return H;}
 /* ===== Spatial (binaural HRTF) placement for soundscapes: each event gets its own spot around the listener, some drift while they ring ===== */
 var NATSP={on:load("mjk-natsp",true)};
-function natPlace(a,o){o=o||{};if(!NATSP.on||!a.createPanner){var sp=a.createStereoPanner?a.createStereoPanner():a.createGain();if(sp.pan)sp.pan.value=Math.max(-1,Math.min(1,Math.sin((o.az||0)*Math.PI/180)*0.9));return sp;}
+function natPlace(a,o){o=o||{};if(o.flat||!NATSP.on||!a.createPanner){var sp=a.createStereoPanner?a.createStereoPanner():a.createGain();if(sp.pan){var az0=o.az!=null?o.az:(o.flat?Math.random()*140-70:0),pv=function(A){return Math.max(-0.9,Math.min(0.9,Math.sin(A*Math.PI/180)*0.9));},t0=o.t||a.currentTime;
+      sp.pan.setValueAtTime(pv(az0),t0);if(o.move&&o.dur)sp.pan.linearRampToValueAtTime(pv(az0+o.move),t0+o.dur);} /* a smooth left-right glide: no 3D panner (it crackles on iPhone) */
+    return sp;}
   var p=a.createPanner();p.panningModel="HRTF";p.distanceModel="inverse";p.refDistance=1.6;p.rolloffFactor=0.55;p.maxDistance=40;
   var az=o.az!=null?o.az:(Math.random()*360-180),el=o.el!=null?o.el:(Math.random()*35-8),d=o.d||(1.8+Math.random()*3.5),t=o.t||a.currentTime;
   var pos=function(A,E){var r=A*Math.PI/180,e=E*Math.PI/180;return [Math.sin(r)*Math.cos(e)*d,Math.sin(e)*d,-Math.cos(r)*Math.cos(e)*d];};
@@ -13848,13 +13863,13 @@ function surfBreaker(a,t,P,dest,dir){const N=surfNoise(a),S=2.6+Math.random()*1.
   const src=(buf,st,en)=>{const s=a.createBufferSource();s.buffer=buf;s.loop=true;s.start(st,Math.random()*5);s.stop(en);parts.push(s);return s;};
   const pan=a.createStereoPanner?a.createStereoPanner():null,bus=a.createGain();bus.gain.value=1;if(pan){bus.connect(pan);pan.connect(dest);pan.pan.setValueAtTime(-0.55*dir,t);pan.pan.linearRampToValueAtTime(0.1*dir,tc);pan.pan.linearRampToValueAtTime(0.6*dir,end);}else bus.connect(dest);
   /* swell: the wave rising, a rumble that opens up */
-  {const s=src(N.b,t,tc+0.4),f=a.createBiquadFilter(),g=a.createGain();f.type="lowpass";f.Q.value=0.7;f.frequency.setValueAtTime(220,t);f.frequency.exponentialRampToValueAtTime(1400,tc);{const n=48,cv=new Float32Array(n);for(let i=0;i<n;i++){const x=i/(n-1);cv[i]=Math.max(0.0001,1.6*P*Math.pow(x,1.7));}g.gain.setValueAtTime(0.0001,t);g.gain.setValueCurveAtTime(cv,t+0.01,S-0.06);}g.gain.setTargetAtTime(0.0001,tc,0.25);s.connect(f);f.connect(g);g.connect(bus);}
+  {const s=src(N.b,t,tc+1.8),f=a.createBiquadFilter(),g=a.createGain();f.type="lowpass";f.Q.value=0.7;f.frequency.setValueAtTime(220,t);f.frequency.exponentialRampToValueAtTime(1400,tc);{const n=48,cv=new Float32Array(n);for(let i=0;i<n;i++){const x=i/(n-1);cv[i]=Math.max(0.0001,1.6*P*Math.pow(x,1.7));}g.gain.setValueAtTime(0.0001,t);g.gain.setValueCurveAtTime(cv,t+0.01,S-0.06);}g.gain.setTargetAtTime(0.0001,tc,0.25);s.connect(f);f.connect(g);g.connect(bus);}
   /* impact: the weight of the water landing */
-  {const s=src(N.b,tc-0.02,tc+1.4),f=a.createBiquadFilter(),g=a.createGain();f.type="lowpass";f.frequency.value=170;g.gain.setValueAtTime(0.0001,tc-0.02);g.gain.exponentialRampToValueAtTime(2.2*P,tc+0.05);g.gain.setTargetAtTime(0.0001,tc+0.08,0.45);s.connect(f);f.connect(g);g.connect(bus);}
+  {const s=src(N.b,tc-0.02,tc+3.2),f=a.createBiquadFilter(),g=a.createGain();f.type="lowpass";f.frequency.value=170;g.gain.setValueAtTime(0.0001,tc-0.02);g.gain.exponentialRampToValueAtTime(2.2*P,tc+0.05);g.gain.setTargetAtTime(0.0001,tc+0.08,0.45);s.connect(f);f.connect(g);g.connect(bus);}
   /* crash: bright white water, closing down as it spreads */
-  {const s=src(N.w,tc-0.02,tc+3),f=a.createBiquadFilter(),g=a.createGain();f.type="lowpass";f.Q.value=0.5;f.frequency.setValueAtTime(6000,tc);f.frequency.setTargetAtTime(1300,tc+0.1,0.6);g.gain.setValueAtTime(0.0001,tc-0.02);g.gain.exponentialRampToValueAtTime(0.4*P,tc+0.07);g.gain.setTargetAtTime(0.0001,tc+0.1,0.7);s.connect(f);f.connect(g);g.connect(bus);}
+  {const s=src(N.w,tc-0.02,tc+5),f=a.createBiquadFilter(),g=a.createGain();f.type="lowpass";f.Q.value=0.5;f.frequency.setValueAtTime(6000,tc);f.frequency.setTargetAtTime(1300,tc+0.1,0.6);g.gain.setValueAtTime(0.0001,tc-0.02);g.gain.exponentialRampToValueAtTime(0.4*P,tc+0.07);g.gain.setTargetAtTime(0.0001,tc+0.1,0.7);s.connect(f);f.connect(g);g.connect(bus);}
   /* roar: the body of the break */
-  {const s=src(N.b,tc,tc+4),f=a.createBiquadFilter(),g=a.createGain();f.type="bandpass";f.frequency.value=420;f.Q.value=0.4;g.gain.setValueAtTime(0.0001,tc);g.gain.exponentialRampToValueAtTime(2.4*P,tc+0.12);g.gain.setTargetAtTime(0.0001,tc+0.2,1.3);s.connect(f);f.connect(g);g.connect(bus);}
+  {const s=src(N.b,tc,tc+9),f=a.createBiquadFilter(),g=a.createGain();f.type="bandpass";f.frequency.value=420;f.Q.value=0.4;g.gain.setValueAtTime(0.0001,tc);g.gain.exponentialRampToValueAtTime(2.4*P,tc+0.12);g.gain.setTargetAtTime(0.0001,tc+0.2,1.3);s.connect(f);f.connect(g);g.connect(bus);}
   /* wash: foam fizzing back down the sand, bubbling unevenly */
   {const s=src(N.w,tc+0.2,end),hp=a.createBiquadFilter(),lp=a.createBiquadFilter(),g=a.createGain();hp.type="highpass";hp.frequency.value=1300;lp.type="lowpass";lp.frequency.setValueAtTime(7500,tc+0.2);lp.frequency.linearRampToValueAtTime(3000,end);
     const n=96,cv=new Float32Array(n);let fl=1;for(let i=0;i<n;i++){const x=i/(n-1),envl=Math.min(1,x*6)*Math.pow(1-x,1.6);fl=fl*0.7+(0.55+Math.random()*0.9)*0.3;cv[i]=Math.max(0.0001,0.22*P*envl*fl);}

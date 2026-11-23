@@ -1071,7 +1071,7 @@ export async function run() {
     }
   });
 
-  await S.test("REAL TAPS: meditation journeys play straight to the speakers (no hidden <audio> pipe that makes iPhone warp the tone) — 20 s of real output: steady pitch, no clicks; Golden Ladder too", async () => {
+  await S.test("REAL TAPS: meditation journeys — in the app sound goes straight to the speakers, keep-alive matches the engine sample rate (no 44.1 kHz file warping the tone), leaving the app crossfades to the background player and back; 20 s of real output: steady pitch, no clicks; Golden Ladder too", async () => {
     for (const jt of ["", "Golden Ladder"]) {
       const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
       await pg.addInitScript(() => {
@@ -1097,14 +1097,24 @@ export async function run() {
         d2s.sort((a, b) => a - b); const med = d2s[d2s.length >> 1] || 0; for (let i = st + 2; i < n; i++) { if (Math.abs(L[i] - 2 * L[i - 1] + L[i - 2]) > 8 * med + 0.02) clicks++; }
         /* zero-crossing pitch of the left (carrier) channel per second — it must not wander */
         const per = []; for (let s0 = st; s0 + sr <= n; s0 += sr) { let z = 0; for (let i = s0 + 1; i < s0 + sr; i++) if (L[i - 1] < 0 && L[i] >= 0) z++; per.push(z); }
-        const pipes = [...document.querySelectorAll("audio")].filter((a) => a.srcObject).length;
-        return { secs: n / sr, rms, clicks, per, msd: window.__msd, pipes, mvToDest: true }; });
+        return { secs: n / sr, rms, clicks, per, bgOn: BGK.on, direct: BGK.gd ? BGK.gd.gain.value : null, away: BGK.gs ? BGK.gs.gain.value : null, keepSr: _silentEl ? _silentEl._sr : null, keepPlaying: _silentEl ? !_silentEl.paused : false, ctxSr: c.sampleRate,
+          mp3: [...document.querySelectorAll("audio")].concat(_silentEl ? [_silentEl] : []).some((x) => /silence\.mp3/.test(x.src || "")) }; });
       const spread = Math.max(...r.per) - Math.min(...r.per);
-      assert(r.msd === 0 && r.pipes === 0, (jt || "journey") + ": sound was piped through a hidden player " + JSON.stringify(r));
+      assert(r.bgOn && r.direct > 0.99 && r.away < 0.01, (jt || "journey") + ": in the app the sound must go straight to the speakers " + JSON.stringify(r));
+      assert(!r.mp3 && !r.keepPlaying && (r.keepSr === null || r.keepSr === r.ctxSr), (jt || "journey") + ": keep-alive must match the engine's sample rate and step aside during a session " + JSON.stringify(r));
+      /* leave the app (screen lock / app switch) — the sound crossfades into the background player; come back — it returns */
+      await pg.evaluate(() => { Object.defineProperty(document, "hidden", { configurable: true, get: () => true }); document.dispatchEvent(new Event("visibilitychange")); }); await pg.waitForTimeout(400);
+      const aw = await pg.evaluate(() => ({ d: BGK.gd.gain.value, s: BGK.gs.gain.value, el: !!BGK.el && !!BGK.el.srcObject }));
+      assert(aw.d < 0.02 && aw.s > 0.98 && aw.el, (jt || "journey") + ": leaving the app should hand the sound to the background player " + JSON.stringify(aw));
+      await pg.evaluate(() => { Object.defineProperty(document, "hidden", { configurable: true, get: () => false }); document.dispatchEvent(new Event("visibilitychange")); }); await pg.waitForTimeout(400);
+      const bk = await pg.evaluate(() => ({ d: BGK.gd.gain.value, s: BGK.gs.gain.value }));
+      assert(bk.d > 0.98 && bk.s < 0.02, (jt || "journey") + ": coming back should bring the sound home " + JSON.stringify(bk));
       assert(r.secs > 15 && r.rms > 0.01, (jt || "journey") + ": no sound reached the speakers " + JSON.stringify(r));
       assert(r.clicks === 0, (jt || "journey") + ": clicks in the output " + r.clicks);
       assert(jt || spread <= 3, "journey: the tone wandered " + JSON.stringify(r.per));
       await pg.locator("#jPlay").click(); await pg.waitForTimeout(300);
+      const off = await pg.evaluate(() => ({ on: BGK.on, gd: BGK.gd }));
+      assert(!off.on && !off.gd, "stopping should take the background player down " + JSON.stringify(off));
       assert(!errs.length, "page errors " + errs.join(" | ")); await ctx.close();
     }
   });
@@ -1126,7 +1136,8 @@ export async function run() {
       const card = pg.locator("#view button").filter({ hasText: new RegExp("^" + name) }).first(); await card.waitFor(); await pg.waitForTimeout(400); await card.click(); await pg.waitForTimeout(1200);
       const ttl = await pg.evaluate(() => (document.querySelector("#view .ttitle") || {}).textContent || "");
       assert(new RegExp(name.split(" ").pop(), "i").test(ttl), vp.width + " " + name + ": tapping the card opened '" + ttl + "' instead");
-      const sheet = async (open) => { const on = await pg.evaluate(() => { const z = document.getElementById("czA"); return !!(z && z.classList.contains("on")); }); if (open !== on && (await pg.locator(open ? "#czABtn" : "#czAX").count())) { await pg.locator(open ? "#czABtn" : "#czAX").first().click(); await pg.waitForTimeout(500); } };
+      const isOn = () => pg.evaluate(() => { const z = document.getElementById("czA"); return !!(z && z.classList.contains("on")); });
+      const sheet = async (open) => { for (let k = 0; k < 6; k++) { await pg.waitForTimeout(250); const on = await isOn(); if (open === on) return; if (await pg.locator(open ? "#czABtn" : "#czAX").count()) await pg.locator(open ? "#czABtn" : "#czAX").first().click(); await pg.waitForTimeout(400); } };
       if (how === "journey") { await sheet(true); await pg.locator("#jBrs button").filter({ hasText: /8th count/ }).first().click(); await sheet(false);
         const ok = await pg.locator("#jPlay").waitFor({ timeout: 6000 }).then(() => true).catch(() => false);
         if (!ok) { await pg.screenshot({ path: "/tmp/jplay-missing-" + vp.width + ".png" }); const d = await pg.evaluate(() => ({ ttl: (document.querySelector("#view .ttitle") || {}).textContent, czOn: (document.getElementById("czA") || { classList: { contains: () => null } }).classList.contains("on"), btns: [...document.querySelectorAll("#view button")].filter((x) => x.offsetParent).map((x) => (x.id || "") + ":" + x.textContent.trim().slice(0, 18)).slice(0, 40), html: (document.getElementById("view").innerHTML.match(/jPlay|jRead|Begin|Pause/g) || []).join(",") })); throw new Error(vp.width + " journey: Play button gone after picking a breath " + JSON.stringify(d)); }
