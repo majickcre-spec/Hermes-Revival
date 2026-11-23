@@ -1071,6 +1071,44 @@ export async function run() {
     }
   });
 
+  await S.test("REAL TAPS: meditation journeys play straight to the speakers (no hidden <audio> pipe that makes iPhone warp the tone) — 20 s of real output: steady pitch, no clicks; Golden Ladder too", async () => {
+    for (const jt of ["", "Golden Ladder"]) {
+      const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+      await pg.addInitScript(() => {
+        if (!sessionStorage.getItem("s")) { sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); }
+        window.__msd = 0; const AC0 = window.AudioContext;
+        window.AudioContext = window.webkitAudioContext = function (o) { const c = new AC0(o); window.__ctx = c; const msd = c.createMediaStreamDestination.bind(c); c.createMediaStreamDestination = function () { window.__msd++; return msd(); };
+          const tap = c.createGain(); c.__tap = tap; c.__L = []; c.__on = false;
+          const code = "class R extends AudioWorkletProcessor{constructor(){super();this.b=new Float32Array(8192);this.n=0;}process(i){const x=i[0];const l=x&&x[0]?x[0]:new Float32Array(128);this.b.set(l,this.n);this.n+=128;if(this.n>=8192){this.port.postMessage(this.b);this.b=new Float32Array(8192);this.n=0;}return true;}}registerProcessor('rec',R);";
+          c.audioWorklet.addModule(URL.createObjectURL(new Blob([code], { type: "application/javascript" }))).then(() => { const n = new AudioWorkletNode(c, "rec", { channelCount: 2, channelCountMode: "explicit" }); const g = c.createGain(); g.gain.value = 0; tap.connect(n); n.connect(g); g.connect(c.destination); n.port.onmessage = (e) => { if (c.__on) c.__L.push(e.data); }; });
+          return c; };
+        window.AudioContext.prototype = AC0.prototype;
+        const conn = AudioNode.prototype.connect; AudioNode.prototype.connect = function (t, ...r) { const res = conn.call(this, t, ...r); try { if (t === this.context.destination && this.context.__tap && this !== this.context.__tap) conn.call(this, this.context.__tap); } catch (e) {} return res; };
+      });
+      await pg.goto(url + "/app.html"); await pg.waitForTimeout(800);
+      await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(500);
+      await pg.locator("#home button").filter({ hasText: /^Meditation$/ }).first().click(); await pg.waitForTimeout(600);
+      await pg.locator("#home").getByText("Brainwave binaural beats", { exact: false }).first().click(); await pg.waitForTimeout(1000);
+      await pg.locator("#view").getByText("Brainwave Journey", { exact: false }).filter({ visible: true }).first().click(); await pg.waitForTimeout(1200);
+      if (jt) { await pg.locator("#jTypes button").filter({ hasText: new RegExp(jt) }).first().click(); await pg.waitForTimeout(400); }
+      await pg.evaluate(() => { window.__ctx.__on = true; }); await pg.locator("#jPlay").click(); await pg.waitForTimeout(21000);
+      const r = await pg.evaluate(() => { const c = window.__ctx, sr = c.sampleRate, n = c.__L.reduce((a, x) => a + x.length, 0), L = new Float32Array(n); let o = 0; c.__L.forEach((x) => { L.set(x, o); o += x.length; });
+        const st = Math.floor(sr * 2); let rms = 0, clicks = 0, d2s = []; for (let i = st + 2; i < n; i++) { const d2 = Math.abs(L[i] - 2 * L[i - 1] + L[i - 2]); d2s.push(d2); rms += L[i] * L[i]; } rms = Math.sqrt(rms / Math.max(1, n - st));
+        d2s.sort((a, b) => a - b); const med = d2s[d2s.length >> 1] || 0; for (let i = st + 2; i < n; i++) { if (Math.abs(L[i] - 2 * L[i - 1] + L[i - 2]) > 8 * med + 0.02) clicks++; }
+        /* zero-crossing pitch of the left (carrier) channel per second — it must not wander */
+        const per = []; for (let s0 = st; s0 + sr <= n; s0 += sr) { let z = 0; for (let i = s0 + 1; i < s0 + sr; i++) if (L[i - 1] < 0 && L[i] >= 0) z++; per.push(z); }
+        const pipes = [...document.querySelectorAll("audio")].filter((a) => a.srcObject).length;
+        return { secs: n / sr, rms, clicks, per, msd: window.__msd, pipes, mvToDest: true }; });
+      const spread = Math.max(...r.per) - Math.min(...r.per);
+      assert(r.msd === 0 && r.pipes === 0, (jt || "journey") + ": sound was piped through a hidden player " + JSON.stringify(r));
+      assert(r.secs > 15 && r.rms > 0.01, (jt || "journey") + ": no sound reached the speakers " + JSON.stringify(r));
+      assert(r.clicks === 0, (jt || "journey") + ": clicks in the output " + r.clicks);
+      assert(jt || spread <= 3, "journey: the tone wandered " + JSON.stringify(r.per));
+      await pg.locator("#jPlay").click(); await pg.waitForTimeout(300);
+      assert(!errs.length, "page errors " + errs.join(" | ")); await ctx.close();
+    }
+  });
+
   await S.test("Heads data safety: a damaged save is kept aside (not erased); Clear needs two taps and keeps a copy", async () => {
     const ctx = await b.newContext({ viewport: { width: 390, height: 844 } }); const pg = await ctx.newPage();
     await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("heads-v2-z9", "{broken"); });
