@@ -19,9 +19,16 @@ step("state baseline written", () => {
   const state = { at: new Date().toISOString(), bytes: html.length, journeys: (html.match(/\{id:"[a-z0-9]+",ic:/g) || []).length, build: (html.match(/__MJK_BUILD__=("[^"]*")/) || [])[1] || null };
   writeFileSync(join(root, "tests/.state.json"), JSON.stringify(state, null, 2));
 });
-const smoke = await import("./smoke.mjs"); if (!(await smoke.run())) ok = false;
-const data = await import("./data-safety.mjs"); if (!(await data.run())) ok = false;
-const syncs = await import("./sync-safety.mjs"); if (!(await syncs.run())) ok = false;
-const baks = await import("./backup-safety.mjs"); if (!(await baks.run())) ok = false;
-console.log(ok ? "\nPRE-FLIGHT PASSED — safe to push" : "\nPRE-FLIGHT FAILED — do not push");
+const FULL = process.argv.includes("--full");
+// Checks, run as side-by-side shards (most of the time is waiting, not computing).
+const N = Number(process.env.SHARDS || 2), t0 = Date.now();
+const { spawn } = await import("node:child_process");
+const codes = await Promise.all(Array.from({ length: N }, (_, i) => new Promise((res) => {
+  const c = spawn(process.execPath, [join(root, "tests/shard.mjs")], { cwd: root, env: { ...process.env, SHARD: i + "/" + N, ...(FULL ? {} : { QUICK: "1" }) } });
+  let out = ""; c.stdout.on("data", (d) => (out += d)); c.stderr.on("data", (d) => (out += d));
+  c.on("close", (code) => { console.log("── shard " + (i + 1) + "/" + N + " ──\n" + out.split("\n").filter((l) => /✓|✗|passed|Error|^\s{6}/.test(l)).join("\n")); res(code); });
+})));
+if (codes.some((c) => c !== 0)) ok = false;
+const all = codes.length; console.log("\nchecks took " + Math.round((Date.now() - t0) / 1000) + "s across " + N + " shards");
+console.log(ok ? "\nPRE-FLIGHT PASSED — safe to push" + (FULL ? " (full check)" : "") : "\nPRE-FLIGHT FAILED — do not push");
 process.exit(ok ? 0 : 1);

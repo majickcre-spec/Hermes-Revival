@@ -14,7 +14,7 @@ const SCREENS = [
 export async function run() {
   const { srv, url } = await serve();
   const b = await browser();
-  const S = suite("Smoke");
+  const S = suite("Smoke", { always: true });
   for (const vp of [{ width: 390, height: 844, tag: "portrait" }, { width: 844, height: 390, tag: "landscape" }]) {
     const ctx = await b.newContext({ viewport: { width: vp.width, height: vp.height }, isMobile: true, hasTouch: true });
     const pg = await profilePage(ctx, url);

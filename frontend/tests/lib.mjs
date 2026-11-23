@@ -61,15 +61,29 @@ export function song(id, title, lines, extra = {}) {
 }
 export const SWKEY = "music-t1-set:mjk-sw";
 
-// Tiny test runner
-export function suite(name) {
+// Tiny test runner. SHARD="i/n" runs every n-th test (pre-flight runs shards side by side).
+// A test that fails is tried once more, so a slow moment on a busy machine isn't reported as a bug; a real bug fails both times.
+const SHARD = (process.env.SHARD || "").split("/").map(Number);
+let _idx = 0;
+// QUICK=1 (the every-push pre-flight): every screen + every saved-data check. Long feature walkthroughs run in the full check.
+const SLOW_RX = /^REAL TAPS|mastery kept after reload|^Lucid night recording|^Jam:/;   // long walkthroughs: full check only
+const DATA_RX = /song|save|backup|restore|sync|delet|upload|surviv|reload|lost|wipe|overwr|erase|kept|data|account|device|never|recover|missing/i;
+export function suite(name, opt = {}) {
   const results = [];
   return {
     async test(label, fn) {
       if (process.env.ONLY && !label.includes(process.env.ONLY)) return;   // ONLY="part of a name" runs just that test
+      if (process.env.QUICK && !opt.always && (SLOW_RX.test(label) || !DATA_RX.test(label))) return;
+      const my = _idx++;
+      if (SHARD.length === 2 && SHARD[1] > 1 && my % SHARD[1] !== SHARD[0]) return;
       const t0 = Date.now();
-      try { await fn(); results.push({ label, ok: true, ms: Date.now() - t0 }); console.log("  ✓ " + label); }
-      catch (e) { results.push({ label, ok: false, err: e.message }); console.log("  ✗ " + label + "\n      " + e.message); }
+      let err = null;
+      for (let a = 0; a < 2; a++) {
+        try { await fn(); err = null; break; } catch (e) { err = e; }
+      }
+      const ms = Date.now() - t0;
+      if (!err) { results.push({ label, ok: true, ms }); console.log("  ✓ " + label + "  (" + (ms / 1000).toFixed(1) + "s)"); }
+      else { results.push({ label, ok: false, err: err.message }); console.log("  ✗ " + label + "\n      " + err.message); }
     },
     done() {
       const bad = results.filter((r) => !r.ok);

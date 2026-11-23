@@ -4,7 +4,7 @@ import { serve, browser, song, suite, assert } from "./lib.mjs";
 export async function run() {
   const { srv, url } = await serve();
   const b = await browser();
-  const S = suite("Sync safety (two devices, one account)");
+  const S = suite("Sync safety (two devices, one account)", { always: true });
   const API = "https://api.mock";
   // a device = its own browser context (own storage) talking to one shared cloud blob
   async function device(cloud, seed, active) {
