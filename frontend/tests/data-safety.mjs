@@ -1123,9 +1123,14 @@ export async function run() {
       await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(500);
       await pg.locator("#home button").filter({ hasText: /^Meditation$/ }).first().click(); await pg.waitForTimeout(600);
       await pg.locator("#home").getByText("Brainwave binaural beats", { exact: false }).first().click(); await pg.waitForTimeout(1000);
-      await pg.locator("#view button").filter({ hasText: new RegExp("^" + name) }).first().click(); await pg.waitForTimeout(1200);
+      const card = pg.locator("#view button").filter({ hasText: new RegExp("^" + name) }).first(); await card.waitFor(); await pg.waitForTimeout(400); await card.click(); await pg.waitForTimeout(1200);
+      const ttl = await pg.evaluate(() => (document.querySelector("#view .ttitle") || {}).textContent || "");
+      assert(new RegExp(name.split(" ").pop(), "i").test(ttl), vp.width + " " + name + ": tapping the card opened '" + ttl + "' instead");
       const sheet = async (open) => { const on = await pg.evaluate(() => { const z = document.getElementById("czA"); return !!(z && z.classList.contains("on")); }); if (open !== on && (await pg.locator(open ? "#czABtn" : "#czAX").count())) { await pg.locator(open ? "#czABtn" : "#czAX").first().click(); await pg.waitForTimeout(500); } };
-      if (how === "journey") { await sheet(true); await pg.locator("#jBrs button").filter({ hasText: /8th count/ }).first().click(); await sheet(false); await pg.locator("#jPlay").click(); }
+      if (how === "journey") { await sheet(true); await pg.locator("#jBrs button").filter({ hasText: /8th count/ }).first().click(); await sheet(false);
+        const ok = await pg.locator("#jPlay").waitFor({ timeout: 6000 }).then(() => true).catch(() => false);
+        if (!ok) { await pg.screenshot({ path: "/tmp/jplay-missing-" + vp.width + ".png" }); const d = await pg.evaluate(() => ({ ttl: (document.querySelector("#view .ttitle") || {}).textContent, czOn: (document.getElementById("czA") || { classList: { contains: () => null } }).classList.contains("on"), btns: [...document.querySelectorAll("#view button")].filter((x) => x.offsetParent).map((x) => (x.id || "") + ":" + x.textContent.trim().slice(0, 18)).slice(0, 40), html: (document.getElementById("view").innerHTML.match(/jPlay|jRead|Begin|Pause/g) || []).join(",") })); throw new Error(vp.width + " journey: Play button gone after picking a breath " + JSON.stringify(d)); }
+        await pg.locator("#jPlay").click(); }
       else if (how === "preset") { await pg.locator("#view button.preset").filter({ hasText: /8th count/ }).first().click(); await pg.locator("#brStart").click(); }
       else if (how === "hs") { await pg.locator("#hsCzBtn").click(); await pg.waitForTimeout(500); await pg.locator("#hsB_eighths").click(); await pg.waitForTimeout(200); if (await pg.locator("#hsCzX").isVisible()) await pg.locator("#hsCzX").click(); await pg.waitForTimeout(300); await pg.locator("#hsGo").click(); }
       else { await pg.locator("#view button").filter({ hasText: /^▶ (Play|Begin)$/ }).filter({ visible: true }).first().click(); await pg.waitForTimeout(800); await pg.locator("[data-mbr=eighths]").filter({ visible: true }).first().click(); }
@@ -1144,6 +1149,51 @@ export async function run() {
       assert(shown.some((x) => /(^|· )[1-4]( &)?$|^&$/.test(x)), tag + "count not shown on the circle: " + shown.join(" | "));
       assert(!errs.length, tag + "page errors " + errs.join(" | ")); await ctx.close();
     }
+  });
+
+  await S.test("REAL TAPS: Heart Sync 'Count with my heart' — rhythms on the heartbeat (16ths, triplets, skip-the-3), accents right, ‹ › switches; experiment log compares coherence per rhythm with a heart sensor, kept per player after reload", async () => {
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+    await pg.addInitScript(() => { if (!sessionStorage.getItem("s")) { sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }, { id: "s2", name: "Star" }])); }
+      window.__clk = []; const st = AudioBufferSourceNode.prototype.start, cn = AudioNode.prototype.connect;
+      AudioNode.prototype.connect = function (t, ...r) { if (this instanceof AudioBufferSourceNode && t instanceof GainNode) this.__g = t; return cn.call(this, t, ...r); };
+      AudioBufferSourceNode.prototype.start = function (when, ...r) { try { const d = this.buffer && this.buffer.duration, rt = this.playbackRate.value; if (d && d > 0.045 && d < 0.055 && Math.abs(rt - 1) < 0.001) window.__clk.push({ t: when || this.context.currentTime, g: this.__g ? this.__g.gain.value : null }); } catch (e) {} return st.call(this, when, ...r); }; });
+    const open = async (who) => { await pg.locator("#profiles").getByText(who, { exact: true }).first().click(); await pg.waitForTimeout(500);
+      await pg.locator("#home button").filter({ hasText: /^Meditation$/ }).first().click(); await pg.waitForTimeout(600);
+      await pg.locator("#home").getByText("Brainwave binaural beats", { exact: false }).first().click(); await pg.waitForTimeout(1000);
+      await pg.locator("#view button").filter({ hasText: /^Heart Sync/ }).first().click(); await pg.waitForTimeout(1200); };
+    const clicks = async (ms) => { await pg.evaluate(() => (window.__clk = [])); await pg.waitForTimeout(ms); const c = await pg.evaluate(() => window.__clk.slice()); return c.sort((x, y) => x.t - y.t); };
+    await pg.goto(url + "/app.html"); await pg.waitForTimeout(800); await open("Trav");
+    /* a simulated chest strap: steady, coherent beat-to-beat rhythm (0.1 Hz) */
+    await pg.evaluate(() => { HR.connected = true; HR.bpm = 60; HR.rr = []; let t = 0; const push = () => { const v = 1000 + 90 * Math.sin(2 * Math.PI * 0.1 * t); t += v / 1000; HR.rr.push(Math.round(v)); if (HR.rr.length > 300) HR.rr.shift(); }; for (let i = 0; i < 90; i++) push(); HR.updated = performance.now(); window.__hrT = setInterval(() => { push(); HR.updated = performance.now(); }, 1000); });
+    await pg.locator("#hsGo").click(); await pg.waitForTimeout(62000); /* 1 min with no count = baseline */
+    await pg.locator("#hsCzBtn").click(); await pg.waitForTimeout(500); await pg.locator("#hsK_sixteenth").click(); await pg.waitForTimeout(200); if (await pg.locator("#hsCzX").isVisible()) await pg.locator("#hsCzX").click(); await pg.waitForTimeout(300);
+    let c = await clicks(5200), per = c.length > 4 ? (c[4].t - c[0].t) : 0;
+    assert(c.length >= 8 && c.slice(1, 9).every((x, i) => Math.abs((x.t - c[i].t) - per / 4) < 0.02), "16ths should split each heartbeat in four " + c.slice(0, 9).map((x) => x.t.toFixed(3)));
+    const one = c.findIndex((x) => Math.abs(x.g - 0.15) < 1e-6), L = c.slice(one, one + 8).map((x) => Math.round(x.g * 1000));
+    assert(one >= 0 && L.join(",") === "150,26,45,26,80,26,45,26", "16th accents wrong " + L);
+    await pg.waitForTimeout(60000);
+    assert(/this rhythm: \d+% coherence/.test(await pg.locator("#hsXpNow").innerText()), "live coherence for the rhythm not shown: " + await pg.locator("#hsXpNow").innerText());
+    await pg.locator("#hsKNext").click(); await pg.waitForTimeout(300);
+    c = await clicks(2600); assert(/Triplets/.test(await pg.locator("#hsKNext").locator("xpath=..").innerText()) && c.length >= 6 && c.slice(1, 6).every((x, i) => Math.abs((x.t - c[i].t) - per / 3) < 0.02), "› should switch to triplets (3 per beat)");
+    await pg.locator("#hsCzBtn").click(); await pg.waitForTimeout(500); await pg.locator("#hsK_skip3").click(); await pg.waitForTimeout(200); if (await pg.locator("#hsCzX").isVisible()) await pg.locator("#hsCzX").click(); await pg.waitForTimeout(300);
+    c = await clicks(per * 9000); const gaps = c.slice(1).map((x, i) => Math.round((x.t - c[i].t) / per));
+    assert(gaps.length >= 4 && gaps.every((g) => g === 1 || g === 2) && gaps.includes(2), "skip-the-3 should leave out beat 3 " + gaps);
+    await pg.locator("#hsGo").click(); await pg.waitForTimeout(800);
+    const log = await pg.evaluate(() => JSON.parse(localStorage.getItem("music-t1-hsxp-log") || "[]"));
+    const ids = (log[0] || {}).segs ? log[0].segs.map((g) => g.id) : [];
+    assert(log.length === 1 && ids[0] === "off" && ids[1] === "sixteenth" && log[0].segs.every((g) => g.n > 0 && g.co > 0), "experiment log wrong " + JSON.stringify(log).slice(0, 300));
+    await pg.locator("text=Rhythm experiments").first().click(); await pg.waitForTimeout(300);
+    const tbl = await pg.locator("details").filter({ hasText: "Rhythm experiments" }).innerText();
+    assert(/Sixteenths/.test(tbl) && /No count \(baseline\)/.test(tbl) && /\d+%/.test(tbl), "experiment table missing rows: " + tbl);
+    await pg.evaluate(() => clearInterval(window.__hrT)); await pg.locator("details").filter({ hasText: "Rhythm experiments" }).scrollIntoViewIfNeeded(); await pg.screenshot({ path: "/tmp/hsxp-table.png" });
+    await pg.reload(); await pg.waitForTimeout(800); await open("Trav");
+    assert(await pg.locator("text=Rhythm experiments").count() === 1, "log lost after reload");
+    await pg.locator("#view .back").first().click(); await pg.waitForTimeout(300); await pg.locator("#view .back").first().click().catch(() => {}); await pg.waitForTimeout(300);
+    await pg.reload(); await pg.waitForTimeout(800);
+    await pg.locator(".pchip,#plrChip,[data-who]").first().click().catch(() => {}); /* the player picker */
+    const st = await pg.evaluate(() => ({ trav: (JSON.parse(localStorage.getItem("music-t1-hsxp-log") || "[]")).length, star: localStorage.getItem("music-s2-hsxp-log") }));
+    assert(st.trav === 1 && st.star === null, "experiments must stay with the player who ran them " + JSON.stringify(st));
+    assert(!errs.length, "page errors " + errs.join(" | ")); await ctx.close();
   });
 
   await S.test("Heads data safety: a damaged save is kept aside (not erased); Clear needs two taps and keeps a copy", async () => {
