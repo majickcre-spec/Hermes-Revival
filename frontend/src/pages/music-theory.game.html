@@ -7047,7 +7047,7 @@ function pkMelSong(){return (typeof melAll==="function"?melAll():MEL_LIB).find(x
 function pkMelBpm(){const sg=pkMelSong();if(!sg)return PK.bpm;const m=load("mjk-pkmelbpm",{});return m[sg.id]||Math.max(40,Math.round(sg.bpm*0.7/5)*5);}
 /* one-tap speeds: Full / ¾ / ½ / ¼ of the piece's real tempo */
 function pkOrigBpm(){if(PK.mode==="melody"&&!PK.melNk){const sg=pkMelSong();return sg?sg.bpm:100;}if((PK.mode==="prog"||PK.melNk)&&PK.uprog){const P=PK.uprog.indexOf("nk")===0?pkNikoProg(PK.uprog):pkUserProgs().find(x=>x.id===PK.uprog);if(P&&P.bpm)return P.bpm;}return 100;}
-function pkDefaultBpm(){const o=pkOrigBpm();if(PK.mode==="scales"){const v=load("mjk-pkscbpm",{})[pkScaleKey()];if(v)return v;}if(PK.play==="watch")return o;if(PK.mode==="melody"&&!PK.melNk)return pkMelBpm();if(PK.uprog&&(PK.mode==="prog"||PK.melNk)){const sv=load("mjk-pkupbpm",{});return sv[PK.uprog]||Math.max(50,Math.round(o*0.75/5)*5);}return PK.bpm;}
+function pkDefaultBpm(){const o=pkOrigBpm();if(PK.mode==="scales"){const v=pkScBpmMap()[pkScaleKey()];if(v)return v;}if(PK.play==="watch")return o;if(PK.mode==="melody"&&!PK.melNk)return pkMelBpm();if(PK.uprog&&(PK.mode==="prog"||PK.melNk)){const sv=load("mjk-pkupbpm",{});return sv[PK.uprog]||Math.max(50,Math.round(o*0.75/5)*5);}return PK.bpm;}
 function pkSpdPaint(){const el=document.getElementById("pkSpd");if(!el)return;if(PK.mode==="scales"){el.innerHTML="";el.style.display="none";return;}el.style.display="";const o=pkOrigBpm();el.innerHTML=[[1,"Full"],[0.75,"¾"],[0.5,"½"],[0.25,"¼"]].map(([f,l])=>{const v=Math.max(10,Math.round(o*f));return '<button class="rchip sm'+(PK.bpm===v?" sel":"")+'" data-spd="'+v+'">'+l+' <span style="opacity:.65;font-size:.72rem">♩'+v+'</span></button>';}).join("");
   el.querySelectorAll("[data-spd]").forEach(b=>b.onclick=()=>{if(PK.setB)PK.setB(+b.dataset.spd);});}
 function pkSaveState(){save("mjk-pkchord",PK.chord);save("mjk-pkscale",PK.scale);save("mjk-pkmel",PK.melId);save("mjk-pkprog",PK.prog);save("mjk-pkpstyle",PK.progStyle);save("mjk-pkmode",PK.mode);save("mjk-pkplay",PK.play);}
@@ -7066,7 +7066,8 @@ var PK_SCALE_RUNS=3;
 /* ---- scale mastery: up and down 3 times without stopping; mastered at the goal tempo ---- */
 function pkScaleKey(){const S=PK.scale;return S.root+"|"+S.s+"|"+S.hand+"|"+(S.oct||1);}
 function pkScaleRec(k){return load(mk("pkscale",k||pkScaleKey()),{best:0,tries:0});}
-function pkScaleGoal(){return load("mjk-pkgoal",160);}
+function pkScaleGoal(){return load(mk("pk","goal"),load("mjk-pkgoal",160));}
+function pkScBpmMap(){return load(mk("pk","scbpm"),load("mjk-pkscbpm",{}));}
 /* clean = every note played, zero wrong notes, no stops (two misses in a row) */
 function pkScaleJudge(){const ev=PK.ev.filter(e=>!e.auto).sort((a,b)=>a.b-b.b);if(!ev.length)return null;const ok=e=>e.hit&&e.hit!=="miss";
   let hits=0,run=0,stop=false,stopAt=null,byRun={};ev.forEach(e=>{const r=byRun[e.run||0]||(byRun[e.run||0]={n:0,h:0});r.n++;if(ok(e)){hits++;r.h++;run=0;}else{run++;if(run>=2&&!stop){stop=true;stopAt=e.run||0;}}});
@@ -7080,7 +7081,7 @@ function pkScaleAfter(J){const R=pkScaleSave(J),g=pkScaleGoal(),nx=J.clean?Math.
   pkMsg(head+' <span style="color:var(--muted)">Runs: '+J.runs.map(x=>x.p+'%').join(' · ')+'</span><div class="actions" style="margin-top:6px"><button class="btn" id="pkNextT">▶ Try ♩'+nx+'</button></div>');
   try{pkDrawCtl();}catch(e){}const b=document.getElementById("pkNextT");if(b)b.onclick=()=>{PK.bpm=nx;pkBpmShow();pkScaleBpmSave();pkStart();};pkScaleStatusPaint();}
 function pkScaleStatusPaint(){const el=document.getElementById("pkScStat");if(el)el.innerHTML=pkScaleStatus();}
-function pkScaleBpmSave(){if(PK.mode==="scales"){const m=load("mjk-pkscbpm",{});m[pkScaleKey()]=PK.bpm;save("mjk-pkscbpm",m);}}
+function pkScaleBpmSave(){if(PK.mode==="scales"){const m=pkScBpmMap();m[pkScaleKey()]=PK.bpm;save(mk("pk","scbpm"),m);}}
 function pkBpmShow(){const bv=document.getElementById("pkBpmV");if(bv)bv.textContent=PK.bpm;const br=document.getElementById("pkBpm");if(br)br.value=PK.bpm;try{pkSpdPaint();}catch(e){}}
 function pkBuildScale(){const S=PK.scale,iv=PKS[S.s].iv,oc=S.oct||1,hands=S.hand==="B"?["R","L"]:[S.hand];const ev=[];let maxB=0;
   hands.forEach(h=>{const base=12*((h==="L")?4:5)+S.root-(S.root>7?12:0),up=[];for(let o=0;o<oc;o++)iv.forEach(x=>up.push(base+12*o+x));up.push(base+12*oc);
@@ -7406,10 +7407,10 @@ function pkDrawCtl(){const box=document.getElementById("pkCtl");if(!box)return;c
   box.querySelectorAll("[data-root]").forEach(b=>b.onclick=()=>{PK.chord.root=+b.dataset.root;re();});box.querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>{PK.chord.q=b.dataset.q;re();});
   box.querySelectorAll("[data-inv]").forEach(b=>b.onclick=()=>{PK.chord.inv=+b.dataset.inv;re();});const bb=document.getElementById("pkBass");if(bb)bb.onclick=()=>{PK.chord.bass=!PK.chord.bass;re();};
   box.querySelectorAll("[data-part]").forEach(b=>b.onclick=()=>{const P=Object.assign({f:1,a:1,b:1},PK.chord.parts||{}),k=b.dataset.part;P[k]=P[k]?0:1;if(!P.f&&!P.a&&!P.b)return;PK.chord.parts=P;re();});
-  const scB=()=>{const m=load("mjk-pkscbpm",{}),v=m[pkScaleKey()];if(v&&!PK.running){PK.bpm=v;pkBpmShow();}};/* each scale keeps its own tempo */
+  const scB=()=>{const m=pkScBpmMap(),v=m[pkScaleKey()];if(v&&!PK.running){PK.bpm=v;pkBpmShow();}};/* each scale keeps its own tempo */
   box.querySelectorAll("[data-sroot]").forEach(b=>b.onclick=()=>{PK.scale.root=+b.dataset.sroot;scB();re();});box.querySelectorAll("[data-scale]").forEach(b=>b.onclick=()=>{PK.scale.s=b.dataset.scale;scB();re();});
   box.querySelectorAll("[data-hand]").forEach(b=>b.onclick=()=>{PK.scale.hand=b.dataset.hand;scB();re();});box.querySelectorAll("[data-oct]").forEach(b=>b.onclick=()=>{PK.scale.oct=+b.dataset.oct;scB();re();});
-  box.querySelectorAll("[data-goal]").forEach(b=>b.onclick=()=>{save("mjk-pkgoal",+b.dataset.goal);re();});
+  box.querySelectorAll("[data-goal]").forEach(b=>b.onclick=()=>{save(mk("pk","goal"),+b.dataset.goal);re();});
   box.querySelectorAll("[data-melf]").forEach(b=>b.onclick=()=>{PK.melFolder=PK.melFolder===b.dataset.melf?null:b.dataset.melf;pkDrawCtl();});
   box.querySelectorAll("[data-mel]").forEach(b=>b.onclick=()=>{PK.melId=b.dataset.mel;PK.melNk=false;PK.bpm=PK.play==="watch"?(pkMelSong()||{bpm:PK.bpm}).bpm:pkMelBpm();re();const bv=document.getElementById("pkBpmV");if(bv)bv.textContent=PK.bpm;const br=document.getElementById("pkBpm");if(br)br.value=PK.bpm;});
   box.querySelectorAll("[data-mhand]").forEach(b=>b.onclick=()=>{PK.mHand=b.dataset.mhand;save("mjk-pkmhand",PK.mHand);re();});
@@ -7443,7 +7444,7 @@ function pkDrawCtl(){const box=document.getElementById("pkCtl");if(!box)return;c
   const inp=document.getElementById("pkIn");if(inp)inp.querySelectorAll("[data-in]").forEach(b=>b.classList.toggle("sel",b.dataset.in===PK.input));}
 /* free Play needs only the keyboard: lesson tools (Watch it, Test, tempo, speed, watch/I'll play) show in the lesson tabs */
 function pkModeUI(){var on=PK.mode!=="play";["pkLesson","pkLesson2"].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display=on?"contents":"none";});document.querySelectorAll(".pkLessonRow").forEach(function(e){e.style.display=on?"":"none";});}
-function renderPianoStudio(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);document.body.classList.add("pkWide");if(load("mjk-pkmidi",false)&&navigator.requestMIDIAccess)setTimeout(()=>{try{pkMidi();}catch(e){}},400);try{sfLoadInst("piano");}catch(e){}
+function renderPianoStudio(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);PK._wasLand=false;/* each opening fits the big keyboard to a sideways phone again */document.body.classList.add("pkWide");if(load("mjk-pkmidi",false)&&navigator.requestMIDIAccess)setTimeout(()=>{try{pkMidi();}catch(e){}},400);try{sfLoadInst("piano");}catch(e){}
   const keyH=e=>pkKey(e);document.addEventListener("keydown",keyH);document.addEventListener("keyup",keyH);const onRes=()=>{pkFitRange();};window.addEventListener("resize",onRes);
   teardown=()=>{pkStop();if(PK.raf)cancelAnimationFrame(PK.raf);PK.raf=null;document.body.classList.remove("pkWide");document.removeEventListener("keydown",keyH);document.removeEventListener("keyup",keyH);window.removeEventListener("resize",onRes);try{if(PK.input==="mic")stopMic();}catch(e){}try{if(document.fullscreenElement)document.exitFullscreen();}catch(e){}};
   PK.bpm=pkDefaultBpm();
@@ -7474,7 +7475,8 @@ function renderPianoStudio(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
   PK.cv=document.getElementById("pkCv");
   document.querySelectorAll("#pkLook [data-look]").forEach(b=>b.onclick=()=>{PK.look=+b.dataset.look;save("mjk-pklook",PK.look);document.querySelectorAll("#pkLook [data-look]").forEach(x=>x.classList.toggle("sel",x===b));});
   const size=()=>{const cv=PK.cv;if(!cv)return;const topH=document.getElementById("pkTop").getBoundingClientRect().height,land=window.innerWidth>window.innerHeight,phone=Math.min(window.innerWidth,window.innerHeight)<600;
-    const avail=window.innerHeight-(PK.hideCtl?40:Math.min(topH,land&&phone?120:topH))-18;const tb=(document.querySelector('#pkTop .play-top')||{getBoundingClientRect:()=>({height:44})}).getBoundingClientRect().height;const full=window.innerHeight-tb-14;cv.style.height=Math.max(land&&phone?220:300,land?full:Math.min(full,window.innerHeight*0.62))+"px";
+    const avail=window.innerHeight-(PK.hideCtl?40:Math.min(topH,land&&phone?120:topH))-18;const tb=(document.querySelector('#pkTop .play-top')||{getBoundingClientRect:()=>({height:44})}).getBoundingClientRect().height;const full=window.innerHeight-tb-14;const fsRoom=(!land&&document.body.classList.contains("fs-on"))?62:0; /* class timer bar sits on top in portrait: keep Start/Test below it when the keyboard scrolls into view */
+    cv.style.height=Math.max(land&&phone?220:300,land?full:Math.min(full,window.innerHeight*0.62-fsRoom))+"px";
     const r=document.getElementById("pkRot");if(r)r.style.display=(!land&&phone)?"block":"none";pkFitRange();if(phone&&land&&!PK._wasLand){PK._wasLand=true;setTimeout(()=>{try{pkAutoHide();}catch(_){}},60);}else if(!land)PK._wasLand=false;};
   const resize=()=>{setTimeout(size,30);};window.addEventListener("resize",resize);const td0=teardown;teardown=()=>{window.removeEventListener("resize",resize);pkFab(false);td0();};
   $("#eBack").onclick=goHome;
@@ -7616,22 +7618,31 @@ function earGame(cfg){
 }
 function renderChordEar(){earGame({key:"chord",title:"🎵 Chord Ear Trainer",intro:"Hear a chord and name its quality.",defs:CHORD_DEFS,levels:CHORD_LEVELS,play:playChordEar});}
 function renderScaleEar(){earGame({key:"scale",title:"🎶 Scale Ear Trainer",intro:"Hear a scale played upward and name it.",defs:SCALE_DEFS,levels:SCALE_LEVELS,play:playScaleEar});}
-function renderNoteEar(){
-  home.hidden=true;view.hidden=false;window.scrollTo(0,0);let low=48,oct=2,i=0,correct=0,target=null,answered=false;const rounds=10;
+/* Note ID levels, easiest first: a few notes in one octave → the whole C scale → two octaves → all twelve. Pass = 7 of 10. */
+const NID_LEVELS=[{n:"C · D · E",notes:[60,62,64],low:60,oct:1},{n:"C to G",notes:[60,62,64,65,67],low:60,oct:1},{n:"The C scale",notes:[60,62,64,65,67,69,71,72],low:60,oct:1},
+  {n:"White keys · 2 octaves",notes:[48,50,52,53,55,57,59,60,62,64,65,67,69,71,72],low:48,oct:2},{n:"All 12 notes",notes:[60,61,62,63,64,65,66,67,68,69,70,71,72],low:60,oct:1},
+  {n:"All notes · 2 octaves",notes:Array.from({length:25},function(_,k){return 48+k;}),low:48,oct:2}];
+function nidNext(){for(var k=1;k<=NID_LEVELS.length;k++)if(!load(mk("ear","nid"+k),false))return k;return NID_LEVELS.length;}
+function renderNoteEar(lvlIn){
+  var lvl=Math.max(1,Math.min(NID_LEVELS.length,+lvlIn||load(mk("ear","nidsel"),0)||nidNext()));save(mk("ear","nidsel"),lvl);var LV=NID_LEVELS[lvl-1];
+  home.hidden=true;view.hidden=false;window.scrollTo(0,0);let low=LV.low,oct=LV.oct,i=0,correct=0,target=null,answered=false;const rounds=10;
   teardown=()=>{};
-  function newQ(){answered=false;target=low+Math.floor(Math.random()*(oct*12+1));draw();MIN.cb=function(m){if(answered)return;var mm=m;if(m<low||m>low+oct*12){var pcs=((((m%12)-(low%12))%12)+12)%12,cand=[low+pcs,low+pcs+12,low+pcs+24].filter(function(x){return x<=low+oct*12;});mm=cand.indexOf(target)>=0?target:cand[0];}guess(mm,view.querySelector('[data-m="'+mm+'"]'));};setTimeout(()=>playTone(midiToFreq(target),0,1.4),200);}
+  function newQ(){answered=false;var prev=target;do{target=LV.notes[Math.floor(Math.random()*LV.notes.length)];}while(LV.notes.length>2&&target===prev);draw();MIN.cb=function(m){if(answered)return;var mm=m;if(m<low||m>low+oct*12){var pcs=((((m%12)-(low%12))%12)+12)%12,cand=[low+pcs,low+pcs+12,low+pcs+24].filter(function(x){return x<=low+oct*12;});mm=cand.indexOf(target)>=0?target:cand[0];}guess(mm,view.querySelector('[data-m="'+mm+'"]'));};setTimeout(()=>playTone(midiToFreq(target),0,1.4),200);}
   function guess(m,el){if(answered)return;answered=true;const ok=(m===target);if(ok){correct++;if(activeId()&&!isAdult()){addBeans(1);beanChip();}}
     const ce=view.querySelector('[data-m="'+target+'"]');if(ce)ce.classList.add("on");if(!ok&&el)el.style.opacity=".5";
     const fb=$("#neFb");if(fb){fb.className="feedback "+(ok?"good":"try");fb.innerHTML=ok?"✓ Yes — "+noteNameOct(target):"✗ That was "+noteNameOct(target)+" (you tapped "+noteNameOct(m)+")";}
     i++;setTimeout(()=>{if(i>=rounds)done();else newQ();},1150);}
   function draw(){
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎹 Note ID</span></div><div class="panel">'+
+      '<div class="rrow2" style="justify-content:center;margin-bottom:6px"><span class="rlab">Level</span><span class="rchips tight">'+NID_LEVELS.map(function(L,k){return '<button class="rchip sm'+(k+1===lvl?" sel":"")+'" data-nid="'+(k+1)+'" title="'+L.n+'">'+(k+1)+(load(mk("ear","nid"+(k+1)),false)?" \u2713":"")+'</button>';}).join("")+'</span></div>'+
+      '<div class="site-note" style="text-align:center;margin:0 0 6px">Level '+lvl+': '+LV.n+'</div>'+
       '<div class="q" style="text-align:center">Hear the note, then tap it <span style="color:var(--muted)">('+(i+1)+'/'+rounds+')</span></div>'+
       '<div class="actions" style="justify-content:center"><button class="btn ghost" id="neHear">🔊 Hear it again</button></div>'+
       '<div id="neBox"></div>'+minUI()+'<div class="feedback" id="neFb"></div></div>';
-    $("#eBack").onclick=goHome;$("#neHear").onclick=()=>playTone(midiToFreq(target),0,1.4);
+    $("#eBack").onclick=goHome;$("#neHear").onclick=()=>playTone(midiToFreq(target),0,1.4);view.querySelectorAll("[data-nid]").forEach(function(b){b.onclick=function(){renderNoteEar(+b.dataset.nid);};});
     var nw=document.createElement("div");nw.className="ivCard etPlay";var nwi=document.createElement("div");nwi.style.position="relative";nw.appendChild(nwi);$("#neBox").appendChild(nw);nwi.appendChild(buildKeyboard(low,oct,guess,true));}
-  function done(){MIN.cb=null;view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎹 Note ID</span></div><div class="panel" style="text-align:center"><div class="q">You got <b>'+correct+'/'+rounds+'</b>!</div><div class="actions" style="justify-content:center"><button class="btn" id="neAgain">Again</button><button class="btn ghost" id="neHome">Done</button></div></div>';$("#eBack").onclick=goHome;$("#neAgain").onclick=renderNoteEar;$("#neHome").onclick=goHome;if(correct>=7)burst($(".panel"),12);beanChip();}
+  function done(){MIN.cb=null;var pass=correct>=7,up=pass&&lvl<NID_LEVELS.length;if(pass)save(mk("ear","nid"+lvl),true);
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎹 Note ID</span></div><div class="panel" style="text-align:center"><div class="q">You got <b>'+correct+'/'+rounds+'</b>!</div><div class="feedback '+(pass?"good":"try")+'">'+(pass?"Level "+lvl+" passed"+(up?" \u2014 on to Level "+(lvl+1)+"!":" \u2014 every level done!"):"7 of 10 passes this level \u2014 run it again.")+'</div><div class="actions" style="justify-content:center">'+(up?'<button class="btn" id="neUp">Level '+(lvl+1)+' \u25b6</button>':'')+'<button class="btn'+(up?" ghost":"")+'" id="neAgain">Again</button><button class="btn ghost" id="neHome">Done</button></div></div>';$("#eBack").onclick=goHome;$("#neAgain").onclick=function(){renderNoteEar(lvl);};$("#neHome").onclick=goHome;if($("#neUp"))$("#neUp").onclick=function(){renderNoteEar(lvl+1);};if(correct>=7)burst($(".panel"),12);beanChip();}
   newQ();
 }
 /* ===== THE PATH — guided curriculum: MI 'learn by doing' + nervous-system regulation ===== */
@@ -8577,28 +8588,37 @@ function sessPanel(){var st=sessGet();if(!st){renderSessions();return;}var over=
 }
 /* ===== STAR'S FOCUS SESSION — 20 min guided flow: Breathe (6) → Theory (5) → Ukulele (9: tune, chords, melody, free strum).
    One Start button, a small bar on top with the step + timer + Next, pause/back anytime, resumes where she left off. ===== */
-var FS_STEPS=[{id:"breathe",g:"Breathe",n:"Breathe & focus",sec:360,ic:"🌬"},{id:"theory",g:"Theory",n:"Music theory",sec:300,ic:"🎵"},{id:"tune",g:"Ukulele",n:"Tune up",sec:300,ic:"🎯"},
-  {id:"chords",g:"Ukulele",n:"Chords & strum",sec:240,ic:"🎸"},{id:"melody",g:"Ukulele",n:"Play a melody",sec:180,ic:"🎶"},{id:"free",g:"Ukulele",n:"Free strum",sec:300,ic:"✨"}];
+/* Star's music class — weekdays ~9:00–9:30, 45 minutes. Each step opens the real screen; the bar on top keeps time.
+   C scale to 120 BPM (right hand → left → both) · ear training that graduates level by level · vocal scales in her range · a piano melody she picks (one hand, then the other) · her song in Lyric Lab. */
+var FS_STEPS=[{id:"breathe",g:"Breathe",n:"Breathe & focus",sec:180,ic:"🌬"},{id:"cscale",g:"Piano",n:"C scale",sec:600,ic:"🎹"},{id:"intervals",g:"Ear",n:"Intervals",sec:240,ic:"🎧"},
+  {id:"noteid",g:"Ear",n:"Note ID",sec:240,ic:"🎯"},{id:"voice",g:"Voice",n:"Vocal scales",sec:420,ic:"🎤"},{id:"pmel",g:"Piano",n:"Piano melody",sec:600,ic:"🎶"},{id:"song",g:"Song",n:"Lyric Lab · my song",sec:420,ic:"✍️"}];
+var FS_GOAL=120,FS_HANDS={R:"right hand",L:"left hand",B:"both hands"};
+function fsCHand(){for(var h of ["R","L","B"]){var r=load(mk("pkscale","0|major|"+h+"|1"),{best:0});if(!r.mastered&&!(r.best>=FS_GOAL))return h;}return "B";}
+function fsCRec(h){return load(mk("pkscale","0|major|"+(h||fsCHand())+"|1"),{best:0,tries:0});}
+function fsIvNext(){for(var k=1;k<=EAR_LEVELS.length;k++)if(!load(mk("ear","lvl"+k),false))return k;return EAR_LEVELS.length;}
+function fsPmel(){return load(mk("fs","pmel"),null);}
+function fsPmelSong(id){return melAll().find(function(x){return x.id===id;})||null;}
+function fsPmelBest(pm){try{var h=load(mk("pktest",pm.id+"|"+pm.hand+"|all"),[]);return h.length?Math.max.apply(null,h.map(function(x){return x.g;})):0;}catch(e){return 0;}}
 var FS_DAYS=[
- {t:"Rhythm",q:0,ch:["C","Am","F","G"],strum:"downs",mel:"jingle-easy",br:{n:"Box breathing",p:[4,4,4,4],tip:"Breathe in a box — in, hold, out, hold. 4 counts each."},
+ {t:"Monday",q:0,ch:["C","Am","F","G"],strum:"downs",mel:"jingle-easy",br:{n:"Box breathing",p:[4,4,4,4],tip:"Breathe in a box — in, hold, out, hold. 4 counts each."},
   snd:{nat:{waves:0.8,gulls:0.3},nm:"Ocean",m:[["lift","pad"],["sky","strings","pent","harp"],["lift","choir","fifths","bell"]]}},
- {t:"Ear training",q:1,ch:["Am","F","C","G"],strum:"half",mel:"twinkle-easy",br:{n:"Balloon breath",p:[4,0,6,0],tip:"Fill up like a balloon for 4… let it out slowly for 6."},
+ {t:"Tuesday",q:1,ch:["Am","F","C","G"],strum:"half",mel:"twinkle-easy",br:{n:"Balloon breath",p:[4,0,6,0],tip:"Fill up like a balloon for 4… let it out slowly for 6."},
   snd:{nat:{river:0.7,birds:0.4,pines:0.25},nm:"Mountain river",m:[["sky","pad"],["lift","strings","lull","flute"],["tide","choir","pent","bell"]]}},
- {t:"Intervals",q:2,ch:["A","Am","C","G"],strum:"downs",mel:"ode",br:{n:"Bee breath",p:[4,0,6,0],hum:true,tip:"Breathe in for 4… then hum out for 6, like a bee. Feel it buzz!"},
+ {t:"Wednesday",q:2,ch:["A","Am","C","G"],strum:"downs",mel:"ode",br:{n:"Bee breath",p:[4,0,6,0],hum:true,tip:"Breathe in for 4… then hum out for 6, like a bee. Feel it buzz!"},
   snd:{nat:{lightrain:0.55,rainleaves:0.4},nm:"Forest rain",m:[["tide","pad"],["sky","strings","hymn","harp"],["lift","choir","fifths","keys"]]}},
- {t:"Your ukulele's notes",q:3,ch:["C","F","G","Am"],strum:"half",mel:"mary-easy",br:{n:"Triangle breath",p:[3,3,3,0],tip:"Trace a triangle — in for 3, hold for 3, out for 3."},
+ {t:"Thursday",q:3,ch:["C","F","G","Am"],strum:"half",mel:"mary-easy",br:{n:"Triangle breath",p:[3,3,3,0],tip:"Trace a triangle — in for 3, hold for 3, out for 3."},
   snd:{nat:{crickets:0.5,frogs:0.25},nm:"Night meadow",m:[["lift","pad"],["lift","strings","lull","box"],["sky","choir","pent","bell"]]}},
- {t:"Review + meet G7",q:4,ch:["C","Am","F","G"],newCh:"G7",strum:"downs",mel:"twinkle-easy",br:{n:"Box breathing",p:[4,4,4,4],tip:"Breathe in a box — in, hold, out, hold. 4 counts each."},
+ {t:"Friday",q:4,ch:["C","Am","F","G"],newCh:"G7",strum:"downs",mel:"twinkle-easy",br:{n:"Box breathing",p:[4,4,4,4],tip:"Breathe in a box — in, hold, out, hold. 4 counts each."},
   snd:{nat:{wind:0.45,pines:0.4},nm:"Mountain wind",m:[["sky","pad"],["tide","strings","ancient","harp"],["lift","choir","fifths","bell"]]}}];
 var FS_SONG_N={"jingle-easy":"Jingle Bells","twinkle-easy":"Twinkle, Twinkle","ode":"Ode to Joy","mary-easy":"Mary Had a Little Lamb"};
 var FS_UKE={Am:{f:[2,0,0,0],fg:[2,0,0,0],m:[69,60,64,69]},A:{f:[2,1,0,0],fg:[2,1,0,0],m:[69,61,64,69]},C:{f:[0,0,0,3],fg:[0,0,0,3],m:[67,60,64,72]},F:{f:[2,0,1,0],fg:[2,0,1,0],m:[69,60,65,69]},G:{f:[0,2,3,2],fg:[0,1,3,2],m:[67,62,67,71]},G7:{f:[0,2,1,2],fg:[0,2,1,3],m:[67,62,65,71]}};
 var FS={tm:null,brRaf:null,brT0:0,thq:null,score:{ok:0,n:0},chords:null};
-function fsState(){return load(mk("fs","state"),null);}
+function fsState(){const st=load(mk("fs","state"),null);return st&&st.v===2?st:null;} /* a session saved by the old 20-minute ukulele flow is left in storage, not resumed */
 function fsSave(st){save(mk("fs","state"),st);}
 function fsLog(){return load(mk("fs","log"),[]);}
 function fsTempo(){return Object.assign({ch:60,mel:72},load(mk("fs","tempo"),{}));}
 function fsTempoSet(k,d,lo,hi){const T=fsTempo();T[k]=Math.max(lo,Math.min(hi,T[k]+d));save(mk("fs","tempo"),T);return T[k];}
-function fsDay(){const p=load(mk("fs","pick"),null);if(p!=null&&p>=0&&p<FS_DAYS.length)return p;return (load(mk("fs","count"),0)||0)%FS_DAYS.length;}
+function fsDay(){const p=load(mk("fs","pick"),null);if(p!=null&&p>=0&&p<FS_DAYS.length)return p;const w=new Date().getDay();if(w>=1&&w<=5)return w-1;return (load(mk("fs","count"),0)||0)%FS_DAYS.length;}
 function fsStep(st){return FS_STEPS[Math.min(FS_STEPS.length-1,st.i)];}
 function fsLeft(st){return Math.max(0,fsStep(st).sec-(st.el||0));}
 function fsFmt(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
@@ -8616,20 +8636,31 @@ function fsBar(){let b=document.getElementById("fsBar");if(fsPicker()){if(b)b.re
   b.className=up?"up":"";b.innerHTML='<button id="fsbOpen" title="Session">🌟 '+(st.i+1)+'/'+FS_STEPS.length+'<span class="fsn"> '+s.n+'</span></button><b>'+(up?"Time!":fsFmt(left))+'</b><button id="fsbPause" title="'+(st.paused?"Resume":"Pause")+'">'+(st.paused?"▶":"❚❚")+'</button><button id="fsbNext" class="nx">'+(st.i>=FS_STEPS.length-1?"Finish ✓":"Next ▶")+'</button>';
   b.querySelector("#fsbOpen").onclick=()=>renderFocusSession();b.querySelector("#fsbPause").onclick=()=>{const x=fsState();if(!x)return;x.paused=!x.paused;fsSave(x);fsBar();};
   b.querySelector("#fsbNext").onclick=()=>fsNext();}
-function fsGo(st){if(fsPicker())return;unlockAudio();fsEnsureTicker();fsBar();const s=fsStep(st);FS.chords=FS_DAYS[st.day].ch;
-  if(s.id==="breathe")return renderFsBreathe();if(s.id==="theory")return renderFsTheory();
-  if(s.id==="tune"){try{TN.inst="ukulele";}catch(e){}return renderTuner();}
-  if(s.id==="chords"&&!st.coached)return renderFsCoach();if(s.id==="melody"&&!st.coached)return renderFsMelCoach();
-  if(s.id==="chords"){ST.prog="fs";ST.pi=Math.max(0,SPATS.findIndex(p=>p.id===(FS_DAYS[st.day].strum||"downs")));ST.bpm=fsTempo().ch;ST.bpmFor=SPATS[ST.pi].id;ST.mode="watch";ST.loop=true;renderStrumTrainer("ukulele");setTimeout(()=>{try{const z=document.getElementById("stNeck");if(z)z.scrollIntoView({block:"center"});const g=document.getElementById("stGo");if(g&&!ST.running&&fsStep(fsState()||{i:0}).id==="chords")g.click();}catch(e){}},450);return;}
-  if(s.id==="melody"){save("mjk-melsong",FS_DAYS[st.day].mel||"jingle-easy");try{MEL.song=null;MEL.loop=true;}catch(e){}renderMelody("ukulele");setTimeout(()=>{try{const lb=document.getElementById("melLibBody");if(lb&&lb.offsetParent&&document.getElementById("melLib"))document.getElementById("melLib").click();}catch(e){}setTimeout(()=>{try{try{const bi=document.getElementById("melBpm"),tb=fsTempo().mel;if(bi&&+bi.value!==tb){bi.value=tb;bi.dispatchEvent(new Event("input",{bubbles:true}));bi.dispatchEvent(new Event("change",{bubbles:true}));}}catch(e){}const g=document.getElementById("melGo");if(g&&!MEL.running&&fsStep(fsState()||{i:0}).id==="melody")g.click();setTimeout(()=>{const w=document.getElementById("melStageWrap");if(w){const r=w.getBoundingClientRect(),land=window.innerWidth>window.innerHeight;window.scrollBy(0,r.top-(land?0:70));}},450);}catch(e){}},250);},400);return;}
-  return renderFsFree();}
-function fsStart(){ukeLoad();const st=fsState();if(st&&!st.done){fsGo(st);return;}const n={day:fsDay(),i:0,el:0,paused:false,startedAt:Date.now(),steps:[],score:null,calm:null};fsSave(n);FS.score={ok:0,n:0};fsGo(n);}
-function fsNext(){const st0=fsState();if(!st0)return;const sid=fsStep(st0).id;if(sid==="chords"&&!st0.showed){stStopSafe();return renderFsShowMe();}if(sid==="melody"&&!st0.rated){stStopSafe();return fsRate();}
+function fsGo(st){if(fsPicker())return;unlockAudio();fsEnsureTicker();fsBar();const s=fsStep(st);
+  if(s.id==="breathe")return renderFsBreathe();
+  if(s.id==="cscale"){if(fsIsStar(activeProfile())&&load(mk("pk","goal"),null)==null)save(mk("pk","goal"),FS_GOAL);
+    PK.mode="scales";PK.scale={root:0,s:"major",oct:1,hand:fsCHand()};save("mjk-pkmode","scales");save("mjk-pkscale",PK.scale);return renderPianoStudio();}
+  if(s.id==="intervals"){home.hidden=true;view.hidden=false;window.scrollTo(0,0);return renderRound(fsIvNext());}
+  if(s.id==="noteid")return renderNoteEar(nidNext());
+  if(s.id==="voice"){if(!voxRange())return renderVoxRange();try{WARM.back=null;WARM.userStart=false;}catch(e){}return renderWarmups();}
+  if(s.id==="pmel"){const pm=fsPmel();if(!pm||!fsPmelSong(pm.id))return renderFsMelPick();PK.mode="melody";PK.melId=pm.id;PK.mHand=pm.hand;save("mjk-pkmode","melody");save("mjk-pkmel",pm.id);save("mjk-pkmhand",pm.hand);return renderPianoStudio();}
+  return renderIdeaLab();}
+/* she picks the melody she wants to learn; it stays hers until she changes it */
+function renderFsMelPick(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);const cur=fsPmel(),groups={};
+  melAll().forEach(function(m){(groups[m.g]=groups[m.g]||[]).push(m);});
+  view.innerHTML=fsCss()+fsTop("🎶 Pick your melody")+'<div class="panel"><div class="fs-learn">Pick a piano melody you’d like to learn. You’ll start with your <b>right hand</b>, then your <b>left</b>, then <b>both together</b> — pass a test (85%) to move on.</div>'+
+    Object.keys(groups).map(function(g){return '<h4 style="margin:12px 0 6px">'+esc(g)+'</h4><div data-nocz style="display:flex;flex-wrap:wrap;gap:8px">'+groups[g].map(function(m){return '<button class="rchip'+(cur&&cur.id===m.id?" sel":"")+'" data-pm="'+esc(m.id)+'">'+esc(m.name)+(m.lh?'':' <small style="opacity:.7">· one hand</small>')+'</button>';}).join("")+'</div>';}).join("")+'</div>';
+  $("#eBack").onclick=renderFocusSession;
+  view.querySelectorAll("[data-pm]").forEach(function(b){b.onclick=function(){const was=fsPmel();save(mk("fs","pmel"),{id:b.dataset.pm,hand:was&&was.id===b.dataset.pm?was.hand:"R",at:Date.now()});const st=fsState();if(st&&fsStep(st).id==="pmel")fsGo(st);else renderFocusSession();};});}
+/* after the melody step: passed this hand's test → next hand (right → left → both; songs without a left-hand part go right → both) */
+function fsPmelAdvance(){const pm=fsPmel();if(!pm)return "";const best=fsPmelBest(pm);if(best<85)return "";const S=fsPmelSong(pm.id),seq=S&&S.lh?["R","L","B"]:["R","B"],k=seq.indexOf(pm.hand);if(k<0||k>=seq.length-1)return "";pm.hand=seq[k+1];save(mk("fs","pmel"),pm);return FS_HANDS[pm.hand];}
+function fsStart(){ukeLoad();const st=fsState();if(st&&!st.done){fsGo(st);return;}const n={v:2,day:fsDay(),i:0,el:0,paused:false,startedAt:Date.now(),steps:[],score:null,calm:null};fsSave(n);FS.score={ok:0,n:0};fsGo(n);}
+function fsNext(){const st0=fsState();if(!st0)return;const sid=fsStep(st0).id;if(sid==="pmel"){const nh=fsPmelAdvance();if(nh)st0.moved="Melody passed — next class: "+nh+".";}
   const st=st0;st.tot=(st.tot||0)+(st.el||0);if(st.steps.indexOf(fsStep(st).id)<0&&st.el>=Math.min(fsStep(st).sec*0.5,45))st.steps.push(fsStep(st).id);
   if(st.i>=FS_STEPS.length-1){fsFinish(st,true);return;}st.i++;st.el=0;st.timeUp=false;st.paused=false;st.coached=false;st.showed=false;st.rated=false;st.ck=0;st.ph=0;fsSave(st);fsChime();fsGo(st);}
 function fsBack(){const st=fsState();if(!st||st.i===0)return;st.i--;st.el=0;st.paused=false;st.coached=false;st.showed=false;st.rated=false;st.ck=0;st.ph=0;fsSave(st);fsGo(st);}
 function fsFinish(st,counted){const mins=Math.round(((st.tot||0)+(counted?0:(st.el||0)))/60);const full=st.steps.length>=FS_STEPS.length-1;
-  const lg=fsLog();lg.unshift({t:Date.now(),day:st.day,topic:FS_DAYS[st.day].t,steps:st.steps.slice(),minutes:mins,score:st.score,calm:st.calm,stars:st.stars||null,feel:st.feel||null,tempo:fsTempo(),complete:full});save(mk("fs","log"),lg.slice(0,200));
+  const ch=fsCHand(),cr=fsCRec(ch),pm=fsPmel();const lg=fsLog();lg.unshift({t:Date.now(),day:st.day,topic:"Music class",steps:st.steps.slice(),minutes:mins,calm:st.calm,complete:full,cls:{c:{hand:ch,best:cr.best||0},iv:fsIvNext(),nid:nidNext(),mel:pm?{id:pm.id,hand:pm.hand}:null}});save(mk("fs","log"),lg.slice(0,200));
   if(full){save(mk("fs","count"),(load(mk("fs","count"),0)||0)+1);if(!isAdult()&&activeId()){try{addBeans(20);beanChip();}catch(e){}}}
   save(mk("fs","state"),null);if(full)save(mk("fs","pick"),null);fsBar();stStopSafe();renderFsDone(full,mins,st);}
 function stStopSafe(){try{stStop();}catch(e){}try{melStop();}catch(e){}}
@@ -8641,28 +8672,36 @@ function fsWho(){const me=activeProfile();return me?me.name:"";}
 function fsStar(){const me=activeId();return getProfiles().find(p=>p.id!==me&&(/star/i.test(p.name||"")||p.mode==="kid"))||null;}
 function fsLogFor(pid){try{return JSON.parse(localStorage.getItem("music-"+pid+"-fs-log")||"[]")||[];}catch(e){return [];}}
 function fsHistHtml(lg){if(!lg.length)return '<div class="site-note">No sessions yet.</div>';const d=t=>new Date(t).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
-  return '<div class="fs-hist">'+lg.slice(0,10).map(r=>'<div>'+(r.complete?"✅":"◐")+' <b>'+d(r.t)+'</b> · '+r.minutes+' min · '+esc(r.topic)+(r.score?' · theory '+r.score.ok+'/'+r.score.n:'')+(r.stars?' · ⭐ '+r.stars:'')+(r.feel?' · melody felt '+r.feel:'')+(r.tempo?' · '+r.tempo.ch+'/'+r.tempo.mel+' bpm':'')+(r.calm!=null?' · calm '+r.calm:'')+' · '+r.steps.length+'/'+FS_STEPS.length+' steps</div>').join("")+'</div>';}
+  return '<div class="fs-hist">'+lg.slice(0,10).map(r=>'<div>'+(r.complete?"✅":"◐")+' <b>'+d(r.t)+'</b> · '+r.minutes+' min · '+esc(r.topic)+(r.score?' · theory '+r.score.ok+'/'+r.score.n:'')+(r.stars?' · ⭐ '+r.stars:'')+(r.feel?' · melody felt '+r.feel:'')+(r.tempo&&!r.cls?' · '+r.tempo.ch+'/'+r.tempo.mel+' bpm':'')+(r.cls?' · C scale ♩'+r.cls.c.best+' ('+r.cls.c.hand+') · intervals L'+r.cls.iv+' · note ID L'+r.cls.nid:'')+(r.calm!=null?' · calm '+r.calm:'')+' · '+r.steps.length+'/'+FS_STEPS.length+' steps</div>').join("")+'</div>';}
 /* front and center on the home screen: Star sees her session first; a parent sees a small card with her last session */
 function fsIsStar(p){if(!p)return false;if(/star/i.test(p.name||""))return true;try{if(p.id===activeId()&&/star/i.test(localStorage.getItem("majick-acct")||""))return true;}catch(e){}return p.mode==="kid";}
 function fsHeroPaint(){const el=document.getElementById("fsHero");if(!el)return;const me=activeProfile(),isStar=fsIsStar(me),star=fsStar(),st=fsState(),going=st&&!st.done;
   if(!isStar&&!star&&!going){el.innerHTML="";return;}
   const D=FS_DAYS[going?st.day:fsDay()];
-  if(isStar||going){el.innerHTML='<button class="fs-hero" id="fsHeroGo"><span class="fs-hi">🌟</span><span class="fs-ht"><b>'+(isStar?"My Focus Session":"Star’s Focus Session")+'</b><small>'+(going?"Keep going · step "+(st.i+1)+" of "+FS_STEPS.length+" · "+esc(fsStep(st).n):"Breathe · "+esc(D.t)+" · Ukulele — about 28 min")+'</small></span><span class="fs-hb">'+(going?"▶ Keep going":"▶ Start")+'</span></button>';
+  if(isStar||going){el.innerHTML='<button class="fs-hero" id="fsHeroGo"><span class="fs-hi">🌟</span><span class="fs-ht"><b>'+(isStar?"My Music Class":"Star’s Music Class")+'</b><small>'+(going?"Keep going · step "+(st.i+1)+" of "+FS_STEPS.length+" · "+esc(fsStep(st).n):"Music class · C scale · ear · voice · melody · song — 45 min")+'</small></span><span class="fs-hb">'+(going?"▶ Keep going":"▶ Start")+'</span></button>';
     $("#fsHeroGo").onclick=()=>{const x=fsState();if(x&&!x.done)fsGo(x);else fsStart();};}
   else{const lg=fsLogFor(star.id),last=lg[0],d=last?new Date(last.t).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}):null;
-    el.innerHTML='<button class="fs-hero sm" id="fsHeroGo"><span class="fs-hi">🌟</span><span class="fs-ht"><b>Star’s Focus Session</b><small>'+(last?"Last: "+d+" · "+last.minutes+" min · "+esc(last.topic)+(last.stars?" · ⭐ "+last.stars:""):"Not started yet")+'</small></span><span class="fs-hb">Open</span></button>';
+    el.innerHTML='<button class="fs-hero sm" id="fsHeroGo"><span class="fs-hi">🌟</span><span class="fs-ht"><b>Star’s Music Class</b><small>'+(last?"Last: "+d+" · "+last.minutes+" min · "+esc(last.topic)+(last.stars?" · ⭐ "+last.stars:""):"Not started yet")+'</small></span><span class="fs-hb">Open</span></button>';
     $("#fsHeroGo").onclick=renderFocusSession;}}
+function fsStepNote(id,D){if(id==="breathe")return esc(D.br.n)+" · "+esc(D.snd.nm);
+  if(id==="cscale"){const h=fsCHand(),r=fsCRec(h);return "C major · "+FS_HANDS[h]+" · best ♩"+(r.best||0)+" → goal ♩"+FS_GOAL;}
+  if(id==="intervals")return "Level "+fsIvNext()+" of "+EAR_LEVELS.length;
+  if(id==="noteid"){const k=nidNext();return "Level "+k+" · "+NID_LEVELS[k-1].n;}
+  if(id==="voice")return voxRange()?"5-note runs up & down, in your range":"Find your range first, then scale runs";
+  if(id==="pmel"){const pm=fsPmel(),S=pm&&fsPmelSong(pm.id);return S?esc(S.name)+" · "+FS_HANDS[pm.hand]+(fsPmelBest(pm)?" · best "+fsPmelBest(pm)+"%":""):"Pick a melody you want to learn";}
+  return "Your end-of-quarter song — a rough demo with the full arrangement";}
 function renderFocusSession(){if(toneRAF)cancelAnimationFrame(toneRAF);if(teardown){try{teardown();}catch(e){}}teardown=null;home.hidden=true;view.hidden=false;window.scrollTo(0,0);
-  const st=fsState(),day=st&&!st.done?st.day:fsDay(),D=FS_DAYS[day],star=fsStar(),cnt=load(mk("fs","count"),0)||0;
-  view.innerHTML=fsCss()+fsTop("🌟 Star's Focus Session")+'<div class="panel">'+
-    '<div class="fs-learn"><b>About 28 minutes: breathe, learn, play.</b> Tap Start and follow the bar at the top — tap <b>Next ▶</b> when a step’s done. Pause or come back anytime.</div>'+
-    (st&&!st.done?'':'<div class="rrow2" style="margin:4px 0 2px"><span class="rlab">Day</span><span class="rchips tight">'+FS_DAYS.map((d,i)=>'<button class="rchip sm'+(i===day?" sel":"")+'" data-fsd="'+i+'">'+(i+1)+' · '+esc(d.t)+'</button>').join("")+'</span></div>')+
-    '<div class="actions"><button class="btn" id="fsGo" style="font-size:1.1rem;padding:14px 26px">'+(st&&!st.done?"▶ Keep going · step "+(st.i+1):"▶ Start")+'</button>'+(st&&!st.done&&st.i>0?'<button class="btn ghost" id="fsPrev">◀ Back a step</button>':'')+'</div>'+
-    '<div class="fs-steps">'+FS_STEPS.map((s,i)=>'<div class="fs-st'+(st&&!st.done&&st.i===i?" on":"")+(st&&st.steps&&st.steps.indexOf(s.id)>=0?" ok":"")+'"><span>'+s.ic+'</span><span>'+s.n+(s.id==="theory"?' <small style="color:var(--muted)">· '+esc(D.t)+'</small>':s.id==="chords"?' <small style="color:var(--muted)">· '+D.ch.join(" – ")+(D.newCh?' + practice '+D.newCh:'')+'</small>':s.id==="breathe"?' <small style="color:var(--muted)">· '+esc(D.br.n)+' · '+esc(D.snd.nm)+'</small>':s.id==="melody"?' <small style="color:var(--muted)">· '+esc(FS_SONG_N[D.mel]||"")+'</small>':'')+'</span><b>'+Math.round(s.sec/60)+' min</b></div>').join("")+'</div>'+
-    (st&&!st.done?'<div class="actions"><button class="btn ghost" id="fsStop">✕ End session</button></div>':'')+
-    '<h4 style="margin:14px 0 4px">'+(fsWho()?esc(fsWho())+"’s":"My")+' sessions · '+cnt+' done</h4>'+fsHistHtml(fsLog())+
-    (star?'<h4 style="margin:14px 0 4px">⭐ '+esc(star.name)+'’s sessions</h4>'+fsHistHtml(fsLogFor(star.id)):'')+'</div>';
-  $("#eBack").onclick=goHome;$("#fsGo").onclick=fsStart;if($("#fsPrev"))$("#fsPrev").onclick=fsBack;
+  const st=fsState(),day=st&&!st.done?st.day:fsDay(),D=FS_DAYS[day],star=fsStar(),cnt=load(mk("fs","count"),0)||0,pm=fsPmel();
+  view.innerHTML=fsCss()+fsTop("🌟 Star's Music Class")+'<div class="panel">'+
+    '<div class="fs-learn"><b>45 minutes · weekdays around 9:00.</b> Tap Start and follow the bar on top — tap <b>Next ▶</b> when a step’s time is up. Pause or come back anytime.</div>'+
+    (st&&!st.done?'':'<div class="rrow2" style="margin:4px 0 2px"><span class="rlab">Day</span><span class="rchips tight">'+FS_DAYS.map((d,i)=>'<button class="rchip sm'+(i===day?" sel":"")+'" data-fsd="'+i+'">'+esc(d.t.slice(0,3))+'</button>').join("")+'</span></div>')+
+    '<div class="actions"><button class="btn" id="fsGo" style="font-size:1.1rem;padding:14px 26px">'+(st&&!st.done?"▶ Keep going · step "+(st.i+1):"▶ Start class")+'</button>'+(st&&!st.done&&st.i>0?'<button class="btn ghost" id="fsPrev">◀ Back a step</button>':'')+'</div>'+
+    '<div class="fs-steps">'+FS_STEPS.map((s,i)=>'<div class="fs-st'+(st&&!st.done&&st.i===i?" on":"")+(st&&st.steps&&st.steps.indexOf(s.id)>=0?" ok":"")+'"><span>'+s.ic+'</span><span>'+s.n+' <small style="color:var(--muted)">· '+fsStepNote(s.id,D)+'</small></span><b>'+Math.round(s.sec/60)+' min</b></div>').join("")+'</div>'+
+    (pm?'<div class="actions" style="margin-top:2px"><button class="btn ghost" id="fsPickMel">🎶 Change my melody</button></div>':'')+
+    (st&&!st.done?'<div class="actions"><button class="btn ghost" id="fsStop">✕ End class</button></div>':'')+
+    '<h4 style="margin:14px 0 4px">'+(fsWho()?esc(fsWho())+"’s":"My")+' classes · '+cnt+' done</h4>'+fsHistHtml(fsLog())+
+    (star?'<h4 style="margin:14px 0 4px">⭐ '+esc(star.name)+'’s classes</h4>'+fsHistHtml(fsLogFor(star.id)):'')+'</div>';
+  $("#eBack").onclick=goHome;$("#fsGo").onclick=fsStart;if($("#fsPrev"))$("#fsPrev").onclick=fsBack;if($("#fsPickMel"))$("#fsPickMel").onclick=renderFsMelPick;
   view.querySelectorAll("[data-fsd]").forEach(b=>b.onclick=()=>{save(mk("fs","pick"),+b.dataset.fsd);renderFocusSession();});
   if($("#fsStop"))$("#fsStop").onclick=()=>{const x=fsState();if(x)fsFinish(x);};}
 function renderFsDone(full,mins,st){if(teardown){try{teardown();}catch(e){}}home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=null;
@@ -8810,7 +8849,7 @@ function fsChordSvg(name){const c=FS_UKE[name],W=84,H=100,x=i=>14+i*18.6,y=f=>18
 function renderFsFree(){if(teardown){try{teardown();}catch(e){}}teardown=null;home.hidden=true;view.hidden=false;window.scrollTo(0,0);
   view.innerHTML=fsCss()+fsTop("✨ Free strum")+'<div class="panel"><div class="fs-learn">Play anything you like with your chords — make up a pattern, switch chords, have fun. Tap a chord to hear it.</div><div class="fs-ch">'+["Am","A","C","F","G"].map(n=>'<button data-c="'+n+'">'+fsChordSvg(n)+'<div>'+n+'</div></button>').join("")+'</div></div>';
   $("#eBack").onclick=goHome;view.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>{unlockAudio();fsStrum(b.dataset.c);});}
-(function(){try{const s=document.createElement("style");s.textContent="#fsBar{position:fixed;left:50%;top:calc(6px + env(safe-area-inset-top));transform:translateX(-50%);z-index:9000;display:flex;align-items:center;gap:6px;padding:4px 5px 4px 8px;border-radius:999px;background:rgba(20,14,36,.92);border:1px solid rgba(244,183,64,.5);box-shadow:0 4px 14px rgba(0,0,0,.45);font:800 .8rem system-ui;color:#fff;max-width:96vw;white-space:nowrap}#fsBar button{background:none;border:0;color:#fff;font:800 .85rem system-ui;padding:8px 8px;min-height:44px;min-width:44px}#fsBar b{color:#f4b740;min-width:2.6em;text-align:center}#fsBar .nx{background:#f4b740;color:#120c20;border-radius:999px;padding:6px 12px}#fsBar.up .nx{animation:fsPulse 1s ease-in-out infinite}@keyframes fsPulse{50%{transform:scale(1.08);box-shadow:0 0 0 6px rgba(244,183,64,.25)}}#fsbOpen{overflow:hidden;text-overflow:ellipsis;max-width:46vw}.fs-hero{display:flex;align-items:center;gap:14px;width:100%;margin:6px 0 14px;padding:18px 18px;border-radius:22px;border:2px solid rgba(244,183,64,.7);background:linear-gradient(135deg,rgba(244,183,64,.22),rgba(127,240,214,.10));color:#fff;text-align:left;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.35)}.fs-hero .fs-hi{font-size:2.4rem}.fs-hero .fs-ht{flex:1;display:flex;flex-direction:column;gap:4px}.fs-hero b{font:900 1.25rem system-ui}.fs-hero small{font:700 .85rem system-ui;color:var(--muted)}.fs-hero .fs-hb{background:#f4b740;color:#120c20;font:900 1rem system-ui;padding:12px 18px;border-radius:999px;white-space:nowrap}.fs-hero.sm{padding:12px 14px;border-width:1px}.fs-hero.sm .fs-hi{font-size:1.6rem}.fs-hero.sm b{font-size:1rem}.fs-hero.sm .fs-hb{padding:8px 14px;font-size:.85rem}@media (orientation:landscape) and (max-height:520px){#fsBar{top:auto;bottom:calc(6px + env(safe-area-inset-bottom));padding:2px 3px 2px 6px;opacity:.94}#fsBar .fsn{display:none}#fsBar button{min-height:44px;padding:4px 8px}body.fs-on .wrap>.top{display:none}}body.fs-on #view{padding-bottom:84px}body.fs-kid #stTest,body.fs-kid #melTest,body.fs-kid #melScores,body.fs-kid #czABtn,body.fs-kid #stSumm{display:none!important}";document.head.appendChild(s);}catch(e){}
+(function(){try{const s=document.createElement("style");s.textContent="#fsBar{position:fixed;left:50%;top:calc(6px + env(safe-area-inset-top));transform:translateX(-50%);z-index:9000;display:flex;align-items:center;gap:6px;padding:4px 5px 4px 8px;border-radius:999px;background:rgba(20,14,36,.92);border:1px solid rgba(244,183,64,.5);box-shadow:0 4px 14px rgba(0,0,0,.45);font:800 .8rem system-ui;color:#fff;max-width:96vw;white-space:nowrap}#fsBar button{background:none;border:0;color:#fff;font:800 .85rem system-ui;padding:8px 8px;min-height:44px;min-width:44px}#fsBar b{color:#f4b740;min-width:2.6em;text-align:center}#fsBar .nx{background:#f4b740;color:#120c20;border-radius:999px;padding:6px 12px}#fsBar.up .nx{animation:fsPulse 1s ease-in-out infinite}@keyframes fsPulse{50%{transform:scale(1.08);box-shadow:0 0 0 6px rgba(244,183,64,.25)}}#fsbOpen{overflow:hidden;text-overflow:ellipsis;max-width:46vw}.fs-hero{display:flex;align-items:center;gap:14px;width:100%;margin:6px 0 14px;padding:18px 18px;border-radius:22px;border:2px solid rgba(244,183,64,.7);background:linear-gradient(135deg,rgba(244,183,64,.22),rgba(127,240,214,.10));color:#fff;text-align:left;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.35)}.fs-hero .fs-hi{font-size:2.4rem}.fs-hero .fs-ht{flex:1;display:flex;flex-direction:column;gap:4px}.fs-hero b{font:900 1.25rem system-ui}.fs-hero small{font:700 .85rem system-ui;color:var(--muted)}.fs-hero .fs-hb{background:#f4b740;color:#120c20;font:900 1rem system-ui;padding:12px 18px;border-radius:999px;white-space:nowrap}.fs-hero.sm{padding:12px 14px;border-width:1px}.fs-hero.sm .fs-hi{font-size:1.6rem}.fs-hero.sm b{font-size:1rem}.fs-hero.sm .fs-hb{padding:8px 14px;font-size:.85rem}@media (orientation:landscape) and (max-height:520px){#fsBar{top:calc(4px + env(safe-area-inset-top));bottom:auto;padding:2px 3px 2px 6px;opacity:.94}#fsBar .fsn{display:none}#fsBar button{min-height:44px;padding:4px 8px}body.fs-on .wrap>.top{display:none}}body.fs-on #view{padding-bottom:84px}body.fs-kid #stTest,body.fs-kid #melTest,body.fs-kid #melScores,body.fs-kid #czABtn,body.fs-kid #stSumm{display:none!important}";document.head.appendChild(s);}catch(e){}
   setTimeout(()=>{try{const st=fsState();if(st&&!st.done){fsEnsureTicker();fsBar();}}catch(e){}},800);})();
 function renderSessionsDone(st){home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=function(){};
   var kid=!isAdult()&&activeId();
@@ -8847,7 +8886,7 @@ const MAKE_CARDS=[
  {ic:"🎼",title:"Learn a Song",blurb:"Bring in a song you're practicing — paste a chord sheet or build it — and get a play-along chord chart with loop, tempo, and transpose.",go:()=>renderLearnSong()},
  {ic:"✍️",title:"Songwriting",blurb:"Learn to write songs that work — structure, the parts, rhyme schemes and prosody — then write your lyrics in the Lyric Lab with a syllable counter, a rhyme finder, and a coach that tightens them. This is where your midterm & final lyrics come from.",go:()=>renderSongwriting()},
  {ic:"🎓",title:"AABA Class",blurb:"A ~45-minute class: write a song section in AABA form, perfect it, and understand why it works. Earn beans (kids) and a trophy.",go:()=>renderModule1()},
- {ic:"🌟",title:"Star's Focus Session",blurb:"20 minutes in one easy flow: breathe and focus, a little music theory, then ukulele.",go:()=>renderFocusSession()},
+ {ic:"🌟",title:"Star's Focus Session",blurb:"Star’s 45-minute music class: breathe, C scale, ear training, vocal scales, a piano melody, then her song in Lyric Lab.",go:()=>renderFocusSession()},
  {ic:"⏱",title:"Practice Sessions",blurb:"Short on time? Pick a 5, 15 or 45-minute practice session — the timer follows you while you work. Earn beans + a trophy.",go:()=>renderSessions()},
  {ic:"🎼",title:"Song Project (final)",blurb:"The big one — assemble your sections into a full song: intro, verses, choruses, bridge, outro. Finish it to earn Songwriter.",go:()=>renderSongBuilder()},
  {ic:"🎚️",title:"Mixing Station",blurb:"Real in-app mixing — load a track and process it with a channel strip (mono sub, saturator, sheen, pump, bus comp, limiter), A/B against the original, watch LUFS/peak/width meters, then bounce a processed WAV to finish in Ableton. Devices pre-set from your mix report.",go:()=>renderMixStation()},
@@ -16465,8 +16504,8 @@ function renderRound(level){
       <div class="panel" style="text-align:center"><div style="font-size:2.4rem">${pass?"🎧":"🔁"}</div>
       <div class="q" style="margin-top:8px">${correct} / ${TOTAL} correct</div>
       <div class="feedback good">${pass?"Your ear is getting sharp!":"Good effort — run it again to train it in."}</div>${note}
-      <div class="actions"><button class="btn" id="again">Again</button><button class="btn ghost" id="toLvls">Levels</button></div></div>`;
-    $("#eBack").onclick=goHome;$("#again").onclick=()=>renderRound(level);$("#toLvls").onclick=renderLevels;
+      <div class="actions">${pass&&level<EAR_LEVELS.length?'<button class="btn" id="lvUp">Level '+(level+1)+' ▶</button>':''}<button class="btn${pass&&level<EAR_LEVELS.length?" ghost":""}" id="again">Again</button><button class="btn ghost" id="toLvls">Levels</button></div></div>`;
+    $("#eBack").onclick=goHome;$("#again").onclick=()=>renderRound(level);$("#toLvls").onclick=renderLevels;if($("#lvUp"))$("#lvUp").onclick=()=>renderRound(level+1);
     if(pass)burst($(".q"),12);beanChip();
   }
   function step(){

@@ -452,54 +452,68 @@ export async function run() {
     assert(out[0].sw[0] === "d" && out[1].sw[0] === "d", "swipe direction wrong " + JSON.stringify(out.map((x) => x.sw))); assert(out[0].paused, "no note when the phone paused the sound");
   });
 
-  await S.test("Star's Focus Session: flows step by step, pause stops the clock, survives a reload, logs + beans on finish, and the parent sees Star's history", async () => {
-    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
-    const r1 = await pg.evaluate(async () => { const ps = getProfiles(); const star = { id: "ustar1", name: "Star", mode: "kid" }; ps.push(star); setProfiles(ps); const parent = activeId(); save("majick-active", "ustar1");
-      fsStart(); const a = fsState(); await new Promise((z) => setTimeout(z, 2300)); const el1 = fsState().el; const bar = !!document.getElementById("fsBar") && !!document.getElementById("fsOrb");
-      document.getElementById("fsbPause").click(); const p0 = fsState().el; await new Promise((z) => setTimeout(z, 2200)); const p1 = fsState().el; document.getElementById("fsbPause").click();
-      const x = fsState(); x.el = 300; fsSave(x); fsNext(); return { parent, start: a.i, el1, bar, paused: p1 === p0, step2: fsState().i, theory: !!document.getElementById("fsQ") }; });
-    assert(r1.start === 0 && r1.el1 >= 1 && r1.bar && r1.paused && r1.step2 === 1 && r1.theory, "session flow wrong " + JSON.stringify(r1));
-    await pg.reload(); await pg.waitForTimeout(1500);
-    const r2 = await pg.evaluate(async () => { const pk = fsPicker(); if (pk) { const c = [...document.querySelectorAll("#profiles *")].find((e) => e.children.length < 4 && /Star/.test(e.textContent) && e.closest("button,[data-id],.profile")); if (c) (c.closest("button,[data-id],.profile") || c).click(); await new Promise((z) => setTimeout(z, 1300)); } const st = fsState(); const bar = !!document.getElementById("fsBar") && !fsPicker(); fsGo(st); await new Promise((z) => setTimeout(z, 300));
-      const q = document.querySelector("#fsQ button"); q.click(); const sc = fsState().score;
-      for (let i = 0; i < 4; i++) { const s = fsState(); s.el = 200; s.showed = true; s.rated = true; fsSave(s); fsNext(); await new Promise((z) => setTimeout(z, 600)); } const s = fsState(); s.el = 60; fsSave(s); fsNext();
-      const lg = fsLog(); return { resumed: st && st.i === 1, bar, sc, log: lg[0], beans: getBeans(), count: load(mk("fs", "count"), 0), state: fsState(), bars: !!document.getElementById("fsBar") }; });
-    assert(r2.resumed && r2.bar, "didn't resume after reload " + JSON.stringify(r2)); assert(r2.sc && r2.sc.n === 1, "quiz answer not saved");
-    assert(r2.log && r2.log.complete && r2.log.steps.length === 6 && r2.count === 1 && r2.beans === 20 && r2.state === null && !r2.bars, "finish not logged right " + JSON.stringify(r2));
-    const r3 = await pg.evaluate((pid) => { save("majick-active", pid); renderFocusSession(); return { txt: document.querySelector("#view").innerText, day: fsDay() }; }, r1.parent);
-    assert(/Star’s sessions/.test(r3.txt) && /Rhythm/.test(r3.txt) && /6\/6 steps/.test(r3.txt), "parent can't see Star's sessions"); await ctx.close();
+  await S.test("REAL TAPS: Star's Music Class (45 min) — her home card starts it; each step opens the real screen: breathe → C scale (C major, right hand, her goal 120, Trav's goal untouched) → intervals L1 → note ID L1 → vocal (range first) → she picks a melody (right hand) → Lyric Lab → finish logs it; pause stops the clock; survives reload; parent sees her class; both orientations", async () => {
+    for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
+      const ctx = await b.newContext({ viewport: vp, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+      await pg.addInitScript(() => { if (!sessionStorage.getItem("s")) { sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }, { id: "ustar1", name: "Star", mode: "kid" }])); localStorage.setItem("music-t1-pk-goal", "160"); } });
+      const who = async (n) => { await pg.locator("#profiles").getByText(n, { exact: true }).first().click(); await pg.waitForTimeout(700); };
+      const bar = () => pg.locator("#fsBar").innerText(); const next = async () => { await pg.locator("#fsbNext").click(); await pg.waitForTimeout(900); };
+      const tag = vp.width + ": ";
+      await pg.goto(url + "/app.html"); await pg.waitForTimeout(800); await who("Star");
+      const hero = await pg.locator("#fsHeroGo").innerText();
+      assert(/My Music Class/.test(hero) && /45 min/.test(hero), tag + "Star's home card wrong: " + hero);
+      await pg.locator("#fsHeroGo").click(); await pg.waitForTimeout(1200);
+      assert(/1\/7/.test(await bar()) && /breath/i.test(await pg.locator("#view").innerText()), tag + "class should open on breathing: " + await bar());
+      /* pause stops the clock */
+      await pg.waitForTimeout(2300); const e1 = await pg.evaluate(() => fsState().el); await pg.locator("#fsbPause").click(); await pg.waitForTimeout(2200);
+      const e2 = await pg.evaluate(() => fsState().el); await pg.locator("#fsbPause").click();
+      assert(e1 >= 1 && e2 === e1, tag + "pause didn't stop the clock " + e1 + "/" + e2);
+      await next();
+      const sc = await pg.evaluate(() => ({ mode: PK.mode, root: PK.scale.root, s: PK.scale.s, hand: PK.scale.hand, goal: pkScaleGoal() }));
+      assert(sc.mode === "scales" && sc.root === 0 && sc.s === "major" && sc.hand === "R" && sc.goal === 120 && /2\/7/.test(await bar()), tag + "C scale step wrong " + JSON.stringify(sc));
+      await next(); { const tt = await pg.locator("#view .ttitle").innerText(), bb = await bar(); assert(/Level 1/i.test(tt) && /3\/7/.test(bb), tag + "intervals should start at Level 1: " + tt + " / " + bb); }
+      await next(); const nid = await pg.locator("#view").innerText(); assert(/Level 1: C · D · E/.test(nid), tag + "note ID should start at Level 1");
+      await next(); assert(/range/i.test(await pg.locator("#view .ttitle").innerText()), tag + "vocal step should find her range first: " + await pg.locator("#view .ttitle").innerText());
+      await next(); assert(/Pick your melody/i.test(await pg.locator("#view .ttitle").innerText()), tag + "she should pick a melody first");
+      await pg.locator("[data-pm=ode]").click(); await pg.waitForTimeout(1200);
+      const mel = await pg.evaluate(() => ({ mode: PK.mode, id: PK.melId, hand: PK.mHand, pm: fsPmel() }));
+      assert(mel.mode === "melody" && mel.id === "ode" && mel.hand === "R" && mel.pm.hand === "R", tag + "melody step wrong " + JSON.stringify(mel));
+      /* a reload mid-class picks up where she was */
+      await pg.reload(); await pg.waitForTimeout(900); if (await pg.locator("#profiles").isVisible().catch(() => false)) await who("Star");
+      const hero2 = await pg.locator("#fsHeroGo").innerText(); assert(/step 6 of 7/.test(hero2), tag + "reload lost her place: " + hero2);
+      await pg.locator("#fsHeroGo").click(); await pg.waitForTimeout(1200); await next();
+      assert(/Lyric/i.test(await pg.locator("#view .ttitle").innerText()) && /Finish/.test(await bar()), tag + "last step should be her song in Lyric Lab");
+      await pg.locator("#fsbNext").click(); await pg.waitForTimeout(1000);
+      const lg = await pg.evaluate(() => fsLog()[0]);
+      assert(lg && lg.cls && lg.cls.c.hand === "R" && lg.cls.iv === 1 && lg.cls.nid === 1 && lg.cls.mel.id === "ode" && lg.topic === "Music class", tag + "class not logged " + JSON.stringify(lg));
+      /* the parent sees her class; his own piano goal is untouched */
+      await pg.locator("#eBack").first().click().catch(() => {}); await pg.waitForTimeout(400);
+      await pg.locator("#switchProfile").click(); await pg.waitForTimeout(600);
+      await who("Trav");
+      const ph = await pg.locator("#fsHeroGo").innerText(); const tg = await pg.evaluate(() => pkScaleGoal());
+      assert(/Star’s Music Class/.test(ph) && /Music class/.test(ph) && tg === 160, tag + "parent view / goal wrong: " + ph + " goal " + tg);
+      assert(!errs.length, tag + "page errors " + errs.join(" | ")); await ctx.close();
+    }
   });
 
-  await S.test("Focus Session kid pace: real ukulele plays, Show me raises chord tempo only when clean, melody rating moves tempo, the session waits for 'Who's playing?'", async () => {
-    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
-    const r = await pg.evaluate(async () => { fsStart(); await new Promise((z) => setTimeout(z, 1500)); let n = 0; const o = window.ukeNote; window.ukeNote = function () { const h = o.apply(this, arguments); if (h) n++; return h; }; fsStrum("C"); window.ukeNote = o;
-      const x = fsState(); x.i = 3; x.coached = true; fsSave(x); fsNext(); const sm = !!document.querySelector("#fsSelf, #fsSkip");
-      for (let i = 0; i < 4; i++) { const b = document.getElementById("fsSelf"); if (b) b.click(); }
-      const ch = fsTempo().ch; document.getElementById("fsOn").click(); const after = fsState().i;
-      const y = fsState(); y.coached = true; fsSave(y); fsNext(); const rated = !!document.querySelector("[data-r]"); document.querySelector('[data-r="hard"]').click(); const mel = fsTempo().mel;
-      document.getElementById("gate").hidden = false; const before = fsState().i; fsGo(fsState()); const blocked = !document.getElementById("fsBar") || fsPicker(); document.getElementById("gate").hidden = true;
-      return { notes: n, sm, ch, after, rated, mel, blocked, wanted: (() => { renderStrumTrainer("ukulele"); return ukeWanted(); })(), notWanted: (() => { renderStrumTrainer("guitar"); return ukeWanted(); })() }; });
-    assert(r.notes === 4, "ukulele samples didn't play " + JSON.stringify(r)); assert(r.sm && r.ch === 65 && r.after === 4, "Show me didn't run or raise tempo " + JSON.stringify(r));
-    assert(r.rated && r.mel === 67, "melody rating didn't move tempo " + JSON.stringify(r)); assert(r.blocked, "session ran under the player picker"); assert(r.wanted && !r.notWanted, "ukulele voice used on the wrong instrument"); await ctx.close();
-  });
-
-  await S.test("Focus Session is front and center: Star's home shows Start at the top; a parent sees her last session", async () => {
-    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
-    const r = await pg.evaluate(() => { const ps = getProfiles(); ps.push({ id: "ustar1", name: "Star", mode: "kid" }); setProfiles(ps); localStorage.setItem("music-ustar1-fs-log", JSON.stringify([{ t: Date.now(), day: 0, topic: "Rhythm", steps: [], minutes: 27, stars: "4/4", complete: true }]));
-      goHome(); renderHome(); const parent = document.getElementById("fsHero").innerText; const pid = activeId(); save("majick-active", "ustar1"); renderHome(); const star = document.getElementById("fsHero").innerText; const first = document.getElementById("home").firstElementChild.id; save("majick-active", pid); return { parent, star, first }; });
-    assert(/Star’s Focus Session/.test(r.parent) && /27 min/.test(r.parent), "parent card missing " + JSON.stringify(r)); assert(/My Focus Session/.test(r.star) && /Start/.test(r.star) && r.first === "fsHero", "Star's card not front and center " + JSON.stringify(r)); await ctx.close();
-  });
-
-  await S.test("Focus Session 5 days: each day has its own breath, sound world, song and strum; no G7 in her play-along or easy songs (G7 only as day-5 practice); picking a day sticks until a session is done", async () => {
-    const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
-    const r = await pg.evaluate(async () => { const days = FS_DAYS.map((d) => d.br.n + "|" + d.snd.nm + "|" + d.mel + "|" + d.strum);
-      const songs = ["jingle-easy", "twinkle-easy", "mary-easy", "ode"].map((id) => melAll().find((m) => m.id === id)); const lhBad = songs.some((m) => !m || /F#/.test(m.lh) || m.lh.split(" ").some((x) => /B2/.test(x) && /F3/.test(x)));
-      const playChords = FS_DAYS.map((d) => d.ch.join(" ")).join(" "); save(mk("fs", "pick"), 2); const picked = fsDay();
-      save(mk("fs", "state"), { day: 2, i: 0, el: 70, steps: [], score: null }); fsGo(fsState()); await new Promise((z) => setTimeout(z, 800)); const nat = !!FS.nat, hum = document.getElementById("fsSub").textContent;
-      const x = fsState(); x.i = 5; x.el = 300; x.steps = ["breathe", "theory", "tune", "chords", "melody"]; fsSave(x); fsNext(); const after = fsDay();
-      return { uniq: new Set(days).size, lhBad, g7: /G7/.test(playChords), newCh: FS_DAYS[4].newCh, picked, nat, hum, after, natGone: !FS.nat }; });
-    assert(r.uniq === 5, "days aren't different"); assert(!r.g7 && r.newCh === "G7", "G7 in her play-along"); assert(!r.lhBad, "G7 in an easy song backing");
-    assert(r.picked === 2 && r.nat && /hum/.test(r.hum) && r.natGone, "day pick / sound world wrong " + JSON.stringify(r)); assert(r.after === 1, "pick didn't clear after finishing " + JSON.stringify(r)); await ctx.close();
+  await S.test("REAL TAPS: ear training graduates — Note ID Level 1 (C D E) passes at 7/10 and offers Level 2 (C to G); Interval Trainer passes Level 1 and offers Level 2", async () => {
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+    await pg.addInitScript(() => { if (!sessionStorage.getItem("s")) { sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); } });
+    await pg.goto(url + "/app.html"); await pg.waitForTimeout(800); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(600);
+    const card = async (t) => { await pg.locator("#home button").filter({ hasText: /^Ear training$/ }).first().click(); await pg.waitForTimeout(400); await pg.locator("#home .card").filter({ hasText: t }).first().click(); await pg.waitForTimeout(900); };
+    await card("Note ID");
+    await pg.evaluate(() => { window.__tone = []; const o = window.playTone; window.playTone = function (f) { window.__tone.push(Math.round(69 + 12 * Math.log2(f / 440))); return o.apply(this, arguments); }; });
+    assert(/Level 1: C · D · E/.test(await pg.locator("#view").innerText()) && (await pg.locator("[data-m]").count()) < 25, "Note ID should open on Level 1 with one octave");
+    for (let q = 0; q < 10; q++) { await pg.waitForTimeout(450); await pg.locator("#neHear").click(); await pg.waitForTimeout(100); const m = await pg.evaluate(() => window.__tone[window.__tone.length - 1]); assert([60, 62, 64].includes(m), "Level 1 asked for a note outside C D E: " + m); await pg.locator('[data-m="' + m + '"]').first().click(); await pg.waitForTimeout(1300); }
+    const doneTxt = await pg.locator("#view").innerText(); assert(/10\/10/.test(doneTxt) && /Level 1 passed/.test(doneTxt), "Note ID didn't pass: " + doneTxt);
+    await pg.locator("#neUp").click(); await pg.waitForTimeout(600); assert(/Level 2: C to G/.test(await pg.locator("#view").innerText()), "Level 2 didn't open");
+    await pg.locator("#eBack").first().click(); await pg.waitForTimeout(500);
+    await card("Interval Trainer"); await pg.locator("#lvls .card").first().click(); await pg.waitForTimeout(600);
+    await pg.evaluate(() => { window.__iv = null; const o = window.playInterval; window.playInterval = function (r, s, m) { window.__iv = s; return o.apply(this, arguments); }; });
+    for (let q = 0; q < 10; q++) { await pg.locator("#play").click(); await pg.waitForTimeout(150); const sm = await pg.evaluate(() => INAMES[window.__iv]); await pg.locator("#opts .opt").filter({ hasText: new RegExp("^" + sm + "$") }).first().click(); await pg.waitForTimeout(250); await pg.locator("#next").click(); await pg.waitForTimeout(300); }
+    assert(await pg.locator("#lvUp").isVisible(), "Interval Trainer should offer Level 2 after a pass");
+    await pg.locator("#lvUp").click(); await pg.waitForTimeout(500); assert(/Level 2/i.test(await pg.locator("#view .ttitle").innerText()), "Level 2 didn't open");
+    assert(!errs.length, "page errors " + errs.join(" | ")); await ctx.close();
   });
 
   await S.test("Sound comes back on its own after the phone cuts it (screen recording, Control Center, calls)", async () => {
@@ -882,24 +896,28 @@ export async function run() {
   await S.test("Vocal Training: own home section + hub, Ear Training routes there, Range Finder saves a range that fits the guide voice, daily/weekly flow, rap timing score, belting daily cap — and a saved guide-voice choice is kept", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, { "mjk-tonevoice": JSON.stringify("piano") });
     const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const out = {};
+      /* wait for things to appear instead of guessing (a busy machine is slower) */
+      const until = async (f, ms = 6000) => { for (let t = 0; t < ms && !f(); t += 100) await w(100); };
+      const tap = async (id) => { await until(() => document.getElementById(id)); document.getElementById(id).click(); };
+      await until(() => document.querySelector('.door[data-d="voice"]'));
       out.door = !!document.querySelector('.door[data-d="voice"]') && !!document.getElementById("voiceGrid") && document.getElementById("voiceGrid").children.length === VOX_CARDS.length;
       out.keptVoice = toneVoice === "piano"; out.realVoices = VOICES.filter((v) => v.kind === "sf").length;
       window.toneAnalyser = window.toneAnalyser || { fftSize: 2048, getFloatTimeDomainData() {} };
       const sim = { m: 45.1, rms: 0.05 }; window.voxPitch = () => sim.m; window.voxRms = () => sim.rms;
       toneMenu(); out.hub = document.querySelectorAll("#tGrid .card").length;
-      renderVoxRange(); await w(700); document.getElementById("vrNext").click(); sim.m = 67.1; await w(700); document.getElementById("vrNext").click(); await w(100);
+      renderVoxRange(); await w(1200); await tap("vrNext"); sim.m = 67.1; await w(1200); await tap("vrNext"); await w(100);
       const rg = voxRange(); out.range = rg && rg.lo + "-" + rg.hi + " " + rg.type; out.shift = voxShift();
       renderWarmups(); out.warmStart = WARM.start;
       /* weekly check: range → hiss → hold, skipping through, saves one entry */
-      renderVoxDaily(0, true); sim.m = 45.1; await w(700); document.getElementById("vrNext").click(); sim.m = 67.1; await w(700); document.getElementById("vrNext").click(); await w(100); document.getElementById("vrDone").click(); await w(100);
+      renderVoxDaily(0, true); sim.m = 45.1; await w(1200); await tap("vrNext"); sim.m = 67.1; await w(1200); await tap("vrNext"); await tap("vrDone"); await w(100);
       for (let i = 0; i < 4 && !document.getElementById("vdOk"); i++) { const s = document.getElementById("vdSkip"); if (s) s.click(); await w(120); }
       out.weekly = load(mk("voice", "weekly"), []).length;
       /* rap timing: onsets right on the grid score high, scattered ones score low */
       VF.mode = "pocket"; const lat = 0, mkExp = () => { const e = []; for (let bar = 0; bar < 4; bar++) for (let i = 0; i < 7; i++) e.push({ t: 10 + bar * 2 + i * 0.25, bar, i }); return e; };
-      renderVoxFlow(); const ex = mkExp(); vfScore(ex, ex.filter((e) => e.bar > 0).map((e) => e.t + 0.02), lat); out.flowGood = parseInt(document.getElementById("vfFb").textContent);
+      renderVoxFlow(); await until(() => document.getElementById("vfFb")); const ex = mkExp(); vfScore(ex, ex.filter((e) => e.bar > 0).map((e) => e.t + 0.02), lat); out.flowGood = parseInt(document.getElementById("vfFb").textContent);
       vfScore(mkExp(), mkExp().filter((e) => e.bar > 0).map((e, k) => e.t + (k % 2 ? 0.12 : -0.11)), lat); out.flowOff = parseInt(document.getElementById("vfFb").textContent);
       /* belting: a daily cap protects the voice */
-      save(mk("voice", "belt-" + dayKey()), 99); renderVoxBelt(); out.beltCapped = /enough belting/.test(document.getElementById("vbtBody").textContent);
+      save(mk("voice", "belt-" + dayKey()), 99); renderVoxBelt(); await until(() => document.getElementById("vbtBody")); out.beltCapped = /enough belting/.test(document.getElementById("vbtBody").textContent);
       openEar("tone"); await w(300); out.earRoute = /Vocal Training/.test((document.querySelector(".ttitle") || {}).textContent || "");
       return out; });
     assert(r.door && r.hub === 12 && r.keptVoice && r.realVoices === 2, "section/hub/voice " + JSON.stringify(r));
