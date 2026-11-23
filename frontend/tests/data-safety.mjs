@@ -1109,6 +1109,43 @@ export async function run() {
     }
   });
 
+  await S.test("REAL TAPS: 8th-note breath count in every meditation (Journey, Breathwork, Heart Sync, Binaural, Soundscapes, Meditation Session): a click every 8th, the 1 loudest, numbers louder than the &s, out-breath lower; count shows on the circle; both orientations", async () => {
+    const screens = [["Brainwave Journey", "journey"], ["Breathwork", "preset"], ["Heart Sync", "hs"], ["Brainwave Binaural", "mbr"], ["Soundscapes", "mbr"], ["Meditation Session", "mbr"]];
+    for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) for (const [name, how] of screens) {
+      const ctx = await b.newContext({ viewport: vp, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+      await pg.addInitScript(() => {
+        if (!sessionStorage.getItem("s")) { sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); }
+        window.__clk = []; const st = AudioBufferSourceNode.prototype.start, cn = AudioNode.prototype.connect;
+        AudioNode.prototype.connect = function (t, ...r) { if (this instanceof AudioBufferSourceNode && t instanceof GainNode) this.__g = t; return cn.call(this, t, ...r); };
+        AudioBufferSourceNode.prototype.start = function (when, ...r) { try { const d = this.buffer && this.buffer.duration, rt = this.playbackRate.value; if (d && d < 0.06 && (Math.abs(rt - 1.12) < 0.001 || Math.abs(rt - 0.8) < 0.001)) window.__clk.push({ t: when || this.context.currentTime, r: rt, g: this.__g ? this.__g.gain.value : null }); } catch (e) {} return st.call(this, when, ...r); };
+      });
+      await pg.goto(url + "/app.html"); await pg.waitForTimeout(800);
+      await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(500);
+      await pg.locator("#home button").filter({ hasText: /^Meditation$/ }).first().click(); await pg.waitForTimeout(600);
+      await pg.locator("#home").getByText("Brainwave binaural beats", { exact: false }).first().click(); await pg.waitForTimeout(1000);
+      await pg.locator("#view button").filter({ hasText: new RegExp("^" + name) }).first().click(); await pg.waitForTimeout(1200);
+      const sheet = async (open) => { const on = await pg.evaluate(() => { const z = document.getElementById("czA"); return !!(z && z.classList.contains("on")); }); if (open !== on && (await pg.locator(open ? "#czABtn" : "#czAX").count())) { await pg.locator(open ? "#czABtn" : "#czAX").first().click(); await pg.waitForTimeout(500); } };
+      if (how === "journey") { await sheet(true); await pg.locator("#jBrs button").filter({ hasText: /8th count/ }).first().click(); await sheet(false); await pg.locator("#jPlay").click(); }
+      else if (how === "preset") { await pg.locator("#view button.preset").filter({ hasText: /8th count/ }).first().click(); await pg.locator("#brStart").click(); }
+      else if (how === "hs") { await pg.locator("#hsCzBtn").click(); await pg.waitForTimeout(500); await pg.locator("#hsB_eighths").click(); await pg.waitForTimeout(200); if (await pg.locator("#hsCzX").isVisible()) await pg.locator("#hsCzX").click(); await pg.waitForTimeout(300); await pg.locator("#hsGo").click(); }
+      else { await pg.locator("#view button").filter({ hasText: /^▶ (Play|Begin)$/ }).filter({ visible: true }).first().click(); await pg.waitForTimeout(800); await pg.locator("[data-mbr=eighths]").filter({ visible: true }).first().click(); }
+      await pg.waitForTimeout(700); const shown = []; for (let i = 0; i < 6; i++) { shown.push(await pg.evaluate(() => { const e = ["jBrT", "brPhT", "mbrT", "hsCue"].map((id) => document.getElementById(id)).find((x) => x && x.offsetParent); return e ? e.textContent.trim() : ""; })); await pg.waitForTimeout(260); }
+      await pg.waitForTimeout(5000);
+      if (vp.width === 390) await pg.screenshot({ path: "/tmp/br8-" + how + "-" + name.replace(/\W+/g, "") + ".png" });
+      const clk = (await pg.evaluate(() => window.__clk)).sort((a, b) => a.t - b.t);
+      const tag = vp.width + " " + name + ": ";
+      assert(clk.length >= 10, tag + "too few count clicks " + clk.length);
+      const gaps = clk.slice(1, 16).map((c, i) => c.t - clk[i].t), g0 = gaps.slice().sort((a, b) => a - b)[gaps.length >> 1];
+      assert(gaps.every((g) => Math.abs(g - g0) < 0.02), tag + "uneven spacing " + gaps.map((g) => g.toFixed(3)).join(","));
+      if (how !== "hs") assert(Math.abs(g0 - 0.5) < 0.01, tag + "8ths should be half a second apart, got " + g0);
+      const one = clk.findIndex((c, i) => i + 7 < clk.length && c.g > clk[i + 2].g && c.r === clk[i + 7].r); const run = clk.slice(one, one + 8).map((c) => c.g);
+      assert(one >= 0 && run[0] > run[2] && run[2] > run[1] && Math.abs(run[2] - run[4]) < 1e-6 && Math.abs(run[4] - run[6]) < 1e-6 && [1, 3, 5, 7].every((i) => run[i] < run[2]), tag + "accents wrong " + JSON.stringify(run));
+      assert(clk.some((c) => Math.abs(c.r - 1.12) < 0.001) && clk.some((c) => Math.abs(c.r - 0.8) < 0.001), tag + "in and out should click at different pitches");
+      assert(shown.some((x) => /(^|· )[1-4]( &)?$|^&$/.test(x)), tag + "count not shown on the circle: " + shown.join(" | "));
+      assert(!errs.length, tag + "page errors " + errs.join(" | ")); await ctx.close();
+    }
+  });
+
   await S.test("Heads data safety: a damaged save is kept aside (not erased); Clear needs two taps and keeps a copy", async () => {
     const ctx = await b.newContext({ viewport: { width: 390, height: 844 } }); const pg = await ctx.newPage();
     await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("heads-v2-z9", "{broken"); });
