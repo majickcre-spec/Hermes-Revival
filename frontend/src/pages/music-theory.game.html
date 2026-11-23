@@ -5639,6 +5639,37 @@ var DK_KEYS={q:"hhc",w:"hho",e:"crash",a:"splash",s:"ride",d:"bell",i:"tom1",o:"
 ".sc.playing{box-shadow:inset 0 0 0 2px var(--cream)}";
 document.head.appendChild(st);}catch(e){}})();
 function dkFlash(id){var el=document.querySelector('.dpad[data-id="'+id+'"]');if(el){el.classList.add("hit");setTimeout(function(){el.classList.remove("hit");},110);}}
+
+/* ===== 🎹 MIDI PADS — play the drums from a MIDI controller (USB in Chrome/Edge, no DAW). One connection for the whole app; the open drum gets the hits.
+   Drum Kit: pads 1-4 Kick · Snare · Closed hat · Open hat, pads 5-8 High tom · Floor tom · Crash · Ride (Pad Bank B adds rim, clap, mid tom, splash, pedal hat, cowbell, bell, 2nd crash).
+   Djembe: bottom row = left hand, top row = right hand — Bass · Tone · Slap. Keys and other controllers use the standard drum map (General MIDI). ===== */
+var MPAD={acc:null,on:false,name:"",asked:false};
+var MPAD_KIT=["kick","snare","hhc","hho","tom1","floor","crash","ride","rim","clap","tom2","splash","ped","cow","bell","crash"];
+var MPAD_GM={35:"kick",36:"kick",37:"rim",38:"snare",40:"snare",39:"clap",41:"floor",43:"floor",45:"tom2",47:"tom2",48:"tom1",50:"tom1",42:"hhc",44:"ped",46:"hho",49:"crash",57:"crash",52:"crash",51:"ride",59:"ride",53:"bell",55:"splash",56:"cow"};
+var MPAD_DJ=["bass","tone","slap","slap"];
+function mpadHit(note,vel,ch){var pad=(ch===9&&note>=36&&note<52)?note-36:-1,v=Math.max(1,Math.min(127,vel||100));
+  if(document.querySelector(".sppad")){var si=pad>=0?pad%8:(note>=36&&note<44?note-36:-1);if(si<0)return;try{unlockAudio();}catch(e){}sampTrigger(si,null,0.25+0.75*v/127);try{sampFlash(si);}catch(e){}return;}
+  var kitOn=document.getElementById("dkStage")||document.querySelector(".dkpPad")||document.getElementById("dkSeq");
+  if(kitOn){var id=pad>=0?MPAD_KIT[pad]:MPAD_GM[note];if(!id)return;try{unlockAudio();}catch(e){}
+    if(document.querySelector(".dkpPad")&&typeof DKP!=="undefined"&&DKP.lanes){if(DKP.lanes.indexOf(id)<0)id=MPAD_GM[note]&&DKP.lanes.indexOf(MPAD_GM[note])>=0?MPAD_GM[note]:id;dkTrigger(id,null,v);try{dkpJudge(id);}catch(e){}var pp=document.querySelector('.dkpPad[data-id="'+id+'"]');if(pp){pp.classList.add("hit");setTimeout(function(){pp.classList.remove("hit");},110);}return;}
+    dkTrigger(id,null,v);try{dkFlash(id);}catch(e){}return;}
+  var dr=null;document.querySelectorAll(".drum.playable").forEach(function(d){if(!dr&&d.isConnected&&d._mhit&&d.offsetParent)dr=d;});
+  if(dr){var kind,hand;if(pad>=0){kind=MPAD_DJ[pad%4];hand=(pad%8)<4?"L":"R";}else{var pc=note%12;kind=pc<=1?"bass":pc<=4?"tone":"slap";hand=note<60?"L":"R";}dr._mhit(kind,0.35+0.6*v/127,hand);}}
+function mpadMsg(ev){var d=ev.data;if(!d||d.length<3)return;var st=d[0]&0xF0,ch=d[0]&0x0F;if(st===0x90&&d[2]>0)mpadHit(d[1],d[2],ch);}
+function mpadAttach(){if(!MPAD.acc)return 0;var n=0;MPAD.acc.inputs.forEach(function(inp){n++;MPAD.name=inp.name||"MIDI controller";if(!inp._mpad){inp._mpad=true;inp.addEventListener("midimessage",mpadMsg);}});MPAD.on=n>0;return n;}
+async function mpadConnect(quiet){if(!navigator.requestMIDIAccess){if(!quiet)mpadSay("This browser can’t read MIDI. Use <b>Chrome</b> on your computer and plug the controller in with USB.");return;}
+  try{if(!MPAD.acc){MPAD.acc=await navigator.requestMIDIAccess();MPAD.acc.onstatechange=function(){mpadAttach();mpadBadge();};}
+    var n=mpadAttach();save("mjk-midipads",true);mpadBadge();if(!quiet)mpadSay(n?"🎹 <b>"+esc(MPAD.name)+"</b> connected — hit the pads.":"No controller found — plug it in with USB; it connects by itself.");}
+  catch(e){if(!quiet)mpadSay("Chrome didn’t allow MIDI. Tap the 🔒 by the address, allow <b>MIDI devices</b>, then tap again.");}}
+function mpadSay(h){document.querySelectorAll(".mpadMsg").forEach(function(m){m.innerHTML=h;});}
+function mpadLegend(){var kit=document.getElementById("dkStage")||document.querySelector(".dkpPad")||document.getElementById("dkSeq");
+  if(document.querySelector(".sppad"))return "Pads 1\u20138 play the sampler\u2019s pads 1\u20138 \u2014 hit harder for louder.";
+  return kit?"Pads 1–4: Kick · Snare · Closed hat · Open hat &nbsp;│&nbsp; 5–8: High tom · Floor tom · Crash · Ride":"Bottom pads: left hand · top pads: right hand — Bass · Tone · Slap";}
+function mpadBadge(){document.querySelectorAll(".mpadChip").forEach(function(b){b.classList.toggle("sel",MPAD.on);b.textContent=MPAD.on?"🎹 "+MPAD.name+" ✓":"🎹 Connect MIDI pads";});
+  if(MPAD.on)document.querySelectorAll(".mpadMsg").forEach(function(m){if(!m.dataset.said)m.innerHTML=mpadLegend();});}
+function mpadUI(){return '<div class="mpadRow" style="display:flex;flex-direction:column;align-items:center;gap:4px;margin:8px 0"><button type="button" class="rchip sm mpadChip'+(MPAD.on?" sel":"")+'">'+(MPAD.on?"🎹 "+esc(MPAD.name)+" ✓":"🎹 Connect MIDI pads")+'</button><div class="site-note mpadMsg" style="margin:0;text-align:center;font-size:.78rem">'+(MPAD.on?mpadLegend():"")+'</div></div>';}
+document.addEventListener("click",function(e){var c=e.target&&e.target.closest?e.target.closest(".mpadChip"):null;if(c){try{unlockAudio();}catch(_){}mpadConnect(false).then(function(){document.querySelectorAll(".mpadMsg").forEach(function(m){m.dataset.said="1";});setTimeout(function(){document.querySelectorAll(".mpadMsg").forEach(function(m){delete m.dataset.said;});mpadBadge();},2500);});}});
+function mpadAuto(){if(!MPAD.acc&&load("mjk-midipads",false))mpadConnect(true);else mpadBadge();} /* reconnects by itself once you've allowed it */
 function dkHit(id){unlockAudio();dkTrigger(id);dkFlash(id);}
 function dkKey(e){if(e.repeat)return;var id=DK_KEYS[(e.key||"").toLowerCase()];if(id){if(e.key===" ")e.preventDefault();dkHit(id);}}
 var DKSEQ={on:false,bpm:100,step:0,next:0,raf:null,click:false,grid:null,bars:1,zoom:"m",vel:100};
@@ -5729,7 +5760,7 @@ function renderDrumKit(startMode){if(toneRAF)cancelAnimationFrame(toneRAF);home.
   function draw(){
     dkSeqStop();
     var h='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🥁 Drum Kit</span></div><div class="panel">'+
-      '<div class="rrow2" id="dkModes"><span class="rchips tight"><button class="rchip sm'+(mode==="play"?" sel":"")+'" id="dkMp">🥁 Play</button><button class="rchip sm'+(mode==="beat"?" sel":"")+'" id="dkMb">🎛️ Beat Maker</button><button class="rchip sm'+(mode==="along"?" sel":"")+'" id="dkMa">🎯 Play-along</button></span></div><div class="rrow2"><span class="rlab">Kit</span><span class="rchips tight" id="dkKit"></span></div>';
+      '<div class="rrow2" id="dkModes"><span class="rchips tight"><button class="rchip sm'+(mode==="play"?" sel":"")+'" id="dkMp">🥁 Play</button><button class="rchip sm'+(mode==="beat"?" sel":"")+'" id="dkMb">🎛️ Beat Maker</button><button class="rchip sm'+(mode==="along"?" sel":"")+'" id="dkMa">🎯 Play-along</button></span></div><div class="rrow2"><span class="rlab">Kit</span><span class="rchips tight" id="dkKit"></span></div>'+mpadUI();
     if(mode==="along"){h+=dkpHTML();}
     else if(mode==="play"){
       h+='<div class="intro">Tap the kit — two fingers for flams and combos — or play with your keyboard. Cymbals up top, toms in the middle, kick at the bottom.</div><div id="dkStage">';
@@ -5742,7 +5773,7 @@ function renderDrumKit(startMode){if(toneRAF)cancelAnimationFrame(toneRAF);home.
       '<div class="rrow" style="margin-top:10px"><span class="rlab">Tempo</span><input type="range" id="dkBpm" min="60" max="180" value="'+DKSEQ.bpm+'" style="flex:1"><span class="rbpm" id="dkBpmV" style="min-width:58px;text-align:right">'+DKSEQ.bpm+' bpm</span></div>'+
       '<div class="actions" style="margin-top:4px"><button class="btn" id="dkPlay">▶ Play</button><button class="rchip sm'+(DKSEQ.click?" sel":"")+'" id="dkClick">🎵 Click</button><button class="rchip sm" id="dkClear">⌫ Clear</button></div>'+'<div class="actions" style="margin-top:6px"><button class="btn ghost" id="dkExport">⬇ Export to DAW (MIDI + stems)</button></div><div class="site-note" id="dkExpStatus" style="margin-top:4px"></div>'+'<div class="actions" style="margin-top:6px"><span class="rlab">Send loop</span><span class="rchips tight" id="dkSendReps"></span><button class="btn" id="dkSendStudio">➜ Send to Studio</button></div><div class="site-note" id="dkSendStatus" style="margin-top:4px"></div>';
     }
-    h+='</div>';view.innerHTML=h;
+    h+='</div>';view.innerHTML=h;mpadAuto();
     $("#eBack").onclick=goHome;
     $("#dkMp").onclick=function(){mode="play";draw();};
     $("#dkMb").onclick=function(){mode="beat";draw();};
@@ -5879,7 +5910,7 @@ function renderSampler(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=tr
     let kitsH=kits.length?('<div class="rlab" style="display:block;margin:12px 0 4px">Your saved kits</div>'+kits.map(k=>'<span class="spslice"><button class="rchip sm spKitLoad" data-n="'+esc(k.name)+'">📂 '+esc(k.name)+'</button><button class="rchip sm spKitDel" data-n="'+esc(k.name)+'">✕</button></span>').join("")):"";
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎛️ Sampler</span></div><div class="panel">'+
       '<div class="intro">Your <b>sound library</b>. Tap a pad to play it; tap again to select it, then <b>record</b>, <b>load</b>, or <b>slice</b> your own sound onto it. Program the grid below to build a beat. <span style="opacity:.75">Starter sounds are built-in; everything else is yours.</span></div>'+
-      '<div class="sppads">'+padsH+'</div>'+
+      '<div class="sppads">'+padsH+'</div>'+mpadUI()+
       '<div class="rrow2" style="margin-top:8px"><span class="rlab">Pad '+(SAMP.sel+1)+'</span><input id="spName" value="'+esc(p?p.name:"")+'" placeholder="name" style="flex:1;background:rgba(255,255,255,.06);color:inherit;border:1px solid var(--line);border-radius:8px;padding:7px"></div>'+
       '<div class="actions" style="gap:8px;flex-wrap:wrap;margin:8px 0"><button class="btn ghost" id="spRec">🎤 Record</button><button class="btn ghost" id="spLib">🔊 Library</button><label class="btn ghost" style="cursor:pointer">📁 Load<input type="file" id="spLoad" accept="audio/*,.mp3,.wav,.m4a,.aac,.aif,.aiff,.caf,.flac,.ogg,.opus" style="display:none"></label><button class="btn ghost" id="spTuneD">♭ tune</button><button class="btn ghost" id="spTuneU">♯ tune</button><button class="btn ghost" id="spClr">🔇 Clear</button></div>'+sampPadEdHTML()+
       '<div class="site-note" id="spMsg"></div>'+
@@ -5894,6 +5925,7 @@ function renderSampler(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=tr
       '<div id="spKits">'+kitsH+'</div>'+
       '<div class="site-note" style="margin-top:10px">Only load sounds you have the rights to — your own recordings, your productions, or royalty-free packs. Build your library here.</div></div>';
     $("#eBack").onclick=()=>{sampStop();goHome();};
+    mpadAuto();
     document.querySelectorAll(".sppad").forEach(b=>{b.onclick=()=>{const i=+b.dataset.i;unlockAudio();sampTrigger(i);sampFlash(i);if(SAMP.sel!==i){SAMP.sel=i;draw();}};});
     const nm=$("#spName");if(nm)nm.onchange=()=>{if(SAMP.pads[SAMP.sel])SAMP.pads[SAMP.sel].name=nm.value.trim()||SAMP.pads[SAMP.sel].name;draw();};
     $("#spRec").onclick=()=>{msg("● recording 1.5s…");ensureMic().then(ok=>{if(!ok){msg("I need mic access to record.");return;}let chunks=[],mr;try{mr=new MediaRecorder(micStream);}catch(e){msg("Recording isn't supported here.");return;}mr.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data);};mr.onstop=()=>{if(!chunks.length){msg("");return;}new Blob(chunks,{type:mr.mimeType||"audio/webm"}).arrayBuffer().then(ab=>ac().decodeAudioData(ab.slice(0))).then(buf=>{SAMP.pads[SAMP.sel]={name:"Rec "+(SAMP.sel+1),buf,rate:1};msg("Recorded onto pad "+(SAMP.sel+1)+".");draw();}).catch(()=>msg("Couldn't process the recording."));};mr.start();setTimeout(()=>{try{mr.stop();}catch(e){}},1500);});};
@@ -6386,6 +6418,8 @@ function djHeadBind(dr,big,onHit){if(!dr||dr._bound)return;dr._bound=true;djkLoa
   /* keep the whole drum in view: landscape puts the panel at the top; portrait scrolls the drum up when you press Play/Listen */
   try{var pnl=dr.closest(".panel");if(big&&pnl&&!pnl.querySelector(".djLay")){if(innerWidth>innerHeight&&innerHeight<520)setTimeout(function(){if(dr.isConnected)pnl.scrollIntoView({block:"start"});},70);
     pnl.addEventListener("click",function(e){if(innerWidth>=innerHeight||!e.target.closest||!e.target.closest(".actions"))return;setTimeout(function(){if(!dr.isConnected)return;var r=dr.getBoundingClientRect(),over=r.bottom-innerHeight+6;if(over>0)window.scrollBy({top:Math.min(over,Math.max(0,r.top-8)),behavior:"smooth"});},120);});}}catch(e){}var sc=djFit(dr,big);dr.style.setProperty("--djs",sc.toFixed(3));dr.classList.add("playable");if(big){var rf=function(){if(!dr.isConnected){window.removeEventListener("resize",rf);return;}dr.style.setProperty("--djs",djFit(dr,true).toFixed(3));};window.addEventListener("resize",rf);}
+  dr._mhit=function(kind,v,hand){try{unlockAudio();}catch(e){}djembe(ac().currentTime+0.003,kind,v);if(onHit)try{onHit(kind);}catch(_){}djHit(kind==="bass"?"B":kind==="tone"?"T":"S",hand);};
+  try{var pn=dr.closest(".panel")||dr.parentElement;if(pn&&!pn.querySelector(".mpadRow"))pn.insertAdjacentHTML("beforeend",mpadUI());mpadAuto();}catch(e){} /* at the end of the panel — never inside the drum's own layout */
   var head=dr.querySelector(".drum-head");dr.addEventListener("pointerdown",function(e){var R=dr.getBoundingClientRect(),k=R.width/200,cx=R.left+100*k,cy=R.top+100*k,dx=e.clientX-cx,dy=e.clientY-cy,d=Math.sqrt(dx*dx+dy*dy)/(100*k);if(d>1.1)return;e.preventDefault();unlockAudio();
     var kind=d<=0.44?"bass":d<=0.86?"tone":"slap",vel=0.62+Math.random()*0.12+(e.pressure&&e.pressure!==0.5?(e.pressure-0.5)*0.4:0);djembe(ac().currentTime+0.005,kind,vel);if(onHit)try{onHit(kind);}catch(_){}djHit(kind==="bass"?"B":kind==="tone"?"T":"S",dx<0?"L":"R");
     var rp=document.createElement("div");rp.className="djripple "+kind;rp.style.left=((e.clientX-R.left)/k)+"px";rp.style.top=((e.clientY-R.top)/k)+"px";rp.style.zIndex=5;dr.appendChild(rp);setTimeout(function(){rp.remove();},500);},{passive:false});}

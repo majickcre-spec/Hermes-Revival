@@ -1207,6 +1207,51 @@ export async function run() {
     assert(!errs.length, "page errors " + errs.join(" | ")); await ctx.close();
   });
 
+  await S.test("REAL TAPS: MIDI pads (Donner DMK-25 Pro over USB in Chrome) — Connect once; pads play the Sampler's 8 pads and the Djembe (bottom row left hand, top row right — bass/tone/slap) with velocity; reconnects by itself after reload; clear message when the browser has no MIDI", async () => {
+    for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
+      const ctx = await b.newContext({ viewport: vp, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+      await pg.addInitScript(() => { if (!sessionStorage.getItem("s")) { sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); }
+        /* a simulated USB controller: Chrome's Web MIDI with one input named like the Donner */
+        const inp = new EventTarget(); inp.name = "DMK25 PRO"; inp.id = "1"; window.__asked = 0;
+        navigator.requestMIDIAccess = () => { window.__asked++; return Promise.resolve({ inputs: new Map([["1", inp]]), outputs: new Map(), onstatechange: null }); };
+        window.__midi = (st, d1, d2) => { const ev = new Event("midimessage"); ev.data = new Uint8Array([st, d1, d2]); inp.dispatchEvent(ev); if (typeof inp.onmidimessage === "function") inp.onmidimessage(ev); }; });
+      const home = async (cat, card) => { await pg.locator("#home button").filter({ hasText: new RegExp("^" + cat + "$") }).first().click(); await pg.waitForTimeout(400); await pg.locator("#home .card").filter({ hasText: card }).first().click(); await pg.waitForTimeout(1200); };
+      await pg.goto(url + "/app.html"); await pg.waitForTimeout(800);
+      await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(500);
+      await home("Make music", "Sampler");
+      await pg.waitForFunction(() => document.querySelector(".sppad"), null, { timeout: 15000 });
+      await pg.evaluate(() => { window.__st = []; const o = window.sampTrigger; window.sampTrigger = function (i, w, v) { window.__st.push([i, Math.round((v || 0) * 100)]); return o.apply(this, arguments); }; });
+      assert(/Connect MIDI pads/.test(await pg.locator(".mpadChip").first().innerText()), vp.width + ": connect button missing on Sampler");
+      await pg.locator(".mpadChip").first().click(); await pg.waitForTimeout(400);
+      assert(/DMK25 PRO/.test(await pg.locator(".mpadChip").first().innerText()), vp.width + ": controller not shown as connected");
+      for (let n = 36; n < 44; n++) await pg.evaluate((n) => window.__midi(0x99, n, n === 36 ? 127 : 40), n);
+      await pg.waitForTimeout(200); let st = await pg.evaluate(() => window.__st);
+      assert(st.map((x) => x[0]).join(",") === "0,1,2,3,4,5,6,7" && st[0][1] > st[1][1], vp.width + ": pads 1-8 should play sampler pads 1-8, harder = louder " + JSON.stringify(st));
+      await pg.locator("#eBack").first().click(); await pg.waitForTimeout(500);
+      await home("Instrument", "Djembe Groove");
+      await pg.waitForFunction(() => document.querySelector(".drum.playable"), null, { timeout: 15000 });
+      assert(/DMK25 PRO/.test(await pg.locator(".mpadChip").first().innerText()), vp.width + ": djembe should show the controller already connected");
+      await pg.evaluate(() => { window.__dj = []; const o = window.djembe; window.djembe = function (t, k, v) { window.__dj.push([k, Math.round(v * 100)]); return o.apply(this, arguments); }; });
+      for (const n of [36, 37, 38, 40, 41, 42]) { await pg.evaluate((n) => window.__midi(0x99, n, 100), n); await pg.waitForTimeout(60); }
+      const dj = await pg.evaluate(() => window.__dj.map((x) => x[0]).join(","));
+      assert(dj === "bass,tone,slap,bass,tone,slap", vp.width + ": djembe pads wrong " + dj);
+      assert(await pg.locator(".djZoneHit.on").count() >= 1, vp.width + ": the drum should light where it was hit");
+      /* reload: it reconnects on its own, no tap */
+      await pg.reload(); await pg.waitForTimeout(800); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click().catch(() => {}); await pg.waitForTimeout(500);
+      await home("Make music", "Sampler"); await pg.waitForFunction(() => document.querySelector(".sppad"), null, { timeout: 15000 }); await pg.waitForTimeout(400);
+      await pg.evaluate(() => { window.__st = []; const o = window.sampTrigger; window.sampTrigger = function (i) { window.__st.push(i); return o.apply(this, arguments); }; });
+      await pg.evaluate(() => window.__midi(0x99, 38, 90)); await pg.waitForTimeout(150);
+      assert((await pg.evaluate(() => window.__st)).join(",") === "2" && /DMK25 PRO/.test(await pg.locator(".mpadChip").first().innerText()), vp.width + ": should reconnect by itself after reload");
+      assert(!errs.length, vp.width + ": page errors " + errs.join(" | ")); await ctx.close();
+    }
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 } }); const pg = await ctx.newPage();
+    await pg.addInitScript(() => { if (!sessionStorage.getItem("s")) { sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); } try { delete Navigator.prototype.requestMIDIAccess; } catch (e) {} navigator.requestMIDIAccess = undefined; });
+    await pg.goto(url + "/app.html"); await pg.waitForTimeout(800); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(500);
+    await pg.locator("#home button").filter({ hasText: /^Make music$/ }).first().click(); await pg.waitForTimeout(400); await pg.locator("#home .card").filter({ hasText: "Sampler" }).first().click();
+    await pg.waitForFunction(() => document.querySelector(".mpadChip"), null, { timeout: 15000 }); await pg.locator(".mpadChip").first().click(); await pg.waitForTimeout(300);
+    assert(/use <b>Chrome<\/b>|Use Chrome/i.test(await pg.locator(".mpadMsg").first().innerHTML()), "no-MIDI browsers should say to use Chrome"); await ctx.close();
+  });
+
   await S.test("Heads data safety: a damaged save is kept aside (not erased); Clear needs two taps and keeps a copy", async () => {
     const ctx = await b.newContext({ viewport: { width: 390, height: 844 } }); const pg = await ctx.newPage();
     await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("heads-v2-z9", "{broken"); });
