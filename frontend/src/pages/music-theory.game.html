@@ -11131,20 +11131,22 @@ function medWakeVid(on){try{if(on){if(!MED_VID){MED_VID=document.createElement("
 document.addEventListener("visibilitychange",function(){if(!document.hidden&&MED_WANT){MED_WL=null;medWake(true);}});
 document.addEventListener("pointerdown",function(){if(MED_WANT&&MED_VID&&MED_VID.paused)medWakeVid(true);},true);
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&MED.master&&!MED_WL)medWake(true);});
-function medRetune(beatHz,carrier){if(!MED.master||!MED.leftO||!MED.right)return false;const a=ac(),t=a.currentTime;MED.leftO.frequency.setTargetAtTime(carrier,t,0.08);MED.right.frequency.setTargetAtTime(carrier+beatHz,t,0.08);if(MED.lfo)MED.lfo.frequency.setTargetAtTime(beatHz,t,0.08);if(MED.pulseO)MED.pulseO.frequency.setTargetAtTime(carrier,t,0.08);(MED.drones||[]).forEach(([o,n])=>o.frequency.setTargetAtTime(carrier*Math.pow(2,n/12)/2,t,0.2));return true;}
+function medRetune(beatHz,carrier){if(!MED.master||!MED.leftO||!MED.right)return false;const a=ac(),t=a.currentTime;MED.leftO.frequency.setTargetAtTime(carrier,t,0.08);MED.right.frequency.setTargetAtTime(carrier+beatHz,t,0.08);if(MED.lfo)MED.lfo.frequency.setTargetAtTime(beatHz,t,0.08);if(MED.swayG)MED.swayG.gain.setTargetAtTime(medSwayDepth(beatHz),t,0.3);if(MED.pulseO)MED.pulseO.frequency.setTargetAtTime(carrier,t,0.08);(MED.drones||[]).forEach(([o,n])=>o.frequency.setTargetAtTime(carrier*Math.pow(2,n/12)/2,t,0.2));return true;}
 /* loudness calibration (ITU-R BS.1770 / EBU R128 meter): makeup gain so each engine lands at the house standard of -16 LUFS integrated, true peak under -1 dBTP, at its default volume */
 var MED_MK=2.0;
-function medBinaural(beatHz,carrier,vol,shimmer,mk){medStop();clearTimeout(MED.doneT);MED.doneT=setTimeout(function(){try{medMarkDone();}catch(e){}},180000);unlockAudio();MED.pans=[];if(MEDSPK.on)shimmer=true;const a=ac(),oscs=[];let rightO=null,shimL=null;
+function medBinaural(beatHz,carrier,vol,shimmer,mk,opt){opt=opt||{};medStop();clearTimeout(MED.doneT);MED.doneT=setTimeout(function(){try{medMarkDone();}catch(e){}},180000);unlockAudio();MED.pans=[];if(MEDSPK.on&&!opt.pure)shimmer=true;if(opt.pure)shimmer=false;MED.pure=!!opt.pure;const a=ac(),oscs=[];let rightO=null,shimL=null;
   const master=a.createGain();master.gain.value=0.0001;const gate=a.createGain();gate.gain.value=1;master.connect(gate);{const _lm=a.createDynamicsCompressor();_lm.threshold.value=-3;_lm.knee.value=0;_lm.ratio.value=20;_lm.attack.value=0.003;_lm.release.value=0.2;_lm.threshold.value=-2;_lm.knee.value=4;_lm.ratio.value=12;_lm.release.value=0.25;const _mk=a.createGain();_mk.gain.value=(mk||MED_MK)*(SPKB?1.5:1);MED.mk=_mk;gate.connect(_mk);_mk.connect(_lm);_lm.connect(a.destination);}medWake(true);MED.gate=gate;MED.hum=null;MED.ocean=null;master.gain.setTargetAtTime(vol==null?0.5:vol,a.currentTime,0.9);
   const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=SPKB?3200:2200;
-  const dg=a.createGain();dg.gain.value=0.86;lp.connect(dg);dg.connect(master);const dd=[];[[0.023,0.09],[0.041,0.06]].forEach(([f,d])=>{const l=a.createOscillator();l.type="sine";l.frequency.value=f;const lg=a.createGain();lg.gain.value=MEDDRIFT.on?d:0;lg._d=d;l.connect(lg);lg.connect(dg.gain);l.start();oscs.push(l);dd.push(lg);});MED.driftG=dd;
+  const dg=a.createGain();dg.gain.value=0.86;lp.connect(dg);dg.connect(master);const dd=[];[[0.023,0.09],[0.041,0.06]].forEach(([f,d])=>{const l=a.createOscillator();l.type="sine";l.frequency.value=f;const lg=a.createGain();lg.gain.value=(MEDDRIFT.on&&!opt.pure)?d:0;lg._d=d;l.connect(lg);lg.connect(dg.gain);l.start();oscs.push(l);dd.push(lg);});MED.driftG=dd;
   [[-1,0],[1,beatHz]].forEach(([pan,off])=>{const o=a.createOscillator();o.type="sine";o.frequency.value=carrier+off;const pn=a.createStereoPanner?a.createStereoPanner():null;if(pn){pn.pan.value=MEDSPK.on?0:pan;MED.pans.push([pn,pan]);}const g=a.createGain();g.gain.value=SPKB?0.24:0.17;o.connect(pn||g);if(pn)pn.connect(g);g.connect(lp);o.start();oscs.push(o);if(pan===1)rightO=o;else MED.leftO=o;});
-  const subG=a.createGain();subG.gain.value=(typeof MEDSUB!=="undefined"?MEDSUB:0.6)*1.667;subG.connect(lp);MED.subG=subG;
+  const subG=a.createGain();subG.gain.value=opt.pure?0:(typeof MEDSUB!=="undefined"?MEDSUB:0.6)*1.667;subG.connect(lp);MED.subG=subG;
   MED.drones=[];[0,7].forEach(n=>{const o=a.createOscillator();o.type="sine";o.frequency.value=carrier*Math.pow(2,n/12)/(SPKB?1:2);MED.drones.push([o,n]);const g=a.createGain();g.gain.value=SPKB?0.052:0.035;const tr=a.createOscillator();tr.type="sine";tr.frequency.value=0.07;const tg=a.createGain();tg.gain.value=0.018;tr.connect(tg);tg.connect(g.gain);tr.start();oscs.push(tr);o.connect(g);g.connect(subG);o.start();oscs.push(o);});
   {const o=a.createOscillator();o.type="sine";o.frequency.value=carrier;MED.pulseO=o;const g=a.createGain();g.gain.value=shimmer?(MEDSPK.on?0.07:0.03):0;MED.pulseBase=g;const lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=beatHz;const lg=a.createGain();lg.gain.value=shimmer?(MEDSPK.on?0.07:0.03):0;lfo.connect(lg);lg.connect(g.gain);lfo.start();oscs.push(lfo);shimL=lfo;MED.pulseG=lg;o.connect(g);g.connect(lp);o.start();oscs.push(o);}
+  MED.swayG=null;if(opt.sway&&rightO){const sl=a.createOscillator();sl.type="sine";sl.frequency.value=1/80;const sg=a.createGain();sg.gain.value=medSwayDepth(beatHz);sl.connect(sg);sg.connect(rightO.frequency);sl.start();oscs.push(sl);MED.swayG=sg;} /* slow sway: the beat rises and falls a little over ~80 s */
   MED.master=master;MED.oscs=oscs;MED.right=rightO;MED.lfo=shimL;MED.body=null;MED.bodyDepth=null;}
+function medSwayDepth(beatHz){return Math.max(0.03,Math.min(0.6,beatHz*0.06));}
 const MEDDRIFT={on:load("mjk-meddrift",true)};
-function medDrift(on){MEDDRIFT.on=on;save("mjk-meddrift",on);try{const a=ac();(MED.driftG||[]).forEach(g=>{g.gain.cancelScheduledValues(a.currentTime);g.gain.setTargetAtTime(on?g._d:0,a.currentTime,1.5);});}catch(e){}}
+function medDrift(on){MEDDRIFT.on=on;save("mjk-meddrift",on);try{const a=ac();(MED.driftG||[]).forEach(g=>{g.gain.cancelScheduledValues(a.currentTime);g.gain.setTargetAtTime((on&&!MED.pure)?g._d:0,a.currentTime,1.5);});}catch(e){}}
 /* ---- ocean waves (generated, uneven swells) + humming guide ---- */
 const MEDOCEAN={on:load("mjk-medocean",false),lvl:load("mjk-medoceanlvl",0.55),gulls:load("mjk-medgulls",true)};
 function medOceanStart(){if(!MED.master)return;medOceanStop(true);const a=ac(),out=a.createGain();out.gain.value=MEDOCEAN.lvl;out.connect(MED.master);
@@ -13712,31 +13714,54 @@ function renderMeditation(){if(toneRAF)cancelAnimationFrame(toneRAF);if(!(MED.jS
   (function(){var r=medRemGet();var on=$("#medRemOn"),off=$("#medRemOff"),tm=$("#medRemTime"),note=$("#medRemNote");if(tm)tm.value=r.time||"08:00";function upd(){if(on)on.classList.toggle("sel",r.on);if(off)off.classList.toggle("sel",!r.on);if(note)note.textContent=r.on?("Reminder on at "+(r.time||"08:00")+((window.Notification&&Notification.permission==="granted")?" \u00b7 alerts on":"")):"Reminder off.";}if(on)on.onclick=function(){r.on=true;medRemSet(r);if(window.Notification&&Notification.permission==="default"){try{Notification.requestPermission().then(upd);}catch(e){}}upd();};if(off)off.onclick=function(){r.on=false;medRemSet(r);upd();};if(tm)tm.onchange=function(){r.time=tm.value||"08:00";medRemSet(r);upd();};upd();})();
 }
 function renderBrainwave(startId){if(toneRAF)cancelAnimationFrame(toneRAF);medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{medStop();};
-  let wi=2,carrier=200,vol=0.5,shimmer=true,playing=false,body=load("mjk-bwbody",false);const startBW=hz=>{medBinaural(hz,carrier,vol,shimmer);medBodyWave(body,vol);};if(startId){for(var _bi=0;_bi<BRAINWAVES.length;_bi++){if(BRAINWAVES[_bi].id===startId)wi=_bi;}}
+  /* remembered per player: intention, beat, tone, Pure, Slow sway */
+  const BWK=mk("bw","set"),SV=load(BWK,{});
+  let wi=SV.wi!=null&&BRAINWAVES[SV.wi]?SV.wi:2,beat=SV.beat||BRAINWAVES[wi].hz,carrier=SV.car||200,pure=!!SV.pure,sway=!!SV.sway,vol=0.5,shimmer=true,playing=false,body=load("mjk-bwbody",false);
+  if(startId){for(var _bi=0;_bi<BRAINWAVES.length;_bi++){if(BRAINWAVES[_bi].id===startId){wi=_bi;beat=BRAINWAVES[_bi].hz;}}}
+  const keep=()=>save(BWK,{wi:wi,beat:beat,car:carrier,pure:pure,sway:sway});
+  const startBW=()=>{medBinaural(beat,carrier,vol,shimmer,undefined,{pure:pure,sway:sway});if(!pure)medBodyWave(body,vol);};
+  const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+  const numBox=(id,v,lo,hi,st)=>'<input type="number" inputmode="decimal" id="'+id+'" min="'+lo+'" max="'+hi+'" step="'+st+'" value="'+v+'" style="width:84px;background:var(--bg);border:1px solid var(--line);color:var(--cream);border-radius:9px;padding:6px 8px;font:inherit;text-align:right">';
   function draw(){const w=BRAINWAVES[wi];
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🌀 Brainwave Binaural</span></div><div class="panel">'+mbrHTML()+
       '<div class="intro">A <b>binaural beat</b> plays a slightly different tone in each ear; your brain hears the <b>difference</b> as a pulse and tends to settle toward it. Pick what you want, put on <b>headphones</b>, and relax — nothing to do but listen.</div>'+
       '<button class="btn" id="bwJourney" style="width:100%;margin:4px 0 12px">🌀 30-min Journey — down deep &amp; back up →</button>'+
       '<div class="rlab" style="display:block;margin:4px 0 6px">Intention</div><div class="rchips" id="bwWaves"></div>'+
       '<div class="idea-fb" id="bwInfo" style="margin-top:10px"></div>'+
-      '<div class="rrow"><span class="rlab">Beat</span><input type="range" id="bwBeat" min="0.1" max="40" step="0.05" value="'+w.hz+'" style="flex:1"><span class="rbpm" id="bwBeatV">'+w.hz.toFixed(2)+' Hz</span></div>'+
-      '<div class="rrow"><span class="rlab">Tone</span><input type="range" id="bwCar" min="90" max="360" value="'+carrier+'" style="flex:1"><span class="rbpm" id="bwCarV">'+carrier+' Hz</span></div>'+
+      '<div class="rrow2"><span class="rlab">Pure</span><span class="rchips tight"><button class="rchip sm'+(pure?" sel":"")+'" id="bwPure">'+(pure?"On":"Off")+'</button><span class="site-note" style="margin:0 0 0 8px">just the two tones — nothing else</span></span></div>'+
+      '<div class="rrow"><span class="rlab">Beat</span><input type="range" id="bwBeat" min="0.1" max="40" step="0.01" value="'+beat+'" style="flex:1">'+numBox("bwBeatN",beat,0.1,40,0.01)+'<span class="rbpm" style="min-width:0">Hz</span></div>'+
+      '<div class="rrow"><span class="rlab">Tone</span><input type="range" id="bwCar" min="90" max="360" step="0.01" value="'+carrier+'" style="flex:1">'+numBox("bwCarN",carrier,90,360,0.01)+'<span class="rbpm" style="min-width:0">Hz</span></div>'+
+      '<div class="rrow2"><span class="rlab">Slow sway</span><span class="rchips tight"><button class="rchip sm'+(sway?" sel":"")+'" id="bwSway">'+(sway?"On":"Off")+'</button><span class="site-note" style="margin:0 0 0 8px">the beat drifts a little up and down, slowly</span></span></div>'+
+      (pure?'':
       '<div class="rrow2"><span class="rlab">Felt pulse</span><span class="rchips tight"><button class="rchip sm'+(shimmer?" sel":"")+'" id="bwShim">'+(shimmer?"On":"Off")+'</button><span class="site-note" style="margin:0 0 0 8px">adds a soft audible pulse so it works even without perfect headphones</span></span></div>'+
       '<div class="rrow2"><span class="rlab">Drift</span><span class="rchips tight"><button class="rchip sm'+(MEDDRIFT.on?" sel":"")+'" id="bwDrift">'+(MEDDRIFT.on?"On":"Off")+'</button><span class="site-note" style="margin:0 0 0 8px">volume slowly fades back a little and returns, so it never feels flat</span></span></div>'+
-      '<div class="rrow2"><span class="rlab">Body wave</span><span class="rchips tight"><button class="rchip sm'+(body?" sel":"")+'" id="bwBody">🌊 0.1 Hz: '+(body?"On":"Off")+'</button><span class="site-note" style="margin:0 0 0 8px">a slow 10-second swell to breathe with — in as it rises, out as it falls</span></span></div>'+
+      '<div class="rrow2"><span class="rlab">Body wave</span><span class="rchips tight"><button class="rchip sm'+(body?" sel":"")+'" id="bwBody">🌊 0.1 Hz: '+(body?"On":"Off")+'</button><span class="site-note" style="margin:0 0 0 8px">a slow 10-second swell to breathe with — in as it rises, out as it falls</span></span></div>')+
       '<div class="rrow"><span class="rlab">Volume</span><input type="range" id="bwVol" min="0" max="1" step="0.01" value="'+vol+'" style="flex:1"></div>'+
       '<div class="actions"><button class="btn" id="bwPlay">'+(playing?"⏸ Stop":"▶ Play")+'</button></div>'+
-      '<div class="site-note">🎧 Headphones are what make binaural beats work — the pulse lives in the difference between your ears.</div></div>';
+      '<div class="site-note">🎧 Headphones are what make binaural beats work — the pulse lives in the difference between your ears.'+(pure&&MEDSPK.on?' Pure has no speaker pulse, so use headphones.':'')+'</div></div>';
     $("#eBack").onclick=()=>{medStop();renderMeditation();};
-    const wc=$("#bwWaves");BRAINWAVES.forEach((v,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===wi?" sel":"");b.textContent=v.name;b.onclick=()=>{wi=i;const nw=BRAINWAVES[i];$("#bwBeat").value=nw.hz;$("#bwBeatV").textContent=nw.hz.toFixed(2)+" Hz";draw();if(playing)startBW(nw.hz);};wc.appendChild(b);});
-    $("#bwInfo").innerHTML='<b style="color:#c9b3ff">'+w.name+' · '+w.range+'</b> — '+w.intent+'. '+w.desc;
-    const bb=$("#bwBeat");bb.oninput=()=>{$("#bwBeatV").textContent=(+bb.value).toFixed(2)+" Hz";if(playing&&!medRetune(+bb.value,carrier))startBW(+bb.value);};
-    const bc=$("#bwCar");bc.oninput=()=>{carrier=+bc.value;$("#bwCarV").textContent=carrier+" Hz";if(playing&&!medRetune(+bb.value,carrier))startBW(+bb.value);};
+    let info=()=>{};const live=()=>{keep();info();if(playing&&!medRetune(beat,carrier))startBW();};
+    const wc=$("#bwWaves");BRAINWAVES.forEach((v,i)=>{const b=document.createElement("button");b.className="rchip sm"+(i===wi?" sel":"");b.textContent=v.name;b.onclick=()=>{wi=i;beat=BRAINWAVES[i].hz;draw();live();};wc.appendChild(b);});
+    /* the card says what is actually playing: an intention, or your own typed beat; Pure is named when it's on */
+    info=()=>{const own=Math.abs(beat-w.hz)>0.004,el=$("#bwInfo");if(!el)return;
+      wc.querySelectorAll("button").forEach((b,i)=>b.classList.toggle("sel",!own&&i===wi));
+      el.innerHTML=(own?'<b style="color:#c9b3ff">Your beat · '+(+beat.toFixed(2))+' Hz</b> on a '+(+carrier.toFixed(2))+' Hz tone.':'<b style="color:#c9b3ff">'+w.name+' · '+w.range+'</b> — '+w.intent+'. '+w.desc)+
+        (pure?' <b style="color:#5fe0a8">Pure</b> — just the two tones.':'')+(sway?' Slow sway on.':'');};
+    info();
+    /* slider and typed box stay in step; a typed number is used as soon as it's a valid number */
+    const pair=(sl,bx,lo,hi,set)=>{const S=$(sl),B=$(bx);
+      S.oninput=()=>{set(+S.value);B.value=+(+S.value).toFixed(2);live();};
+      B.oninput=()=>{const v=parseFloat(B.value);if(isFinite(v)&&v>=lo&&v<=hi){set(v);S.value=v;live();}};
+      B.onchange=()=>{let v=parseFloat(B.value);if(!isFinite(v))v=+S.value;v=+clamp(v,lo,hi).toFixed(2);B.value=v;S.value=v;set(v);live();};
+      B.onkeydown=e=>{if(e.key==="Enter")B.blur();};};
+    pair("#bwBeat","#bwBeatN",0.1,40,v=>{beat=v;});pair("#bwCar","#bwCarN",90,360,v=>{carrier=v;});
     {const jb=$("#bwJourney");if(jb)jb.onclick=()=>{medStop();renderJourney();};const bd=$("#bwBody");if(bd)bd.onclick=()=>{body=!body;save("mjk-bwbody",body);draw();if(playing)medBodyWave(body,vol);};}
-    $("#bwDrift").onclick=function(){medDrift(!MEDDRIFT.on);this.classList.toggle("sel",MEDDRIFT.on);this.textContent=MEDDRIFT.on?"On":"Off";};
-    $("#bwShim").onclick=()=>{shimmer=!shimmer;if(playing)medPulse(shimmer);draw();};
+    $("#bwPure").onclick=()=>{pure=!pure;keep();draw();if(playing)startBW();};
+    $("#bwSway").onclick=()=>{sway=!sway;keep();draw();if(playing)startBW();};
+    {const d=$("#bwDrift");if(d)d.onclick=function(){medDrift(!MEDDRIFT.on);this.classList.toggle("sel",MEDDRIFT.on);this.textContent=MEDDRIFT.on?"On":"Off";};}
+    {const sh=$("#bwShim");if(sh)sh.onclick=()=>{shimmer=!shimmer;if(playing)medPulse(shimmer);draw();};}
     const bv=$("#bwVol");bv.oninput=()=>{vol=+bv.value;if(MED.master)MED.master.gain.setTargetAtTime(vol,ac().currentTime,0.1);};
-    $("#bwPlay").onclick=()=>{if(playing){medStop();playing=false;mbrStop();$("#bwPlay").textContent="▶ Play";}else{startBW(+$("#bwBeat").value);playing=true;mbrStart();$("#bwPlay").textContent="⏸ Stop";}};
+    $("#bwPlay").onclick=()=>{if(playing){medStop();playing=false;mbrStop();$("#bwPlay").textContent="▶ Play";}else{startBW();playing=true;mbrStart();$("#bwPlay").textContent="⏸ Stop";}};
   }
   draw();
 }

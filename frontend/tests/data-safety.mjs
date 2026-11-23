@@ -1267,20 +1267,64 @@ export async function run() {
     assert(after.now.hist.length === 0 && after.copy && after.copy.hist.length === 1, "clear didn't keep a copy " + JSON.stringify(after).slice(0, 200)); await ctx.close();
   });
 
-  await S.test("REAL TAPS: searching Heads finds it for Trav, and finds nothing for another player", async () => {
-    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); await fakeApi(ctx, "travis"); const pg = await ctx.newPage();
-    await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }, { id: "b1", name: "Bob" }])); });
-    await pg.goto(url + "/app.html"); await pg.waitForTimeout(700);
-    const look = async (name) => { await pg.locator("#profiles").getByText(name, { exact: true }).first().click(); await pg.waitForTimeout(500);
-      const s = pg.locator("#homeSearch"); await s.fill(""); await s.click(); await pg.keyboard.type("Heads"); await pg.waitForTimeout(400);
-      return pg.locator("#searchResults :is(button,.card)").filter({ hasText: /Heads of Things/ }).filter({ visible: true }).count(); };
-    assert((await look("Trav")) === 1, "Trav can't find Heads by search");
-    await pg.locator("#switchProfile").click(); await pg.waitForTimeout(400);
-    assert((await look("Bob")) === 0, "Bob can find Heads by search"); await ctx.close();
+  await S.test("REAL TAPS: Brainwave Binaural Pure — only the two tones play (no drones, no pulse, no drift), any beat and tone can be typed (4.58 Hz on 216), slow sway is optional, and it's all remembered after ← back and a reload; both orientations", async () => {
+    for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
+      const ctx = await b.newContext({ viewport: vp, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+      await pg.addInitScript(() => {
+        if (!sessionStorage.getItem("s")) { sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); }
+        /* listen to what reaches the speakers: a left and a right analyser on everything sent to the output */
+        const oc = AudioNode.prototype.connect;
+        AudioNode.prototype.connect = function (dst, ...r) { const out = oc.call(this, dst, ...r);
+          try { if (dst instanceof AudioDestinationNode) { const c = this.context; if (!c.__ears) { const sp = c.createChannelSplitter(2), L = c.createAnalyser(), R = c.createAnalyser(); L.fftSize = R.fftSize = 32768; sp.connect(L, 0); sp.connect(R, 1); c.__ears = { sp, L, R }; window.__ears = c.__ears; } oc.call(this, c.__ears.sp); } } catch (e) {}
+          return out; };
+      });
+      const ears = () => pg.evaluate(() => { const E = window.__ears; if (!E) return null; const sr = E.L.context.sampleRate, n = E.L.frequencyBinCount, bin = sr / (2 * n);
+        const read = (an) => { const d = new Float32Array(n); an.getFloatFrequencyData(d); let pk = 0; for (let i = 5; i < n; i++) if (d[i] > d[pk]) pk = i;
+          const at = (f) => { let m = -999; for (let i = Math.floor(f / bin) - 2; i <= Math.ceil(f / bin) + 2; i++) m = Math.max(m, d[i]); return m; };
+          return { peak: pk * bin, peakDb: d[pk], at }; };
+        const l = read(E.L), r = read(E.R);
+        return { L: l.peak, R: r.peak, peakDb: Math.max(l.peakDb, r.peakDb), drone: Math.max(l.at(108), l.at(162), r.at(108), r.at(162)) }; });
+      const open = async () => { const s = pg.locator("#homeSearch"); await s.fill(""); await s.click(); await pg.keyboard.type("Binaural"); await pg.waitForTimeout(400);
+        await pg.locator("#searchResults .card").filter({ has: pg.locator("h3", { hasText: /^Meditation$/ }) }).first().click(); await pg.waitForTimeout(400);
+        await pg.locator("#medCards .card").filter({ hasText: /Brainwave Binaural/ }).first().click(); await pg.waitForTimeout(500); };
+      const isOn = () => pg.evaluate(() => { const z = document.getElementById("czA"); return !!(z && z.classList.contains("on")); });
+      const sheet = async (open) => { for (let k = 0; k < 6; k++) { await pg.waitForTimeout(250); if (open === (await isOn())) return; if (await pg.locator(open ? "#czABtn" : "#czAX").count()) await pg.locator(open ? "#czABtn" : "#czAX").first().click(); await pg.waitForTimeout(350); } };
+      await pg.goto(url + "/app.html"); await pg.waitForTimeout(700);
+      await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(500);
+      await open();
+      await sheet(true); await pg.locator("#bwPure").click(); await pg.waitForTimeout(200); await sheet(true);
+      assert(!(await pg.locator("#bwShim, #bwDrift, #bwBody").count()), "Pure still shows the extra sound switches");
+      await pg.locator("#bwBeatN").fill("4.58"); await pg.locator("#bwCarN").fill("216"); await pg.locator("#bwCarN").press("Enter"); await pg.waitForTimeout(150);
+      await pg.screenshot({ path: "/tmp/aud/bw-sheet-" + vp.width + ".png" });
+      assert(Math.abs(+(await pg.locator("#bwBeat").inputValue()) - 4.58) < 0.001, "typed beat didn't move the slider");
+      await sheet(false); await pg.locator("#bwPlay").click(); await pg.waitForTimeout(3500);
+      const p1 = await ears();
+      assert(p1 && Math.abs(p1.L - 216) < 2 && Math.abs(p1.R - 220.58) < 2, "Pure isn't 216 Hz left / 220.58 Hz right: " + JSON.stringify(p1));
+      assert(p1.peakDb - p1.drone > 45, "Pure still has drones under it: " + JSON.stringify(p1));
+      const st = await pg.evaluate(() => ({ sub: MED.subG.gain.value, pulse: MED.pulseG.gain.value, base: MED.pulseBase.gain.value, drift: (MED.driftG || []).map((g) => g.gain.value) }));
+      assert(st.sub === 0 && st.pulse === 0 && st.base === 0 && st.drift.every((v) => v === 0), "Pure has extra layers on: " + JSON.stringify(st));
+      await sheet(true); await pg.locator("#bwSway").click(); await pg.waitForTimeout(500); await sheet(false); await pg.waitForTimeout(300);
+      const sw = await pg.evaluate(() => MED.swayG && MED.swayG.gain.value);
+      assert(sw > 0.2 && sw < 0.35, "slow sway isn't a gentle ±0.27 Hz on 4.58: " + sw);
+      await pg.screenshot({ path: "/tmp/aud/bw-pure-" + vp.width + ".png" });
+      const card = await pg.locator("#bwInfo").innerText(); const selChip = await pg.locator("#bwWaves .rchip.sel").count();
+      assert(/Your beat · 4\.58 Hz/.test(card) && /216 Hz tone/.test(card) && /Pure/.test(card) && selChip === 0, "main screen doesn't show what's playing: " + card + " (chips selected " + selChip + ")");
+      await pg.locator("#eBack").click(); await pg.waitForTimeout(300);
+      assert(await pg.evaluate(() => !MED.master), "sound kept playing after ← back");
+      await pg.locator("#eBack").click().catch(() => {}); await pg.waitForTimeout(300);
+      await open();
+      const kept = async (why) => { await sheet(true); const k = { pure: await pg.locator("#bwPure").innerText(), sway: await pg.locator("#bwSway").innerText(), beat: await pg.locator("#bwBeatN").inputValue(), car: await pg.locator("#bwCarN").inputValue() };
+        assert(k.pure === "On" && k.sway === "On" && +k.beat === 4.58 && +k.car === 216, "settings not kept after " + why + ": " + JSON.stringify(k)); await sheet(false); };
+      await kept("← back");
+      await pg.reload(); await pg.waitForTimeout(700); const c = pg.locator("#profiles").getByText("Trav", { exact: true }); if (await c.count()) await c.first().click(); await pg.waitForTimeout(400);
+      await open(); await kept("a reload");
+      /* Pure off brings the full sound back (drones underneath) */
+      await sheet(true); await pg.locator("#bwPure").click(); await pg.waitForTimeout(150); await sheet(false); await pg.locator("#bwPlay").click(); await pg.waitForTimeout(3500);
+      const p2 = await ears(); assert(p2 && p2.peakDb - p2.drone < 35, "Full sound has no drones (Pure off didn't change anything): " + JSON.stringify(p2));
+      await pg.locator("#bwPlay").click(); assert(!errs.length, errs.join(" | ")); await ctx.close();
+    }
   });
 
-  await S.test("REAL TAPS: leaving Piano / Handpan / Djembe by the player chip stops their sound and brings the 🫀/🧠 buttons back", async () => {
-    for (const inst of ["Piano", "Handpan", "Djembe Groove"]) {
   await S.test("Heads of Things is private: hidden when signed out and for any other account (even a player named Trav); signing in as Star by real taps shows it; the server refuses others; works offline after one open; signing out removes it", async () => {
     const search = async (pg, name) => { await pg.locator("#profiles").getByText(name, { exact: true }).first().click(); await pg.waitForTimeout(500);
       const s = pg.locator("#homeSearch"); await s.fill(""); await s.click(); await pg.keyboard.type("Heads"); await pg.waitForTimeout(400);
@@ -1317,6 +1361,20 @@ export async function run() {
     }
   });
 
+  await S.test("REAL TAPS: searching Heads finds it for Trav, and finds nothing for another player", async () => {
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); await fakeApi(ctx, "travis"); const pg = await ctx.newPage();
+    await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }, { id: "b1", name: "Bob" }])); });
+    await pg.goto(url + "/app.html"); await pg.waitForTimeout(700);
+    const look = async (name) => { await pg.locator("#profiles").getByText(name, { exact: true }).first().click(); await pg.waitForTimeout(500);
+      const s = pg.locator("#homeSearch"); await s.fill(""); await s.click(); await pg.keyboard.type("Heads"); await pg.waitForTimeout(400);
+      return pg.locator("#searchResults :is(button,.card)").filter({ hasText: /Heads of Things/ }).filter({ visible: true }).count(); };
+    assert((await look("Trav")) === 1, "Trav can't find Heads by search");
+    await pg.locator("#switchProfile").click(); await pg.waitForTimeout(400);
+    assert((await look("Bob")) === 0, "Bob can find Heads by search"); await ctx.close();
+  });
+
+  await S.test("REAL TAPS: leaving Piano / Handpan / Djembe by the player chip stops their sound and brings the 🫀/🧠 buttons back", async () => {
+    for (const inst of ["Piano", "Handpan", "Djembe Groove"]) {
       const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
       await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); });
       await pg.goto(url + "/app.html"); await pg.waitForTimeout(700); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(500);
@@ -1332,7 +1390,7 @@ export async function run() {
   });
 
   await S.test("REAL TAPS: when nothing is making sound the app stops 'playing' within ~15 s (so dictation/other apps can use audio), and a note on the neck wakes it instantly", async () => {
-    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); await fakeApi(ctx, "travis"); const pg = await ctx.newPage();
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); const pg = await ctx.newPage();
     await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); });
     await pg.goto(url + "/app.html"); await pg.waitForTimeout(700); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(500);
     const st = () => pg.evaluate(() => ({ eng: AC ? AC.state : "none", loop: _silentEl ? (_silentEl.paused ? "paused" : "playing") : "none" }));
