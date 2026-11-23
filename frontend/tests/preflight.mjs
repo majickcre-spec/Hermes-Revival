@@ -21,13 +21,16 @@ step("state baseline written", () => {
 });
 const FULL = process.argv.includes("--full");
 // Checks, run as side-by-side shards (most of the time is waiting, not computing).
-const N = Number(process.env.SHARDS || 2), t0 = Date.now();
+const N = Number(process.env.SHARDS || 3), t0 = Date.now();
 const { spawn } = await import("node:child_process");
+const LIMIT = (FULL ? 20 : 2.5) * 60000, kids = [];   // hard time limit: never wait longer than this
+const timer = setTimeout(() => { console.log("\n✗ checks ran past " + LIMIT / 60000 + " min — stopped (machine overloaded or a check hung)"); kids.forEach((k) => k.kill("SIGKILL")); }, LIMIT);
 const codes = await Promise.all(Array.from({ length: N }, (_, i) => new Promise((res) => {
   const c = spawn(process.execPath, [join(root, "tests/shard.mjs")], { cwd: root, env: { ...process.env, SHARD: i + "/" + N, ...(FULL ? {} : { QUICK: "1" }) } });
-  let out = ""; c.stdout.on("data", (d) => (out += d)); c.stderr.on("data", (d) => (out += d));
+  kids.push(c); let out = ""; c.stdout.on("data", (d) => (out += d)); c.stderr.on("data", (d) => (out += d));
   c.on("close", (code) => { console.log("── shard " + (i + 1) + "/" + N + " ──\n" + out.split("\n").filter((l) => /✓|✗|passed|Error|^\s{6}/.test(l)).join("\n")); res(code); });
 })));
+clearTimeout(timer);
 if (codes.some((c) => c !== 0)) ok = false;
 const all = codes.length; console.log("\nchecks took " + Math.round((Date.now() - t0) / 1000) + "s across " + N + " shards");
 console.log(ok ? "\nPRE-FLIGHT PASSED — safe to push" + (FULL ? " (full check)" : "") : "\nPRE-FLIGHT FAILED — do not push");
