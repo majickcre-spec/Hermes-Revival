@@ -921,7 +921,7 @@ export async function run() {
       save(mk("voice", "belt-" + dayKey()), 99); renderVoxBelt(); await until(() => document.getElementById("vbtBody")); out.beltCapped = /enough belting/.test(document.getElementById("vbtBody").textContent);
       openEar("tone"); await w(300); out.earRoute = /Vocal Training/.test((document.querySelector(".ttitle") || {}).textContent || "");
       return out; });
-    assert(r.door && r.hub === 12 && r.keptVoice && r.realVoices === 2, "section/hub/voice " + JSON.stringify(r));
+    assert(r.door && r.hub === 13 && r.keptVoice && r.realVoices === 2, "section/hub/voice " + JSON.stringify(r));
     assert(r.range === "45-67 Baritone" && r.shift === -12 && r.warmStart === 47, "range fit " + JSON.stringify(r));
     assert(r.weekly === 1, "weekly check not saved " + JSON.stringify(r));
     assert(r.flowGood >= 90 && r.flowOff <= 20 && r.beltCapped, "flow/belt " + JSON.stringify(r));
@@ -1116,7 +1116,7 @@ export async function run() {
         d2s.sort((a, b) => a - b); const med = d2s[d2s.length >> 1] || 0; for (let i = st + 2; i < n; i++) { if (Math.abs(L[i] - 2 * L[i - 1] + L[i - 2]) > 8 * med + 0.02) clicks++; }
         /* zero-crossing pitch of the left (carrier) channel per second — it must not wander */
         const per = []; for (let s0 = st; s0 + sr <= n; s0 += sr) { let z = 0; for (let i = s0 + 1; i < s0 + sr; i++) if (L[i - 1] < 0 && L[i] >= 0) z++; per.push(z); }
-        return { secs: n / sr, rms, clicks, per, bgOn: BGK.on, direct: BGK.gd ? BGK.gd.gain.value : null, away: BGK.gs ? BGK.gs.gain.value : null, keepSr: _silentEl ? _silentEl._sr : null, keepPlaying: _silentEl ? !_silentEl.paused : false, ctxSr: c.sampleRate,
+        return { secs: n / sr, rms, clicks, per, idlePaused: !!BGK.el && BGK.el.paused && BGK.idle === true, dbg: [!!BGK.el, BGK.el && BGK.el.paused, BGK.idle, BGK.away, BGK.on], bgOn: BGK.on, direct: BGK.gd ? BGK.gd.gain.value : null, away: BGK.gs ? BGK.gs.gain.value : null, keepSr: _silentEl ? _silentEl._sr : null, keepPlaying: _silentEl ? !_silentEl.paused : false, ctxSr: c.sampleRate,
           mp3: [...document.querySelectorAll("audio")].concat(_silentEl ? [_silentEl] : []).some((x) => /silence\.mp3/.test(x.src || "")) }; });
       const spread = Math.max(...r.per) - Math.min(...r.per);
       assert(r.bgOn && r.direct > 0.99 && r.away < 0.01, (jt || "journey") + ": in the app the sound must go straight to the speakers " + JSON.stringify(r));
@@ -1125,9 +1125,11 @@ export async function run() {
       await pg.evaluate(() => { Object.defineProperty(document, "hidden", { configurable: true, get: () => true }); document.dispatchEvent(new Event("visibilitychange")); }); await pg.waitForTimeout(400);
       const aw = await pg.evaluate(() => ({ d: BGK.gd.gain.value, s: BGK.gs.gain.value, el: !!BGK.el && !!BGK.el.srcObject }));
       assert(aw.d < 0.02 && aw.s > 0.98 && aw.el, (jt || "journey") + ": leaving the app should hand the sound to the background player " + JSON.stringify(aw));
+      assert(r.idlePaused && (await pg.evaluate(() => !BGK.el.paused && !BGK.idle)), (jt || "journey") + ": the lock-screen player must sit paused while the screen is on (iPhone crackle) and play once the screen is off " + JSON.stringify(r.dbg) + JSON.stringify(await pg.evaluate(() => [BGK.el.paused, BGK.idle])));
       await pg.evaluate(() => { Object.defineProperty(document, "hidden", { configurable: true, get: () => false }); document.dispatchEvent(new Event("visibilitychange")); }); await pg.waitForTimeout(400);
       const bk = await pg.evaluate(() => ({ d: BGK.gd.gain.value, s: BGK.gs.gain.value }));
       assert(bk.d > 0.98 && bk.s < 0.02, (jt || "journey") + ": coming back should bring the sound home " + JSON.stringify(bk));
+      assert(await pg.evaluate(() => BGK.el.paused && BGK.idle), (jt || "journey") + ": back in the app, the lock-screen player should pause again");
       assert(r.secs > 15 && r.rms > 0.01, (jt || "journey") + ": no sound reached the speakers " + JSON.stringify(r));
       assert(r.clicks === 0, (jt || "journey") + ": clicks in the output " + r.clicks);
       assert(jt || spread <= 3, "journey: the tone wandered " + JSON.stringify(r.per));
@@ -1549,7 +1551,7 @@ export async function run() {
     await pg.evaluate(() => { window.__gr = 0; const o = window.grPlay; window.grPlay = function () { window.__gr++; return o.apply(this, arguments); }; });
     await pg.locator('#doors .door[data-d="voice"]').click(); await pg.waitForTimeout(500);
     await pg.locator("#voiceGrid .card").filter({ has: pg.locator("h3", { hasText: /^Scale Runs$/ }) }).first().click(); await pg.waitForTimeout(900);
-    await pg.locator("#view button").filter({ hasText: /Start warm-up/ }).first().click(); const sr = await listen(3000);
+    await pg.locator("#wmGo").click(); const sr = await listen(1200);
     assert((await pg.evaluate(() => window.__gr)) > 0, "Scale Runs didn't use the grand piano");
     assert(sr.peak < 0.98 && sr.rms > 0.08, "Scale Runs level off (peak " + sr.peak.toFixed(2) + ", rms " + sr.rms.toFixed(3) + ")");
     for (let k = 0; k < 4 && !(await pg.locator("#home").isVisible()); k++) { await pg.locator("#view .play-top .back").first().click().catch(() => {}); await pg.waitForTimeout(400); }
@@ -1596,6 +1598,92 @@ export async function run() {
     assert(!errs.length, errs.join(" | ")); await ctx.close();
   });
 
+  await S.test("REAL TAPS: Scale Runs — slower default pace that's remembered, hear the first note and sing it to begin, 4-click count-in, Stop really stops, leaving mid-run leaves no notes playing (no overlap)", async () => {
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, permissions: ["microphone"] }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+    await pg.addInitScript(() => {
+      if (!sessionStorage.getItem("s")) { sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav", mode: "adult" }])); }
+      window.__opens = 0;
+      navigator.mediaDevices.getUserMedia = async () => { window.__opens++; const c = new AudioContext(), d = c.createMediaStreamDestination();
+        const nb = c.createBuffer(1, c.sampleRate * 2, c.sampleRate), ch = nb.getChannelData(0); for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+        const room = c.createBufferSource(); room.buffer = nb; room.loop = true; const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 800; const rg = c.createGain(); rg.gain.value = 0.003; room.connect(lp); lp.connect(rg); rg.connect(d); room.start();
+        const hs = c.createBufferSource(); hs.buffer = nb; hs.loop = true; const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 4000; const hg = c.createGain(); hg.gain.value = 0; hs.connect(hp); hp.connect(hg); hg.connect(d); hs.start();
+        const o = c.createOscillator(); o.type = "triangle"; const og = c.createGain(); og.gain.value = 0; o.connect(og); og.connect(d); o.start();
+        window.__voice = { hiss: (on) => hg.gain.setTargetAtTime(on ? 0.006 : 0, c.currentTime, 0.02),
+          sing: (f) => { if (f) { o.frequency.setValueAtTime(f, c.currentTime); og.gain.setTargetAtTime(0.05, c.currentTime, 0.02); } else og.gain.setTargetAtTime(0, c.currentTime, 0.02); },
+          glide: (f1, f2, s) => { o.frequency.setValueAtTime(f1, c.currentTime); o.frequency.exponentialRampToValueAtTime(f2, c.currentTime + s / 2); o.frequency.exponentialRampToValueAtTime(f1, c.currentTime + s); og.gain.setTargetAtTime(0.05, c.currentTime, 0.02); } };
+        return d.stream; };
+    });
+    await pg.goto(url + "/app.html"); await pg.waitForTimeout(800); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(600);
+    await pg.evaluate(() => { window.__sung = 0; const o = window.playSing; window.playSing = function () { window.__sung++; return o.apply(this, arguments); }; });
+    const open = async () => { const q = pg.locator("#homeSearch"); await q.fill(""); await q.click(); await pg.keyboard.type("Scale Runs"); await pg.waitForTimeout(400);
+      await pg.locator("#searchResults .card:visible").filter({ has: pg.locator("h3", { hasText: /^Scale Runs$/ }) }).first().click(); await pg.waitForTimeout(900); };
+    await open();
+    assert(/75\/min/.test(await pg.locator("#wmDurV").innerText()), "default pace isn't the slower 75/min: " + (await pg.locator("#wmDurV").innerText()));
+    await pg.locator("#wmDur").fill("0.8"); assert(/60\/min/.test(await pg.locator("#wmDurV").innerText()), "pace slider didn't slow to 60/min");
+    await pg.locator("#wmGo").click(); await pg.waitForTimeout(1800);
+    assert(/Now sing it/.test(await pg.locator("#wmHint").innerText()), "doesn't ask me to sing the first note: " + (await pg.locator("#wmHint").innerText()));
+    assert(/Stop/.test(await pg.locator("#wmGo").innerText()), "no Stop button while running");
+    assert(await pg.locator("#wmDur").isDisabled(), "pace can be changed mid-run");
+    await pg.evaluate(() => window.__voice.sing(100)); await pg.waitForTimeout(1500);
+    assert(await pg.evaluate(() => WARM.phase === "find"), "a wrong note started the scale");
+    await pg.evaluate(() => { const N = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"], m = document.getElementById("wmCur").textContent.match(/^([A-G]#?)(\d)/); window.__voice.sing(440 * Math.pow(2, ((+m[2] + 1) * 12 + N.indexOf(m[1]) - 69) / 12)); });
+    for (let k = 0; k < 40 && (await pg.evaluate(() => WARM.phase !== "run")); k++) await pg.waitForTimeout(250);
+    assert(await pg.evaluate(() => WARM.counted === 4 && WARM.phase === "run"), "no 4-click count-in before the scale (counted " + (await pg.evaluate(() => WARM.counted)) + ")");
+    await pg.waitForTimeout(2500); await pg.locator("#wmGo").click(); await pg.waitForTimeout(300);
+    let n0 = await pg.evaluate(() => window.__sung); await pg.waitForTimeout(2500);
+    assert((await pg.evaluate(() => window.__sung)) === n0, "notes kept playing after Stop");
+    assert(/Start/.test(await pg.locator("#wmGo").innerText()) && /Stopped/.test(await pg.locator("#wmHint").innerText()), "Stop didn't reset the screen");
+    await pg.locator("#wmSkip").isHidden();
+    await pg.locator("#wmGo").click(); await pg.waitForTimeout(400); await pg.locator("#wmSkip").click(); await pg.waitForTimeout(4500);
+    await pg.locator("#eBack").click(); await pg.waitForTimeout(400); n0 = await pg.evaluate(() => window.__sung); await pg.waitForTimeout(2500);
+    assert((await pg.evaluate(() => window.__sung)) === n0, "leaving mid-run left the scale playing");
+    await pg.locator(".card:visible").filter({ has: pg.locator("h3", { hasText: /^Scale Runs$/ }) }).first().click(); await pg.waitForTimeout(700);
+    await pg.locator("#wmGo").click(); await pg.waitForTimeout(400); await pg.locator("#wmSkip").click(); await pg.waitForTimeout(5300);
+    const t = await pg.evaluate(async () => { const c = window.__sung; await new Promise((r) => setTimeout(r, 3000)); return window.__sung - c; });
+    assert(t <= 5, "two scales playing at once: " + t + " notes in 3 s at 60/min");
+    await pg.locator("#wmGo").click(); await pg.screenshot({ path: "/tmp/shots/scales-p.png" });
+    await pg.reload(); await pg.waitForTimeout(800); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(600); await open();
+    assert(/60\/min/.test(await pg.locator("#wmDurV").innerText()), "pace not remembered after reload");
+    assert(!errs.length, errs.join(" | ")); await ctx.close();
+  });
+
+  await S.test("REAL TAPS: Long Tones — piano plays the note, holding it 6 s passes level 1, unlocks level 2, remembered after reload; Stop ends a hold and grades it", async () => {
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, permissions: ["microphone"] }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+    await pg.addInitScript(() => {
+      if (!sessionStorage.getItem("s")) { sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav", mode: "adult" }])); }
+      window.__opens = 0;
+      navigator.mediaDevices.getUserMedia = async () => { window.__opens++; const c = new AudioContext(), d = c.createMediaStreamDestination();
+        const nb = c.createBuffer(1, c.sampleRate * 2, c.sampleRate), ch = nb.getChannelData(0); for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+        const room = c.createBufferSource(); room.buffer = nb; room.loop = true; const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 800; const rg = c.createGain(); rg.gain.value = 0.003; room.connect(lp); lp.connect(rg); rg.connect(d); room.start();
+        const hs = c.createBufferSource(); hs.buffer = nb; hs.loop = true; const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 4000; const hg = c.createGain(); hg.gain.value = 0; hs.connect(hp); hp.connect(hg); hg.connect(d); hs.start();
+        const o = c.createOscillator(); o.type = "triangle"; const og = c.createGain(); og.gain.value = 0; o.connect(og); og.connect(d); o.start();
+        window.__voice = { hiss: (on) => hg.gain.setTargetAtTime(on ? 0.006 : 0, c.currentTime, 0.02),
+          sing: (f) => { if (f) { o.frequency.setValueAtTime(f, c.currentTime); og.gain.setTargetAtTime(0.05, c.currentTime, 0.02); } else og.gain.setTargetAtTime(0, c.currentTime, 0.02); },
+          glide: (f1, f2, s) => { o.frequency.setValueAtTime(f1, c.currentTime); o.frequency.exponentialRampToValueAtTime(f2, c.currentTime + s / 2); o.frequency.exponentialRampToValueAtTime(f1, c.currentTime + s); og.gain.setTargetAtTime(0.05, c.currentTime, 0.02); } };
+        return d.stream; };
+    });
+    await pg.goto(url + "/app.html"); await pg.waitForTimeout(800); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(600);
+    const open = async () => { const q = pg.locator("#homeSearch"); await q.fill(""); await q.click(); await pg.keyboard.type("Long Tones"); await pg.waitForTimeout(400);
+      await pg.locator("#searchResults .card:visible").filter({ has: pg.locator("h3", { hasText: /^Long Tones$/ }) }).first().click(); await pg.waitForTimeout(900); };
+    await open();
+    assert(await pg.locator("#ltLv button").nth(1).isDisabled(), "level 2 open before passing level 1");
+    const f = await pg.evaluate(() => { const N = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"], m = document.getElementById("ltNote").textContent.match(/^([A-G]#?)(\d)/); return 440 * Math.pow(2, ((+m[2] + 1) * 12 + N.indexOf(m[1]) - 69) / 12); });
+    await pg.locator("#ltGo").click(); await pg.waitForTimeout(900); assert(/Stop/.test(await pg.locator("#ltGo").innerText()), "no Stop while holding");
+    await pg.evaluate((f) => window.__voice.sing(f), f); await pg.waitForTimeout(6500); await pg.screenshot({ path: "/tmp/shots/long-p.png" });
+    await pg.evaluate(() => window.__voice.sing(0)); await pg.waitForTimeout(1500);
+    const fb = await pg.locator("#ltFb").innerText(); const s = parseFloat((fb.match(/([\d.]+) s/) || [])[1]);
+    assert(/✓/.test(fb) && s >= 5.5 && s <= 7.5 && /Level 2 unlocked/.test(fb), "6 s hold not graded as a pass: " + fb);
+    await pg.locator("#view button").filter({ hasText: /Next level/ }).first().click(); await pg.waitForTimeout(500);
+    assert(/10 s/.test(await pg.locator("#view").innerText()), "level 2 goal not shown");
+    await pg.locator("#ltGo").click(); await pg.waitForTimeout(900); await pg.evaluate((f) => window.__voice.sing(f), f); await pg.waitForTimeout(3000);
+    await pg.locator("#ltGo").click(); await pg.waitForTimeout(400); await pg.evaluate(() => window.__voice.sing(0));
+    assert(/Again/.test(await pg.locator("#ltGo").innerText()) && parseFloat(((await pg.locator("#ltFb").innerText()).match(/([\d.]+) s/) || [])[1]) > 1.5, "Stop didn't end and grade the hold");
+    await pg.reload(); await pg.waitForTimeout(800); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(600); await open();
+    assert(!(await pg.locator("#ltLv button").nth(1).isDisabled()) && /10 s/.test(await pg.locator("#view").innerText()), "level progress lost after reload");
+    await pg.setViewportSize({ width: 844, height: 390 }); await pg.waitForTimeout(300); await pg.screenshot({ path: "/tmp/shots/long-l.png" });
+    assert(!errs.length, errs.join(" | ")); await ctx.close();
+  });
+
   await S.test("REAL TAPS: Daily Warm-Up start to finish — every Start turns the mic on itself (even after it was cut), Breath shows it's running, a hiss started right after Start is caught and ends when it stops, Siren, Scale runs and Steady hold grade, summary lists all four", async () => {
     const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, permissions: ["microphone"] }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
     await pg.addInitScript(() => {
@@ -1623,8 +1711,9 @@ export async function run() {
     await pg.locator("#vsGo").click(); await pg.waitForTimeout(400); await pg.evaluate(() => window.__voice.glide(130, 520, 9)); await pg.waitForTimeout(11500); await pg.evaluate(() => window.__voice.sing(0));
     assert(/covered \d+%/.test(await pg.locator("#vsH").innerText()), "siren didn't grade");
     await pg.locator("#vsGo").click(); await pg.waitForTimeout(1200);
-    await pg.locator("#wmGo").click(); await pg.waitForTimeout(400); await pg.evaluate(() => window.__voice.sing(220));
-    for (let k = 0; k < 60 && (await pg.evaluate(() => WARM.on)); k++) await pg.waitForTimeout(1000); await pg.evaluate(() => window.__voice.sing(0)); await pg.waitForTimeout(1200);
+    await pg.locator("#wmDur").fill("1.3"); await pg.locator("#wmGo").click(); await pg.waitForTimeout(1700);
+    await pg.evaluate(() => { const N = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"], m = document.getElementById("wmCur").textContent.match(/^([A-G]#?)(\d)/); window.__voice.sing(440 * Math.pow(2, ((+m[2] + 1) * 12 + N.indexOf(m[1]) - 69) / 12)); });
+    for (let k = 0; k < 90 && (await pg.evaluate(() => WARM.on)); k++) await pg.waitForTimeout(1000); await pg.evaluate(() => window.__voice.sing(0)); await pg.waitForTimeout(1200);
     await pg.locator("#view button").filter({ hasText: /Next/ }).filter({ visible: true }).first().click(); await pg.waitForTimeout(900);
     await pg.locator("#vdGo").click(); await pg.waitForTimeout(1700);
     const f = await pg.evaluate(() => { const n = document.getElementById("vdN").textContent, N = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"], m = n.match(/^([A-G]#?)(\d)/); return 440 * Math.pow(2, ((+m[2] + 1) * 12 + N.indexOf(m[1]) - 69) / 12); });
