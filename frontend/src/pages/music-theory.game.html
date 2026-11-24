@@ -3685,7 +3685,7 @@ function swThrowLast(){const D=swData(),T=SW.takeSnap,song=swSong();if(!T||T.id!
 function swRecNoteHTML(){if(!SW.recNote)return "";return SW.recNote+(SW.lastRec&&SW.lastRec.length?' <button class="rchip sm sel" id="swHear" style="margin-left:6px">▶ Hear it back</button>':"")+(SW.lastRec&&SW.lastRec.length&&SW.takeSnap?' <button class="rchip sm" id="swThrow" style="margin-left:6px;border-color:#ff9f9a;color:#ff9f9a">🗑 Throw out this whole take</button>':"");}
 function swRecTake(){const song=swSong(),D=swData(),b=$("#swRecB");if(SW.vrec){SW.vrec.finish(true);return;}swTakeSnap(song);
   let k=swLoopKeys();if(!k){const act=SW.active,sec=(act&&song.sections.find(x=>x.id===act.s))||song.sections[0];k=new Set();if(sec)swLinesOf(song,sec).forEach((ln,li)=>{if(ln.t.trim())k.add(sec.id+":"+li);});}
-  if(!k.size){if(b)b.textContent="Write a line first";return;}
+  if(!k.size){if(!swHasWords(song)){swJamStart();return;}if(b)b.textContent="Write a line first";return;}/* no words yet: record over your chords as a jam — keep the rounds you like as takes */
   unlockAudio();if(b)b.textContent="Turning on the mic…";
   ensureMic().then(ok=>{if(!ok){if(b)b.textContent="● Record";const m=$("#swRecMsg");if(m)m.textContent=micHelp();return;}
     const a=ac(),R=SW.vrec={chunks:[],t0:null,done:false,cap:null};swCapture(a,micStream).then(C=>{R.cap=C;if(R.done&&C.stop)C.stop();});
@@ -4201,7 +4201,7 @@ function swPlaySecs(secs,opt){opt=opt||{};swStopPlay();bkStop();unlockAudio();co
   const need=[...new Set(ev.filter(e=>e.k==="v"&&!(SW.voxBuf||{})[e.key]).map(e=>e.key))];
   if(need.length){SW.stopT=SW.stopT||-1;Promise.all(need.map(swVoxLoad)).then(()=>{if(SW.stopT===-1)SW.stopT=null;go();});}else go();}
 /* ---- loop any number of bars, starting at the line you're on ---- */
-function swPlayLbl(){const L=swData().loop;return L?"🔁 Play loop":"▶ Play song";}
+function swPlayLbl(){try{if(BK.on&&!swHasWords(swSong()))return "■ Stop chords";}catch(e){}const L=swData().loop;return L?"🔁 Play loop":"▶ Play song";}
 function swLoopKeys(){const D=swData(),song=swSong(),L=D.loop;if(!L)return null;const nb=D.bars||1,act=SW.active,keys=new Set();
   const s0=(act&&song.sections.find(x=>x.id===act.s))||song.sections[0];if(!s0)return keys;
   if(L==="sec"){swLinesOf(song,s0).forEach((ln,li)=>keys.add(s0.id+":"+li));return keys;}
@@ -4209,7 +4209,9 @@ function swLoopKeys(){const D=swData(),song=swSong(),L=D.loop;if(!L)return null;
     if(!started){if(sec.id!==s0.id||li<((act&&act.s===s0.id)?act.l:0))continue;started=true;}if(!ls[li].t.trim())continue;keys.add(sec.id+":"+li);n--;}if(n<=0)break;}
   return keys;}
 function swLoopMark(){const k=swLoopKeys();view.querySelectorAll(".sw-line").forEach(e=>e.classList.toggle("lp",!!(k&&k.has(e.dataset.s+":"+e.dataset.l))));}
-function swPlayMain(){const song=swSong(),k=swLoopKeys();if(!k){swPlaySecs(song.sections);return;}
+/* no words yet (picked the key and chords first): Play song plays your chords with the groove, so you can hear them before writing */
+function swHasWords(song){return song.sections.some(sec=>swLinesOf(song,sec).some(ln=>ln.t.trim()));}
+function swPlayMain(){const song=swSong(),k=swLoopKeys();if(!swHasWords(song)){if(BK.on)bkStop();else bkStart();const b=$("#swPlay");if(b)b.textContent=swPlayLbl();return;}if(!k){swPlaySecs(song.sections);return;}
   if(!k.size){const b=$("#swPlay");if(b){b.textContent="Write a line to loop first";setTimeout(()=>{if(b.isConnected&&!SW.stopT)b.textContent=swPlayLbl();},1800);}return;}
   swPlaySecs(song.sections,{pick:(sec,li)=>k.has(sec.id+":"+li),loop:true});}
 /* ---- bounce: records exactly what you hear (melody, chords, groove, takes) to a WAV you can send ---- */

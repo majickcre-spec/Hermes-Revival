@@ -758,9 +758,10 @@ export async function run() {
   await S.test("Heads of Things in the music app: only Star and Trav/Travis see it; it opens inside the app; each player keeps their own progress on a shared device; others can't open it", async () => {
     const ctx = await fresh(); await fakeApi(ctx, "travis"); const pg = await profilePage(ctx, url, {}, "Trav");
     const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const o = {};
+      const ready = async () => { for (let k = 0; k < 60; k++) { const f = document.getElementById("hhFrame"); const d = f && f.contentDocument; if (d && d.getElementById("tQuiz") && d.readyState === "complete") { await w(300); return; } await w(100); } };
       const doors = () => [...document.querySelectorAll("#doors .door b")].map((e) => e.textContent);
       goHome(); await w(200); o.trav = doors().includes("Heads of Things");
-      [...document.querySelectorAll("#doors .door")].find((b) => /Heads of Things/.test(b.textContent)).click(); await w(1500);
+      [...document.querySelectorAll("#doors .door")].find((b) => /Heads of Things/.test(b.textContent)).click(); await ready();
       const f = document.getElementById("hhFrame"); o.inApp = !!f && !view.hidden; o.fab = getComputedStyle(document.getElementById("sensFab")).display;
       const d = f.contentDocument; d.getElementById("tQuiz").click(); await w(100); o.head = d && d.getElementById("qv").innerText.trim(); d.getElementById("tStudy").click(); await w(100);
       d.getElementById("goQuizB").click(); await w(100); const inp = d.querySelector("#ins input"); inp.value = "only that which is not is immovable"; d.getElementById("checkB").click(); d.getElementById("nextB").click(); await w(100);
@@ -768,7 +769,7 @@ export async function run() {
       document.getElementById("eBack").click(); await w(300); o.home = !home.hidden;
       /* Star on the same device */
       const P = getProfiles(); P.push({ id: "s2", name: "Star" }, { id: "b3", name: "Bob" }); save("majick-profiles", P); activate("s2"); await w(300);
-      o.star = doors().includes("Heads of Things"); renderHeadsHalves(); await w(1500);
+      o.star = doors().includes("Heads of Things"); renderHeadsHalves(); await ready();
       const d2 = document.getElementById("hhFrame").contentDocument; d2.getElementById("tQuiz").click(); await w(100); o.starWhere = d2.getElementById("where").innerText;
       activate("b3"); await w(300); o.bob = doors().includes("Heads of Things"); renderHeadsHalves(); await w(300); o.bobBlocked = view.hidden && !home.hidden;
       o.keys = Object.keys(localStorage).filter((k) => k.startsWith("heads-v2")).sort(); o.travSaved = JSON.parse(localStorage.getItem("heads-v2-t1") || "{}");
@@ -1485,6 +1486,38 @@ export async function run() {
     assert((L2.ch || 0) > 0, "no chords under the recording: " + JSON.stringify(L2));
     assert(t.n === 1 && t.lines === 2, "take didn't hold every written line: " + JSON.stringify(t));
     assert(t.words.join("|") === "What if there is only one|I feel so alone", "lyrics changed: " + t.words.join("|"));
+    assert(!errs.length, errs.join(" | ")); await ctx.close();
+  });
+
+  await S.test("REAL TAPS: Lyric Lab key + chords first — pick G in setup and vi–IV–I–V on the Backing bar; with no words, Play song plays those chords (tap again stops) and Record starts a jam over them; then type lyrics and Record a normal take on Em C G D", async () => {
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, permissions: ["microphone"] }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+    await pg.addInitScript(() => {
+      if (!sessionStorage.getItem("s")) { sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav", mode: "adult" }])); }
+      navigator.mediaDevices.getUserMedia = async () => { const c = new AudioContext(), o = c.createOscillator(), g = c.createGain(), d = c.createMediaStreamDestination(); g.gain.value = 0.05; o.connect(g); g.connect(d); o.start(); return d.stream; };
+    });
+    await pg.goto(url + "/app.html"); await pg.waitForTimeout(800); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(500);
+    await pg.locator('#doors .door[data-d="lyric"]').click(); await pg.waitForTimeout(1000);
+    await pg.locator("#swSTitle").fill("Idea"); await pg.locator("#view button").filter({ hasText: /^Start with one verse/ }).first().click();
+    await pg.locator("#view button").filter({ hasText: /^G$/ }).first().click(); await pg.locator("#swStart").click(); await pg.waitForTimeout(1200);
+    await pg.locator("#view").getByText(/Backbeat · Keys/).first().click(); await pg.waitForTimeout(500);
+    await pg.locator("#view button.rchip").filter({ hasText: /vi–IV–I–V/ }).filter({ visible: true }).first().click(); await pg.waitForTimeout(400);
+    const ch = await pg.evaluate(() => { const s = swSong(), sec = s.sections[0]; return [0, 1, 2, 3].map((i) => swChName(s, swProgOf(s, sec.tag, 1).c[i])).join(" "); });
+    assert(ch === "Em C G D", "chords after picking key + progression: " + ch);
+    await pg.locator("#swPlay").click(); await pg.waitForTimeout(1200);
+    assert(/Stop chords/.test(await pg.locator("#swPlay").innerText()) && (await pg.evaluate(() => BK.on)), "Play song with no words didn't play the chords");
+    await pg.locator("#swPlay").click(); await pg.waitForTimeout(500); assert(!(await pg.evaluate(() => BK.on)), "second tap didn't stop the chords");
+    await pg.locator("#swRecB").click(); await pg.waitForTimeout(1500);
+    assert(/JAMMING/i.test(await pg.locator("#view").innerText()), "Record with no words didn't start a jam");
+    await pg.locator("#swJam").click().catch(() => {}); await pg.waitForTimeout(1200);
+    for (let k = 0; k < 3 && !(await pg.locator("#swRecB").count()); k++) { await pg.locator("#view button").filter({ hasText: /Done|Back|←/ }).first().click().catch(() => {}); await pg.waitForTimeout(800); }
+    await pg.locator("#view input.sw-t").first().click(); await pg.keyboard.type("Morning on the mountain"); await pg.waitForTimeout(300);
+    await pg.evaluate(() => { window.__C = []; const on = window.swNote; window.swNote = function (mi, t, d, layer) { if (layer === "ch") window.__C.push(mi); return on.apply(this, arguments); }; });
+    await pg.locator("#swRecB").click(); await pg.waitForTimeout(16000);
+    for (let k = 0; k < 20 && /Stop recording/.test(await pg.locator("#swRecB").innerText()); k++) await pg.waitForTimeout(500);
+    await pg.waitForTimeout(1500);
+    const r = await pg.evaluate(() => { const s = swSong(); return { takes: (s.takes || {}).Verse || 0, chordPcs: [...new Set(window.__C.map((m) => m % 12))].sort((a, b) => a - b) }; });
+    assert(r.takes === 1, "no take saved after typing lyrics: " + JSON.stringify(r));
+    assert(r.chordPcs.length && r.chordPcs.every((pc) => [7, 9, 11, 0, 2, 4, 6].includes(pc)), "chords under the take aren't in G major: " + JSON.stringify(r));
     assert(!errs.length, errs.join(" | ")); await ctx.close();
   });
 
