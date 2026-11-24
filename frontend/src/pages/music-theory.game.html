@@ -1883,13 +1883,14 @@ for(var _m=21;_m<=108;_m+=3)GR.want.push(_m);
 function grLoad(){if(GR.loading||!sfOn())return;GR.loading=true;var a=ac();
   var layer=function(L){return Promise.all(GR.want.map(function(m){var k=m+"v"+L;return fetch("/sounds/piano/"+k+".mp3").then(function(r){return r.ok?r.arrayBuffer():Promise.reject();}).then(function(ab){return new Promise(function(res,rej){a.decodeAudioData(ab,res,rej);});}).then(function(b){GR.buf[k]=b;}).catch(function(){});}));};
   var i=0,next=function(){if(i>=GR.layers.length)return;var L=GR.layers[i++];layer(L).then(function(){if(L===2&&GR.buf["60v2"])GR.ready=true;next();});};next();}
-function grBus(a){if(GR.bus)return GR.bus;var g=a.createGain();g.gain.value=2.2;
+/* gain staged so the limiter only catches stray peaks (at 2.2 it squashed chords by up to 14 dB, which made the piano sound rough) */
+function grBus(a){if(GR.bus)return GR.bus;var g=a.createGain();g.gain.value=1.35;
   var comp=a.createDynamicsCompressor();comp.threshold.value=-20;comp.knee.value=12;comp.ratio.value=1.8;comp.attack.value=0.012;comp.release.value=0.28;
   var lim=a.createDynamicsCompressor();lim.threshold.value=-1;lim.knee.value=0;lim.ratio.value=20;lim.attack.value=0.002;lim.release.value=0.1;
   g.connect(comp);comp.connect(lim);lim.connect(a.destination);
   try{var rv=a.createConvolver();rv.buffer=lvReverbIR(a,{size:0.55,decay:1.6,damp:0.55,width:100});var rs=a.createGain();rs.gain.value=0.13;g.connect(rs);rs.connect(rv);rv.connect(comp);GR.rev=rs;}catch(e){}
   GR.bus=g;return g;}
-function grMicBoost(){try{var a=ac(),g=grBus(a),ios=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1),want=2.2*((ios&&micLive())?1.9:1);if(Math.abs(g.gain.value-want)>0.01)g.gain.setTargetAtTime(want,a.currentTime,0.05);}catch(e){}}
+function grMicBoost(){try{var a=ac(),g=grBus(a),ios=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1),want=1.35*((ios&&micLive())?1.35:1);if(Math.abs(g.gain.value-want)>0.01)g.gain.setTargetAtTime(want,a.currentTime,0.05);}catch(e){}}
 function grPedal(on){if(!GR.rev)return;try{GR.rev.gain.setTargetAtTime(on?0.2:0.13,ac().currentTime,0.25);}catch(e){}}
 function grPlay(midi,start,dur,v){var a=ac(),an=GR.want.reduce(function(b,m){return Math.abs(m-midi)<Math.abs(b-midi)?m:b;},GR.want[0]);
   v=Math.max(0.03,Math.min(1,v));var best=0,bd=9;[1,2,3,4].forEach(function(L){var d=Math.abs(GR.ctr[L]-v);if(GR.buf[an+"v"+L]&&d<bd){bd=d;best=L;}});if(!best)return false;
@@ -2217,6 +2218,11 @@ function voxShift(){var r=voxRange();if(!r)return 0;var c=(r.lo+r.hi)/2,k=Math.r
 function voxPreload(){try{sfLoadInst("oohs");sfLoadInst("choir");}catch(e){}}
 var VOX_BUF=null;
 function voxPitch(){if(!toneAnalyser)return -1;if(!VOX_BUF||VOX_BUF.length!==toneAnalyser.fftSize)VOX_BUF=new Float32Array(toneAnalyser.fftSize);toneAnalyser.getFloatTimeDomainData(VOX_BUF);var f=autoCorrelate(VOX_BUF,ac().sampleRate);return (f>=55&&f<=1400)?69+12*Math.log2(f/440):-1;}
+/* a hiss is soft and lives in the highs (3–10 kHz): measure that band in dB, smoothed, so a quiet "ssss" still registers clearly over the room */
+var VOX_FBUF=null,VOX_HS=null;
+function voxHissDb(){if(!toneAnalyser)return -120;var n=toneAnalyser.frequencyBinCount;if(!VOX_FBUF||VOX_FBUF.length!==n)VOX_FBUF=new Float32Array(n);toneAnalyser.getFloatFrequencyData(VOX_FBUF);
+  var hz=ac().sampleRate/2/n,lo=Math.round(3000/hz),hi=Math.min(n-1,Math.round(10000/hz)),p=0;for(var i=lo;i<=hi;i++)p+=Math.pow(10,VOX_FBUF[i]/10);var db=10*Math.log10(p/Math.max(1,hi-lo+1)+1e-12);
+  VOX_HS=(VOX_HS==null||!isFinite(VOX_HS))?db:VOX_HS*0.6+db*0.4;return VOX_HS;}
 function voxRms(){if(!toneAnalyser)return 0;if(!VOX_BUF||VOX_BUF.length!==toneAnalyser.fftSize)VOX_BUF=new Float32Array(toneAnalyser.fftSize);toneAnalyser.getFloatTimeDomainData(VOX_BUF);var s=0;for(var i=0;i<VOX_BUF.length;i++)s+=VOX_BUF[i]*VOX_BUF[i];return Math.sqrt(s/VOX_BUF.length);}
 function voxLog(kind,val){var L=load(mk("voice","log"),[]);L.push({k:kind,v:val,t:Date.now()});if(L.length>400)L.splice(0,L.length-400);save(mk("voice","log"),L);}
 function voxBest(key,val,lower){var k=mk("voice","best-"+key),p=load(k,null);if(p==null||(lower?val<p:val>p)){save(k,val);return true;}return false;}
@@ -2324,10 +2330,10 @@ function vdBreath(box,next){var kid=voxKid(),rounds=kid?2:3,ph=[["Breathe in",4,
 function vdHiss(box,next){var kid=voxKid(),goal=kid?10:20;
   box.innerHTML='<div class="vxSay">Big breath in, then a long, even <b>“sssss”</b> like a slow tire leak. Keep it the same strength the whole way. Goal: <b>'+goal+' s</b>.</div><div class="vxBig" id="vhS">0.0 s</div><div class="vxMeter"><i id="vhM"></i></div><div class="t-hint" id="vhH" style="text-align:center">Tap Start, stay quiet for a second, then hiss</div><div class="actions" style="justify-content:center;margin-top:8px"><button class="btn" id="vhGo">▶ Start</button></div>';
   $("#vhGo").onclick=function(){var b=$("#vhGo");b.disabled=true;var t0=performance.now(),floor=0,nf=0,started=null,quiet=0,vals=[];VOX.on=true;$("#vhH").textContent="Quiet… measuring the room";
-    (function loop(){if(!VOX.on)return;var now=performance.now(),v=voxRms(),m=$("#vhM");if(m)m.style.width=Math.min(100,v*900)+"%";
-      if(now-t0<1000){floor+=v;nf++;}else{var fl=floor/Math.max(1,nf),thr=Math.max(0.006,fl*3);
-        if(started==null){$("#vhH").textContent="Now: ssssss…";if(v>thr)started=now;}
-        else{if(v>thr){quiet=0;vals.push(v);}else quiet+=16;var sec=(now-started)/1000;$("#vhS").textContent=sec.toFixed(1)+" s";
+    VOX_HS=null;(function loop(){if(!VOX.on)return;var now=performance.now(),db=voxHissDb(),m=$("#vhM");
+      if(now-t0<1000){floor+=db;nf++;if(m)m.style.width="0%";}else{var fl=floor/Math.max(1,nf),over=db-fl,v=Math.pow(10,over/20);if(m)m.style.width=Math.max(0,Math.min(100,over*100/24))+"%";/* 24 dB over the room = full meter */
+        if(started==null){$("#vhH").textContent="Now: ssssss…";if(over>8)started=now;}
+        else{if(over>5){quiet=0;vals.push(v);}else quiet+=16;var sec=(now-started)/1000;$("#vhS").textContent=sec.toFixed(1)+" s";
           if(quiet>600||sec>60){VOX.on=false;var len=Math.max(0,sec-quiet/1000),mean=vals.reduce(function(a,x){return a+x;},0)/Math.max(1,vals.length),sd=Math.sqrt(vals.reduce(function(a,x){return a+(x-mean)*(x-mean);},0)/Math.max(1,vals.length)),even=Math.max(0,Math.min(100,Math.round(100*(1-sd/Math.max(1e-6,mean)))));
             VD.res.hiss={s:len,even:even};voxBest("hiss",Math.round(len*10)/10);voxLog("hiss",len);
             $("#vhS").textContent=len.toFixed(1)+" s";$("#vhH").innerHTML=(len>=goal?"🎉 Goal reached! ":"")+"<b>"+even+"%</b> even. "+(even<60?"Try to keep the same strength start to finish.":"Smooth and steady.");

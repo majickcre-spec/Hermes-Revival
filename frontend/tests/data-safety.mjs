@@ -1359,7 +1359,7 @@ export async function run() {
     assert(!errs.length, errs.join(" | ")); await ctx.close();
   });
 
-  await S.test("Meditation is locked: a new device sees no Meditation (home, search, sensor buttons, Today's plan, Path breathing) signed out or with a stranger's account; Travis signs in by real taps and grants an account by name; that account then sees and opens it; signing out locks it again; a device already used for meditation keeps it", async () => {
+  await S.test("Meditation is locked: a new device sees no Meditation (home, search, sensor buttons, Today's plan, Path breathing) signed out or with a stranger's account; a device already used for meditation keeps it", async () => {
     const seed = () => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }, { id: "g1", name: "Gina" }])); };
     const pick = async (pg, n) => { await pg.locator("#profiles").getByText(n, { exact: true }).first().click(); await pg.waitForTimeout(600); };
     const signIn = async (pg, n) => { await pg.locator("#cloudBtn").click(); await pg.waitForTimeout(300); await pg.locator("#caName").fill(n); await pg.locator("#caCode").fill("1234"); await pg.locator("#caGo").click(); await pg.waitForTimeout(1500); };
@@ -1379,8 +1379,27 @@ export async function run() {
       await pg.evaluate(() => renderMeditation()); await pg.waitForTimeout(200); assert(await pg.evaluate(() => view.hidden), "Meditation screen opened without access");
       await ctx.close();
     }
+    /* 4. a device that was already used for meditation keeps it (no sign-in) */
+    { const ctx = await b.newContext({ locked: true, viewport: { width: 390, height: 844 }, hasTouch: true }); const pg = await ctx.newPage();
+      await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); localStorage.setItem("mjk-meddrift", "true"); });
+      await pg.goto(url + "/app.html"); await pg.waitForTimeout(800); await pick(pg, "Trav");
+      assert((await look(pg)).door, "a device already used for meditation lost it"); await ctx.close(); }
+    MED_GRANTS.clear();
+  });
+
+  await S.test("REAL TAPS: Meditation access — Travis signs in by real taps and grants an account by name (both orientations); that account then sees and opens Meditation; signing out locks it again", async () => {
+    const seed = () => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }, { id: "g1", name: "Gina" }])); };
+    const pick = async (pg, n) => { await pg.locator("#profiles").getByText(n, { exact: true }).first().click(); await pg.waitForTimeout(600); };
+    const signIn = async (pg, n) => { await pg.locator("#cloudBtn").click(); await pg.waitForTimeout(300); await pg.locator("#caName").fill(n); await pg.locator("#caCode").fill("1234"); await pg.locator("#caGo").click(); await pg.waitForTimeout(1500); };
+    const look = (pg) => pg.evaluate(() => ({ door: [...document.querySelectorAll("#doors .door")].some((d) => d.offsetParent && /Meditation/.test(d.textContent)),
+      fab: ["sensFab", "brainFab"].some((id) => { const e = document.getElementById(id); return e && getComputedStyle(e).display !== "none"; }),
+      today: (() => { const e = document.getElementById("homeDay"); return !!e && getComputedStyle(e).display !== "none" && e.textContent.trim().length > 0; })(),
+      path: mmuPath().some((L) => L.steps.some((x) => x.g === "ground")) }));
+    const search = async (pg, q) => { const s = pg.locator("#homeSearch"); await s.fill(""); await s.click(); await pg.keyboard.type(q); await pg.waitForTimeout(400);
+      return pg.locator("#searchResults .card").filter({ has: pg.locator("h3", { hasText: /^Meditation$/ }) }).count(); };
+    MED_GRANTS.clear();
     /* 2. Travis signs in on his device and grants "gina" */
-    for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
+    for (const vp of (process.env.QUICK ? [{ width: 390, height: 844 }] : [{ width: 390, height: 844 }, { width: 844, height: 390 }])) {   /* landscape in the full check */
       const ctx = await b.newContext({ viewport: vp, hasTouch: true }); await fakeApi(ctx, null); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message)); await pg.addInitScript(seed);
       await pg.goto(url + "/app.html"); await pg.waitForTimeout(800); await signIn(pg, "Travis");
       await pg.locator("#cloudAccess").click(); await pg.waitForTimeout(500);
@@ -1401,11 +1420,6 @@ export async function run() {
       await pg.evaluate(() => { clearAcct(); }); await pg.reload(); await pg.waitForTimeout(900); await pick(pg, "Gina");
       const v2 = await look(pg); assert(!v2.door && !v2.fab, "still unlocked after signing out: " + JSON.stringify(v2));
       assert(!errs.length, errs.join(" | ")); await ctx.close(); }
-    /* 4. a device that was already used for meditation keeps it (no sign-in) */
-    { const ctx = await b.newContext({ locked: true, viewport: { width: 390, height: 844 }, hasTouch: true }); const pg = await ctx.newPage();
-      await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); localStorage.setItem("mjk-meddrift", "true"); });
-      await pg.goto(url + "/app.html"); await pg.waitForTimeout(800); await pick(pg, "Trav");
-      assert((await look(pg)).door, "a device already used for meditation lost it"); await ctx.close(); }
     MED_GRANTS.clear();
   });
 
@@ -1434,7 +1448,7 @@ export async function run() {
   });
 
   await S.test("Reviewer share link (?focus=theory): a first-time visitor makes a player and sees a Beta note with just Theory and Ear Training (one tap shows everything); no Meditation and no Star's class for anyone but Star; any kid player is not Star", async () => {
-    for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
+    for (const vp of (process.env.QUICK ? [{ width: 390, height: 844 }] : [{ width: 390, height: 844 }, { width: 844, height: 390 }])) {   /* landscape in the full check */
       const ctx = await b.newContext({ locked: true, viewport: vp, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
       await pg.goto(url + "/app.html?focus=theory"); await pg.waitForTimeout(900);
       assert(/Beta preview/.test(await pg.locator("#gate").innerText()), "no Beta note on the player screen (" + vp.width + ")");
@@ -1552,6 +1566,27 @@ export async function run() {
     assert(!errs.length, errs.join(" | ")); await ctx.close();
   });
 
+  await S.test("REAL TAPS: Daily Warm-Up hiss — a soft 'ssss' over room noise fills the meter and is timed for its full length (listens to the hiss band, not overall loudness)", async () => {
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, permissions: ["microphone"] }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+    await pg.addInitScript(() => {
+      if (!sessionStorage.getItem("s")) { sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav", mode: "adult" }])); }
+      navigator.mediaDevices.getUserMedia = async () => { const c = new AudioContext(), d = c.createMediaStreamDestination();
+        const nb = c.createBuffer(1, c.sampleRate * 2, c.sampleRate), ch = nb.getChannelData(0); for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+        const room = c.createBufferSource(); room.buffer = nb; room.loop = true; const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 800; const rg = c.createGain(); rg.gain.value = 0.004; room.connect(lp); lp.connect(rg); rg.connect(d); room.start();
+        const hs = c.createBufferSource(); hs.buffer = nb; hs.loop = true; const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 4000; const hg = c.createGain(); hg.gain.value = 0; hs.connect(hp); hp.connect(hg); hg.connect(d); hs.start();
+        window.__hiss = (on) => hg.gain.setTargetAtTime(on ? 0.006 : 0, c.currentTime, 0.02); return d.stream; };
+    });
+    await pg.goto(url + "/app.html"); await pg.waitForTimeout(800); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(600);
+    await pg.locator('#doors .door[data-d="voice"]').click(); await pg.waitForTimeout(500);
+    await pg.locator("#voiceGrid .card").filter({ has: pg.locator("h3", { hasText: /^Daily Warm-Up$/ }) }).first().click(); await pg.waitForTimeout(900);
+    await pg.locator("#view button").filter({ hasText: /Skip/ }).first().click(); await pg.waitForTimeout(600);
+    await pg.locator("#vhGo").click(); await pg.waitForTimeout(1500); await pg.evaluate(() => window.__hiss(true)); await pg.waitForTimeout(1500);
+    const meter = parseFloat(await pg.evaluate(() => document.getElementById("vhM").style.width)); assert(meter >= 50, "soft hiss barely moves the meter: " + meter + "%");
+    await pg.waitForTimeout(4500); await pg.evaluate(() => window.__hiss(false)); await pg.waitForTimeout(1500);
+    const sec = parseFloat(await pg.locator("#vhS").innerText()); assert(sec >= 5 && sec <= 7.5, "6 s hiss timed as " + sec + " s");
+    assert(!errs.length, errs.join(" | ")); await ctx.close();
+  });
+
   await S.test("Heads of Things is private: hidden when signed out and for any other account (even a player named Trav); signing in as Star by real taps shows it; the server refuses others; works offline after one open; signing out removes it", async () => {
     const search = async (pg, name) => { await pg.locator("#profiles").getByText(name, { exact: true }).first().click(); await pg.waitForTimeout(500);
       const s = pg.locator("#homeSearch"); await s.fill(""); await s.click(); await pg.keyboard.type("Heads"); await pg.waitForTimeout(400);
@@ -1566,7 +1601,7 @@ export async function run() {
       if (acct) { const st = await pg.evaluate(() => fetch(MMU_API + "/api/heads/halves", { headers: { Authorization: "Bearer " + acctTok() } }).then((r) => r.status)); assert(st === 403, "server gave Heads to " + acct + ": " + st); }
       await ctx.close();
     }
-    for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
+    for (const vp of (process.env.QUICK ? [{ width: 390, height: 844 }] : [{ width: 390, height: 844 }, { width: 844, height: 390 }])) {   /* landscape in the full check */
       const ctx = await b.newContext({ viewport: vp, hasTouch: true }); await fakeApi(ctx, null); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message)); await pg.addInitScript(seed);
       await pg.goto(url + "/app.html"); await pg.waitForTimeout(700);
       await pg.locator("#cloudBtn").click(); await pg.waitForTimeout(300);
@@ -1725,7 +1760,7 @@ export async function run() {
     assert(shape.n === 43 && shape.runs === 3, "not 3 runs up and down " + JSON.stringify(shape));
     await play([20, 21]); await pg.waitForTimeout(1200);
     let msg = await pg.evaluate(() => document.getElementById("pkMsg").innerText);
-    assert(/stopped in run 2/.test(msg) && /Try ♩\s*150/.test(msg), "a stop wasn't called out: " + msg);
+    assert(/stopped in run 2/.test(msg) && /Try again/.test(msg) && !/Try ♩/.test(msg), "a stop wasn't called out: " + msg);
     assert(!(await pg.evaluate(() => pkScaleRec().best)), "a run with a stop counted as clean");
     // one wrong note anywhere = not clean
     await pg.locator("#pkGo").click(); await pg.waitForTimeout(50);
