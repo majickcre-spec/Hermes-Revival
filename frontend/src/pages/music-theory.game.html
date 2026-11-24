@@ -9016,6 +9016,104 @@ function renderSessions(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=t
   var fc=document.getElementById("fsCard");if(fc)fc.onclick=renderFocusSession;
 }
 (function(){try{var s=document.createElement("style");s.textContent="#sessChipM.done{background:#e2554f;color:#fff;border-color:#e2554f}";document.head.appendChild(s);}catch(e){}})();
+/* ===== SOUND CATCHER — catch any sound (nature, objects, voice), trim it, shape it, save it as a sample =====
+   The raw take is kept on this device as a draft until you start a new one, so a reload, lock or call never loses it.
+   Saved sounds go into the Sound Library, so every Sampler pad can load them (Library button). */
+var SC={raw:null,a:0,b:1,fx:{pitch:0,rev:false,tone:0,grit:0,echo:0,verb:0},name:"",cat:"Textures",mr:null,chunks:[],t0:0,raf:null,play:null,peaks:[],busy:false,stopT:null};
+var SC_CATS=["Percussion","Textures","FX & Risers","Vocals","Keys & Bells","Loops"];
+var SC_FX=[["pitch","Pitch",-12,12,1,function(v){return (v>0?"+":"")+v+" st";}],["tone","Tone",-100,100,5,function(v){return v<0?"darker "+(-v):v>0?"brighter "+v:"natural";}],["echo","Echo",0,100,5,function(v){return v?v+"%":"off";}],["verb","Space",0,100,5,function(v){return v?v+"%":"off";}],["grit","Grit",0,100,5,function(v){return v?v+"%":"off";}]];
+function scDraftK(){return "sc-draft-"+(activeId()||"guest");}
+function scKeep(){save(mk("sc","draft"),{a:SC.a,b:SC.b,fx:SC.fx,name:SC.name,cat:SC.cat});}
+function scDecode(blob){return blob.arrayBuffer().then(function(ab){return new Promise(function(res,rej){try{var p=ac().decodeAudioData(ab.slice(0),res,rej);if(p&&p.then)p.then(res,rej);}catch(e){rej(e);}});});}
+function scAutoTrim(){var r=SC.raw;if(!r)return;var d=r.getChannelData(0),n=d.length,pk=0;for(var i=0;i<n;i++){var v=Math.abs(d[i]);if(v>pk)pk=v;}var th=Math.max(pk*0.04,0.002),s=0,e=n-1;while(s<n&&Math.abs(d[s])<th)s++;while(e>s&&Math.abs(d[e])<th)e--;
+  var sr=r.sampleRate;s=Math.max(0,s-Math.round(0.02*sr));e=Math.min(n-1,e+Math.round(0.15*sr));if(e-s<0.05*sr){s=0;e=n-1;}SC.a=s/n;SC.b=(e+1)/n;}
+function scIR(oc,dur){var sr=oc.sampleRate,n=Math.max(1,Math.floor(sr*dur)),b=oc.createBuffer(2,n,sr),pre=Math.floor(sr*0.012);for(var c=0;c<2;c++){var x=b.getChannelData(c);for(var i=pre;i<n;i++){var t=(i-pre)/(n-pre);x[i]=(Math.random()*2-1)*Math.pow(1-t,2.4)*(i<pre+sr*0.004?(i-pre)/(sr*0.004):1);}}return b;}
+function scRender(){var r=SC.raw;if(!r)return Promise.reject(new Error("nothing"));var sr=r.sampleRate,s0=Math.floor(SC.a*r.length),s1=Math.max(s0+64,Math.floor(SC.b*r.length)),n=Math.min(r.length,s1)-s0,fx=SC.fx,rate=Math.pow(2,fx.pitch/12);
+  var tail=(fx.verb>0?0.4+2.6*fx.verb/100:0)+(fx.echo>0?0.3+1.8*fx.echo/100:0)+0.05,len=Math.ceil(n/rate+tail*sr),OC=window.OfflineAudioContext||window.webkitOfflineAudioContext,oc=new OC(2,len,sr);
+  var seg=oc.createBuffer(r.numberOfChannels,n,sr),fade=Math.min(Math.floor(n/4),Math.round(0.004*sr));
+  for(var c=0;c<r.numberOfChannels;c++){var src=r.getChannelData(c).subarray(s0,s0+n),dst=seg.getChannelData(c);for(var i=0;i<n;i++)dst[i]=src[fx.rev?n-1-i:i];for(var f=0;f<fade;f++){var g=f/fade;dst[f]*=g;dst[n-1-f]*=g;}}
+  var s=oc.createBufferSource();s.buffer=seg;s.playbackRate.value=rate;var node=s;
+  if(fx.tone<0){var lp=oc.createBiquadFilter();lp.type="lowpass";lp.frequency.value=18000*Math.pow(250/18000,-fx.tone/100);lp.Q.value=0.6;node.connect(lp);node=lp;}
+  else if(fx.tone>0){var hp=oc.createBiquadFilter();hp.type="highpass";hp.frequency.value=20*Math.pow(2500/20,fx.tone/100);hp.Q.value=0.6;node.connect(hp);node=hp;}
+  if(fx.grit>0){var ws=oc.createWaveShaper(),k=fx.grit/6,cv=new Float32Array(2048);for(var j=0;j<2048;j++){var x=j/1023.5-1;cv[j]=Math.tanh(x*(1+k))/Math.tanh(1+k);}ws.curve=cv;ws.oversample="4x";node.connect(ws);node=ws;}
+  var dry=oc.createGain();dry.gain.value=1;node.connect(dry);dry.connect(oc.destination);
+  if(fx.echo>0){var dl=oc.createDelay(2),fb=oc.createGain(),wt=oc.createGain(),lo=oc.createBiquadFilter();dl.delayTime.value=0.3;fb.gain.value=0.2+0.45*fx.echo/100;lo.type="lowpass";lo.frequency.value=5000;wt.gain.value=0.15+0.5*fx.echo/100;node.connect(dl);dl.connect(lo);lo.connect(fb);fb.connect(dl);lo.connect(wt);wt.connect(oc.destination);}
+  if(fx.verb>0){var cvn=oc.createConvolver();cvn.normalize=true;cvn.buffer=scIR(oc,1.2+2.6*fx.verb/100);var wv=oc.createGain();wv.gain.value=0.2+0.8*fx.verb/100;node.connect(cvn);cvn.connect(wv);wv.connect(oc.destination);}
+  s.start(0);
+  return oc.startRendering().then(function(b){var C=b.numberOfChannels,L=b.length,end=0,pk=0;for(var c2=0;c2<C;c2++){var d=b.getChannelData(c2);for(var i2=0;i2<L;i2++){var v=Math.abs(d[i2]);if(v>pk)pk=v;if(v>0.0006&&i2>end)end=i2;}}
+    end=Math.min(L,end+Math.round(0.01*sr));var g2=pk>0?Math.min(8,0.89/pk):1,out=ac().createBuffer(C,Math.max(1,end),sr);for(var c3=0;c3<C;c3++){var a3=b.getChannelData(c3),o3=out.getChannelData(c3);for(var i3=0;i3<o3.length;i3++)o3[i3]=a3[i3]*g2;}return out;});}
+function scPeaks(W){var r=SC.raw,p=[];if(!r)return p;var d=r.getChannelData(0),step=Math.max(1,Math.floor(d.length/W));for(var x=0;x<W;x++){var m=0;for(var i=x*step;i<Math.min(d.length,(x+1)*step);i++){var v=Math.abs(d[i]);if(v>m)m=v;}p.push(m);}return p;}
+function scDraw(live){var cv=$("#scWave");if(!cv)return;var x=cv.getContext("2d"),W=cv.width,H=cv.height;x.clearRect(0,0,W,H);x.fillStyle="rgba(255,255,255,.04)";x.fillRect(0,0,W,H);
+  var p=live||scPeaks(W),mx=0;p.forEach(function(v){if(v>mx)mx=v;});var sc2=mx>0?Math.min(1/mx,40):1;
+  for(var i=0;i<p.length;i++){var px=live?W-p.length+i:i,h=Math.max(1,p[i]*sc2*(H/2-6)),inT=live||(i/W>=SC.a&&i/W<=SC.b);x.fillStyle=inT?"#34e0c6":"rgba(255,255,255,.18)";x.fillRect(px,H/2-h,1,h*2);}
+  if(!live&&SC.raw){[SC.a,SC.b].forEach(function(t,k){var hx=Math.round(t*W);x.fillStyle="#f4b740";x.fillRect(hx-(k?2:0),0,2,H);x.beginPath();x.arc(hx,k?H-14:14,11,0,7);x.fill();x.fillStyle="#1a1306";x.font="bold 12px system-ui";x.textAlign="center";x.fillText(k?"◀":"▶",hx,k?H-10:18);});}
+  if(!live&&!SC.raw){x.fillStyle="rgba(255,255,255,.45)";x.font="600 22px system-ui";x.textAlign="center";x.fillText("Tap Record and catch a sound",W/2,H/2+8);}}
+function scLenTxt(){var r=SC.raw;if(!r)return "";var s=(SC.b-SC.a)*r.duration/Math.pow(2,SC.fx.pitch/12);return s.toFixed(1)+" s";}
+function renderSoundCatcher(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
+  teardown=function(){scStopRec();scStopPlay();try{stopMic();}catch(e){}};
+  var dft=load(mk("sc","draft"),null);if(dft){SC.a=dft.a;SC.b=dft.b;SC.fx=Object.assign({pitch:0,rev:false,tone:0,grit:0,echo:0,verb:0},dft.fx||{});SC.name=dft.name||"";SC.cat=dft.cat||"Textures";}
+  function draw(){var has=!!SC.raw;
+    view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎙 Sound Catcher</span></div><div class="panel">'+
+      '<div class="intro">Catch any sound — rain, a door, two rocks, your voice. Trim it, shape it, and save it to your sound library for the Sampler and your songs. Get close to the sound; headphones help when you play it back.</div>'+
+      '<canvas id="scWave" class="scWave" width="900" height="200"></canvas><div class="scInfo"><span id="scTime">'+(has?scLenTxt():"")+'</span><span id="scHint">'+(has?"Drag the gold handles to trim":"")+'</span></div>'+
+      '<div class="actions scMain"><button class="btn scRec" id="scRec">● Record</button><button class="btn ghost" id="scPlay"'+(has?'':' disabled')+'>▶ Play</button></div>'+
+      '<div id="scBody" data-nocz="1"'+(has?'':' hidden')+'>'+
+      '<div class="rrow2" style="margin-top:6px"><span class="rlab">Trim</span><span class="rchips tight"><button class="rchip sm" id="scAuto">✂ Auto-trim</button><button class="rchip sm" id="scFull">Whole take</button><button class="rchip sm'+(SC.fx.rev?' sel':'')+'" id="scRev">⇄ Reverse</button></span></div>'+
+      SC_FX.map(function(f){return '<div class="rrow" style="margin-top:6px"><span class="rlab">'+f[1]+'</span><input type="range" id="scF_'+f[0]+'" min="'+f[2]+'" max="'+f[3]+'" step="'+f[4]+'" value="'+SC.fx[f[0]]+'" style="flex:1"><span class="rbpm" id="scV_'+f[0]+'" style="min-width:92px;text-align:right">'+f[5](SC.fx[f[0]])+'</span></div>';}).join("")+
+      '<div class="rrow2" style="margin-top:10px"><span class="rlab">Name</span><input id="scName" class="pin-input name" maxlength="28" placeholder="name your sound" value="'+esc(SC.name)+'" style="flex:1;margin:0;min-width:0"></div>'+
+      '<div class="rrow2" style="margin-top:6px"><span class="rlab">Type</span><span class="rchips tight" id="scCats"></span></div>'+
+      '<div class="actions" style="justify-content:center;margin-top:10px"><button class="btn" id="scSave">💾 Save to Library</button><button class="btn ghost" id="scDl">⬇ WAV file</button></div></div>'+
+      '<div class="rrow2" style="justify-content:center;margin-top:8px"><button class="rchip sm" id="scOpen">📂 Open a recording</button><input type="file" id="scFile" accept="audio/*,video/*" hidden></div>'+
+      '<div class="feedback" id="scFb" style="min-height:22px"></div></div>';
+    $("#eBack").onclick=function(){scStopRec();scStopPlay();goHome();};
+    scDraw();bindWave();
+    $("#scRec").onclick=function(){if(SC.mr)scStopRec();else scStartRec(draw);};
+    $("#scPlay").onclick=function(){if(SC.play)scStopPlay();else scPlay();};
+    $("#scOpen").onclick=function(){$("#scFile").click();};
+    $("#scFile").onchange=function(){var f=this.files&&this.files[0];if(!f)return;fb("Opening "+f.name+"…");scLoadBlob(f,true).then(function(){if(!SC.name)SC.name=f.name.replace(/\.[a-z0-9]+$/i,"").slice(0,28);scKeep();draw();fb("Loaded. Trim it and shape it.");}).catch(function(){fb("Couldn't open that file. Try a WAV, MP3 or M4A.");});};
+    if(!has)return;
+    $("#scAuto").onclick=function(){scAutoTrim();scKeep();scDraw();$("#scTime").textContent=scLenTxt();};
+    $("#scFull").onclick=function(){SC.a=0;SC.b=1;scKeep();scDraw();$("#scTime").textContent=scLenTxt();};
+    $("#scRev").onclick=function(){SC.fx.rev=!SC.fx.rev;this.classList.toggle("sel",SC.fx.rev);scKeep();};
+    SC_FX.forEach(function(f){var el=$("#scF_"+f[0]);el.oninput=function(){SC.fx[f[0]]=+el.value;$("#scV_"+f[0]).textContent=f[5](SC.fx[f[0]]);$("#scTime").textContent=scLenTxt();};el.onchange=function(){scKeep();if(SC.play){scStopPlay();scPlay();}};});
+    $("#scName").oninput=function(){SC.name=this.value;scKeep();};
+    var cc=$("#scCats");SC_CATS.forEach(function(k){var b=document.createElement("button");b.className="rchip sm"+(SC.cat===k?" sel":"");b.textContent=k;b.onclick=function(){SC.cat=k;scKeep();cc.querySelectorAll("button").forEach(function(x){x.classList.toggle("sel",x===b);});};cc.appendChild(b);});
+    $("#scSave").onclick=function(){var btn=this;if(SC.busy)return;SC.busy=true;btn.disabled=true;fb("Bouncing…");scRender().then(function(buf){var blob=new Blob([bufferToWav(buf)],{type:"audio/wav"}),nm=(SC.name||"").trim()||("Caught sound "+(sndList().length+1));
+        return sndAddBlob(blob,nm,SC.cat).then(function(id){if(!id)throw new Error("save");fb('✓ Saved “'+esc(nm)+'” to your Sound Library ('+esc(SC.cat)+', '+buf.duration.toFixed(1)+' s). Load it on any Sampler pad with <b>Library</b>. <button class="rchip sm" id="scToSamp">Open Sampler ▶</button>');var t=$("#scToSamp");if(t)t.onclick=function(){scStopPlay();renderSampler();};try{useEv("done","Sound Catcher");}catch(e){}});})
+      .catch(function(){fb("Couldn't save — your device may be out of space.");}).then(function(){SC.busy=false;btn.disabled=false;});};
+    $("#scDl").onclick=function(){fb("Bouncing…");scRender().then(function(buf){var nm=((SC.name||"").trim()||"Caught sound").replace(/[\\/:*?"<>|]+/g,"");swShareFile(new Blob([bufferToWav(buf)],{type:"audio/wav"}),nm+".wav");fb("WAV ready: "+esc(nm)+".wav (44.1/48 kHz, 16-bit) — drop it into Ableton or any DAW.");}).catch(function(){fb("Couldn't make the file.");});};}
+  function fb(h){var e=$("#scFb");if(e)e.innerHTML=h;}
+  function bindWave(){var cv=$("#scWave");if(!cv||!SC.raw)return;var drag=null;
+    function pos(e){var r=cv.getBoundingClientRect();return Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));}
+    cv.onpointerdown=function(e){var t=pos(e);drag=Math.abs(t-SC.a)<=Math.abs(t-SC.b)?"a":"b";try{cv.setPointerCapture(e.pointerId);}catch(x){}move(e);};
+    function move(e){if(!drag)return;var t=pos(e),gap=0.05/Math.max(0.05,SC.raw.duration);if(drag==="a")SC.a=Math.min(t,SC.b-gap);else SC.b=Math.max(t,SC.a+gap);scDraw();var tt=$("#scTime");if(tt)tt.textContent=scLenTxt();}
+    cv.onpointermove=move;cv.onpointerup=cv.onpointercancel=function(){if(drag){drag=null;scKeep();}};}
+  /* bring back the last take (kept until a new recording) */
+  if(!SC.raw){idbGet(scDraftK()).then(function(b){if(b&&!SC.raw&&!SC.mr)return scLoadBlob(b,false).then(function(){draw();});}).catch(function(){});}
+  draw();}
+function scLoadBlob(blob,keep){return scDecode(blob).then(function(buf){SC.raw=buf;if(keep){SC.a=0;SC.b=1;scAutoTrim();return idbPut(scDraftK(),blob).catch(function(){});}});}
+function scStartRec(redraw){var btn=$("#scRec"),fbE=$("#scFb");scStopPlay();
+  voxMicThen(btn,fbE,function(){teardown=function(){scStopRec();scStopPlay();try{stopMic();}catch(e){}};var mt=["audio/webm;codecs=opus","audio/mp4","audio/webm"].find(function(t){try{return MediaRecorder.isTypeSupported(t);}catch(e){return false;}}),mr;
+    try{mr=new MediaRecorder(micStream,Object.assign({audioBitsPerSecond:256000},mt?{mimeType:mt}:{}));}catch(e){try{mr=new MediaRecorder(micStream);}catch(e2){mr=null;}}
+    if(!mr){if(fbE)fbE.textContent="Recording isn't supported on this browser.";if(btn){btn.disabled=false;btn.textContent="● Record";}return;}
+    SC.mr=mr;SC.chunks=[];SC.t0=performance.now();var live=[],buf=new Float32Array(toneAnalyser.fftSize);
+    mr.ondataavailable=function(e){if(e.data&&e.data.size)SC.chunks.push(e.data);};
+    mr.onstop=function(){var chunks=SC.chunks,type=(mr.mimeType||mt||"audio/webm");SC.mr=null;cancelAnimationFrame(SC.raf);clearTimeout(SC.stopT);
+      if(!chunks.length){if(redraw)redraw();var f=$("#scFb");if(f)f.textContent="Nothing was recorded — try again.";return;}
+      var blob=new Blob(chunks,{type:type});SC.fx={pitch:0,rev:false,tone:0,grit:0,echo:0,verb:0};SC.name="";
+      scLoadBlob(blob,true).then(function(){scKeep();if(redraw)redraw();var f=$("#scFb");if(f)f.textContent="Caught "+SC.raw.duration.toFixed(1)+" s. Trimmed to the sound — play it, shape it, save it.";})
+        .catch(function(){if(redraw)redraw();var f=$("#scFb");if(f)f.textContent="Couldn't read that recording — try again.";});};
+    try{mr.start(250);}catch(e){SC.mr=null;return;}
+    if(btn){btn.disabled=false;btn.textContent="■ Stop";btn.classList.add("on");}var pb=$("#scPlay");if(pb)pb.disabled=true;
+    SC.stopT=setTimeout(scStopRec,60000);
+    (function loop(){if(!SC.mr)return;toneAnalyser.getFloatTimeDomainData(buf);var m=0;for(var i=0;i<buf.length;i++){var v=Math.abs(buf[i]);if(v>m)m=v;}live.push(m);if(live.length>900)live.shift();scDraw(live);
+      var t=$("#scTime"),h=$("#scHint"),el=(performance.now()-SC.t0)/1000;if(t)t.textContent="● "+el.toFixed(1)+" s";if(h)h.textContent=m>0.02?"Hearing it":"Listening… make the sound";SC.raf=requestAnimationFrame(loop);})();});}
+function scStopRec(){if(SC.mr){try{SC.mr.stop();}catch(e){SC.mr=null;}}}
+function scPlay(){var b=$("#scPlay");if(b){b.textContent="…";}scRender().then(function(buf){unlockAudio();var a=ac(),s=a.createBufferSource(),g=a.createGain();g.gain.value=1;s.buffer=buf;s.connect(g);g.connect(a.destination);s.onended=function(){if(SC.play===s){SC.play=null;var b2=$("#scPlay");if(b2)b2.textContent="▶ Play";}};s.start();SC.play=s;if(b)b.textContent="■ Stop";})
+  .catch(function(){if(b)b.textContent="▶ Play";});}
+function scStopPlay(){if(SC.play){try{SC.play.stop();}catch(e){}SC.play=null;}var b=$("#scPlay");if(b&&!SC.mr)b.textContent="▶ Play";}
+document.addEventListener("visibilitychange",function(){if(document.hidden&&SC.mr)scStopRec();});
+(function(){try{var st=document.createElement("style");st.textContent=".scWave{width:100%;height:150px;border-radius:12px;display:block;touch-action:none;cursor:ew-resize;margin-top:8px}.scInfo{display:flex;justify-content:space-between;font:700 .8rem system-ui;color:var(--muted);margin:4px 2px 0}.scMain .btn{flex:1;min-height:56px;font-size:1.05rem}.scRec.on{background:#e2554f;color:#fff}";document.head.appendChild(st);}catch(e){}})();
 const MAKE_CARDS=[
  {ic:"🎙️",title:"Sing a Song",blurb:"Sing or hum your own tune — it maps the notes and rhythm onto a staff. Fix them, then save it as a section or a whole song.",go:()=>renderCompose()},
  {ic:"⭐",title:"My Songs",blurb:"Your saved melodies and imported songs — sing them back, or import a MIDI.",go:()=>renderMySongs()},
@@ -9024,6 +9122,7 @@ const MAKE_CARDS=[
  {ic:"🧪",title:"Write + Beat Lab",blurb:"Write lyrics over a beat and record vocals in time. Load a beat you made, drop in your own track, or use the click — with a syllable counter, mix faders, and a nudge slider to line up your take.",go:()=>renderBeatLab()},
  {ic:"🎛️",title:"Studio",blurb:"Built like Ableton Live — Session view for launching loops and scenes, Arrangement timeline, mixer with sends, devices, piano roll, MIDI keyboard and recording.",go:()=>liveOpen()},
  {ic:"🧩",title:"Beat Maker",blurb:"Build layered beats & motifs on a grid — djembe and handpan together. Play the instrument live into the sequencer, loop, save, and get feedback.",go:()=>renderBeat()},
+ {ic:"🎙",title:"Sound Catcher",blurb:"Catch any sound — nature, objects, your voice. Trim it, add effects, and save it as a sample for the Sampler and your songs.",go:()=>renderSoundCatcher()},
  {ic:"🎛️",title:"Sampler",blurb:"Your own sound library. Tap pads to play, then record, upload, or slice your own sounds onto them — tune each pad, program a 16-step beat, and save your kits. Starter sounds built in.",go:()=>renderSampler()},
  {ic:"🔊",title:"Sound Library",blurb:"Your whole sound library in one place — browse by category, audition, and drag in your own one-shots, packs, and loops. Built-in starter sounds included; your uploads are saved on this device.",go:()=>renderSoundLib()},
  {ic:"🎼",title:"Learn a Song",blurb:"Bring in a song you're practicing — paste a chord sheet or build it — and get a play-along chord chart with loop, tempo, and transpose.",go:()=>renderLearnSong()},

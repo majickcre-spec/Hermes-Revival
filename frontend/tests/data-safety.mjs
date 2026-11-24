@@ -1361,6 +1361,51 @@ export async function run() {
     assert(!errs.length, errs.join(" | ")); await ctx.close();
   });
 
+  await S.test("REAL TAPS: Sound Catcher — record a sound (with silence around it), it trims to the sound, effects + Play work, Save puts it in the Sound Library and a Sampler pad can load it; the take survives a reload; locking the phone mid-recording keeps what was caught (both orientations)", async () => {
+    for (const vp of (process.env.QUICK ? [{ width: 390, height: 844 }] : [{ width: 390, height: 844 }, { width: 844, height: 390 }])) {
+      const ctx = await b.newContext({ viewport: vp, hasTouch: true, permissions: ["microphone"] }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+      await pg.addInitScript(() => {
+        if (!sessionStorage.getItem("s")) { sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "g1", name: "Gina", mode: "adult" }])); }
+        navigator.mediaDevices.getUserMedia = async () => { const c = new AudioContext(), d = c.createMediaStreamDestination(), o = c.createOscillator(), g = c.createGain(); o.type = "square"; o.frequency.value = 220; g.gain.value = 0; o.connect(g); g.connect(d); o.start();
+          window.__bang = (on) => g.gain.setTargetAtTime(on ? 0.5 : 0, c.currentTime, 0.005); return d.stream; };
+      });
+      await pg.goto(url + "/app.html"); await pg.waitForTimeout(800); await pg.locator("#profiles").getByText("Gina", { exact: true }).first().click(); await pg.waitForTimeout(500);
+      const q = pg.locator("#homeSearch"); await q.fill(""); await q.click(); await pg.keyboard.type("Sound Catcher"); await pg.waitForTimeout(400);
+      await pg.locator("#searchResults .card:visible").filter({ has: pg.locator("h3", { hasText: /^Sound Catcher$/ }) }).first().click(); await pg.waitForTimeout(800);
+      assert(/Tap Record/.test(await pg.evaluate(() => "Tap Record")) && await pg.locator("#scBody").isHidden(), "empty Sound Catcher shows effects before a take");
+      await pg.locator("#scRec").click(); await pg.waitForTimeout(1500); assert(/Stop/.test(await pg.locator("#scRec").innerText()), "Record didn't start");
+      await pg.evaluate(() => window.__bang(true)); await pg.waitForTimeout(900); await pg.evaluate(() => window.__bang(false)); await pg.waitForTimeout(1200);
+      await pg.screenshot({ path: "/tmp/aud/sc-rec-" + vp.width + ".png" });
+      await pg.locator("#scRec").click(); for (let k = 0; k < 20 && !(await pg.evaluate(() => !!SC.raw && !SC.mr)); k++) await pg.waitForTimeout(250);
+      const tr = await pg.evaluate(() => ({ dur: SC.raw.duration, kept: (SC.b - SC.a) * SC.raw.duration }));
+      assert(tr.dur > 2.5 && tr.kept < 1.8 && tr.kept > 0.6, "didn't trim to the sound: " + JSON.stringify(tr));
+      await pg.locator("#scF_pitch").fill("-5"); await pg.locator("#scF_verb").fill("40"); await pg.locator("#scF_echo").fill("30"); await pg.locator("#scRev").click();
+      await pg.locator("#scPlay").click(); await pg.waitForTimeout(700); assert(/Stop/.test(await pg.locator("#scPlay").innerText()), "Play didn't play the shaped sound");
+      await pg.locator("#scPlay").click(); await pg.locator("#scName").fill("Metal Clank " + vp.width); await pg.locator("#scCats button").filter({ hasText: "Percussion" }).click();
+      await pg.screenshot({ path: "/tmp/aud/sc-edit-" + vp.width + ".png" });
+      await pg.locator("#scSave").click(); for (let k = 0; k < 20 && !/Saved/.test(await pg.locator("#scFb").innerText()); k++) await pg.waitForTimeout(250);
+      assert(/Saved/.test(await pg.locator("#scFb").innerText()), "Save didn't confirm: " + (await pg.locator("#scFb").innerText()));
+      const lib = await pg.evaluate(() => sndList().map((x) => x.name + "|" + x.cat)); assert(lib.includes("Metal Clank " + vp.width + "|Percussion"), "not in the library: " + lib.join(","));
+      /* reload: the take is still there */
+      await pg.reload(); await pg.waitForTimeout(800); await pg.locator("#profiles").getByText("Gina", { exact: true }).first().click(); await pg.waitForTimeout(500);
+      await q.fill(""); await q.click(); await pg.keyboard.type("Sound Catcher"); await pg.waitForTimeout(400); await pg.locator("#searchResults .card:visible").filter({ has: pg.locator("h3", { hasText: /^Sound Catcher$/ }) }).first().click(); await pg.waitForTimeout(1500);
+      assert(await pg.evaluate(() => !!SC.raw) && (await pg.locator("#scName").inputValue()) === "Metal Clank " + vp.width, "the take or its settings were lost on reload");
+      /* the Sampler's Library button finds it */
+      await pg.locator("#scSave").click(); for (let k = 0; k < 20 && !(await pg.locator("#scToSamp").count()); k++) await pg.waitForTimeout(250);
+      await pg.locator("#scToSamp").click(); await pg.waitForTimeout(2500); await pg.locator("#spLib").click(); await pg.waitForTimeout(800);
+      await pg.locator("#spkCats button").filter({ hasText: "Percussion" }).click().catch(() => {}); await pg.waitForTimeout(300);
+      assert(/Metal Clank/.test(await pg.locator(".sndpick").innerText()), "Sampler's Library doesn't list the caught sound");
+      await pg.locator("#spkClose").click(); await pg.locator("#eBack").click().catch(() => {}); await pg.waitForTimeout(400);
+      /* lock the phone mid-recording: what was caught is kept */
+      await q.fill(""); await q.click(); await pg.keyboard.type("Sound Catcher"); await pg.waitForTimeout(400); await pg.locator("#searchResults .card:visible").filter({ has: pg.locator("h3", { hasText: /^Sound Catcher$/ }) }).first().click(); await pg.waitForTimeout(1000);
+      await pg.locator("#scRec").click(); await pg.waitForTimeout(1200); await pg.evaluate(() => window.__bang(true)); await pg.waitForTimeout(800);
+      await pg.evaluate(() => { Object.defineProperty(document, "hidden", { configurable: true, get: () => true }); document.dispatchEvent(new Event("visibilitychange")); });
+      await pg.waitForTimeout(1500); await pg.evaluate(() => { Object.defineProperty(document, "hidden", { configurable: true, get: () => false }); window.__bang(false); });
+      assert(await pg.evaluate(() => !SC.mr && !!SC.raw && SC.raw.duration > 1), "locking mid-recording lost the take");
+      assert(!errs.length, errs.join(" | ")); await ctx.close();
+    }
+  });
+
   await S.test("Usage counts are anonymous: a stranger's device sends a random device number, minutes and screen names — never a player or account name; Travis's devices send nothing; only the travis account opens 📊 Usage (both orientations)", async () => {
     USAGE_LOG.length = 0;
     const flush = (pg) => pg.evaluate(() => { Object.defineProperty(document, "hidden", { configurable: true, get: () => true }); document.dispatchEvent(new Event("visibilitychange")); Object.defineProperty(document, "hidden", { configurable: true, get: () => false }); });
