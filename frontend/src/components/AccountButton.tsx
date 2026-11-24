@@ -19,6 +19,8 @@ export default function AccountButton() {
   useEffect(() => { setUser(getUser()); }, [open]);
 
   if (!syncEnabled()) return null;
+  // The music app has its own Sign In / Sign Up on the players screen; this chip would sit on top of its player chip.
+  if (typeof window !== "undefined" && window.location.pathname.startsWith("/music-theory")) return null;
 
   const C = {
     panel: "#1d1533", line: "#3a3356", cream: "#e8e4d9", gold: "#ff9f5c", muted: "#9a93b8", bg: "#140d28",
