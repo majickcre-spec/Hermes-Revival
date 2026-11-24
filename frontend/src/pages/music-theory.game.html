@@ -7075,10 +7075,10 @@ function pkScaleJudge(){const ev=PK.ev.filter(e=>!e.auto).sort((a,b)=>a.b-b.b);i
   return {clean:clean,acc:acc,miss:ev.length-hits,stop:stop,stopAt:stopAt,wrong:wrong,runs:Object.keys(byRun).map(k=>({r:+k,p:Math.round(100*byRun[k].h/byRun[k].n)}))};}
 function pkScaleSave(J){const k=pkScaleKey(),R=pkScaleRec(k);R.tries++;R.at=Date.now();if(J.clean&&PK.bpm>R.best)R.best=PK.bpm;R.last={bpm:PK.bpm,clean:J.clean,acc:J.acc};if(R.best>=pkScaleGoal())R.mastered=true;save(mk("pkscale",k),R);return R;}
 function pkScaleStatus(){const R=pkScaleRec(),g=pkScaleGoal();return R.best>=g?'✅ <b>Mastered</b> — clean ×3 at ♩'+R.best+' (goal ♩'+g+')':R.best?'🏁 Best clean ×3: <b>♩'+R.best+'</b> · goal ♩'+g:'🏁 Goal: up and down 3 times without stopping at <b>♩'+g+'</b>';}
-function pkScaleAfter(J){const R=pkScaleSave(J),g=pkScaleGoal(),nx=J.clean?Math.min(240,PK.bpm+10):Math.max(30,PK.bpm-10);
+function pkScaleAfter(J){const R=pkScaleSave(J),g=pkScaleGoal(),nx=J.clean?Math.min(240,PK.bpm+10):PK.bpm; /* a missed run never lowers the tempo: same tempo, try again */
   const head=J.clean?(PK.bpm>=g?'🏆 <b>Mastered!</b> Up and down 3 times clean at ♩'+PK.bpm+'.':'✅ <b>Clean ×3 at ♩'+PK.bpm+'.</b> Goal ♩'+g+' — '+(g-PK.bpm)+' to go.'):
     (J.stop?'⏸ You stopped in run '+(J.stopAt+1)+'.':J.wrong?'❌ '+J.wrong+' wrong note'+(J.wrong>1?'s':'')+'.':'Almost — '+J.miss+' note'+(J.miss>1?'s':'')+' missed.')+' Clean means all 3 runs, every note, no wrong notes, no stops.';
-  pkMsg(head+' <span style="color:var(--muted)">Runs: '+J.runs.map(x=>x.p+'%').join(' · ')+'</span><div class="actions" style="margin-top:6px"><button class="btn" id="pkNextT">▶ Try ♩'+nx+'</button></div>');
+  pkMsg(head+' <span style="color:var(--muted)">Runs: '+J.runs.map(x=>x.p+'%').join(' · ')+'</span><div class="actions" style="margin-top:6px"><button class="btn" id="pkNextT">'+(J.clean&&nx>PK.bpm?'▶ Try ♩'+nx:'🔁 Try again')+'</button></div>');
   try{pkDrawCtl();}catch(e){}const b=document.getElementById("pkNextT");if(b)b.onclick=()=>{PK.bpm=nx;pkBpmShow();pkScaleBpmSave();pkStart();};pkScaleStatusPaint();}
 function pkScaleStatusPaint(){const el=document.getElementById("pkScStat");if(el)el.innerHTML=pkScaleStatus();}
 function pkScaleBpmSave(){if(PK.mode==="scales"){const m=pkScBpmMap();m[pkScaleKey()]=PK.bpm;save(mk("pk","scbpm"),m);}}
@@ -7314,7 +7314,7 @@ function pkOverlay(cv,now){const c=cv.getContext("2d"),W=cv.clientWidth,top=(PK.
 function pkFinish(){pkStop();if(PK.test){pkRecordRun();PK.result=null;const J0=PK.mode==="scales"?pkScaleJudge():null;pkTestEnd();pkTestReport();pkMsg("");if(J0)pkScaleAfter(J0);return;}const r=document.getElementById("pkMsg");if(!r)return;if(PK.play==="watch"){pkMsg("✅ That’s <b>"+esc(PK.title)+"</b>. Now tap <b>🎹 I’ll play</b> and try it"+(PK.wait?" — Wait mode holds each note for you.":"."));return;}
   if(PK.mode==="scales"&&!PK.wait){const J=pkScaleJudge();pkRecordRun();if(J){pkScaleAfter(J);return;}}
   const S=PK.score,N=PK.ev.length,acc=N?Math.round(100*S.hit/N):0,stars=acc>=90?3:acc>=75?2:acc>=50?1:0,pr=pkStatNow(),best=pr?pr.best:0;pkRecordRun();
-  pkMsg('<span style="font-size:1.2rem">'+"★".repeat(stars)+"☆".repeat(3-stars)+'</span> <b>'+S.score+' pts</b>'+(S.score>best?' · <b style="color:var(--gold)">NEW BEST</b>':'')+' · '+S.hit+'/'+N+' · '+acc+'% · best streak '+S.top+' — '+(acc>=90?"bump the BPM up 5.":acc>=60?"loop it, then speed up.":"slow down 10 BPM or turn on ⏸ Wait mode."));}
+  pkMsg('<span style="font-size:1.2rem">'+"★".repeat(stars)+"☆".repeat(3-stars)+'</span> <b>'+S.score+' pts</b>'+(S.score>best?' · <b style="color:var(--gold)">NEW BEST</b>':'')+' · '+S.hit+'/'+N+' · '+acc+'% · best streak '+S.top+' — '+(acc>=90?"bump the BPM up 5.":acc>=60?"loop it, then speed up.":"loop the hard part and try again."));}
 /* ---------- drawing ---------- */
 function pkDraw(cv,now,dt){const dpr=Math.min(2.5,window.devicePixelRatio||1),W=cv.clientWidth,H=cv.clientHeight;if(!W||!H)return;if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
   const c=cv.getContext("2d");c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);const G=pkGeo(W,H);PK.geo=G;const top=G.top,spb=pkSpb(),L=Math.max(2,Math.min(10,(PK.look||6)*spb)),pps=(top-30)/L;

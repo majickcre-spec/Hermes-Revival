@@ -1343,6 +1343,21 @@ export async function run() {
     }
   });
 
+  await S.test("REAL TAPS: Piano C scale — a missed run offers Try again at the same tempo (never a lower-tempo button); a clean run still offers the next tempo up; tapping Try again keeps the tempo", async () => {
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+    await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); });
+    await pg.goto(url + "/app.html"); await pg.waitForTimeout(700); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(500);
+    const s = pg.locator("#homeSearch"); await s.click(); await pg.keyboard.type("Piano"); await pg.waitForTimeout(400);
+    await pg.locator("#searchResults .card").filter({ has: pg.locator("h3", { hasText: /Piano/ }) }).first().click(); await pg.waitForTimeout(900);
+    const tab = pg.locator("#view button").filter({ hasText: /Scales/ }).first(); if (await tab.count()) { await tab.click(); await pg.waitForTimeout(600); }
+    const after = (clean) => pg.evaluate((c) => { PK.mode = "scales"; PK.bpm = 80; pkScaleAfter({ clean: c, acc: c ? 100 : 80, miss: c ? 0 : 3, stop: false, wrong: 0, runs: [{ p: 90 }, { p: 80 }, { p: 70 }] }); return document.getElementById("pkNextT").textContent.trim(); }, clean);
+    const miss = await after(false); assert(/Try again/.test(miss) && !/♩/.test(miss), "missed run still offers a tempo change: " + miss);
+    await pg.locator("#pkNextT").click(); await pg.waitForTimeout(300); const bpm = await pg.evaluate(() => PK.bpm); try { await pg.evaluate(() => pkStop()); } catch (e) {}
+    assert(bpm === 80, "Try again changed the tempo to " + bpm);
+    const ok = await after(true); assert(/Try ♩90/.test(ok), "clean run should offer ♩90: " + ok);
+    assert(!errs.length, errs.join(" | ")); await ctx.close();
+  });
+
   await S.test("Heads of Things is private: hidden when signed out and for any other account (even a player named Trav); signing in as Star by real taps shows it; the server refuses others; works offline after one open; signing out removes it", async () => {
     const search = async (pg, name) => { await pg.locator("#profiles").getByText(name, { exact: true }).first().click(); await pg.waitForTimeout(500);
       const s = pg.locator("#homeSearch"); await s.fill(""); await s.click(); await pg.keyboard.type("Heads"); await pg.waitForTimeout(400);
