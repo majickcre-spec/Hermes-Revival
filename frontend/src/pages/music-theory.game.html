@@ -2093,7 +2093,8 @@ function micHelp(){var iOS=/iPhone|iPad|iPod/.test(navigator.userAgent);
   :"Allow the mic: click the 🎙/🔒 icon by the address bar → Microphone → Allow. On a Mac, also check System Settings → Privacy & Security → Microphone and switch your browser on, then reload.";}
 async function micInputs(){try{var ds=await navigator.mediaDevices.enumerateDevices();return ds.filter(function(d){return d.kind==="audioinput";});}catch(e){return [];}}
 async function ensureMic(){
-  if(toneAnalyser)return true;
+  try{ac().resume();}catch(e){}
+  if(toneAnalyser){var _t=micStream&&micStream.getAudioTracks()[0];if(!_t||_t.readyState!=="ended")return true;stopMic();}/* a call, app switch or lock can end the mic: open it again */
   try{
     const a=ac();
     try{if(navigator.audioSession)navigator.audioSession.type="play-and-record";}catch(e){}
@@ -2106,6 +2107,8 @@ async function ensureMic(){
     const mg=a.createGain();mg.gain.value=4.4; // boost so quiet notes/singing register
     toneAnalyser=a.createAnalyser();toneAnalyser.fftSize=2048;toneAnalyser.smoothingTimeConstant=0;
     src.connect(mg);mg.connect(toneAnalyser);window.MIC_NODE=mg;
+    /* Safari/iPhone only feeds a listener that leads to the speakers: route it into a silent gain so it always gets the mic */
+    var sink=a.createGain();sink.gain.value=0;toneAnalyser.connect(sink);sink.connect(a.destination);
     return true;
   }catch(e){return false;}
 }
@@ -2152,7 +2155,7 @@ function renderWarmups(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=tr
     var dv=$("#wmDur");if(dv)dv.oninput=function(){WARM.dur=+dv.value;$("#wmDurV").textContent=Math.round(60/WARM.dur)+"/min";};
     $("#wmGo").onclick=start;
   }
-  function start(){unlockAudio();var seq=warmSeq(),dur=WARM.dur;WARM.on=true;WARM.samples=[];WARM.t0=performance.now();
+  function start(){if(!toneAnalyser||(micStream&&micStream.getAudioTracks()[0]&&micStream.getAudioTracks()[0].readyState==="ended")){var g0=$("#wmGo");voxMicThen(g0,$("#wmFb"),function(){if(g0)g0.textContent="▶ Start warm-up";start();});return;}unlockAudio();var seq=warmSeq(),dur=WARM.dur;WARM.on=true;WARM.samples=[];WARM.t0=performance.now();
     var go=$("#wmGo");if(go){go.disabled=true;go.textContent="🎤 Sing along…";}var fb=$("#wmFb");if(fb)fb.textContent="";
     seq.forEach(function(midi,i){setTimeout(function(){if(!WARM.on)return;playSing(midi-voxShift(),dur*0.92);var cur=$("#wmCur");if(cur){cur.textContent=noteNameOct(midi);cur.className="t-note";}},Math.round(i*dur*1000));});
     var total=seq.length*dur;
@@ -2323,34 +2326,42 @@ function vdDone(){voxScreen();var R=VD.res,wk=VD.weekly;var lines=[];
   if(activeId()&&!isAdult()){addBeans(5);beanChip();}}
 function vdBreath(box,next){var kid=voxKid(),rounds=kid?2:3,ph=[["Breathe in",4,1],["Hold",4,1],["Breathe out slowly",8,0]];
   box.innerHTML='<div class="vxSay">Fill up low in your belly, not your shoulders. In for 4, hold for 4, out for 8. <b>'+rounds+' rounds.</b></div><div class="vxBreath"><div class="vxCirc" id="vbC"></div><div class="vxBT"><b id="vbT">Ready</b><span id="vbN"></span></div></div><div class="actions" style="justify-content:center"><button class="btn" id="vbGo">▶ Start</button></div>';
-  $("#vbGo").onclick=function(){var b=$("#vbGo");b.disabled=true;var r=0,p=0;VOX.on=true;
+  $("#vbGo").onclick=function(){var b=$("#vbGo");b.disabled=true;b.textContent="🌬 Breathing…";var r=0,p=0;VOX.on=true;
     (function stepP(){if(!VOX.on||!$("#vbC"))return;if(p>=ph.length){p=0;r++;}if(r>=rounds){$("#vbT").textContent="Nice. Ready to sing.";$("#vbN").textContent="";b.disabled=false;b.textContent="Next ▶";b.onclick=next;return;}
       var P=ph[p],c=$("#vbC");c.style.transition="transform "+P[1]+"s ease-in-out";c.style.transform="scale("+(P[2]?1:0.45)+")";$("#vbT").textContent=P[0];var k=P[1];$("#vbN").textContent=k+" · round "+(r+1)+" of "+rounds;
       var iv=setInterval(function(){k--;var n=$("#vbN");if(!n||!VOX.on){clearInterval(iv);return;}if(k>0)n.textContent=k+" · round "+(r+1)+" of "+rounds;else{clearInterval(iv);p++;stepP();}},1000);})();};}
+/* every warm-up step turns the mic on itself when you tap Start (and says so if it can't) */
+function voxMicThen(btn,hint,fn){unlockAudio();if(btn){btn.disabled=true;btn.textContent="🎤 Turning on the mic…";}
+  ensureMic().then(function(ok){if(!ok){if(btn){btn.disabled=false;btn.textContent="▶ Start";}if(hint)hint.innerHTML="🎤 I can’t reach your mic. "+(typeof micHelp==="function"?micHelp():"Allow it for this site")+" — then tap Start again.";return;}
+    if(btn)btn.textContent="🎤 Listening…";teardown=function(){voxStopLoop();try{stopMic();}catch(e){}};fn();});}
+/* no sound at all for a while = the mic isn't really feeding us: say so instead of sitting at 0 */
+function voxMicDead(t0,hint){if(performance.now()-t0<2500)return false;if(voxRms()>0)return false;if(hint)hint.innerHTML="🎤 I’m not getting any sound from the mic. Tap ← and open the warm-up again, or check the mic setting for this site.";return true;}
 function vdHiss(box,next){var kid=voxKid(),goal=kid?10:20;
   box.innerHTML='<div class="vxSay">Big breath in, then a long, even <b>“sssss”</b> like a slow tire leak. Keep it the same strength the whole way. Goal: <b>'+goal+' s</b>.</div><div class="vxBig" id="vhS">0.0 s</div><div class="vxMeter"><i id="vhM"></i></div><div class="t-hint" id="vhH" style="text-align:center">Tap Start, stay quiet for a second, then hiss</div><div class="actions" style="justify-content:center;margin-top:8px"><button class="btn" id="vhGo">▶ Start</button></div>';
-  $("#vhGo").onclick=function(){var b=$("#vhGo");b.disabled=true;var t0=performance.now(),floor=0,nf=0,started=null,quiet=0,vals=[];VOX.on=true;$("#vhH").textContent="Quiet… measuring the room";
-    VOX_HS=null;(function loop(){if(!VOX.on)return;var now=performance.now(),db=voxHissDb(),m=$("#vhM");
-      if(now-t0<1000){floor+=db;nf++;if(m)m.style.width="0%";}else{var fl=floor/Math.max(1,nf),over=db-fl,v=Math.pow(10,over/20);if(m)m.style.width=Math.max(0,Math.min(100,over*100/24))+"%";/* 24 dB over the room = full meter */
+  $("#vhGo").onclick=function(){var b=$("#vhGo");voxMicThen(b,$("#vhH"),function(){var t0=performance.now(),floor=null,started=null,quiet=0,vals=[];VOX.on=true;$("#vhH").textContent="Quiet… measuring the room";
+    VOX_HS=null;(function loop(){if(!VOX.on)return;var now=performance.now(),db=voxHissDb(),m=$("#vhM");if(started==null&&voxMicDead(t0,$("#vhH"))){VOX.on=false;b.disabled=false;b.textContent="▶ Start";return;}
+      /* the room = the quietest moment so far (a hiss started early can't hide itself); skip the mic's dead-silent first moments */
+      if(now-t0>300&&isFinite(db)&&db>-140){if(floor==null||db<floor)floor=db;else if(started==null&&db-floor<3)floor+=(db-floor)*0.05;}
+      if(now-t0<1000||floor==null){if(m)m.style.width="0%";}else{var fl=floor,over=db-fl,v=Math.pow(10,over/20);if(m)m.style.width=Math.max(0,Math.min(100,over*100/24))+"%";/* 24 dB over the room = full meter */
         if(started==null){$("#vhH").textContent="Now: ssssss…";if(over>8)started=now;}
         else{if(over>5){quiet=0;vals.push(v);}else quiet+=16;var sec=(now-started)/1000;$("#vhS").textContent=sec.toFixed(1)+" s";
           if(quiet>600||sec>60){VOX.on=false;var len=Math.max(0,sec-quiet/1000),mean=vals.reduce(function(a,x){return a+x;},0)/Math.max(1,vals.length),sd=Math.sqrt(vals.reduce(function(a,x){return a+(x-mean)*(x-mean);},0)/Math.max(1,vals.length)),even=Math.max(0,Math.min(100,Math.round(100*(1-sd/Math.max(1e-6,mean)))));
             VD.res.hiss={s:len,even:even};voxBest("hiss",Math.round(len*10)/10);voxLog("hiss",len);
             $("#vhS").textContent=len.toFixed(1)+" s";$("#vhH").innerHTML=(len>=goal?"🎉 Goal reached! ":"")+"<b>"+even+"%</b> even. "+(even<60?"Try to keep the same strength start to finish.":"Smooth and steady.");
             b.disabled=false;b.textContent="Next ▶";b.onclick=next;var again=document.createElement("button");again.className="btn ghost";again.textContent="Again";again.onclick=function(){vdHiss(box,next);};b.parentNode.appendChild(again);return;}}}
-      VOX.raf=requestAnimationFrame(loop);})();};}
+      VOX.raf=requestAnimationFrame(loop);})();});};}
 function vdSiren(box,next){var r=voxRange()||{lo:voxCenter()-7,hi:voxCenter()+7},kid=voxKid();
   box.innerHTML='<div class="vxSay">'+(kid?"Hum or do a lip trill (“brrr” like a motor). Slide <b>low → high → low</b> like a siren.":"Lip trill (“brrr”) or hum. Glide <b>low → high → low</b> through your whole range, smoothly, no breaks.")+'</div>'+voxLadder("vsLad")+'<div class="t-hint" id="vsH" style="text-align:center;margin-top:6px">Tap Start, then glide for about 10 seconds</div><div class="actions" style="justify-content:center;margin-top:8px"><button class="btn" id="vsGo">▶ Start</button></div>';
   voxLadSet("vsLad",{band:[r.lo,r.hi]});
-  $("#vsGo").onclick=function(){var b=$("#vsGo");b.disabled=true;var mn=1e9,mx=-1e9,t0=performance.now();VOX.on=true;
-    (function loop(){if(!VOX.on)return;var m=voxPitch(),el=(performance.now()-t0)/1000;if(m>0){mn=Math.min(mn,m);mx=Math.max(mx,m);voxLadSet("vsLad",{dot:m,lo:mn,hi:mx});}else voxLadSet("vsLad",{dot:-1});
+  $("#vsGo").onclick=function(){var b=$("#vsGo");voxMicThen(b,$("#vsH"),function(){var mn=1e9,mx=-1e9,t0=performance.now();VOX.on=true;
+    (function loop(){if(!VOX.on)return;if(mx<0&&voxMicDead(t0,$("#vsH"))){VOX.on=false;b.disabled=false;b.textContent="▶ Start";return;}var m=voxPitch(),el=(performance.now()-t0)/1000;if(m>0){mn=Math.min(mn,m);mx=Math.max(mx,m);voxLadSet("vsLad",{dot:m,lo:mn,hi:mx});}else voxLadSet("vsLad",{dot:-1});
       $("#vsH").textContent=Math.max(0,Math.ceil((kid?12:10)-el))+" s";
       if(el>=(kid?12:10)){VOX.on=false;var cov=mx>mn?Math.max(0,Math.min(100,Math.round(100*(Math.min(mx,r.hi)-Math.max(mn,r.lo))/Math.max(1,r.hi-r.lo)))):0;VD.res.siren=cov;voxLog("siren",cov);
         $("#vsH").innerHTML="You covered <b>"+cov+"%</b> of your range"+(cov<60?" — glide a little further each way next time.":". Smooth!");b.disabled=false;b.textContent="Next ▶";b.onclick=next;return;}
-      VOX.raf=requestAnimationFrame(loop);})();};}
+      VOX.raf=requestAnimationFrame(loop);})();});};}
 function vdHold(box,next,opt){opt=opt||{};var kid=voxKid(),dur=opt.dur||(kid?4:6),target=opt.note||voxCenter();
   box.innerHTML='<div class="vxSay">'+(opt.intro||("Listen, then hold <b>"+noteNameOct(target)+"</b> on “ahh” for "+dur+" seconds. Keep it still — like a straight line."))+'</div><div class="tuner" style="margin-top:8px"><div class="t-note" id="vdN">'+noteNameOct(target)+'</div><div class="t-bar"><div class="t-zone"></div><div class="t-center"></div><div class="t-needle" id="vdNd"></div></div><div class="t-hint" id="vdH">Tap Start</div></div><canvas id="vdTr" class="vxTrace" width="600" height="120"></canvas><div class="actions" style="justify-content:center;margin-top:8px"><button class="btn" id="vdGo">▶ Start</button></div>';
-  $("#vdGo").onclick=function(){var b=$("#vdGo");b.disabled=true;unlockAudio();playSing(target-voxShift(),1.4);var H=$("#vdH");H.textContent="Listen…";
+  $("#vdGo").onclick=function(){var b=$("#vdGo");voxMicThen(b,$("#vdH"),function(){playSing(target-voxShift(),1.4);var H=$("#vdH");H.textContent="Listen…";
     setTimeout(function(){if(!$("#vdGo"))return;H.textContent="Now hold it…";var t0=null,cs=[],tStart=performance.now();VOX.on=true;
       (function loop(){if(!VOX.on)return;var m=voxPitch(),now=performance.now();if(m>0){var c=((m-target)%12+12)%12;if(c>6)c-=12;c*=100;if(t0==null)t0=now;cs.push({t:now-t0,c:c});var nd=$("#vdNd");if(nd)nd.style.transform="translateX(calc(-50% + "+Math.max(-120,Math.min(120,c*2.4))+"px))";voxTrace("vdTr",cs,dur);}
         var el=t0==null?0:(now-t0)/1000;if(t0!=null)H.textContent=Math.max(0,Math.ceil(dur-el))+" s";
@@ -2360,7 +2371,7 @@ function vdHold(box,next,opt){opt=opt||{};var kid=voxKid(),dur=opt.dur||(kid?4:6
           var res={sd:sd,in:inn,mean:Math.round(mean),cs:v};if(opt.done){opt.done(res,b,H);return;}
           VD.res.hold={sd:sd,in:inn};voxBest("holdsd",sd,true);voxLog("hold",sd);
           H.innerHTML="Wobble <b>±"+sd+"</b> cents · <b>"+inn+"%</b> in tune"+(Math.abs(mean)>20?(mean>0?" · a little sharp":" · a little flat"):"");b.disabled=false;b.textContent="Next ▶";b.onclick=next;return;}
-        VOX.raf=requestAnimationFrame(loop);})();},1500);};}
+        VOX.raf=requestAnimationFrame(loop);})();},1500);});};}
 function voxTrace(id,cs,dur,band){var cv=document.getElementById(id);if(!cv)return;var x=cv.getContext("2d"),W=cv.width,H=cv.height;x.clearRect(0,0,W,H);
   x.fillStyle="rgba(52,224,198,.12)";var z=band||25;x.fillRect(0,H/2-z/100*H/2,W,z/100*H);x.strokeStyle="rgba(255,255,255,.25)";x.beginPath();x.moveTo(0,H/2);x.lineTo(W,H/2);x.stroke();
   x.strokeStyle="#f4b740";x.lineWidth=2.5;x.beginPath();cs.forEach(function(p,i){var px=p.t/1000/dur*W,py=H/2-Math.max(-100,Math.min(100,p.c))/100*H/2;if(i)x.lineTo(px,py);else x.moveTo(px,py);});x.stroke();}

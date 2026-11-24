@@ -1587,6 +1587,45 @@ export async function run() {
     assert(!errs.length, errs.join(" | ")); await ctx.close();
   });
 
+  await S.test("REAL TAPS: Daily Warm-Up start to finish — every Start turns the mic on itself (even after it was cut), Breath shows it's running, a hiss started right after Start is caught and ends when it stops, Siren, Scale runs and Steady hold grade, summary lists all four", async () => {
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, permissions: ["microphone"] }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+    await pg.addInitScript(() => {
+      if (!sessionStorage.getItem("s")) { sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav", mode: "adult" }])); }
+      window.__opens = 0;
+      navigator.mediaDevices.getUserMedia = async () => { window.__opens++; const c = new AudioContext(), d = c.createMediaStreamDestination();
+        const nb = c.createBuffer(1, c.sampleRate * 2, c.sampleRate), ch = nb.getChannelData(0); for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+        const room = c.createBufferSource(); room.buffer = nb; room.loop = true; const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 800; const rg = c.createGain(); rg.gain.value = 0.003; room.connect(lp); lp.connect(rg); rg.connect(d); room.start();
+        const hs = c.createBufferSource(); hs.buffer = nb; hs.loop = true; const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 4000; const hg = c.createGain(); hg.gain.value = 0; hs.connect(hp); hp.connect(hg); hg.connect(d); hs.start();
+        const o = c.createOscillator(); o.type = "triangle"; const og = c.createGain(); og.gain.value = 0; o.connect(og); og.connect(d); o.start();
+        window.__voice = { hiss: (on) => hg.gain.setTargetAtTime(on ? 0.006 : 0, c.currentTime, 0.02),
+          sing: (f) => { if (f) { o.frequency.setValueAtTime(f, c.currentTime); og.gain.setTargetAtTime(0.05, c.currentTime, 0.02); } else og.gain.setTargetAtTime(0, c.currentTime, 0.02); },
+          glide: (f1, f2, s) => { o.frequency.setValueAtTime(f1, c.currentTime); o.frequency.exponentialRampToValueAtTime(f2, c.currentTime + s / 2); o.frequency.exponentialRampToValueAtTime(f1, c.currentTime + s); og.gain.setTargetAtTime(0.05, c.currentTime, 0.02); } };
+        return d.stream; };
+    });
+    await pg.goto(url + "/app.html"); await pg.waitForTimeout(800); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(600);
+    await pg.locator('#doors .door[data-d="voice"]').click(); await pg.waitForTimeout(500);
+    await pg.locator("#voiceGrid .card").filter({ has: pg.locator("h3", { hasText: /^Daily Warm-Up$/ }) }).first().click(); await pg.waitForTimeout(900);
+    await pg.locator("#vbGo").click(); await pg.waitForTimeout(1200); assert(/Breathing/.test(await pg.locator("#vbGo").innerText()), "Breath Start doesn't show it's running");
+    await pg.locator("#vdSkip").click(); await pg.waitForTimeout(600);
+    await pg.evaluate(() => stopMic());   /* the mic got cut (lock, call, app switch) */
+    await pg.locator("#vhGo").click(); await pg.waitForTimeout(300); await pg.evaluate(() => window.__voice.hiss(true)); await pg.waitForTimeout(6000); await pg.evaluate(() => window.__voice.hiss(false)); await pg.waitForTimeout(1500);
+    const hs = parseFloat(await pg.locator("#vhS").innerText()); assert(hs >= 4.5 && hs <= 7, "hiss timed " + hs + " s for a 6 s hiss (mic reopened " + (await pg.evaluate(() => window.__opens)) + "x)");
+    await pg.locator("#vhGo").click(); await pg.waitForTimeout(800);
+    await pg.locator("#vsGo").click(); await pg.waitForTimeout(400); await pg.evaluate(() => window.__voice.glide(130, 520, 9)); await pg.waitForTimeout(11500); await pg.evaluate(() => window.__voice.sing(0));
+    assert(/covered \d+%/.test(await pg.locator("#vsH").innerText()), "siren didn't grade");
+    await pg.locator("#vsGo").click(); await pg.waitForTimeout(1200);
+    await pg.locator("#wmGo").click(); await pg.waitForTimeout(400); await pg.evaluate(() => window.__voice.sing(220));
+    for (let k = 0; k < 60 && (await pg.evaluate(() => WARM.on)); k++) await pg.waitForTimeout(1000); await pg.evaluate(() => window.__voice.sing(0)); await pg.waitForTimeout(1200);
+    await pg.locator("#view button").filter({ hasText: /Next/ }).filter({ visible: true }).first().click(); await pg.waitForTimeout(900);
+    await pg.locator("#vdGo").click(); await pg.waitForTimeout(1700);
+    const f = await pg.evaluate(() => { const n = document.getElementById("vdN").textContent, N = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"], m = n.match(/^([A-G]#?)(\d)/); return 440 * Math.pow(2, ((+m[2] + 1) * 12 + N.indexOf(m[1]) - 69) / 12); });
+    await pg.evaluate((f) => window.__voice.sing(f), f); await pg.waitForTimeout(8000); await pg.evaluate(() => window.__voice.sing(0));
+    assert(/in tune/.test(await pg.locator("#vdH").innerText()), "hold didn't grade: " + (await pg.locator("#vdH").innerText()));
+    await pg.locator("#vdGo").click(); await pg.waitForTimeout(900);
+    const fin = await pg.locator("#view").innerText(); assert(/Hiss:/.test(fin) && /Siren covered/.test(fin) && /Scale runs:/.test(fin) && /Hold:/.test(fin), "summary missing steps: " + fin.slice(0, 200));
+    assert(!errs.length, errs.join(" | ")); await ctx.close();
+  });
+
   await S.test("Heads of Things is private: hidden when signed out and for any other account (even a player named Trav); signing in as Star by real taps shows it; the server refuses others; works offline after one open; signing out removes it", async () => {
     const search = async (pg, name) => { await pg.locator("#profiles").getByText(name, { exact: true }).first().click(); await pg.waitForTimeout(500);
       const s = pg.locator("#homeSearch"); await s.fill(""); await s.click(); await pg.keyboard.type("Heads"); await pg.waitForTimeout(400);
