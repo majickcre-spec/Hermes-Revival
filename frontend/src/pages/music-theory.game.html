@@ -656,7 +656,7 @@ body.gated #sensFab,body.gated #brainFab{display:none!important}/* connect a sen
 
     <div class="doorsec" data-door="voice">
     <div class="label">Vocal Training</div>
-    <div class="site-note">Find your range, warm up, sing in tune, add vibrato and power, and rap in time. Uses your mic.</div>
+    <div class="site-note">Find your range, warm up, sing in tune, add vibrato and power, and rap in time. Uses your mic. 🎧 Headphones help: phones turn the speaker down while the mic is on.</div>
     <div class="grid" id="voiceGrid"></div>
     </div>
 
@@ -1889,6 +1889,7 @@ function grBus(a){if(GR.bus)return GR.bus;var g=a.createGain();g.gain.value=2.2;
   g.connect(comp);comp.connect(lim);lim.connect(a.destination);
   try{var rv=a.createConvolver();rv.buffer=lvReverbIR(a,{size:0.55,decay:1.6,damp:0.55,width:100});var rs=a.createGain();rs.gain.value=0.13;g.connect(rs);rs.connect(rv);rv.connect(comp);GR.rev=rs;}catch(e){}
   GR.bus=g;return g;}
+function grMicBoost(){try{var a=ac(),g=grBus(a),ios=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1),want=2.2*((ios&&micLive())?1.9:1);if(Math.abs(g.gain.value-want)>0.01)g.gain.setTargetAtTime(want,a.currentTime,0.05);}catch(e){}}
 function grPedal(on){if(!GR.rev)return;try{GR.rev.gain.setTargetAtTime(on?0.2:0.13,ac().currentTime,0.25);}catch(e){}}
 function grPlay(midi,start,dur,v){var a=ac(),an=GR.want.reduce(function(b,m){return Math.abs(m-midi)<Math.abs(b-midi)?m:b;},GR.want[0]);
   v=Math.max(0.03,Math.min(1,v));var best=0,bd=9;[1,2,3,4].forEach(function(L){var d=Math.abs(GR.ctr[L]-v);if(GR.buf[an+"v"+L]&&d<bd){bd=d;best=L;}});if(!best)return false;
@@ -1945,7 +1946,8 @@ function drillRow(before,kind){var el=typeof before==="string"?document.querySel
   el.parentNode.insertBefore(d,el);}
 function playNote(root){playTone(midiToFreq(root),0,1.5);}
 /* sustained reference tone for singing — selectable instrument voices, HELD loud, gentle release */
-let toneVoice=load("mjk-tonevoice","realooh");
+/* the guide sound for singing exercises is the grand piano (the same one the ear trainers use); "ooh" voices stay in Settings */
+let toneVoice=(function(){var v=load("mjk-tonevoice","piano");try{if(!localStorage.getItem("mjk-tonevoice-v2")){localStorage.setItem("mjk-tonevoice-v2","1");if(v==="realooh"){v="piano";save("mjk-tonevoice","piano");}}}catch(e){}return v;})();
 let SONGLIB=load("mjk-songs",[]);
 let PROJECTS=load("mjk-proj2",[]);
 function projSave(){save("mjk-proj2",PROJECTS);}
@@ -1970,7 +1972,7 @@ function envGain(a,t0,dur,peak,atk,rel){const g=a.createGain();g.gain.setValueAt
 function addVibrato(a,osc,t0,dur,cents,rate){if(!cents)return;const lfo=a.createOscillator();lfo.type="sine";lfo.frequency.value=rate||5;const lg=a.createGain();lg.gain.value=cents;lfo.connect(lg);lg.connect(osc.detune);lfo.start(t0);lfo.stop(t0+dur+0.08);}
 function playSustain(freq,start,dur,peak){
   var _vd=voiceDef();if(_vd.kind==="sf"){var _m=Math.round(69+12*Math.log2(freq/440));try{sfLoadInst(_vd.sf);}catch(e){}if(sfInstReady(_vd.sf)&&sfPlayKey(_vd.sf,_m,start,dur,Math.min(1.1,(peak||0.55)+0.35)))return;}
-  if(voiceDef().id==="piano"&&sfInstReady("piano")&&sfPlayKey("piano",Math.round(69+12*Math.log2(freq/440)),start,dur,Math.min(1.05,(peak||0.55)+0.3)))return;
+  if(voiceDef().id==="piano"){try{sfLoadInst("piano");}catch(e){}grMicBoost();if(sfInstReady("piano")&&sfPlayKey("piano",Math.round(69+12*Math.log2(freq/440)),start,dur,Math.min(1,0.92*((peak||0.9)/0.9))))return;}
   const a=ac(),t0=a.currentTime+start+0.001,out=pianoMaster(a),v=(voiceDef().kind==="sf"?VOICES.find(x=>x.id==="voice"):voiceDef());peak=peak||0.55;
   const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=Math.min(11000,freq*v.lp);lp.connect(out);
   function mk(type,wave,mul,det){const o=a.createOscillator();if(wave)o.setPeriodicWave(wave);else o.type=type;o.frequency.value=freq*mul;if(det)o.detune.value=det;return o;}
@@ -2252,7 +2254,7 @@ function voxCard(c){var b=document.createElement("button");b.className="card";va
   b.innerHTML='<span class="ic">'+c.ic+'</span><h3>'+esc(c.title)+'</h3><span class="blurb">'+esc(c.blurb)+'</span>'+extra;
   b.onclick=function(){voxOpen(c.go);};return b;}
 /* every card needs the mic: turn it on once, explain clearly if it's blocked */
-async function voxOpen(go){if(toneAnalyser){teardown=stopMic;go();return;}
+async function voxOpen(go){try{sfLoadInst("piano");}catch(e){}if(toneAnalyser){teardown=stopMic;go();return;}
   home.hidden=true;view.hidden=false;window.scrollTo(0,0);view.innerHTML=voxTop("🎤 Vocal Training")+'<div class="panel" style="text-align:center"><div class="q">Turning on your microphone…</div></div>';$("#eBack").onclick=goHome;
   var ok=await ensureMic();
   if(!ok){view.innerHTML=voxTop("🎤 Vocal Training")+'<div class="panel" style="text-align:center"><div style="font-size:2rem">🎤</div><div class="q" style="margin-top:6px">I need your microphone to hear you sing</div><div class="vxSay" style="border:none;text-align:left;margin:10px auto;max-width:420px">Tap <b>Allow</b> when asked. No popup? Check your browser’s mic setting for this site, then try again.</div><div class="actions"><button class="btn" id="retry">Try again</button><button class="btn ghost" id="back2">Back</button></div></div>';
@@ -2777,7 +2779,18 @@ function phraseLCS(sung,target,offset){ // longest common pitch-class subsequenc
   return dp[n][m];
 }
 let __clipAudio=null;
-function playClip(url){try{if(__clipAudio)__clipAudio.pause();__clipAudio=new Audio(url);__clipAudio.play();}catch(e){}}
+/* hear yourself: recordings come in quiet (the mic is left raw for pitch reading), so every take plays back leveled and clean */
+var __clipSrc=null;
+function playClip(url){try{if(__clipAudio)__clipAudio.pause();}catch(e){}try{if(__clipSrc){__clipSrc.stop();__clipSrc=null;}}catch(e){}
+  unlockAudio();const a=ac();
+  fetch(url).then(r=>r.arrayBuffer()).then(ab=>new Promise((res,rej)=>a.decodeAudioData(ab,res,rej))).then(buf=>{
+    let pk=0;for(let c=0;c<buf.numberOfChannels;c++){const d=buf.getChannelData(c);for(let i=0;i<d.length;i+=2){const x=Math.abs(d[i]);if(x>pk)pk=x;}}
+    const ios=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+    const gain=Math.min(16,0.89/Math.max(pk,0.0005))*((ios&&micLive())?1.6:1);
+    const s=a.createBufferSource(),g=a.createGain(),lim=a.createDynamicsCompressor();s.buffer=buf;g.gain.value=gain;
+    lim.threshold.value=-1.5;lim.knee.value=0;lim.ratio.value=20;lim.attack.value=0.002;lim.release.value=0.1;
+    s.connect(g);g.connect(lim);lim.connect(a.destination);s.start();__clipSrc=s;s.onended=()=>{if(__clipSrc===s)__clipSrc=null;};})
+  .catch(()=>{try{__clipAudio=new Audio(url);__clipAudio.play();}catch(e){}});}
 function tonePhraseSing(p,keyId,backFn){
   if(toneRAF)cancelAnimationFrame(toneRAF);
   const target=phraseContour(p.notes);

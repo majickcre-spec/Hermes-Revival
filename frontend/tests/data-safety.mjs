@@ -1521,6 +1521,37 @@ export async function run() {
     assert(!errs.length, errs.join(" | ")); await ctx.close();
   });
 
+  await S.test("REAL TAPS: Vocal Training sound — exercises play the grand piano at the ear-trainer level (old 'ooh' default moves to piano once, a later pick is kept), no clipping on Scale Runs, and a quiet take plays back leveled in Sing a Phrase", async () => {
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, permissions: ["microphone"] }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+    await pg.addInitScript(() => {
+      if (!sessionStorage.getItem("s")) { sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav", mode: "adult" }])); localStorage.setItem("mjk-tonevoice", JSON.stringify("realooh")); }
+      navigator.mediaDevices.getUserMedia = async () => { const c = new AudioContext(), o = c.createOscillator(), g = c.createGain(), d = c.createMediaStreamDestination(); o.type = "triangle"; o.frequency.value = 196; g.gain.value = 0.03; o.connect(g); g.connect(d); o.start(); return d.stream; };
+      const oc = AudioNode.prototype.connect; AudioNode.prototype.connect = function (dst, ...r) { const out = oc.call(this, dst, ...r); try { if (dst instanceof AudioDestinationNode) { const c = this.context; if (!c.__ears) { const an = c.createAnalyser(); an.fftSize = 4096; c.__ears = an; window.__ears = an; } oc.call(this, c.__ears); } } catch (e) {} return out; };
+    });
+    const listen = (ms) => pg.evaluate(async (ms) => { const an = window.__ears; if (!an) return { peak: 0, rms: 0 }; const d = new Float32Array(an.fftSize); let peak = 0, sum = 0, n = 0; const t0 = performance.now(); while (performance.now() - t0 < ms) { an.getFloatTimeDomainData(d); for (const x of d) { peak = Math.max(peak, Math.abs(x)); sum += x * x; n++; } await new Promise((z) => setTimeout(z, 60)); } return { peak, rms: Math.sqrt(sum / n) }; }, ms);
+    await pg.goto(url + "/app.html"); await pg.waitForTimeout(800); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(800);
+    assert((await pg.evaluate(() => toneVoice)) === "piano", "old 'ooh' default didn't move to piano");
+    for (let k = 0; k < 40 && !(await pg.evaluate(() => { unlockAudio(); return GR.ready; })); k++) await pg.waitForTimeout(200);
+    await pg.evaluate(() => { window.__gr = 0; const o = window.grPlay; window.grPlay = function () { window.__gr++; return o.apply(this, arguments); }; });
+    await pg.locator('#doors .door[data-d="voice"]').click(); await pg.waitForTimeout(500);
+    await pg.locator("#voiceGrid .card").filter({ has: pg.locator("h3", { hasText: /^Scale Runs$/ }) }).first().click(); await pg.waitForTimeout(900);
+    await pg.locator("#view button").filter({ hasText: /Start warm-up/ }).first().click(); const sr = await listen(3000);
+    assert((await pg.evaluate(() => window.__gr)) > 0, "Scale Runs didn't use the grand piano");
+    assert(sr.peak < 0.98 && sr.rms > 0.08, "Scale Runs level off (peak " + sr.peak.toFixed(2) + ", rms " + sr.rms.toFixed(3) + ")");
+    for (let k = 0; k < 4 && !(await pg.locator("#home").isVisible()); k++) { await pg.locator("#view .play-top .back").first().click().catch(() => {}); await pg.waitForTimeout(400); }
+    if (!(await pg.locator("#voiceGrid").isVisible())) { await pg.locator('#doors .door[data-d="voice"]').click(); await pg.waitForTimeout(400); }
+    await pg.locator("#voiceGrid .card").filter({ has: pg.locator("h3", { hasText: /^Sing a Phrase$/ }) }).first().click(); await pg.waitForTimeout(900);
+    await pg.locator("#view .card, #view button").filter({ hasText: /^Level 1/ }).first().click(); await pg.waitForTimeout(800);
+    await pg.locator("#view button").filter({ hasText: /^Sing it/ }).first().click(); await pg.waitForTimeout(1000);
+    await pg.locator("#sing").click(); await pg.waitForTimeout(4000); await pg.locator("#sing").click().catch(() => {}); await pg.waitForTimeout(2500);
+    assert(await pg.locator(".ptake").count(), "no take to play back");
+    await pg.locator(".ptake").first().click(); const tk = await listen(2500);
+    assert(tk.rms > 0.12, "take plays back quiet: rms " + tk.rms.toFixed(3));
+    await pg.evaluate(() => { toneVoice = "flute"; save("mjk-tonevoice", "flute"); }); await pg.reload(); await pg.waitForTimeout(800);
+    assert((await pg.evaluate(() => toneVoice)) === "flute", "a later voice pick wasn't kept");
+    assert(!errs.length, errs.join(" | ")); await ctx.close();
+  });
+
   await S.test("Heads of Things is private: hidden when signed out and for any other account (even a player named Trav); signing in as Star by real taps shows it; the server refuses others; works offline after one open; signing out removes it", async () => {
     const search = async (pg, name) => { await pg.locator("#profiles").getByText(name, { exact: true }).first().click(); await pg.waitForTimeout(500);
       const s = pg.locator("#homeSearch"); await s.fill(""); await s.click(); await pg.keyboard.type("Heads"); await pg.waitForTimeout(400);
