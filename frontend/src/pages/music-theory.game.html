@@ -7596,24 +7596,25 @@ function etEarReveal(host,kind,root,def){
     tones.forEach(function(m,i){var k=kb2.querySelector('[data-m="'+m+'"]');if(k)k.classList.add((def.iv[i]%12===0)?"hiA":"hiT");ivKeyLabel(kb2,m);});
   }
 }
+var EARGEN=0;/* each ear-game round belongs to one visit: leaving (or opening another game) cancels its pending next question */
 function earGame(cfg){
-  home.hidden=true;view.hidden=false;window.scrollTo(0,0);let level=load(mk("ear",cfg.key+"-lvl"),0);
+  home.hidden=true;view.hidden=false;window.scrollTo(0,0);let level=load(mk("ear",cfg.key+"-lvl"),0);EARGEN++;
   function back(){goHome();}
   function levels(){
     let h='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+cfg.title+'</span></div><div class="panel"><div class="intro">'+cfg.intro+' Pick a level, then name what you hear. Right answers earn Beans.</div><div class="rchips" id="egLv"></div><div class="actions"><button class="btn" id="egStart">▶ Start level '+(level+1)+'</button></div><div id="egBest"></div></div>';
-    view.innerHTML=h;$("#eBack").onclick=back;
+    view.innerHTML=h;EARGEN++;$("#eBack").onclick=back;
     const lv=$("#egLv");cfg.levels.forEach((o,k)=>{const b=document.createElement("button");b.className="rchip sm"+(k===level?" sel":"");b.textContent="Lvl "+(k+1)+" · "+o.map(x=>cfg.defs[x].name).join("/");b.onclick=()=>{level=k;save(mk("ear",cfg.key+"-lvl"),k);levels();};lv.appendChild(b);});
     const bs=$("#egBest");const best=load(mk("ear",cfg.key+"-l"+level+"-best"),0);bs.innerHTML='<div class="bean-note">Best on level '+(level+1)+': '+best+'/8</div>';
     $("#egStart").onclick=run;
   }
-  function run(){let i=0,correct=0,cur=null,answered=false;const rounds=8,opts=cfg.levels[level];
-    function nq(){answered=false;const root=48+Math.floor(Math.random()*12);const key=opts[Math.floor(Math.random()*opts.length)];cur={root,key};draw();setTimeout(()=>cfg.play(cur.root,cfg.defs[cur.key].iv),250);}
+  function run(){let i=0,correct=0,cur=null,answered=false;const rounds=8,opts=cfg.levels[level],my=++EARGEN,mine=()=>my===EARGEN&&!view.hidden&&!!document.getElementById("egChoices");
+    function nq(){answered=false;const root=48+Math.floor(Math.random()*12);const key=opts[Math.floor(Math.random()*opts.length)];cur={root,key};draw();setTimeout(()=>{if(mine())cfg.play(cur.root,cfg.defs[cur.key].iv);},250);}
     function pick(k){if(answered)return;answered=true;const ok=k===cur.key;if(ok&&activeId()&&!isAdult()){addBeans(1);beanChip();}if(ok)correct++;
       const def=cfg.defs[cur.key];const label=def.name+(def.desc?' <span style="opacity:.72;font-weight:400">— '+def.desc+'</span>':'');
       const fb=$("#egFb");if(fb){fb.className="feedback "+(ok?"good":"try");fb.innerHTML=ok?"✓ "+label:"✗ That was "+label;}
       document.querySelectorAll(".egopt").forEach(b=>{const bk=b.getAttribute("data-k");if(bk===cur.key)b.classList.add("sel");else if(bk===k&&!ok)b.style.opacity=".5";b.disabled=true;});
       i++;var rev=document.getElementById("egRev");if(rev){rev.innerHTML="";try{etEarReveal(rev,cfg.key,cur.root,def);}catch(e){}if(cfg.key==="chord"||cfg.key==="scale")setTimeout(function(){cfg.play(cur.root,def.iv);},200);}
-      const delay=(cfg.key==="prog"||cfg.key==="cadence")?def.iv.length*620+1800:(def.desc?3000:2400);setTimeout(()=>{if(i>=rounds)done();else nq();},delay);}
+      const delay=(cfg.key==="prog"||cfg.key==="cadence")?def.iv.length*620+1800:(def.desc?3000:2400);setTimeout(()=>{if(!mine())return;if(i>=rounds)done();else nq();},delay);}
     function draw(){
       let h='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">'+cfg.title+' · L'+(level+1)+'</span></div><div class="panel">'+
         '<div class="q" style="text-align:center">What did you hear? <span style="color:var(--muted)">('+(i+1)+'/'+rounds+')</span></div>'+
@@ -7641,13 +7642,15 @@ const NID_LEVELS=[{n:"C · D · E",notes:[60,62,64],low:60,oct:1},{n:"C to G",no
 function nidNext(){for(var k=1;k<=NID_LEVELS.length;k++)if(!load(mk("ear","nid"+k),false))return k;return NID_LEVELS.length;}
 function renderNoteEar(lvlIn){
   var lvl=Math.max(1,Math.min(NID_LEVELS.length,+lvlIn||load(mk("ear","nidsel"),0)||nidNext()));save(mk("ear","nidsel"),lvl);var LV=NID_LEVELS[lvl-1];
-  home.hidden=true;view.hidden=false;window.scrollTo(0,0);let low=LV.low,oct=LV.oct,i=0,correct=0,target=null,answered=false;const rounds=10;
+  home.hidden=true;view.hidden=false;window.scrollTo(0,0);let low=LV.low,oct=LV.oct,i=0,correct=0,target=null,answered=false;const rounds=10,my=++EARGEN,mine=()=>my===EARGEN&&!view.hidden&&!!document.getElementById("neBox");/* leaving cancels the pending next note */
   teardown=()=>{};
-  function newQ(){answered=false;var prev=target;do{target=LV.notes[Math.floor(Math.random()*LV.notes.length)];}while(LV.notes.length>2&&target===prev);draw();MIN.cb=function(m){if(answered)return;var mm=m;if(m<low||m>low+oct*12){var pcs=((((m%12)-(low%12))%12)+12)%12,cand=[low+pcs,low+pcs+12,low+pcs+24].filter(function(x){return x<=low+oct*12;});mm=cand.indexOf(target)>=0?target:cand[0];}guess(mm,view.querySelector('[data-m="'+mm+'"]'));};setTimeout(()=>playTone(midiToFreq(target),0,1.4),200);}
+  /* sideways phone: the keyboard is the answer pad, so keep all of it on screen */
+  function nidFit(){if(innerWidth>innerHeight&&innerHeight<560)setTimeout(function(){var k=document.getElementById("neBox");if(!k||!mine())return;var r=k.getBoundingClientRect();if(r.bottom>innerHeight-4)window.scrollTo({top:window.scrollY+r.bottom-innerHeight+8});},60);}
+  function newQ(){answered=false;var prev=target;do{target=LV.notes[Math.floor(Math.random()*LV.notes.length)];}while(LV.notes.length>2&&target===prev);draw();MIN.cb=function(m){if(answered)return;var mm=m;if(m<low||m>low+oct*12){var pcs=((((m%12)-(low%12))%12)+12)%12,cand=[low+pcs,low+pcs+12,low+pcs+24].filter(function(x){return x<=low+oct*12;});mm=cand.indexOf(target)>=0?target:cand[0];}guess(mm,view.querySelector('[data-m="'+mm+'"]'));};setTimeout(()=>{if(mine())playTone(midiToFreq(target),0,1.4);},200);}
   function guess(m,el){if(answered)return;answered=true;const ok=(m===target);if(ok){correct++;if(activeId()&&!isAdult()){addBeans(1);beanChip();}}
     const ce=view.querySelector('[data-m="'+target+'"]');if(ce)ce.classList.add("on");if(!ok&&el)el.style.opacity=".5";
     const fb=$("#neFb");if(fb){fb.className="feedback "+(ok?"good":"try");fb.innerHTML=ok?"✓ Yes — "+noteNameOct(target):"✗ That was "+noteNameOct(target)+" (you tapped "+noteNameOct(m)+")";}
-    i++;setTimeout(()=>{if(i>=rounds)done();else newQ();},1150);}
+    i++;setTimeout(()=>{if(!mine())return;if(i>=rounds)done();else newQ();},1150);}
   function draw(){
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎹 Note ID</span></div><div class="panel">'+
       '<div class="rrow2" style="justify-content:center;margin-bottom:6px"><span class="rlab">Level</span><span class="rchips tight">'+NID_LEVELS.map(function(L,k){return '<button class="rchip sm'+(k+1===lvl?" sel":"")+'" data-nid="'+(k+1)+'" title="'+L.n+'">'+(k+1)+(load(mk("ear","nid"+(k+1)),false)?" \u2713":"")+'</button>';}).join("")+'</span></div>'+
@@ -7655,7 +7658,7 @@ function renderNoteEar(lvlIn){
       '<div class="q" style="text-align:center">Hear the note, then tap it <span style="color:var(--muted)">('+(i+1)+'/'+rounds+')</span></div>'+
       '<div class="actions" style="justify-content:center"><button class="btn ghost" id="neHear">🔊 Hear it again</button></div>'+
       '<div id="neBox"></div>'+minUI()+'<div class="feedback" id="neFb"></div></div>';
-    $("#eBack").onclick=goHome;$("#neHear").onclick=()=>playTone(midiToFreq(target),0,1.4);view.querySelectorAll("[data-nid]").forEach(function(b){b.onclick=function(){renderNoteEar(+b.dataset.nid);};});
+    $("#eBack").onclick=goHome;$("#neHear").onclick=()=>playTone(midiToFreq(target),0,1.4);nidFit();view.querySelectorAll("[data-nid]").forEach(function(b){b.onclick=function(){renderNoteEar(+b.dataset.nid);};});
     var nw=document.createElement("div");nw.className="ivCard etPlay";var nwi=document.createElement("div");nwi.style.position="relative";nw.appendChild(nwi);$("#neBox").appendChild(nw);nwi.appendChild(buildKeyboard(low,oct,guess,true));}
   function done(){MIN.cb=null;var pass=correct>=7,up=pass&&lvl<NID_LEVELS.length;if(pass)save(mk("ear","nid"+lvl),true);
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎹 Note ID</span></div><div class="panel" style="text-align:center"><div class="q">You got <b>'+correct+'/'+rounds+'</b>!</div><div class="feedback '+(pass?"good":"try")+'">'+(pass?"Level "+lvl+" passed"+(up?" \u2014 on to Level "+(lvl+1)+"!":" \u2014 every level done!"):"7 of 10 passes this level \u2014 run it again.")+'</div><div class="actions" style="justify-content:center">'+(up?'<button class="btn" id="neUp">Level '+(lvl+1)+' \u25b6</button>':'')+'<button class="btn'+(up?" ghost":"")+'" id="neAgain">Again</button><button class="btn ghost" id="neHome">Done</button></div></div>';$("#eBack").onclick=goHome;$("#neAgain").onclick=function(){renderNoteEar(lvl);};$("#neHome").onclick=goHome;if($("#neUp"))$("#neUp").onclick=function(){renderNoteEar(lvl+1);};if(correct>=7)burst($(".panel"),12);beanChip();}
@@ -16477,6 +16480,7 @@ function renderBioSession(){
 ".ivChips .ivCh.sel{color:var(--gold)}.ivChips .ivCh.sel i{color:var(--gold)}"+
 ".ivArc{position:absolute;inset:0;pointer-events:none;overflow:visible}";
 document.head.appendChild(s);}catch(e){}})();
+(function(){try{var st=document.createElement("style");st.textContent="@media (orientation:landscape) and (max-height:520px){#ivCard{padding-top:6px;padding-bottom:6px}#ivCard .pk{height:96px!important}#ivCard .ivLab{margin-bottom:4px}#opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}#opts .opt{margin:0!important}}";document.head.appendChild(st);}catch(e){}})();/* sideways phone: small reveal keyboard + answers three across, so Play and every answer fit on screen */
 function ivCardHTML(){return '<div class="ivCard listen" id="ivCard"><div class="ivLab" id="ivLab"><span class="ivSub">Listen…</span></div><div id="ivKb" style="position:relative"></div></div>';}
 function ivMountKb(low){var box=document.getElementById("ivKb");if(!box)return null;var kb=buildKeyboard(low,2,function(){},false);box.appendChild(kb);return kb;}
 function ivKeyLabel(kb,m){var k=kb.querySelector('[data-m="'+m+'"]');if(!k)return;if(!k.querySelector(".kl")){var sp=document.createElement("span");sp.className="kl";sp.textContent=NOTE_NAMES[((m%12)+12)%12];k.appendChild(sp);}}
@@ -16541,6 +16545,7 @@ function renderRound(level){
     $("#eBack").onclick=goHome;
     const kb=ivMountKb(kbLow);
     const playIt=()=>playInterval(root,semis,ivMode()==="mixed"?qMode:ivMode());drillRow("#opts","iv");
+    if(innerWidth>innerHeight&&innerHeight<560)setTimeout(function(){var o=document.getElementById("opts"),c=document.getElementById("ivCard");if(!o||!c)return;var pb=document.getElementById("play"),dy=Math.min(o.getBoundingClientRect().bottom-innerHeight+8,(pb?pb.getBoundingClientRect().top:c.getBoundingClientRect().top)-4);if(dy>0)window.scrollBy(0,dy);},80);/* sideways phone: bring the answers on screen */
     $("#play").onclick=()=>{playIt();const pb=$("#play");if(pb)pb.textContent="🔁 Hear again";};
     const box=$("#opts");
     set.forEach(s=>{const b=document.createElement("button");b.className="opt";b.textContent=INAMES[s];

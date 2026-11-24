@@ -1408,6 +1408,30 @@ export async function run() {
     MED_GRANTS.clear();
   });
 
+  await S.test("REAL TAPS: ear games — answering then leaving right away never pulls the old game back over the next screen (all 7 games); sideways phone keeps Note ID's keys and the Interval answers on screen", async () => {
+    const ctx = await b.newContext({ locked: true, viewport: { width: 390, height: 844 }, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+    await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "g1", name: "Gina" }])); });
+    await pg.goto(url + "/app.html"); await pg.waitForTimeout(800); await pg.locator("#profiles").getByText("Gina", { exact: true }).first().click(); await pg.waitForTimeout(500);
+    const home = async () => { for (let k = 0; k < 4 && !(await pg.locator("#home").isVisible()); k++) { await pg.locator("#view .play-top .back").first().click().catch(() => {}); await pg.waitForTimeout(250); } };
+    const door = async (d) => { if (!(await pg.locator(d === "ear" ? "#earTrainGrid" : "#topicGrid").isVisible())) { await pg.locator('#doors .door[data-d="' + d + '"]').click(); await pg.waitForTimeout(400); } };
+    for (const g of ["Interval Trainer", "Song-Phrase Match", "Chord Ear Trainer", "Scale Ear Trainer", "Progression Ear", "Cadence Ear", "Note ID"]) {
+      await home(); await door("ear"); await pg.locator("#earTrainGrid .card").filter({ hasText: g }).first().click(); await pg.waitForTimeout(600);
+      for (const re of [/^Level 1/, /Quiz me/, /Start level/]) { const x = pg.locator("#view button").filter({ hasText: re }).first(); if (await x.count()) { await x.click(); await pg.waitForTimeout(900); break; } }
+      const opt = pg.locator("#view .choice, #view .egopt, #view .opt, #view .opts button").first();
+      if (await opt.count()) await opt.click().catch(() => {}); else await pg.locator("#view [data-m]").first().click().catch(() => {});
+      await home(); await door("learn"); await pg.locator("#topicGrid .card").first().click(); await pg.waitForTimeout(3800);
+      const ttl = await pg.evaluate(() => (document.querySelector("#view .ttitle") || {}).textContent || "");
+      assert(/Scales & Modes/.test(ttl), g + ": leaving right after an answer let the old game take over the next screen (" + ttl + ")");
+    }
+    await pg.setViewportSize({ width: 844, height: 390 }); await home(); await door("ear");
+    await pg.locator("#earTrainGrid .card").filter({ hasText: "Note ID" }).first().click(); await pg.waitForTimeout(900);
+    const k = await pg.evaluate(() => Math.round(document.getElementById("neBox").getBoundingClientRect().bottom)); assert(k <= 390, "Note ID keys off screen sideways: bottom " + k);
+    await home(); await door("ear"); await pg.locator("#earTrainGrid .card").filter({ hasText: "Interval Trainer" }).first().click(); await pg.waitForTimeout(600);
+    await pg.locator("#view button, #view .card").filter({ hasText: /^Level 1/ }).first().click(); await pg.waitForTimeout(1000);
+    const a = await pg.evaluate(() => { const o = [...document.querySelectorAll("#opts .opt")]; return Math.round(o[o.length - 1].getBoundingClientRect().bottom); }); assert(a <= 390, "Interval answers off screen sideways: bottom " + a);
+    assert(!errs.length, errs.join(" | ")); await ctx.close();
+  });
+
   await S.test("Heads of Things is private: hidden when signed out and for any other account (even a player named Trav); signing in as Star by real taps shows it; the server refuses others; works offline after one open; signing out removes it", async () => {
     const search = async (pg, name) => { await pg.locator("#profiles").getByText(name, { exact: true }).first().click(); await pg.waitForTimeout(500);
       const s = pg.locator("#homeSearch"); await s.fill(""); await s.click(); await pg.keyboard.type("Heads"); await pg.waitForTimeout(400);
