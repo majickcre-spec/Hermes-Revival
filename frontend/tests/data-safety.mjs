@@ -1447,6 +1447,10 @@ export async function run() {
       const all = await pg.evaluate(() => [...document.querySelectorAll("#doors .door")].filter((d) => d.offsetParent).map((d) => d.querySelector("b").textContent));
       assert(all.length >= 6 && !all.includes("Meditation"), "Show everything: " + all.join(","));
       const s = await pg.evaluate(() => buildSearchIndex().filter((e) => /Star|Meditation/.test(e.title)).map((e) => e.title)); assert(!s.length, "search shows locked things: " + s.join(","));
+      if (vp.width === 390) { const q = pg.locator("#homeSearch"); await q.fill(""); await q.click(); await pg.keyboard.type("Piano"); await pg.waitForTimeout(400);
+        await pg.locator("#searchResults .card").filter({ has: pg.locator("h3", { hasText: /Piano/ }) }).first().click(); await pg.waitForTimeout(900);
+        const tab = pg.locator("#view button").filter({ hasText: /Progressions/ }).first(); if (await tab.count()) { await tab.click(); await pg.waitForTimeout(500); }
+        assert(!(await pg.locator("#pkPacksT").count()), "the Niko chord packs show for a stranger"); }
       assert(!errs.length, errs.join(" | ")); await ctx.close();
     }
     /* a parent with a kid player that isn't Star sees no class card */
