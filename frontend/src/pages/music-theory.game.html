@@ -1020,7 +1020,9 @@ function medAccSet(a){try{localStorage.setItem(MEDACC_K,JSON.stringify(a));}catc
 (function(){var a=medAcc();if(a.checked)return;a.checked=true;
   var RX=/^mjk-(med|bw|hs|jlen|jlive|jmod|jshape|nat|brcues|gs|pl|mf|hrever|livej|spkboost)|^music-[^-]+-(lucid|plab|bc|gmed|med|hsxp|rhythmmind|earth)-/;
   try{for(var i=0;i<localStorage.length;i++){if(RX.test(localStorage.key(i)||"")){a.device=true;break;}}}catch(e){}medAccSet(a);})();
-function medOK(){var a=medAcc();if(a.device)return true;var n=String((typeof acctName==="function"&&acctName())||"").trim().toLowerCase();return !!(typeof acctTok==="function"&&acctTok()&&a.ok&&a.acct===n);}
+/* Meditation is open to everyone (Travis, Nov 24). grantOK keeps the old per-account check for things that stay private (the licensed chord packs). */
+function medOK(){return true;}
+function grantOK(){var a=medAcc();if(a.device)return true;var n=String((typeof acctName==="function"&&acctName())||"").trim().toLowerCase();return !!(typeof acctTok==="function"&&acctTok()&&a.ok&&a.acct===n);}
 function medLock(){var on=!medOK();document.body.classList.toggle("noMed",on);if(on){try{if(sessionStorage.getItem("mjk-door")==="relax")sessionStorage.removeItem("mjk-door");}catch(e){}}return !on;}
 /* ask the server what this account may open; redraw home if it changed */
 function medRefresh(){if(typeof syncOn!=="function"||!syncOn()||!acctTok())return Promise.resolve(medLock());var n=String(acctName()||"").trim().toLowerCase();
@@ -7501,7 +7503,7 @@ function pkDraw(cv,now,dt){const dpr=Math.min(2.5,window.devicePixelRatio||1),W=
   const nx=PK.ev.find(e=>!e.hit&&!e.auto&&T(e.b)>now-0.05);if(nx){const lbl=nx.chord||(nx.notes.length>1?nx.notes.map(pkName).join(" "):pkNameOct(nx.notes[0]));hfxNext(c,Math.min(W,620),lbl,nx.cap&&nx.cap!==lbl?nx.cap:"");}
   if(!PK.running&&!PK.ev.length&&PK.mode==="play"){c.fillStyle="rgba(255,255,255,.55)";c.font="700 15px system-ui";c.textAlign="center";c.fillText("Play anything — tap the keys, use your computer keyboard, or connect a MIDI keyboard.",W/2,top/2);}}
 /* ---------- screen ---------- */
-function pkNikoHTML(chip){if(!medOK())return "";/* Niko Kotoulas packs: license unclear for public sharing — only Travis, Star and people he grants see them */const L=[["🌱 Beginner","easy keys, slow chord changes"],["🎹 Intermediate","more black keys, richer chords"],["🔥 Pro","busy rhythms, hard keys"]];
+function pkNikoHTML(chip){if(!grantOK())return "";/* Niko Kotoulas packs: license unclear for public sharing — only Travis, Star and people he grants see them */const L=[["🌱 Beginner","easy keys, slow chord changes"],["🎹 Intermediate","more black keys, richer chords"],["🔥 Pro","busy rhythms, hard keys"]];
   const PO=load("mjk-packsopen",false);if(!PO)return '<div class="rrow2"><span class="rchips tight">'+chip("pkPacksT","📦 Packs ▸",false)+'</span></div>';
   return '<div class="rrow2"><span class="rchips tight">'+chip("pkPacksT","📦 Packs ▾",true)+'</span></div><div style="border-left:3px solid var(--line);padding-left:8px;margin:0 0 6px">'+'<div class="rrow2"><span class="rchips tight">'+chip("pkNikoT","🎛 Niko Kotoulas "+(NIKO.open?"▾":"▸")+(NIKO.data?' <span style="opacity:.6;font-size:.72rem">'+NIKO.data.length+'</span>':''),NIKO.open)+'</span></div>'+
     (NIKO.open?(NIKO.data?(()=>{const D=NIKO.data,KO=["C","G","F","D","Bb","A","Eb","E","Ab","B","Db","Gb"],inL=D.filter(x=>x.lvl===NIKO.lvl),keys=[...new Set(inL.map(x=>x.k))].sort((a,b)=>KO.indexOf(a.split(" ")[0])-KO.indexOf(b.split(" ")[0]));if(keys.indexOf(NIKO.key)<0)NIKO.key=keys[0];
@@ -16804,7 +16806,7 @@ function acctSignIn(mode,u,c){var p=(mode==="register")?acctRegister(u,c):acctLo
 (function(){try{var s=document.createElement("style");s.textContent="#cloudBar{margin:20px auto 0;max-width:420px}.cloudnote{font-size:.82rem;color:var(--muted);text-align:center;line-height:1.55}.cloudnote a{color:var(--muted)}.cloudtabs{display:flex;gap:6px;margin-bottom:10px}.ctab{flex:1;padding:.5rem;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:transparent;color:var(--muted);cursor:pointer;font-size:.86rem}.ctab.sel{background:rgba(52,224,198,.18);color:#fff;border-color:rgba(52,224,198,.5)}";document.head.appendChild(s);}catch(e){}})();
 function renderCloudBar(){var el=$("#cloudBar");if(!el)return;
   if(!syncOn()){el.innerHTML='<div class="cloudnote">On the full site you can create an account to sync your players across devices.</div>';return;}
-  if(acctTok()){el.innerHTML='<div class="cloudnote">☁ Synced as <b>'+esc(acctName()||"")+'</b> · <a href="#" id="cloudOut">Sign out</a>'+(medAcc().admin?' · <a href="#" id="cloudAccess">🔑 Who can meditate</a>':'')+'</div>';var o=$("#cloudOut");if(o)o.onclick=function(e){e.preventDefault();clearAcct();renderGate();};
+  if(acctTok()){el.innerHTML='<div class="cloudnote">☁ Synced as <b>'+esc(acctName()||"")+'</b> · <a href="#" id="cloudOut">Sign out</a>'+''+'</div>';var o=$("#cloudOut");if(o)o.onclick=function(e){e.preventDefault();clearAcct();renderGate();};
     var ca=$("#cloudAccess");if(ca)ca.onclick=function(e){e.preventDefault();renderMedAccess();};
     if(!medAcc().admin)medRefresh().then(function(){if(medAcc().admin&&!$("#cloudAccess")&&!gate.hidden)renderCloudBar();});return;}
   el.innerHTML='<button class="btn ghost" id="cloudBtn" style="width:100%">☁ Sign In / Sign Up — sync your progress across devices</button><div id="cloudForm"></div>';
