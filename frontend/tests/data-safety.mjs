@@ -1426,6 +1426,35 @@ export async function run() {
     }
   });
 
+  await S.test("REAL TAPS: Sound Catcher → Sampler — three hits caught, Send to Sampler chops them into 3 pieces on the hits, Fill all pads puts them on pads, Whole sound → pad works, a programmed step plays them", async () => {
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, permissions: ["microphone"] }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+    await pg.addInitScript(() => {
+      if (!sessionStorage.getItem("s")) { sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "g1", name: "Gina", mode: "adult" }])); }
+      navigator.mediaDevices.getUserMedia = async () => { const c = new AudioContext(), d = c.createMediaStreamDestination(), o = c.createOscillator(), g = c.createGain(); o.type = "square"; o.frequency.value = 180; g.gain.value = 0; o.connect(g); g.connect(d); o.start();
+        window.__bang = (on) => g.gain.setTargetAtTime(on ? 0.5 : 0, c.currentTime, 0.004); return d.stream; };
+    });
+    await pg.goto(url + "/app.html"); await pg.waitForTimeout(800); await pg.locator("#profiles").getByText("Gina", { exact: true }).first().click(); await pg.waitForTimeout(500);
+    const q = pg.locator("#homeSearch"); await q.click(); await pg.keyboard.type("Sound Catcher"); await pg.waitForTimeout(400);
+    await pg.locator("#searchResults .card:visible").filter({ has: pg.locator("h3", { hasText: /^Sound Catcher$/ }) }).first().click(); await pg.waitForTimeout(800);
+    await pg.locator("#scRec").click(); await pg.waitForTimeout(1200);
+    for (let k = 0; k < 3; k++) { await pg.evaluate(() => window.__bang(true)); await pg.waitForTimeout(180); await pg.evaluate(() => window.__bang(false)); await pg.waitForTimeout(600); }
+    await pg.locator("#scRec").click(); for (let k = 0; k < 20 && !(await pg.evaluate(() => !!SC.raw && !SC.mr)); k++) await pg.waitForTimeout(250);
+    await pg.locator("#scName").fill("Three Knocks");
+    await pg.locator("#scToSp").click(); for (let k = 0; k < 30 && !(await pg.locator("#spSlices").count()); k++) await pg.waitForTimeout(250); await pg.waitForTimeout(800);
+    const n = await pg.evaluate(() => SAMP.slices.length); assert(n === 3, "expected 3 pieces on the hits, got " + n);
+    assert(/Three Knocks/.test(await pg.locator("#spMsg").innerText()) && /Three Knocks/i.test(await pg.locator("#spSlices").innerText()), "Sampler didn't say where the sound came from");
+    await pg.screenshot({ path: "/tmp/aud/sp-arrive.png" });
+    await pg.locator("#spFill").click(); await pg.waitForTimeout(300);
+    assert((await pg.evaluate(() => SAMP.pads.slice(0, 3).map((p) => p && p.name).join(","))) === "Slice 1,Slice 2,Slice 3", "Fill all pads didn't load the pieces");
+    await pg.locator('.sppad[data-i="4"]').click(); await pg.locator('.sppad[data-i="4"]').click(); await pg.locator("#spWhTo").click(); await pg.waitForTimeout(300);
+    assert((await pg.evaluate(() => SAMP.pads[4] && SAMP.pads[4].name)) === "Three Knocks", "Whole sound → pad didn't land on the selected pad");
+    await pg.evaluate(() => { window.__trig = []; const o = sampTrigger; sampTrigger = function (i) { window.__trig.push(i); return o.apply(this, arguments); }; });
+    await pg.locator('#spGrid .sprow').first().locator(".spcell").first().click(); await pg.locator('#spGrid .sprow').nth(1).locator(".spcell").nth(4).click();
+    await pg.locator("#spPlay").click(); await pg.waitForTimeout(2200); await pg.locator("#spPlay").click();
+    const t = await pg.evaluate(() => window.__trig); assert(t.includes(0) && t.includes(1), "the step sequencer didn't play the pieces: " + JSON.stringify(t));
+    assert(!errs.length, errs.join(" | ")); await ctx.close();
+  });
+
   await S.test("Usage counts are anonymous: a stranger's device sends a random device number, minutes and screen names — never a player or account name; Travis's devices send nothing; only the travis account opens 📊 Usage (both orientations)", async () => {
     USAGE_LOG.length = 0;
     const flush = (pg) => pg.evaluate(() => { Object.defineProperty(document, "hidden", { configurable: true, get: () => true }); document.dispatchEvent(new Event("visibilitychange")); Object.defineProperty(document, "hidden", { configurable: true, get: () => false }); });
