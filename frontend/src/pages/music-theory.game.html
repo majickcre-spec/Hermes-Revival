@@ -912,6 +912,11 @@ function focusBlurb(f){if(!f)return "";const b=[];
   if(/voice|sing|vocal/.test(f))b.push("Tone Match and Sing a Song for your voice");
   if(/rhythm|drum|djembe/.test(f))b.push("rhythm &amp; djembe");
   return b.length?("There&rsquo;s "+b.join(", ")+" waiting for you. "):"";}
+/* the share link for reviewers: ?focus=theory opens a Beta preview with just Theory and Ear Training (everything else is one tap away) */
+function focusTheory(){return /theory|preview/.test(linkParams().focus||"");}
+function focusAll(){try{return sessionStorage.getItem("mjk-all")==="1";}catch(e){return false;}}
+var BETA_NOTE='<div class="beta-note">🧪 <b>Beta preview</b> — Theory and Ear Training. Still being built, so you may hit rough edges. Progress saves on this device.</div>';
+(function(){try{var st=document.createElement("style");st.textContent=".beta-note{max-width:560px;margin:4px auto 12px;padding:10px 14px;border:1px solid rgba(244,183,64,.45);border-radius:14px;background:rgba(244,183,64,.08);font-size:.86rem;line-height:1.45;color:var(--cream)}.beta-note b{color:#f4b740}.seeall{display:block;margin:10px auto 0;background:none;border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:10px 18px;font:700 .86rem system-ui;cursor:pointer;min-height:44px}";document.head.appendChild(st);}catch(e){}})();
 const QUIZ_BEANS=10, MATCH_BEANS=10, KB_BEANS=5;
 
 function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
@@ -1346,7 +1351,7 @@ function renderHome(){
       b.innerHTML=`<span class="ic">${c.ic}</span><h3>${esc(c.title)}</h3><span class="blurb">${esc(c.blurb)}</span>`;
       b.onclick=c.go;ig.appendChild(b);});}
   const mg2=$("#makeGrid");if(mg2){mg2.innerHTML="";
-    MAKE_CARDS.forEach(c=>{const b=document.createElement("button");b.className="card";
+    MAKE_CARDS.forEach(c=>{if(MJK_HIDE[c.title])return;const b=document.createElement("button");b.className="card";
       b.innerHTML=`<span class="ic">${c.ic}</span><h3>${esc(c.title)}</h3><span class="blurb">${esc(c.blurb)}</span>`;
       b.onclick=c.go;mg2.appendChild(b);});}
   const bg=$("#bioGrid");if(bg){bg.innerHTML="";
@@ -1408,8 +1413,10 @@ function renderHeadsHalves(){if(!hhOurs()){goHome();return;}if(toneRAF)cancelAni
 function homeDoors(){var H=document.getElementById("home"),box=document.getElementById("doors");if(!H||!box)return;var cur=null;try{cur=sessionStorage.getItem("mjk-door");}catch(e){}
   if(cur)H.setAttribute("data-door",cur);else H.removeAttribute("data-door");
   var DR=DOORS.slice();if(hhOurs()){var li=DR.findIndex(function(d){return d[0]==="lyric";});DR.splice(li+1,0,["heads","📖","Heads of Things","Everard's Heads — study, quiz, meditate"]);}
-  if(!medLock())DR=DR.filter(function(d){return d[0]!=="relax";});var _vis=DR.filter(function(d){return !(typeof MJK_HIDE_DOORS!=="undefined"&&MJK_HIDE_DOORS[d[2]]);}),_lastVis=_vis[_vis.length-1];
+  if(!medLock())DR=DR.filter(function(d){return d[0]!=="relax";});var _ft=focusTheory()&&!focusAll();if(_ft)DR=DR.filter(function(d){return d[0]==="learn"||d[0]==="ear";});var _vis=DR.filter(function(d){return !(typeof MJK_HIDE_DOORS!=="undefined"&&MJK_HIDE_DOORS[d[2]]);}),_lastVis=_vis[_vis.length-1];
   box.innerHTML=DR.map(function(d,i){return '<button class="door'+(cur===d[0]?" sel":"")+(d===_lastVis&&_vis.length%2&&!cur?" wide":"")+'" data-d="'+d[0]+'"><span class="di">'+d[1]+'</span><b>'+d[2]+'</b><span class="dd">'+d[3]+'</span></button>';}).join("");
+  {var bn=document.getElementById("betaHome");if(focusTheory()){if(!bn){bn=document.createElement("div");bn.id="betaHome";bn.innerHTML=BETA_NOTE;box.parentNode.insertBefore(bn,box);}}else if(bn)bn.remove();
+   var sa=document.getElementById("seeAll");if(_ft){if(!sa){sa=document.createElement("button");sa.id="seeAll";sa.className="seeall";sa.textContent="Show everything else in the app →";sa.onclick=function(){try{sessionStorage.setItem("mjk-all","1");}catch(e){}homeDoors();};box.parentNode.insertBefore(sa,box.nextSibling);}}else if(sa)sa.remove();}
   box.querySelectorAll(".door").forEach(function(b){b.onclick=function(){var d=b.getAttribute("data-d");
     /* Lyric Lab is one screen, not a section: its button opens it straight away */
     if(d==="lyric"){renderIdeaLab();return;}if(d==="heads"){renderHeadsHalves();return;}var nx=(cur===d)?null:d;try{if(nx)sessionStorage.setItem("mjk-door",nx);else sessionStorage.removeItem("mjk-door");}catch(e){}homeDoors();var t=document.getElementById("doors");if(nx&&t)t.scrollIntoView({block:"start"});};});
@@ -8688,13 +8695,15 @@ function fsCss(){return '<style>.fs-steps{display:grid;gap:6px;margin:10px 0}.fs
   '.fs-side{display:block}@media (orientation:landscape) and (max-height:520px){.fs-side{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center}.fs-side .fs-big-ch svg{width:auto!important;height:min(48vh,190px)!important}.fs-side .fs-big-ch b{font-size:1.8rem!important}}.fs-learn{font:600 1rem/1.55 system-ui;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.04);margin:4px 0 8px}.fs-q button small{display:block;font:700 .78rem system-ui;color:var(--muted);margin-top:4px}.fs-hist{font:700 .82rem/1.5 system-ui;color:var(--muted)}.fs-hist div{padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06)}.fs-big{font:900 2.4rem system-ui;text-align:center;margin:4px 0}.fs-q{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:12px 0}.fs-q button{padding:18px 8px;border-radius:16px;font:800 1.05rem system-ui;background:rgba(255,255,255,.06);color:var(--text,#fff);border:2px solid rgba(255,255,255,.1)}.fs-q button.ok{border-color:#7ff0d6;background:rgba(127,240,214,.15)}.fs-q button.no{border-color:#ff8a8a;background:rgba(255,138,138,.12)}'+
   '.fs-ch{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:10px;margin:10px 0}.fs-ch button{background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.1);border-radius:16px;padding:8px 4px;color:var(--text,#fff);font:900 1.1rem system-ui}</style>';}
 function fsWho(){const me=activeProfile();return me?me.name:"";}
-function fsStar(){const me=activeId();return getProfiles().find(p=>p.id!==me&&(/star/i.test(p.name||"")||p.mode==="kid"))||null;}
+/* Star's class is Star's alone: matched by her player name or her account, never just because a player is in kid mode */
+function fsNameIsStar(n){return /^\s*star\b/i.test(n||"");}
+function fsStar(){const me=activeId();return getProfiles().find(p=>p.id!==me&&fsNameIsStar(p.name))||null;}
 function fsLogFor(pid){try{return JSON.parse(localStorage.getItem("music-"+pid+"-fs-log")||"[]")||[];}catch(e){return [];}}
 function fsHistHtml(lg){if(!lg.length)return '<div class="site-note">No sessions yet.</div>';const d=t=>new Date(t).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
   return '<div class="fs-hist">'+lg.slice(0,10).map(r=>'<div>'+(r.complete?"✅":"◐")+' <b>'+d(r.t)+'</b> · '+r.minutes+' min · '+esc(r.topic)+(r.score?' · theory '+r.score.ok+'/'+r.score.n:'')+(r.stars?' · ⭐ '+r.stars:'')+(r.feel?' · melody felt '+r.feel:'')+(r.tempo&&!r.cls?' · '+r.tempo.ch+'/'+r.tempo.mel+' bpm':'')+(r.cls?' · C scale ♩'+r.cls.c.best+' ('+r.cls.c.hand+') · intervals L'+r.cls.iv+' · note ID L'+r.cls.nid:'')+(r.calm!=null?' · calm '+r.calm:'')+' · '+r.steps.length+'/'+FS_STEPS.length+' steps</div>').join("")+'</div>';}
 /* front and center on the home screen: Star sees her session first; a parent sees a small card with her last session */
-function fsIsStar(p){if(!p)return false;if(/star/i.test(p.name||""))return true;try{if(p.id===activeId()&&/star/i.test(localStorage.getItem("majick-acct")||""))return true;}catch(e){}return p.mode==="kid";}
-function fsHeroPaint(){const el=document.getElementById("fsHero");if(!el)return;const me=activeProfile(),isStar=fsIsStar(me),star=fsStar(),st=fsState(),going=st&&!st.done;
+function fsIsStar(p){if(!p)return false;if(fsNameIsStar(p.name))return true;try{if(p.id===activeId()&&/^\s*star\s*$/i.test(localStorage.getItem("majick-acct")||""))return true;}catch(e){}return false;}
+function fsHeroPaint(){const el=document.getElementById("fsHero");try{if(fsIsStar(activeProfile())||fsStar())delete MJK_HIDE["Star's Focus Session"];else MJK_HIDE["Star's Focus Session"]=1;}catch(e){}if(!el)return;const me=activeProfile(),isStar=fsIsStar(me),star=fsStar(),st=fsState(),going=st&&!st.done;
   if(!isStar&&!star&&!going){el.innerHTML="";return;}
   const D=FS_DAYS[going?st.day:fsDay()];
   if(isStar||going){el.innerHTML='<button class="fs-hero" id="fsHeroGo"><span class="fs-hi">🌟</span><span class="fs-ht"><b>'+(isStar?"My Music Class":"Star’s Music Class")+'</b><small>'+(going?"Keep going · step "+(st.i+1)+" of "+FS_STEPS.length+" · "+esc(fsStep(st).n):"Music class · C scale · ear · voice · melody · song — 45 min")+'</small></span><span class="fs-hb">'+(going?"▶ Keep going":"▶ Start")+'</span></button>';
@@ -16734,6 +16743,7 @@ function renderGate(){
       <p>Each player keeps their own progress and Beans. Pick yours, or start a new one.</p></div>
       <div class="profiles" id="profiles"></div><div id="gateForm"></div><div id="cloudBar"></div>`;
   }
+  if(focusTheory())gate.insertAdjacentHTML("afterbegin",BETA_NOTE);
   gate.insertAdjacentHTML("beforeend",'<div id="devBak" style="max-width:420px;margin:16px auto 0;text-align:center"><div style="display:flex;flex-direction:column;gap:8px"><button class="btn ghost" id="devSave" style="width:100%">💾 Save everything on this device</button><button class="btn ghost" id="devLoad" style="width:100%">📂 Restore from a saved file</button></div><input type="file" id="devFile" accept=".json,application/json" hidden><div class="cloudnote" id="devMsg">Every player, song, voice take and setting — in one file you keep. Restoring adds to this device; it never deletes anything.</div></div>');
   $("#devSave").onclick=devBackup;$("#devLoad").onclick=()=>$("#devFile").click();$("#devFile").onchange=e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)devRestore(f);};
   const list=$("#profiles");

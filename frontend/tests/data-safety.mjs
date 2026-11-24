@@ -1432,6 +1432,32 @@ export async function run() {
     assert(!errs.length, errs.join(" | ")); await ctx.close();
   });
 
+  await S.test("Reviewer share link (?focus=theory): a first-time visitor makes a player and sees a Beta note with just Theory and Ear Training (one tap shows everything); no Meditation and no Star's class for anyone but Star; any kid player is not Star", async () => {
+    for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
+      const ctx = await b.newContext({ locked: true, viewport: vp, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+      await pg.goto(url + "/app.html?focus=theory"); await pg.waitForTimeout(900);
+      assert(/Beta preview/.test(await pg.locator("#gate").innerText()), "no Beta note on the player screen (" + vp.width + ")");
+      await pg.locator(".pcard.add").first().click(); await pg.waitForTimeout(400);
+      await pg.locator("#gateForm input").first().fill("Dana"); await pg.locator("#gateForm button[type=submit], #gateForm .btn").last().click(); await pg.waitForTimeout(900);
+      const doors = await pg.evaluate(() => [...document.querySelectorAll("#doors .door")].filter((d) => d.offsetParent).map((d) => d.querySelector("b").textContent));
+      assert(doors.join(",") === "Theory,Ear Training", "share link doors: " + doors.join(","));
+      assert(/Beta preview/.test(await pg.locator("#home").innerText()), "no Beta note on home");
+      const hero = await pg.evaluate(() => (document.getElementById("fsHero") || {}).innerText || ""); assert(!hero.trim(), "a new visitor sees Star's class: " + hero);
+      await pg.locator("#seeAll").click(); await pg.waitForTimeout(400);
+      const all = await pg.evaluate(() => [...document.querySelectorAll("#doors .door")].filter((d) => d.offsetParent).map((d) => d.querySelector("b").textContent));
+      assert(all.length >= 6 && !all.includes("Meditation"), "Show everything: " + all.join(","));
+      const s = await pg.evaluate(() => buildSearchIndex().filter((e) => /Star|Meditation/.test(e.title)).map((e) => e.title)); assert(!s.length, "search shows locked things: " + s.join(","));
+      assert(!errs.length, errs.join(" | ")); await ctx.close();
+    }
+    /* a parent with a kid player that isn't Star sees no class card */
+    const ctx = await b.newContext({ locked: true, viewport: { width: 390, height: 844 } }); const pg = await ctx.newPage();
+    await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav", mode: "adult" }, { id: "k2", name: "Leo", mode: "kid" }])); });
+    await pg.goto(url + "/app.html"); await pg.waitForTimeout(800);
+    for (const n of ["Trav", "Leo"]) { await pg.locator("#profiles").getByText(n, { exact: true }).first().click(); await pg.waitForTimeout(600);
+      assert(!(await pg.evaluate(() => (document.getElementById("fsHero") || {}).innerText || "")).trim(), n + " sees Star's class"); await pg.locator("#switchProfile").click(); await pg.waitForTimeout(400); }
+    await ctx.close();
+  });
+
   await S.test("Heads of Things is private: hidden when signed out and for any other account (even a player named Trav); signing in as Star by real taps shows it; the server refuses others; works offline after one open; signing out removes it", async () => {
     const search = async (pg, name) => { await pg.locator("#profiles").getByText(name, { exact: true }).first().click(); await pg.waitForTimeout(500);
       const s = pg.locator("#homeSearch"); await s.fill(""); await s.click(); await pg.keyboard.type("Heads"); await pg.waitForTimeout(400);
