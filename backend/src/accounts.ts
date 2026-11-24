@@ -10,7 +10,7 @@ const DATABASE_URL = process.env.DATABASE_URL;
 const SECRET = process.env.AUTH_SECRET || 'dev-insecure-secret-change-me';
 
 const sql = DATABASE_URL ? postgres(DATABASE_URL, { max: 5, onnotice: () => {} }) : null;
-const mem = { accounts: new Map<string, any>(), progress: new Map<string, any>() };
+const mem = { accounts: new Map<string, any>(), progress: new Map<string, any>(), medAccess: new Set<string>() };
 
 export function accountsMode() { return { store: sql ? 'database' : 'memory (accounts reset on every deploy!)', secret: process.env.AUTH_SECRET ? 'set' : 'default' }; }
 export async function initAccounts(): Promise<void> {
@@ -29,6 +29,10 @@ export async function initAccounts(): Promise<void> {
     account_id text PRIMARY KEY,
     data jsonb NOT NULL DEFAULT '{}'::jsonb,
     updated_at timestamptz DEFAULT now()
+  )`;
+  await sql`CREATE TABLE IF NOT EXISTS med_access (
+    username text PRIMARY KEY,
+    granted_at timestamptz DEFAULT now()
   )`;
   console.log('✓ Accounts tables ready');
 }
@@ -122,6 +126,24 @@ export async function accountName(id: string): Promise<string | null> {
   } catch { return null; }
 }
 export async function canHeads(id: string): Promise<boolean> { const n = await accountName(id); return !!n && headsNames().includes(n); }
+/* Meditation is locked: open to the admin, the Heads accounts (Travis, Star) and anyone the admin grants by name */
+export async function medGranted(): Promise<string[]> {
+  if (sql) { const r = await sql`SELECT username FROM med_access ORDER BY username`; return r.map((x: any) => String(x.username)); }
+  return [...mem.medAccess].sort();
+}
+export async function setMedAccess(username: string, on: boolean): Promise<string[]> {
+  const u = String(username || '').trim().toLowerCase();
+  if (u.length < 2 || u.length > 24) throw err(400, 'Name must be 2–24 characters.');
+  if (on && !(await findByUsername(u))) throw err(404, 'No account with that name yet — ask them to sign up first.');
+  if (sql) { if (on) await sql`INSERT INTO med_access (username) VALUES (${u}) ON CONFLICT DO NOTHING`; else await sql`DELETE FROM med_access WHERE username = ${u}`; }
+  else { if (on) mem.medAccess.add(u); else mem.medAccess.delete(u); }
+  return medGranted();
+}
+export async function canMeditate(id: string): Promise<boolean> {
+  const n = await accountName(id); if (!n) return false;
+  if (adminNames().includes(n) || headsNames().includes(n)) return true;
+  return (await medGranted()).includes(n);
+}
 export async function isAdmin(id: string): Promise<boolean> {
   try {
     let u: any = null;

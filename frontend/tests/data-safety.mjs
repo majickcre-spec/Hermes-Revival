@@ -1,5 +1,5 @@
 // REGRESSION: the user's work must never be lost. Every scenario here is a way songs have been or could be wiped.
-import { serve, browser, profilePage, song, SWKEY, suite, assert, fakeApi } from "./lib.mjs";
+import { serve, browser, profilePage, song, SWKEY, suite, assert, fakeApi, MED_GRANTS } from "./lib.mjs";
 
 export async function run() {
   const { srv, url } = await serve();
@@ -1356,6 +1356,56 @@ export async function run() {
     assert(bpm === 80, "Try again changed the tempo to " + bpm);
     const ok = await after(true); assert(/Try ♩90/.test(ok), "clean run should offer ♩90: " + ok);
     assert(!errs.length, errs.join(" | ")); await ctx.close();
+  });
+
+  await S.test("Meditation is locked: a new device sees no Meditation (home, search, sensor buttons, Today's plan, Path breathing) signed out or with a stranger's account; Travis signs in by real taps and grants an account by name; that account then sees and opens it; signing out locks it again; a device already used for meditation keeps it", async () => {
+    const seed = () => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }, { id: "g1", name: "Gina" }])); };
+    const pick = async (pg, n) => { await pg.locator("#profiles").getByText(n, { exact: true }).first().click(); await pg.waitForTimeout(600); };
+    const signIn = async (pg, n) => { await pg.locator("#cloudBtn").click(); await pg.waitForTimeout(300); await pg.locator("#caName").fill(n); await pg.locator("#caCode").fill("1234"); await pg.locator("#caGo").click(); await pg.waitForTimeout(1500); };
+    const look = (pg) => pg.evaluate(() => ({ door: [...document.querySelectorAll("#doors .door")].some((d) => d.offsetParent && /Meditation/.test(d.textContent)),
+      fab: ["sensFab", "brainFab"].some((id) => { const e = document.getElementById(id); return e && getComputedStyle(e).display !== "none"; }),
+      today: (() => { const e = document.getElementById("homeDay"); return !!e && getComputedStyle(e).display !== "none" && e.textContent.trim().length > 0; })(),
+      path: mmuPath().some((L) => L.steps.some((x) => x.g === "ground")) }));
+    const search = async (pg, q) => { const s = pg.locator("#homeSearch"); await s.fill(""); await s.click(); await pg.keyboard.type(q); await pg.waitForTimeout(400);
+      return pg.locator("#searchResults .card").filter({ has: pg.locator("h3", { hasText: /^Meditation$/ }) }).count(); };
+    MED_GRANTS.clear();
+    /* 1. stranger's device, signed out, then signed in as a stranger */
+    for (const acct of [null, "gina"]) {
+      const ctx = await b.newContext({ locked: true, viewport: { width: 390, height: 844 }, hasTouch: true }); await fakeApi(ctx, acct); const pg = await ctx.newPage(); await pg.addInitScript(seed);
+      await pg.goto(url + "/app.html"); await pg.waitForTimeout(1600); await pick(pg, "Gina");
+      const v = await look(pg); assert(!v.door && !v.fab && !v.today && !v.path, "Meditation showing for " + (acct || "signed out") + ": " + JSON.stringify(v));
+      assert((await search(pg, "Meditation")) === 0, "search finds Meditation for " + (acct || "signed out"));
+      await pg.evaluate(() => renderMeditation()); await pg.waitForTimeout(200); assert(await pg.evaluate(() => view.hidden), "Meditation screen opened without access");
+      await ctx.close();
+    }
+    /* 2. Travis signs in on his device and grants "gina" */
+    for (const vp of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
+      const ctx = await b.newContext({ viewport: vp, hasTouch: true }); await fakeApi(ctx, null); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message)); await pg.addInitScript(seed);
+      await pg.goto(url + "/app.html"); await pg.waitForTimeout(800); await signIn(pg, "Travis");
+      await pg.locator("#cloudAccess").click(); await pg.waitForTimeout(500);
+      await pg.locator("#maName").fill("Gina"); await pg.locator("#maAdd").click(); await pg.waitForTimeout(600);
+      assert(/gina/i.test(await pg.locator("#maList").innerText()) && /can open Meditation/.test(await pg.locator("#maFb").innerText()), "grant didn't show in the list (" + vp.width + ")");
+      await pg.screenshot({ path: "/tmp/aud/medaccess-" + vp.width + ".png" });
+      await pg.locator("#eBack").click(); await pg.waitForTimeout(500); assert(await pg.locator("#profiles").count(), "← back from access screen didn't return to players");
+      assert(!errs.length, errs.join(" | ")); await ctx.close();
+    }
+    /* 3. Gina on a new device: signs in by real taps → Meditation appears and opens; sign out → gone */
+    { const ctx = await b.newContext({ locked: true, viewport: { width: 390, height: 844 }, hasTouch: true }); await fakeApi(ctx, null); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message)); await pg.addInitScript(seed);
+      await pg.goto(url + "/app.html"); await pg.waitForTimeout(800); await signIn(pg, "Gina"); await pick(pg, "Gina");
+      const v = await look(pg); assert(v.door && v.fab, "granted account still locked out: " + JSON.stringify(v));
+      assert((await search(pg, "Meditation")) === 1, "granted account can't find Meditation by search");
+      await pg.locator("#searchResults .card").filter({ has: pg.locator("h3", { hasText: /^Meditation$/ }) }).first().click(); await pg.waitForTimeout(600);
+      assert(/Meditat/i.test(await pg.locator("#view .ttitle").innerText()), "Meditation didn't open for the granted account");
+      await pg.locator("#eBack").click(); await pg.waitForTimeout(400);
+      await pg.evaluate(() => { clearAcct(); }); await pg.reload(); await pg.waitForTimeout(900); await pick(pg, "Gina");
+      const v2 = await look(pg); assert(!v2.door && !v2.fab, "still unlocked after signing out: " + JSON.stringify(v2));
+      assert(!errs.length, errs.join(" | ")); await ctx.close(); }
+    /* 4. a device that was already used for meditation keeps it (no sign-in) */
+    { const ctx = await b.newContext({ locked: true, viewport: { width: 390, height: 844 }, hasTouch: true }); const pg = await ctx.newPage();
+      await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav" }])); localStorage.setItem("mjk-meddrift", "true"); });
+      await pg.goto(url + "/app.html"); await pg.waitForTimeout(800); await pick(pg, "Trav");
+      assert((await look(pg)).door, "a device already used for meditation lost it"); await ctx.close(); }
+    MED_GRANTS.clear();
   });
 
   await S.test("Heads of Things is private: hidden when signed out and for any other account (even a player named Trav); signing in as Star by real taps shows it; the server refuses others; works offline after one open; signing out removes it", async () => {

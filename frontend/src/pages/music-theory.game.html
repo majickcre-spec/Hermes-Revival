@@ -1007,6 +1007,22 @@ var MJK_IC_SEL=".card .ic,.door .di,.ph-ic,.kb-ic,.dic";
 /* hidden until they're built out (Nov 8): cards by exact title on the home screen, and the My Progress door */
 var MJK_HIDE={"Drum Kit":1,"Wavetable Synth":1,"Sing a Song":1,"My Songs":1,"Hum to Chords":1,"Write + Beat Lab":1,"Studio":1,"Beat Maker":1,"Sound Library":1,"Songwriting":1,"AABA Class":1,"Practice Sessions":1,"Song Project (final)":1,"Mixing Station":1,"The Instructor":1,"Song Analysis":1,"Schumann Resonance":1,"Live Monitor":1};
 var MJK_HIDE_DOORS={"My Progress":1};
+/* ===== MEDITATION IS LOCKED: only Travis, Star and anyone Travis grants (the server keeps the list).
+   Devices that were already used for meditation before the lock keep it, so nobody loses their practice. ===== */
+var MEDACC_K="mmu-medaccess";   /* device-only (never synced): {checked, device, acct, ok} */
+function medAcc(){try{return JSON.parse(localStorage.getItem(MEDACC_K)||"null")||{};}catch(e){return {};}}
+function medAccSet(a){try{localStorage.setItem(MEDACC_K,JSON.stringify(a));}catch(e){}}
+(function(){var a=medAcc();if(a.checked)return;a.checked=true;
+  var RX=/^mjk-(med|bw|hs|jlen|jlive|jmod|jshape|nat|brcues|gs|pl|mf|hrever|livej|spkboost)|^music-[^-]+-(lucid|plab|bc|gmed|med|hsxp|rhythmmind|earth)-/;
+  try{for(var i=0;i<localStorage.length;i++){if(RX.test(localStorage.key(i)||"")){a.device=true;break;}}}catch(e){}medAccSet(a);})();
+function medOK(){var a=medAcc();if(a.device)return true;var n=String((typeof acctName==="function"&&acctName())||"").trim().toLowerCase();return !!(typeof acctTok==="function"&&acctTok()&&a.ok&&a.acct===n);}
+function medLock(){var on=!medOK();document.body.classList.toggle("noMed",on);if(on){try{if(sessionStorage.getItem("mjk-door")==="relax")sessionStorage.removeItem("mjk-door");}catch(e){}}return !on;}
+/* ask the server what this account may open; redraw home if it changed */
+function medRefresh(){if(typeof syncOn!=="function"||!syncOn()||!acctTok())return Promise.resolve(medLock());var n=String(acctName()||"").trim().toLowerCase();
+  return _api("/api/access",{}).then(function(j){var a=medAcc(),was=medOK();a.acct=n;a.ok=!!(j&&j.meditation);a.admin=!!(j&&j.admin);medAccSet(a);var now=medLock();if(was!==now&&!home.hidden){try{homeDoors();}catch(e){}}return now;}).catch(function(){return medLock();});}
+function mmuPath(){return medOK()?MMU_PATH:MMU_PATH.map(function(L){return Object.assign({},L,{steps:L.steps.filter(function(s){return s.g!=="ground";})});}).filter(function(L){return L.steps.length;});}
+(function(){try{var st=document.createElement("style");st.textContent='body.noMed #sensFab,body.noMed #brainFab,body.noMed #brainPanel,body.noMed #sensPanel,body.noMed .doorsec[data-door="relax"],body.noMed #homeDay{display:none!important}';document.head.appendChild(st);}catch(e){}})();
+
 function mjkHide(root){if(!root||root.id!=="home")return;root.querySelectorAll(".card").forEach(function(c){var h=c.querySelector("h3");if(h&&MJK_HIDE[h.textContent.trim()]&&c.style.display!=="none")c.style.display="none";});
   root.querySelectorAll(".door").forEach(function(d){var t=(d.querySelector("h3,b,.dt")||d).textContent.trim();Object.keys(MJK_HIDE_DOORS).forEach(function(k){if(t.indexOf(k)===0&&d.style.display!=="none")d.style.display="none";});});}
 function iconize(root){try{mjkHide(root);}catch(e){}if(!root)return;root.querySelectorAll(MJK_IC_SEL).forEach(function(el){if(el.firstElementChild)return;var t=el.textContent.trim();if(!t||t.length>4)return;var s=mjkIcon(t);if(s){var k=t.replace(/[️‍]/g,""),c=MJK_ICC[MJK_ICK[k]||"gold"];el.setAttribute("data-emoji",t);el.style.setProperty("--ic",c);el.innerHTML=s;el.classList.add("hasic");}});}
@@ -1295,7 +1311,7 @@ function buildSearchIndex(){var idx=[];
   add(typeof RHYTHM_CARDS!=="undefined"?RHYTHM_CARDS:null,"Rhythm");
   add(typeof INSTRUMENT_CARDS!=="undefined"?INSTRUMENT_CARDS:null,"Instrument");
   add(typeof MAKE_CARDS!=="undefined"?MAKE_CARDS:null,"Make music");
-  add(typeof BIO_CARDS!=="undefined"?BIO_CARDS:null,"Meditation");
+  if(medOK())add(typeof BIO_CARDS!=="undefined"?BIO_CARDS:null,"Meditation");
   /* guitar tools live inside the guitar menu's cards and tabs — list each one so search finds it (e.g. "strum") */
   try{[["Guitar Method","📘","A step-by-step beginner course, one string at a time.","learn",0],["Learn Chords","🎵","Chord shapes you can see and hear — mark the ones you can play.","chords",0],
     ["Tricky Chords","🔥","Stuck on F or Bm? Easy versions and a step-by-step barre build-up.","chords",1],["Chords in a Key","🔑","The chord family of a key (I ii iii IV V vi).","chords",2],
@@ -1392,7 +1408,7 @@ function renderHeadsHalves(){if(!hhOurs()){goHome();return;}if(toneRAF)cancelAni
 function homeDoors(){var H=document.getElementById("home"),box=document.getElementById("doors");if(!H||!box)return;var cur=null;try{cur=sessionStorage.getItem("mjk-door");}catch(e){}
   if(cur)H.setAttribute("data-door",cur);else H.removeAttribute("data-door");
   var DR=DOORS.slice();if(hhOurs()){var li=DR.findIndex(function(d){return d[0]==="lyric";});DR.splice(li+1,0,["heads","📖","Heads of Things","Everard's Heads — study, quiz, meditate"]);}
-  var _vis=DR.filter(function(d){return !(typeof MJK_HIDE_DOORS!=="undefined"&&MJK_HIDE_DOORS[d[2]]);}),_lastVis=_vis[_vis.length-1];
+  if(!medLock())DR=DR.filter(function(d){return d[0]!=="relax";});var _vis=DR.filter(function(d){return !(typeof MJK_HIDE_DOORS!=="undefined"&&MJK_HIDE_DOORS[d[2]]);}),_lastVis=_vis[_vis.length-1];
   box.innerHTML=DR.map(function(d,i){return '<button class="door'+(cur===d[0]?" sel":"")+(d===_lastVis&&_vis.length%2&&!cur?" wide":"")+'" data-d="'+d[0]+'"><span class="di">'+d[1]+'</span><b>'+d[2]+'</b><span class="dd">'+d[3]+'</span></button>';}).join("");
   box.querySelectorAll(".door").forEach(function(b){b.onclick=function(){var d=b.getAttribute("data-d");
     /* Lyric Lab is one screen, not a section: its button opens it straight away */
@@ -7700,7 +7716,7 @@ const MMU_PATH=[
 ".pstep{display:flex;align-items:center;gap:10px;padding:9px;border-radius:10px;margin:5px 0;background:var(--card);border:1px solid var(--line)}.pstep.cur{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}.pstep.done{opacity:.55}.pstep.ground{background:linear-gradient(160deg,rgba(52,224,198,.1),var(--card))}"+
 ".ps-ic{font-size:1.3rem;flex:none}.ps-main{flex:1;min-width:0}.ps-t{font-weight:700;font-size:.92rem}.ps-b{font-size:.77rem;color:var(--muted);line-height:1.45}.ps-tag{font-size:.58rem;background:rgba(52,224,198,.22);color:#34e0c6;padding:1px 6px;border-radius:999px;margin-left:5px;vertical-align:middle;font-weight:700}.ps-act{display:flex;gap:5px;flex:none}";
 document.head.appendChild(s);}catch(e){}})();
-function pathAllSteps(){const a=[];MMU_PATH.forEach((L,li)=>L.steps.forEach(s=>a.push(Object.assign({li:li},s))));return a;}
+function pathAllSteps(){const a=[];mmuPath().forEach((L,li)=>L.steps.forEach(s=>a.push(Object.assign({li:li},s))));return a;}
 function pathDone(id){return load(mk("path",id),false);}
 function pathStats(){const all=pathAllSteps();const done=all.filter(s=>pathDone(s.id)).length;const cur=all.find(s=>!pathDone(s.id));return {done:done,total:all.length,cur:cur};}
 function pathSetDone(id,v){save(mk("path",id),v);if(v&&activeId())addBeans(4);}
@@ -7710,7 +7726,7 @@ function renderPathHero(){const el=$("#pathHero");if(!el)return;if(PATH_HIDDEN){
   var b=$("#pathHeroBtn");if(b)b.onclick=renderPath;}
 function renderPath(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{};
   const st=pathStats(),done=st.done===st.total,flat={};pathAllSteps().forEach(s=>flat[s.id]=s);
-  let bodyH="";MMU_PATH.forEach((L,li)=>{const ldone=L.steps.every(s=>pathDone(s.id));
+  let bodyH="";mmuPath().forEach((L,li)=>{const ldone=L.steps.every(s=>pathDone(s.id));
     bodyH+='<div class="pathlvl"><div class="pl-h"><span class="pl-n">Level '+(li+1)+(ldone?' ✓':'')+'</span><span class="pl-t">'+esc(L.t)+'</span><button class="pl-syl" data-li="'+li+'" style="margin-left:auto;font-size:.68rem;color:var(--gold);background:none;border:1px solid var(--line);border-radius:999px;padding:3px 10px;cursor:pointer;flex:none">📋 Syllabus</button></div><div class="pl-sub">'+esc(L.sub)+'</div>';
     L.steps.forEach(s=>{const d=pathDone(s.id),isCur=st.cur&&st.cur.id===s.id;
       bodyH+='<div class="pstep'+(d?" done":"")+(isCur?" cur":"")+(s.g==="ground"?" ground":"")+'"><span class="ps-ic">'+s.ic+'</span><div class="ps-main"><div class="ps-t">'+esc(s.t)+(s.g==="ground"?' <span class="ps-tag">breathe</span>':"")+'</div><div class="ps-b">'+esc(s.blurb)+'</div></div><div class="ps-act"><button class="rchip sm ps-open" data-id="'+s.id+'">▶ Open</button><button class="rchip sm ps-done" data-id="'+s.id+'">'+(d?"✓":"○")+'</button></div></div>';});
@@ -7774,7 +7790,7 @@ const COURSES=[
   final:"A complete song assembled in the Song Project — intro, verses, chorus, bridge, outro. Finishing it earns your MMU Foundations certificate."}
 ];
 function renderOrientation(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{};
-  let cat="";COURSES.forEach((c,i)=>{const done=MMU_PATH[i].steps.every(s=>pathDone(s.id));cat+='<button class="pstep" data-i="'+i+'" style="width:100%;text-align:left;cursor:pointer"><span class="ps-ic">'+MMU_PATH[i].steps[0].ic+'</span><div class="ps-main"><div class="ps-t">'+c.code+' · '+esc(c.title)+(done?' ✓':'')+'</div><div class="ps-b">'+esc(c.goal.split(":")[0])+'.</div></div><span class="rchip sm">Syllabus ▸</span></button>';});
+  let cat="";COURSES.forEach((c,i)=>{const done=mmuPath()[i].steps.every(s=>pathDone(s.id));cat+='<button class="pstep" data-i="'+i+'" style="width:100%;text-align:left;cursor:pointer"><span class="ps-ic">'+mmuPath()[i].steps[0].ic+'</span><div class="ps-main"><div class="ps-t">'+c.code+' · '+esc(c.title)+(done?' ✓':'')+'</div><div class="ps-b">'+esc(c.goal.split(":")[0])+'.</div></div><span class="rchip sm">Syllabus ▸</span></button>';});
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎓 Orientation</span></div><div class="panel">'+
     '<div class="hero" style="padding:4px 0 8px"><div class="eyebrow" style="letter-spacing:3px;text-transform:uppercase;color:var(--muted);font-size:.72rem">New-student orientation</div><h2 style="font-family:\'Fraunces\',serif;font-weight:600;margin:6px 0">Welcome to Majick Music University.</h2></div>'+
     '<div class="intro">A music school with <b>no walls</b> — built by a Musicians Institute graduate, for everybody. The idea is simple: music lives in the head, the ear, and the hands, and it belongs to everyone. You’ll <b>learn by doing</b> — real music from day one — and you’ll learn to <b>regulate your nervous system</b> as part of the craft, because a calm, present body plays freer. Music, meditation, and the evolution of your own consciousness are one practice here.</div>'+
@@ -7792,7 +7808,7 @@ function renderOrientation(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidde
   view.querySelectorAll(".pstep[data-i]").forEach(b=>{b.onclick=()=>renderSyllabus(+b.dataset.i);});
 }
 function renderSyllabus(i){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{};
-  const c=COURSES[i],L=MMU_PATH[i];
+  const c=COURSES[i],L=mmuPath()[i];
   const work=L.steps.map(s=>'<div class="ps-b" style="margin:3px 0">'+s.ic+' '+esc(s.t)+(s.g==="ground"?' <span class="ps-tag">breathe</span>':'')+'</div>').join("");
   view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">📋 Syllabus</span></div><div class="panel">'+
     '<div class="eyebrow" style="letter-spacing:2px;text-transform:uppercase;color:var(--gold);font-size:.72rem;font-weight:800">'+c.code+' · Level '+(i+1)+' · '+c.credits+' credits</div>'+
@@ -13727,7 +13743,7 @@ function plResults(){home.hidden=true;view.hidden=false;window.scrollTo(0,0);try
     all.map(function(s){var e=s.env||{};return '<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)">'+(s.ids?'<img src="'+plImg(s.ids[0])+'" style="width:64px;height:44px;object-fit:cover;border-radius:8px">':'')+'<div style="flex:1;min-width:0"><b style="color:'+(s.hit?"#3fcf7a":"inherit")+'">'+(s.rank?(s.hit?"Hit":"#"+s.rank):s.pending?"Ready to judge":s.stopped?"Stopped at "+(PL_STAGE_N[s.stopped]||s.stopped):"Not judged")+'</b>'+(s.recovered?' <span class="site-note" style="margin:0">(saved automatically)</span>':'')+' <span class="site-note" style="margin:0">'+new Date(s.at).toLocaleString()+' · '+(s.stopped&&s.minsDone!=null?s.minsDone+' of ':'')+s.mins+' min</span><div class="site-note" style="margin:0;font-size:.74rem">'+(s.cohOp!=null?'coherence '+s.cohOp+'% · ':'')+(s.awake!=null?'edge awake '+s.awake+'% · ':'')+(s.iaf?'IAF '+s.iaf+' Hz · ':'')+(s.tgt&&s.tgt.lad!=null?'ladder '+s.tgt.lad+'% · ':'')+(s.tgt&&s.tgt.cp!=null?'heart-brain '+s.tgt.cp+' · ':'')+'LST '+(e.lst!=null?e.lst.toFixed(1):"–")+' · Kp '+(e.kp!=null?e.kp:"–")+' · '+(e.moon||"")+'</div>'+(s.notes?'<div class="site-note" style="margin:0;font-size:.76rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(s.notes)+'</div>':'')+'</div>'+(s.pending&&!s.rank&&s.ids?'<button class="rchip sm plJ" data-at="'+s.at+'">Judge now</button>':'')+'<button class="rchip sm plR" data-at="'+s.at+'">Report</button></div>';}).join("")+'</div>';
   $("#eBack").onclick=renderPerception;$("#plNew").onclick=renderPerception;$("#plCsv").onclick=plCSV;view.querySelectorAll(".plR").forEach(function(b){b.onclick=function(){plReport(+b.dataset.at);};});view.querySelectorAll(".plJ").forEach(function(b){b.onclick=function(){var r=plStore().find(function(x){return String(x.at)===b.dataset.at;});if(r)plJudge(r);};});}
 
-function renderMeditation(){if(toneRAF)cancelAnimationFrame(toneRAF);if(!(MED.jSess&&MED.master))medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{if(!(MED.jSess&&MED.master))medStop();};
+function renderMeditation(){if(!medOK()){goHome();return;}if(toneRAF)cancelAnimationFrame(toneRAF);if(!(MED.jSess&&MED.master))medStop();home.hidden=true;view.hidden=false;window.scrollTo(0,0);teardown=()=>{if(!(MED.jSess&&MED.master))medStop();};
   const MODS=[
    {ic:"🌙",title:"Guided Sessions",blurb:"Present-focused sessions for steadying the body, coming back to the room, winding down and falling asleep. Narrated, with a Ground me button always on screen.",go:renderStandDown,off:1},
    {ic:"🌀",title:"Brainwave Journey",blurb:"A 30-minute ride: start in everyday thinking, drift down to deep theta or delta, rest there, and come back up to calm, clear waking. Headphones on.",go:renderJourney},
@@ -16596,7 +16612,7 @@ function syncOn(){return !!MMU_API;}
 function acctTok(){try{return localStorage.getItem("majick-token")||localStorage.getItem("mjk-auth-token")||null;}catch(e){return null;}}
 function acctName(){try{return localStorage.getItem("majick-acct")||localStorage.getItem("mjk-auth-user")||null;}catch(e){return null;}}
 function setAcct(tok,name){try{localStorage.setItem("majick-token",tok);localStorage.setItem("majick-acct",name||"");}catch(e){}}
-function clearAcct(){try{localStorage.removeItem("hhpage-cache");localStorage.removeItem("majick-token");localStorage.removeItem("majick-acct");localStorage.removeItem("mjk-auth-token");localStorage.removeItem("mjk-auth-user");}catch(e){}}
+function clearAcct(){try{var _ma=medAcc();delete _ma.acct;delete _ma.ok;delete _ma.admin;medAccSet(_ma);}catch(e){}try{localStorage.removeItem("hhpage-cache");localStorage.removeItem("majick-token");localStorage.removeItem("majick-acct");localStorage.removeItem("mjk-auth-token");localStorage.removeItem("mjk-auth-user");}catch(e){}}
 function _syncable(k){return !!k&&(k.indexOf("music-")===0||k.indexOf("majick-")===0||k.indexOf("mjk-")===0)&&k!=="majick-token"&&k!=="majick-acct"&&k!=="majick-lastacct"&&k!=="mjk-auth-token"&&k!=="mjk-auth-user";}
 function _syncKeys(){var a=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(_syncable(k))a.push(k);}return a;}
 function _snapshot(){var o={};_syncKeys().forEach(function(k){try{o[k]=localStorage.getItem(k);}catch(e){}});return o;}
@@ -16651,15 +16667,32 @@ function acctSync(){if(!syncOn()||!acctTok())return Promise.resolve();if(_syncin
 function acctSaveNow(){return acctSync();}
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")setTimeout(function(){try{acctSync();}catch(e){}},400);});
 setTimeout(function(){try{acctSync();}catch(e){}},1500);
+try{medLock();}catch(e){}setTimeout(function(){try{medRefresh();}catch(e){}},1200);
 var _pushT=null;
 function cloudPush(){if(!syncOn()||!acctTok())return;if(_pushT)clearTimeout(_pushT);_pushT=setTimeout(function(){_pushT=null;acctSaveNow();},1600);}
-function acctSignIn(mode,u,c){var p=(mode==="register")?acctRegister(u,c):acctLogin(u,c);return p.then(function(res){setAcct(res.token,res.username||u);return acctLoad().then(function(st){var data=(st&&st.data)?st.data:{},had=!!(data&&Object.keys(data).length);return acctSync().then(function(){return {name:res.username||u,pulled:had};});});});}
+function acctSignIn(mode,u,c){var p=(mode==="register")?acctRegister(u,c):acctLogin(u,c);return p.then(function(res){setAcct(res.token,res.username||u);try{medRefresh();}catch(e){}return acctLoad().then(function(st){var data=(st&&st.data)?st.data:{},had=!!(data&&Object.keys(data).length);return acctSync().then(function(){return {name:res.username||u,pulled:had};});});});}
 (function(){try{var s=document.createElement("style");s.textContent="#cloudBar{margin:20px auto 0;max-width:420px}.cloudnote{font-size:.82rem;color:var(--muted);text-align:center;line-height:1.55}.cloudnote a{color:var(--muted)}.cloudtabs{display:flex;gap:6px;margin-bottom:10px}.ctab{flex:1;padding:.5rem;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:transparent;color:var(--muted);cursor:pointer;font-size:.86rem}.ctab.sel{background:rgba(52,224,198,.18);color:#fff;border-color:rgba(52,224,198,.5)}";document.head.appendChild(s);}catch(e){}})();
 function renderCloudBar(){var el=$("#cloudBar");if(!el)return;
   if(!syncOn()){el.innerHTML='<div class="cloudnote">On the full site you can create an account to sync your players across devices.</div>';return;}
-  if(acctTok()){el.innerHTML='<div class="cloudnote">☁ Synced as <b>'+esc(acctName()||"")+'</b> · <a href="#" id="cloudOut">Sign out</a></div>';var o=$("#cloudOut");if(o)o.onclick=function(e){e.preventDefault();clearAcct();renderGate();};return;}
+  if(acctTok()){el.innerHTML='<div class="cloudnote">☁ Synced as <b>'+esc(acctName()||"")+'</b> · <a href="#" id="cloudOut">Sign out</a>'+(medAcc().admin?' · <a href="#" id="cloudAccess">🔑 Who can meditate</a>':'')+'</div>';var o=$("#cloudOut");if(o)o.onclick=function(e){e.preventDefault();clearAcct();renderGate();};
+    var ca=$("#cloudAccess");if(ca)ca.onclick=function(e){e.preventDefault();renderMedAccess();};
+    if(!medAcc().admin)medRefresh().then(function(){if(medAcc().admin&&!$("#cloudAccess")&&!gate.hidden)renderCloudBar();});return;}
   el.innerHTML='<button class="btn ghost" id="cloudBtn" style="width:100%">☁ Sign In / Sign Up — sync your progress across devices</button><div id="cloudForm"></div>';
   var b=$("#cloudBtn");if(b)b.onclick=showCloudForm;}
+/* admin only: grant or remove Meditation by account name (the server checks it's the admin) */
+function renderMedAccess(){gate.hidden=true;home.hidden=true;view.hidden=false;window.scrollTo(0,0);document.body.classList.remove("gated");
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🔑 Who can meditate</span></div><div class="panel">'+
+    '<div class="intro">Meditation is hidden from everyone except you, Star and the accounts below. Add someone by their account name (they sign up first).</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:8px"><input id="maName" class="pin-input name" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="24" placeholder="account name" style="flex:1 1 210px;margin:0;min-width:0"><button class="btn" id="maAdd" style="flex:1 1 140px">Give access</button></div>'+
+    '<div class="feedback" id="maFb" style="margin-top:8px"></div><div id="maList" style="margin-top:10px"><div class="site-note">Loading…</div></div></div>';
+  $("#eBack").onclick=function(){view.hidden=true;renderGate();};
+  var fb=$("#maFb");
+  function paint(list){var b=$("#maList");if(!b)return;b.innerHTML=list.length?list.map(function(n){return '<div class="rrow2" style="justify-content:space-between;border-bottom:1px solid var(--line);padding:8px 2px"><b>'+esc(n)+'</b><button class="rchip sm" data-rm="'+esc(n)+'">Remove</button></div>';}).join(""):'<div class="site-note">No one else yet.</div>';
+    b.querySelectorAll("[data-rm]").forEach(function(x){x.onclick=function(){if(x.dataset.sure!=="1"){x.dataset.sure="1";x.textContent="Tap again to remove";return;}send(x.dataset.rm,false);};});}
+  function send(n,on){fb.textContent="One moment…";_api("/api/admin/access",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:n,meditation:on})}).then(function(j){if(j&&j.error){fb.textContent=j.error;return;}fb.textContent=on?"✓ "+n+" can open Meditation now.":"Removed "+n+".";paint((j&&j.meditation)||[]);var i=$("#maName");if(i&&on)i.value="";}).catch(function(e){fb.textContent=(e&&e.message)||"Couldn't save — check your internet.";});}
+  $("#maAdd").onclick=function(){var n=($("#maName").value||"").trim();if(n.length<2){fb.textContent="Type their account name.";return;}send(n,true);};
+  $("#maName").onkeydown=function(e){if(e.key==="Enter")$("#maAdd").click();};
+  _api("/api/admin/access",{}).then(function(j){if(j&&j.error){fb.textContent=j.error;return;}paint((j&&j.meditation)||[]);}).catch(function(){fb.textContent="Can't reach the server — check your internet.";});}
 function showCloudForm(){var f=$("#cloudForm");if(!f)return;var mode="login";
   function go(){var u=($("#caName").value||"").trim(),c=$("#caCode").value||"",fb=$("#caFb");
     if(u.length<2){fb.textContent="Enter an account name (2+ characters).";return;}

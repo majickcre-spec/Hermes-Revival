@@ -16,6 +16,7 @@ export async function loadPlaywright() {
 
 export const HEADS_FILE = fileURLToPath(new URL("../../backend/private/heads-halves.html", import.meta.url));
 export const FAKE_API = "http://api.test";
+export const MED_GRANTS = new Set();   // who the pretend server lets meditate (besides travis and star)
 // A pretend account server for one browser context: the app is pointed at it, `account` is signed in (null = signed out),
 // and /api/heads hands out the private Heads page only to the travis and star accounts — like the real server.
 export async function fakeApi(ctx, account) {
@@ -30,6 +31,12 @@ export async function fakeApi(ctx, account) {
       return r.fulfill({ status: 200, contentType: "text/html", headers: { "Access-Control-Allow-Origin": "*" }, body: readFileSync(HEADS_FILE, "utf8") });
     }
     if (u.pathname === "/api/state") return json(200, r.request().method() === "GET" ? { data: {} } : { ok: true });
+    if (u.pathname === "/api/access") { if (!who) return json(401, { error: "Not signed in." }); return json(200, { meditation: ["travis", "star"].includes(who) || MED_GRANTS.has(who), heads: ["travis", "star"].includes(who), admin: who === "travis" }); }
+    if (u.pathname === "/api/admin/access") {
+      if (who !== "travis") return json(403, { error: "Admin only." });
+      if (r.request().method() === "POST") { const b = JSON.parse(r.request().postData() || "{}"), n = String(b.username || "").trim().toLowerCase(); if (b.meditation) MED_GRANTS.add(n); else MED_GRANTS.delete(n); }
+      return json(200, { meditation: [...MED_GRANTS].sort() });
+    }
     return json(200, {});
   });
   if (account) await ctx.addInitScript((a) => { if (!localStorage.getItem("majick-token")) { localStorage.setItem("majick-token", "tok-" + a); localStorage.setItem("majick-acct", a); } }, account);
@@ -52,7 +59,14 @@ export function serve() {
 
 export async function browser() {
   const { chromium } = await loadPlaywright();
-  return chromium.launch({ args: ["--autoplay-policy=no-user-gesture-required"] });
+  const b = await chromium.launch({ args: ["--autoplay-policy=no-user-gesture-required"] });
+  /* Meditation is locked for new devices. Test browsers act like Travis's own device (already unlocked)
+     unless a test asks for a stranger's device with newContext({ locked: true }). */
+  const nc = b.newContext.bind(b);
+  b.newContext = async (o = {}) => { const { locked, ...rest } = o; const c = await nc(rest);
+    if (!locked) await c.addInitScript(() => { if (!localStorage.getItem("mmu-medaccess")) localStorage.setItem("mmu-medaccess", JSON.stringify({ checked: true, device: true })); });
+    return c; };
+  return b;
 }
 
 // A page with one profile ("Travis") already chosen, and optional seeded localStorage.

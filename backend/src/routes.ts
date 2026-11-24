@@ -3,7 +3,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Express, Request, Response } from 'express';
 import { storage } from './storage.js';
-import { register, login, verifyToken, loadState, saveState, accountsMode, isAdmin, canHeads } from './accounts.js';
+import { register, login, verifyToken, loadState, saveState, accountsMode, isAdmin, canHeads, canMeditate, medGranted, setMedAccess } from './accounts.js';
 import { putSession, putEeg, listSessions, getSession, getEeg, claudeKey, accountForKey, mdIndex, mdReport, csvTimeline, csvRR, putHeartlog, setResearch, deleteMine, adminSummary, adminCsv, adminFull } from './sessions.js';
 
 function requireAuth(req: Request, res: Response): string | null {
@@ -113,6 +113,23 @@ export function registerRoutes(app: Express) {
   });
   app.get('/api/heads', async (req: Request, res: Response) => {
     const acc = requireAuth(req, res); if (!acc) return; res.json({ ok: await canHeads(acc) });
+  });
+  // which locked sections this account can open
+  app.get('/api/access', async (req: Request, res: Response) => {
+    const acc = requireAuth(req, res); if (!acc) return;
+    res.json({ meditation: await canMeditate(acc), heads: await canHeads(acc), admin: await isAdmin(acc) });
+  });
+  // admin: who has Meditation (grant / remove by account name)
+  app.get('/api/admin/access', async (req: Request, res: Response) => {
+    const acc = requireAuth(req, res); if (!acc) return;
+    if (!(await isAdmin(acc))) { res.status(403).json({ error: 'Admin only.' }); return; }
+    res.json({ meditation: await medGranted() });
+  });
+  app.post('/api/admin/access', express.json(), async (req: Request, res: Response) => {
+    const acc = requireAuth(req, res); if (!acc) return;
+    if (!(await isAdmin(acc))) { res.status(403).json({ error: 'Admin only.' }); return; }
+    try { res.json({ meditation: await setMedAccess(req.body?.username, !!req.body?.meditation) }); }
+    catch (e: any) { res.status(e?.status || 500).json({ error: e?.msg || e?.message || 'Could not save.' }); }
   });
   app.get('/api/admin/me', async (req: Request, res: Response) => {
     const acc = requireAuth(req, res); if (!acc) return; res.json({ admin: await isAdmin(acc) });
