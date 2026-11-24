@@ -19,6 +19,7 @@ export const FAKE_API = "http://api.test";
 export const MED_GRANTS = new Set();   // who the pretend server lets meditate (besides travis and star)
 // A pretend account server for one browser context: the app is pointed at it, `account` is signed in (null = signed out),
 // and /api/heads hands out the private Heads page only to the travis and star accounts — like the real server.
+export const USAGE_LOG = [];
 export async function fakeApi(ctx, account) {
   await ctx.route((u) => u.pathname.endsWith("/app.html"), async (r) => { const res = await r.fetch(); const t = (await res.text()).replace('window.__MJK_API__=""', "window.__MJK_API__=" + JSON.stringify(FAKE_API)); await r.fulfill({ response: res, body: t }); });
   await ctx.route(FAKE_API + "/**", async (r) => {
@@ -30,6 +31,15 @@ export async function fakeApi(ctx, account) {
       if (!["travis", "star"].includes(who)) return json(403, { error: "Private." });
       return r.fulfill({ status: 200, contentType: "text/html", headers: { "Access-Control-Allow-Origin": "*" }, body: readFileSync(HEADS_FILE, "utf8") });
     }
+    if (u.pathname === "/api/usage") { try { USAGE_LOG.push({ body: r.request().postData() || "", auth }); } catch (e) {} return r.fulfill({ status: 204, headers: { "Access-Control-Allow-Origin": "*" }, body: "" }); }
+    if (u.pathname === "/api/admin/usage") { if (!who) return json(401, { error: "Not signed in." }); if (who !== "travis") return json(403, { error: "Admin only." });
+      const ev = USAGE_LOG.flatMap((x) => { try { return JSON.parse(x.body).ev || []; } catch (e) { return []; } }), devs = new Set(USAGE_LOG.map((x) => { try { return JSON.parse(x.body).d; } catch (e) { return ""; } }));
+      const top = (k) => { const m = new Map(); ev.filter((e) => e[0] === k).forEach((e) => m.set(e[1], (m.get(e[1]) || 0) + 1)); return [...m].sort((a, b) => b[1] - a[1]); };
+      return json(200, { today: "2026-11-24", devices: { today: devs.size, week: devs.size, month: devs.size, total: devs.size }, accounts: 3,
+        newByDay: Array.from({ length: 14 }, (_, i) => ({ day: "2026-11-" + String(11 + i).padStart(2, "0"), n: i === 13 ? devs.size : i % 3 })),
+        returning: { nextDay: { eligible: 4, back: 2 }, week: { eligible: 0, back: 0 }, month: { eligible: 0, back: 0 } },
+        minutes: { total: 120, week: 45, perActiveWeek: 15 }, month: { levels: top("level").length, meditations: top("med").length, exercises: top("done").length },
+        top: { open: top("open"), level: top("level"), med: top("med"), done: top("done") }, platforms: [["phone", 3], ["chromebook", 1]], browsers: [["safari", 2], ["chrome", 2]] }); }
     if (u.pathname === "/api/state") return json(200, r.request().method() === "GET" ? { data: {} } : { ok: true });
     if (u.pathname === "/api/access") { if (!who) return json(401, { error: "Not signed in." }); return json(200, { meditation: ["travis", "star"].includes(who) || MED_GRANTS.has(who), heads: ["travis", "star"].includes(who), admin: who === "travis" }); }
     if (u.pathname === "/api/admin/access") {

@@ -3,7 +3,8 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Express, Request, Response } from 'express';
 import { storage } from './storage.js';
-import { register, login, verifyToken, loadState, saveState, accountsMode, isAdmin, canHeads, canMeditate, medGranted, setMedAccess } from './accounts.js';
+import { register, login, verifyToken, loadState, saveState, accountsMode, isAdmin, canHeads, canMeditate, medGranted, setMedAccess, accountCount } from './accounts.js';
+import { recordUsage, usageStats } from './usage.js';
 import { putSession, putEeg, listSessions, getSession, getEeg, claudeKey, accountForKey, mdIndex, mdReport, csvTimeline, csvRR, putHeartlog, setResearch, deleteMine, adminSummary, adminCsv, adminFull } from './sessions.js';
 
 function requireAuth(req: Request, res: Response): string | null {
@@ -130,6 +131,17 @@ export function registerRoutes(app: Express) {
     if (!(await isAdmin(acc))) { res.status(403).json({ error: 'Admin only.' }); return; }
     try { res.json({ meditation: await setMedAccess(req.body?.username, !!req.body?.meditation) }); }
     catch (e: any) { res.status(e?.status || 500).json({ error: e?.msg || e?.message || 'Could not save.' }); }
+  });
+  // anonymous usage: a random device id + minutes + short event names (sent as text/plain so no preflight / works with sendBeacon)
+  app.post('/api/usage', express.text({ type: '*/*', limit: '8kb' }), async (req: Request, res: Response) => {
+    try { const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+      res.status((await recordUsage(body)) ? 204 : 400).end(); }
+    catch { res.status(400).end(); }
+  });
+  app.get('/api/admin/usage', async (req: Request, res: Response) => {
+    const acc = requireAuth(req, res); if (!acc) return;
+    if (!(await isAdmin(acc))) { res.status(403).json({ error: 'Admin only.' }); return; }
+    try { res.json(await usageStats(await accountCount())); } catch (e: any) { res.status(500).json({ error: 'Could not load usage.' }); }
   });
   app.get('/api/admin/me', async (req: Request, res: Response) => {
     const acc = requireAuth(req, res); if (!acc) return; res.json({ admin: await isAdmin(acc) });

@@ -144,6 +144,10 @@ export async function canMeditate(id: string): Promise<boolean> {
   if (adminNames().includes(n) || headsNames().includes(n)) return true;
   return (await medGranted()).includes(n);
 }
+export async function accountCount(): Promise<number> {
+  if (sql) { const r = await sql`SELECT count(*)::int AS n FROM accounts`; return Number(r[0]?.n || 0); }
+  return mem.accounts.size;
+}
 export async function isAdmin(id: string): Promise<boolean> {
   try {
     let u: any = null;

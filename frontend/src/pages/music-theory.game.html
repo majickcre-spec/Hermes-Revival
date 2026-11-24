@@ -16751,6 +16751,55 @@ function _snapshot(){var o={};_syncKeys().forEach(function(k){try{o[k]=localStor
 function _restore(d){if(!d)return;_AID=undefined;Object.keys(d).forEach(function(k){if(_syncable(k)&&typeof d[k]==="string"){try{localStorage.setItem(k,d[k]);}catch(e){}}});}
 function _api(path,opts){opts=opts||{};opts.headers=opts.headers||{};var t=acctTok();if(t)opts.headers["Authorization"]="Bearer "+t;return fetch(MMU_API+path,opts).then(function(r){return r.json().catch(function(){return {};}).then(function(j){if(!r.ok){if(r.status===401)clearAcct();throw new Error(j&&j.error?j.error:"Something went wrong.");}return j;});});}
 function _apiRaw(path){var t=acctTok(),h={};if(t)h["Authorization"]="Bearer "+t;return fetch(MMU_API+path,{headers:h}).then(function(r){if(!r.ok)throw new Error("fail");return r.blob();});}
+/* ===== anonymous usage counts — no names: a random device number, kind of device, browser, active minutes,
+   and short event names (screen opened, level passed, meditation finished, exercise done). Travis and Star's
+   own devices are left out so the numbers are other people. Read on the 📊 Usage screen (travis account). ===== */
+var USE={q:[],act:0,lastIn:Date.now(),screen:"",medName:null,medSec:0,timer:null,sent:0};
+function useDev(){try{var d=localStorage.getItem("mmu-dev");if(!d||!/^[a-z0-9]{12,40}$/i.test(d)){var r="";try{r=crypto.randomUUID().replace(/-/g,"");}catch(e){}if(r.length<20)r=(Math.random().toString(36).slice(2)+Date.now().toString(36)+Math.random().toString(36).slice(2)).replace(/[^a-z0-9]/g,"");d=r.slice(0,24);localStorage.setItem("mmu-dev",d);}return d;}catch(e){return "";}}
+function useOwn(){try{if(localStorage.getItem("mmu-own")==="1")return true;var n=String((typeof acctName==="function"&&acctName())||"").trim().toLowerCase();if(n==="travis"||n==="star"){localStorage.setItem("mmu-own","1");return true;}var p=String((typeof activeName==="function"&&activeName())||"").trim();return /^(trav|travis|star)$/i.test(p);}catch(e){return false;}}
+function useKind(){var u=navigator.userAgent||"";if(/CrOS/.test(u))return "chromebook";if(/iPad|Tablet/.test(u)||(/Android/.test(u)&&!/Mobile/.test(u))||(/Macintosh/.test(u)&&navigator.maxTouchPoints>1))return "tablet";if(/iPhone|iPod|Mobile|Android/.test(u))return "phone";return "computer";}
+function useBrowser(){var u=navigator.userAgent||"";if(/Edg\//.test(u))return "edge";if(/SamsungBrowser/.test(u))return "samsung";if(/Firefox|FxiOS/.test(u))return "firefox";if(/CriOS|Chrome\//.test(u))return "chrome";if(/Safari/.test(u))return "safari";return "other";}
+function useClean(t){return String(t||"").replace(/[^\p{L}\p{N} &'’+\-.,:()/!?]/gu,"").replace(/\s+/g," ").trim().slice(0,60);}
+function useEv(kind,key){key=useClean(key);if(!key||useOwn())return;USE.q.push([kind,key]);if(USE.q.length>=12)useFlush(false);}
+function useFlush(leaving){if(!syncOn()||useOwn()){USE.q=[];USE.act=0;return;}var m=Math.floor(USE.act/60);if(leaving&&USE.act%60>=30)m++;
+  if(!m&&!USE.q.length&&USE.sent)return;var dev=useDev();if(!dev)return;
+  var body=JSON.stringify({d:dev,p:useKind(),b:useBrowser(),m:Math.min(30,m),ev:USE.q.splice(0,40)});USE.act=leaving?0:USE.act-m*60;USE.sent++;
+  try{if(leaving&&navigator.sendBeacon&&navigator.sendBeacon(MMU_API+"/api/usage",new Blob([body],{type:"text/plain"})))return;}catch(e){}
+  try{fetch(MMU_API+"/api/usage",{method:"POST",headers:{"Content-Type":"text/plain"},body:body,keepalive:true}).catch(function(){});}catch(e){}}
+function useTick(){if(document.hidden)return;var now=Date.now(),snd=false;try{snd=!!(AC&&AC.state==="running"&&!_acIdle&&now-_acLastUse<20000);}catch(e){}
+  var med=null;try{med=(typeof MED!=="undefined"&&MED.sess)||null;}catch(e){}
+  if(med||snd||now-USE.lastIn<90000)USE.act+=15;
+  if(med){if(med!==USE.medName){USE.medName=med;USE.medSec=0;}USE.medSec+=15;}
+  else if(USE.medName){if(USE.medSec>=120)useEv("med",USE.medName);USE.medName=null;USE.medSec=0;}
+  if(USE.act>=120||USE.q.length)useFlush(false);}
+function useStart(){if(USE.timer||!syncOn())return;useDev();
+  ["pointerdown","keydown","touchstart"].forEach(function(e){window.addEventListener(e,function(){USE.lastIn=Date.now();},{passive:true,capture:true});});
+  document.addEventListener("visibilitychange",function(){if(document.hidden)useFlush(true);});window.addEventListener("pagehide",function(){useFlush(true);});
+  /* every screen that opens (its title) */
+  try{var v=document.getElementById("view");if(v&&window.MutationObserver)new MutationObserver(function(){var t=v.hidden?"":useClean((v.querySelector(".ttitle")||{}).textContent);if(t&&t!==USE.screen){USE.screen=t;useEv("open",t);}if(v.hidden)USE.screen="";}).observe(v,{childList:true,attributes:true,attributeFilter:["hidden"]});}catch(e){}
+  /* a level passed, or a round finished with a score, on whatever screen is open */
+  try{var _sv=save;save=function(k,val){var r=_sv.apply(this,arguments);try{if(typeof k==="string"&&k.indexOf("music-")===0){var m=k.match(/-lvl(\d+)$/);if(m&&val===true)useEv("level",(USE.screen||"Level")+" · L"+m[1]);else if(/best/i.test(k)&&val!=null)useEv("done",USE.screen||k.replace(/^music-[^-]+-/,""));}}catch(e){}return r;};}catch(e){}
+  try{var _vl=voxLog;voxLog=function(kind){var r=_vl.apply(this,arguments);try{useEv("done",{range:"Range Finder",daily:"Daily Warm-Up",weekly:"Weekly check",runs:"Scale Runs",hold:"Steady hold",long:"Long Tones"}[kind]||("Vocal: "+kind));}catch(e){}return r;};}catch(e){}
+  USE.timer=setInterval(useTick,15000);setTimeout(function(){useFlush(false);},4000);}
+/* 📊 Usage — Travis only (the server checks) */
+function renderUsage(){gate.hidden=true;home.hidden=true;view.hidden=false;window.scrollTo(0,0);document.body.classList.remove("gated");
+  view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">📊 Usage</span></div><div class="panel" id="usBox"><div class="site-note">Loading…</div></div>';
+  $("#eBack").onclick=function(){view.hidden=true;renderGate();};
+  _api("/api/admin/usage",{}).then(function(s){var b=$("#usBox");if(!b)return;if(!s||s.error){b.innerHTML='<div class="site-note">'+esc((s&&s.error)||"Couldn't load usage.")+'</div>';return;}
+    var pct=function(x){return x.eligible?Math.round(100*x.back/x.eligible)+"%":"—";},sub=function(x){return x.eligible?x.back+" of "+x.eligible:"not enough time yet";};
+    var tile=function(n,l,s2){return '<div class="usT"><b>'+n+'</b><span>'+l+'</span>'+(s2?'<i>'+s2+'</i>':'')+'</div>';};
+    var list=function(t,a,empty){return '<div class="label" style="margin-top:14px">'+t+'</div>'+(a&&a.length?'<div class="usL">'+a.map(function(r){return '<div><span>'+esc(r[0])+'</span><b>'+r[1]+'</b></div>';}).join("")+'</div>':'<div class="site-note">'+(empty||"Nothing yet.")+'</div>');};
+    var mx=Math.max(1,...s.newByDay.map(function(d){return d.n;}));
+    b.innerHTML='<div class="intro">Anonymous counts — no names. Your and Star’s devices aren’t counted.</div>'+
+      '<div class="usG">'+tile(s.devices.today,"devices today")+tile(s.devices.week,"this week")+tile(s.devices.month,"this month")+tile(s.devices.total,"all time")+'</div>'+
+      '<div class="label" style="margin-top:14px">New devices, last 14 days</div><div class="usBars">'+s.newByDay.map(function(d){return '<div title="'+d.day+': '+d.n+'"><i style="height:'+Math.round(100*d.n/mx)+'%"></i><span>'+(d.n||"")+'</span></div>';}).join("")+'</div>'+
+      '<div class="label" style="margin-top:14px">Coming back</div><div class="usG">'+tile(pct(s.returning.nextDay),"next day",sub(s.returning.nextDay))+tile(pct(s.returning.week),"after a week",sub(s.returning.week))+tile(pct(s.returning.month),"after a month",sub(s.returning.month))+'</div>'+
+      '<div class="label" style="margin-top:14px">Practice</div><div class="usG">'+tile(s.minutes.week,"minutes this week")+tile(s.minutes.perActiveWeek,"min per person this week")+tile(s.minutes.total,"minutes, last 4 months")+tile(s.accounts,"accounts")+'</div>'+
+      '<div class="usG" style="margin-top:8px">'+tile(s.month.exercises,"exercises done (30 days)")+tile(s.month.levels,"levels passed")+tile(s.month.meditations,"meditations finished")+'</div>'+
+      list("Most opened (30 days)",s.top.open)+list("Levels passed",s.top.level)+list("Meditations finished",s.top.med)+list("Exercises done",s.top.done)+
+      list("Devices",s.platforms)+list("Browsers",s.browsers);
+  }).catch(function(e){var b=$("#usBox");if(b)b.innerHTML='<div class="site-note">'+esc((e&&e.message)||"Can't reach the server — check your internet.")+'</div>';});}
+(function(){try{var st=document.createElement("style");st.textContent=".usG{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:8px}.usT{background:rgba(255,255,255,.05);border-radius:12px;padding:10px 12px}.usT b{display:block;font:800 1.5rem system-ui;color:#ffd27a}.usT span{font:700 .78rem system-ui;color:var(--muted)}.usT i{display:block;font-style:normal;font-size:.7rem;color:var(--muted);margin-top:2px}.usBars{display:flex;gap:4px;align-items:flex-end;height:90px;margin-top:8px}.usBars div{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}.usBars i{display:block;width:100%;min-height:2px;background:#34e0c6;border-radius:4px 4px 0 0}.usBars span{font:700 .62rem system-ui;color:var(--muted);height:12px}.usL div{display:flex;justify-content:space-between;padding:7px 2px;border-bottom:1px solid var(--line)}.usL b{color:#ffd27a}";document.head.appendChild(st);}catch(e){}})();
 function acctRegister(u,c){return _api("/api/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,code:c})});}
 function acctLogin(u,c){return _api("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,code:c})});}
 function acctLoad(){return _api("/api/state",{});}
@@ -16799,16 +16848,16 @@ function acctSync(){if(!syncOn()||!acctTok())return Promise.resolve();if(_syncin
 function acctSaveNow(){return acctSync();}
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")setTimeout(function(){try{acctSync();}catch(e){}},400);});
 setTimeout(function(){try{acctSync();}catch(e){}},1500);
-try{medLock();}catch(e){}setTimeout(function(){try{medRefresh();}catch(e){}},1200);
+try{medLock();}catch(e){}setTimeout(function(){try{medRefresh();}catch(e){}},1200);try{useStart();}catch(e){}
 var _pushT=null;
 function cloudPush(){if(!syncOn()||!acctTok())return;if(_pushT)clearTimeout(_pushT);_pushT=setTimeout(function(){_pushT=null;acctSaveNow();},1600);}
 function acctSignIn(mode,u,c){var p=(mode==="register")?acctRegister(u,c):acctLogin(u,c);return p.then(function(res){setAcct(res.token,res.username||u);try{medRefresh();}catch(e){}return acctLoad().then(function(st){var data=(st&&st.data)?st.data:{},had=!!(data&&Object.keys(data).length);return acctSync().then(function(){return {name:res.username||u,pulled:had};});});});}
 (function(){try{var s=document.createElement("style");s.textContent="#cloudBar{margin:20px auto 0;max-width:420px}.cloudnote{font-size:.82rem;color:var(--muted);text-align:center;line-height:1.55}.cloudnote a{color:var(--muted)}.cloudtabs{display:flex;gap:6px;margin-bottom:10px}.ctab{flex:1;padding:.5rem;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:transparent;color:var(--muted);cursor:pointer;font-size:.86rem}.ctab.sel{background:rgba(52,224,198,.18);color:#fff;border-color:rgba(52,224,198,.5)}";document.head.appendChild(s);}catch(e){}})();
 function renderCloudBar(){var el=$("#cloudBar");if(!el)return;
   if(!syncOn()){el.innerHTML='<div class="cloudnote">On the full site you can create an account to sync your players across devices.</div>';return;}
-  if(acctTok()){el.innerHTML='<div class="cloudnote">☁ Synced as <b>'+esc(acctName()||"")+'</b> · <a href="#" id="cloudOut">Sign out</a>'+''+'</div>';var o=$("#cloudOut");if(o)o.onclick=function(e){e.preventDefault();clearAcct();renderGate();};
-    var ca=$("#cloudAccess");if(ca)ca.onclick=function(e){e.preventDefault();renderMedAccess();};
-    if(!medAcc().admin)medRefresh().then(function(){if(medAcc().admin&&!$("#cloudAccess")&&!gate.hidden)renderCloudBar();});return;}
+  if(acctTok()){el.innerHTML='<div class="cloudnote">☁ Synced as <b>'+esc(acctName()||"")+'</b> · <a href="#" id="cloudOut">Sign out</a>'+(medAcc().admin?' · <a href="#" id="cloudUsage">📊 Usage</a>':'')+'</div>';var o=$("#cloudOut");if(o)o.onclick=function(e){e.preventDefault();clearAcct();renderGate();};
+    var cu=$("#cloudUsage");if(cu)cu.onclick=function(e){e.preventDefault();renderUsage();};
+    if(!medAcc().admin)medRefresh().then(function(){if(medAcc().admin&&!$("#cloudUsage")&&!gate.hidden)renderCloudBar();});return;}
   el.innerHTML='<button class="btn ghost" id="cloudBtn" style="width:100%">☁ Sign In / Sign Up — sync your progress across devices</button><div id="cloudForm"></div>';
   var b=$("#cloudBtn");if(b)b.onclick=showCloudForm;}
 /* admin only: grant or remove Meditation by account name (the server checks it's the admin) */

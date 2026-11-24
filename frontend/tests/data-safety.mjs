@@ -1,5 +1,5 @@
 // REGRESSION: the user's work must never be lost. Every scenario here is a way songs have been or could be wiped.
-import { serve, browser, profilePage, song, SWKEY, suite, assert, fakeApi, MED_GRANTS } from "./lib.mjs";
+import { serve, browser, profilePage, song, SWKEY, suite, assert, fakeApi, MED_GRANTS, USAGE_LOG } from "./lib.mjs";
 
 export async function run() {
   const { srv, url } = await serve();
@@ -51,7 +51,7 @@ export async function run() {
     await open(pg); await pg.evaluate(() => swSave());
     await pg.evaluate((k) => { const d = JSON.parse(localStorage.getItem(k)); d.songs = d.songs.filter((s) => s.id !== "m1"); localStorage.setItem(k, JSON.stringify(d)); }, SWKEY); // outside wipe
     await pg.reload(); await pg.waitForTimeout(300); const c = await pg.$(".pcard:not(.add)"); if (c) await c.click(); await open(pg); await pg.waitForTimeout(150);
-    const banner = await pg.evaluate(() => (document.getElementById("swGuardB") || {}).textContent || "");
+    let banner = ""; for (let k = 0; k < 15 && !/missing/i.test(banner); k++) { banner = await pg.evaluate(() => (document.getElementById("swGuardB") || {}).textContent || ""); if (!/missing/i.test(banner)) await pg.waitForTimeout(200); }   /* busy machines: give it up to 3 s */
     assert(/missing/i.test(banner), "no missing-song warning shown"); await ctx.close();
   });
 
@@ -1359,6 +1359,42 @@ export async function run() {
     assert(bpm === 80, "Try again changed the tempo to " + bpm);
     const ok = await after(true); assert(/Try ♩90/.test(ok), "clean run should offer ♩90: " + ok);
     assert(!errs.length, errs.join(" | ")); await ctx.close();
+  });
+
+  await S.test("Usage counts are anonymous: a stranger's device sends a random device number, minutes and screen names — never a player or account name; Travis's devices send nothing; only the travis account opens 📊 Usage (both orientations)", async () => {
+    USAGE_LOG.length = 0;
+    const flush = (pg) => pg.evaluate(() => { Object.defineProperty(document, "hidden", { configurable: true, get: () => true }); document.dispatchEvent(new Event("visibilitychange")); Object.defineProperty(document, "hidden", { configurable: true, get: () => false }); });
+    /* 1. a stranger: new player "Dana Q", signed in as "ginaq", opens two screens */
+    { const ctx = await b.newContext({ locked: true, viewport: { width: 390, height: 844 }, hasTouch: true }); await fakeApi(ctx, "ginaq"); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+      await pg.goto(url + "/app.html"); await pg.waitForTimeout(900); await pg.locator(".pcard.add").first().click(); await pg.waitForTimeout(400);
+      await pg.locator("#gateForm input").first().fill("Dana Q"); await pg.locator("#gateForm button[type=submit], #gateForm .btn").last().click(); await pg.waitForTimeout(1000);
+      for (const t of ["Interval Trainer", "Scales"]) { const q = pg.locator("#homeSearch"); await q.fill(""); await q.click(); await pg.keyboard.type(t); await pg.waitForTimeout(400);
+        await pg.locator("#searchResults .card:visible").first().click(); await pg.waitForTimeout(900); await pg.locator("#eBack, #view .play-top .back").first().click(); await pg.waitForTimeout(500); }
+      await pg.waitForTimeout(4200); await flush(pg); await pg.waitForTimeout(600);
+      const all = USAGE_LOG.map((x) => x.body).join(" ");
+      assert(USAGE_LOG.length >= 1, "no usage report was sent");
+      assert(!/Dana|ginaq/i.test(all) && USAGE_LOG.every((x) => !x.auth), "a usage report carried a name or a sign-in: " + all.slice(0, 300));
+      const ev = USAGE_LOG.flatMap((x) => JSON.parse(x.body).ev); assert(ev.some((e) => e[0] === "open" && /Interval Trainer/.test(e[1])), "screen opens not counted: " + JSON.stringify(ev));
+      assert(USAGE_LOG.every((x) => /^[a-z0-9]{12,40}$/i.test(JSON.parse(x.body).d)), "device number missing or odd");
+      assert(!errs.length, errs.join(" | ")); await ctx.close(); }
+    /* 2. Travis's device sends nothing */
+    { const n0 = USAGE_LOG.length; const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); await fakeApi(ctx, "travis"); const pg = await ctx.newPage();
+      await pg.addInitScript(() => { if (sessionStorage.getItem("s")) return; sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav", mode: "adult" }])); });
+      await pg.goto(url + "/app.html"); await pg.waitForTimeout(5000); await flush(pg); await pg.waitForTimeout(500);
+      assert(USAGE_LOG.length === n0, "Travis's own device was counted");
+      /* 3. 📊 Usage on the players screen, by real taps */
+      for (let k = 0; k < 10 && !(await pg.locator("#cloudUsage").count()); k++) await pg.waitForTimeout(300);
+      for (const vp of (process.env.QUICK ? [{ width: 390, height: 844 }] : [{ width: 390, height: 844 }, { width: 844, height: 390 }])) {
+        await pg.setViewportSize(vp); await pg.locator("#cloudUsage").click(); await pg.waitForTimeout(800);
+        const t = await pg.locator("#usBox").innerText(); assert(/devices today/.test(t) && /Interval Trainer/.test(t) && /Coming back/i.test(t), "Usage screen incomplete: " + t.slice(0, 200));
+        await pg.screenshot({ path: "/tmp/aud/usage-" + vp.width + ".png", fullPage: false });
+        await pg.locator("#eBack").click(); await pg.waitForTimeout(600); assert(await pg.locator("#profiles").count(), "← from Usage didn't return to players"); }
+      await ctx.close(); }
+    /* 4. a stranger's account sees no link and the server refuses */
+    { const ctx = await b.newContext({ locked: true, viewport: { width: 390, height: 844 } }); await fakeApi(ctx, "ginaq"); const pg = await ctx.newPage(); await pg.goto(url + "/app.html"); await pg.waitForTimeout(2500);
+      assert(!(await pg.locator("#cloudUsage").count()), "a stranger sees the Usage link");
+      const r = await pg.evaluate(() => _api("/api/admin/usage", {}).then(() => "open").catch((e) => e.message)); assert(r !== "open", "the server gave usage to a stranger");
+      await ctx.close(); }
   });
 
   await S.test("Meditation is open to everyone: a new device sees Meditation (home door, search, opens) signed out or with a stranger's account — but the licensed chord packs stay hidden from strangers", async () => {
