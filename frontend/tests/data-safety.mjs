@@ -1566,7 +1566,7 @@ export async function run() {
     assert(!errs.length, errs.join(" | ")); await ctx.close();
   });
 
-  await S.test("REAL TAPS: Daily Warm-Up hiss — a soft 'ssss' over room noise fills the meter and is timed for its full length (listens to the hiss band, not overall loudness)", async () => {
+  await S.test("REAL TAPS: Daily Warm-Up hiss — a soft 'ssss' over room noise fills the meter and is timed for its full length; a real 10 s hiss that fades, wobbles and dips briefly is timed whole and still stops when you stop", async () => {
     const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, permissions: ["microphone"] }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
     await pg.addInitScript(() => {
       if (!sessionStorage.getItem("s")) { sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav", mode: "adult" }])); }
@@ -1574,7 +1574,12 @@ export async function run() {
         const nb = c.createBuffer(1, c.sampleRate * 2, c.sampleRate), ch = nb.getChannelData(0); for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
         const room = c.createBufferSource(); room.buffer = nb; room.loop = true; const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 800; const rg = c.createGain(); rg.gain.value = 0.004; room.connect(lp); lp.connect(rg); rg.connect(d); room.start();
         const hs = c.createBufferSource(); hs.buffer = nb; hs.loop = true; const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 4000; const hg = c.createGain(); hg.gain.value = 0; hs.connect(hp); hp.connect(hg); hg.connect(d); hs.start();
-        window.__hiss = (on) => hg.gain.setTargetAtTime(on ? 0.006 : 0, c.currentTime, 0.02); return d.stream; };
+        window.__hiss = (on) => hg.gain.setTargetAtTime(on ? 0.006 : 0, c.currentTime, 0.02);
+        /* a real breath: strong start, fades to a third, wobbles, two short dips */
+        window.__realHiss = (sec) => { const t0 = c.currentTime, g = hg.gain; g.cancelScheduledValues(t0); g.setValueAtTime(0, t0);
+          for (let k = 0; k <= sec * 10; k++) { const tt = t0 + k / 10, fade = 0.009 * (1 - 0.67 * k / (sec * 10)), wob = 1 + 0.35 * Math.sin(k * 1.7); let v = fade * wob; if ((k >= 32 && k < 35) || (k >= 71 && k < 73)) v *= 0.25; g.linearRampToValueAtTime(v, tt); }
+          g.linearRampToValueAtTime(0, t0 + sec + 0.05); };
+        return d.stream; };
     });
     await pg.goto(url + "/app.html"); await pg.waitForTimeout(800); await pg.locator("#profiles").getByText("Trav", { exact: true }).first().click(); await pg.waitForTimeout(600);
     await pg.locator('#doors .door[data-d="voice"]').click(); await pg.waitForTimeout(500);
@@ -1584,6 +1589,10 @@ export async function run() {
     const meter = parseFloat(await pg.evaluate(() => document.getElementById("vhM").style.width)); assert(meter >= 50, "soft hiss barely moves the meter: " + meter + "%");
     await pg.waitForTimeout(4500); await pg.evaluate(() => window.__hiss(false)); await pg.waitForTimeout(1500);
     const sec = parseFloat(await pg.locator("#vhS").innerText()); assert(sec >= 5 && sec <= 7.5, "6 s hiss timed as " + sec + " s");
+    await pg.locator("#view button").filter({ hasText: /^Again$/ }).click(); await pg.waitForTimeout(400);
+    await pg.locator("#vhGo").click(); await pg.waitForTimeout(1300); await pg.evaluate(() => window.__realHiss(10)); await pg.waitForTimeout(12500);
+    const sec2 = parseFloat(await pg.locator("#vhS").innerText()); const h2 = await pg.locator("#vhH").innerText();
+    assert(sec2 >= 8.5 && sec2 <= 11 && /even/.test(h2), "a real fading 10 s hiss timed as " + sec2 + " s (" + h2 + ")");
     assert(!errs.length, errs.join(" | ")); await ctx.close();
   });
 

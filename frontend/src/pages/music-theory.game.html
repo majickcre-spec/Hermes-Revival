@@ -2338,18 +2338,20 @@ function voxMicThen(btn,hint,fn){unlockAudio();if(btn){btn.disabled=true;btn.tex
 function voxMicDead(t0,hint){if(performance.now()-t0<2500)return false;if(voxRms()>0)return false;if(hint)hint.innerHTML="🎤 I’m not getting any sound from the mic. Tap ← and open the warm-up again, or check the mic setting for this site.";return true;}
 function vdHiss(box,next){var kid=voxKid(),goal=kid?10:20;
   box.innerHTML='<div class="vxSay">Big breath in, then a long, even <b>“sssss”</b> like a slow tire leak. Keep it the same strength the whole way. Goal: <b>'+goal+' s</b>.</div><div class="vxBig" id="vhS">0.0 s</div><div class="vxMeter"><i id="vhM"></i></div><div class="t-hint" id="vhH" style="text-align:center">Tap Start, stay quiet for a second, then hiss</div><div class="actions" style="justify-content:center;margin-top:8px"><button class="btn" id="vhGo">▶ Start</button></div>';
-  $("#vhGo").onclick=function(){var b=$("#vhGo");voxMicThen(b,$("#vhH"),function(){var t0=performance.now(),floor=null,started=null,quiet=0,vals=[];VOX.on=true;$("#vhH").textContent="Quiet… measuring the room";
+  $("#vhGo").onclick=function(){var b=$("#vhGo");voxMicThen(b,$("#vhH"),function(){var t0=performance.now(),floor=null,started=null,quiet=0,vals=[],lastT=null,lvl=null;VOX.on=true;$("#vhH").textContent="Quiet… measuring the room";
     VOX_HS=null;(function loop(){if(!VOX.on)return;var now=performance.now(),db=voxHissDb(),m=$("#vhM");if(started==null&&voxMicDead(t0,$("#vhH"))){VOX.on=false;b.disabled=false;b.textContent="▶ Start";return;}
       /* the room = the quietest moment so far (a hiss started early can't hide itself); skip the mic's dead-silent first moments */
       if(now-t0>300&&isFinite(db)&&db>-140){if(floor==null||db<floor)floor=db;else if(started==null&&db-floor<3)floor+=(db-floor)*0.05;}
       if(now-t0<1000||floor==null){if(m)m.style.width="0%";}else{var fl=floor,over=db-fl,v=Math.pow(10,over/20);if(m)m.style.width=Math.max(0,Math.min(100,over*100/24))+"%";/* 24 dB over the room = full meter */
-        if(started==null){$("#vhH").textContent="Now: ssssss…";if(over>8)started=now;}
-        else{if(over>5){quiet=0;vals.push(v);}else quiet+=16;var sec=(now-started)/1000;$("#vhS").textContent=sec.toFixed(1)+" s";
-          if(quiet>600||sec>60){VOX.on=false;var len=Math.max(0,sec-quiet/1000),mean=vals.reduce(function(a,x){return a+x;},0)/Math.max(1,vals.length),sd=Math.sqrt(vals.reduce(function(a,x){return a+(x-mean)*(x-mean);},0)/Math.max(1,vals.length)),even=Math.max(0,Math.min(100,Math.round(100*(1-sd/Math.max(1e-6,mean)))));
+        var dt=lastT==null?16:Math.min(100,now-lastT);/* real time per frame: phones at 120 Hz draw twice as many frames */
+        if(started==null){$("#vhH").textContent="Now: ssssss…";if(over>6){started=now;lvl=over;}}
+        else{/* still hissing while it stays near your own hiss level (natural dips are fine), quiet only after 0.8 s really below it */
+          var keep=Math.max(3,lvl-14);if(over>keep){quiet=0;vals.push(v);lvl=lvl*0.97+over*0.03;}else quiet+=dt;var sec=(now-started)/1000;$("#vhS").textContent=sec.toFixed(1)+" s";
+          if(quiet>800||sec>60){VOX.on=false;var len=Math.max(0,sec-quiet/1000),mean=vals.reduce(function(a,x){return a+x;},0)/Math.max(1,vals.length),sd=Math.sqrt(vals.reduce(function(a,x){return a+(x-mean)*(x-mean);},0)/Math.max(1,vals.length)),even=Math.max(0,Math.min(100,Math.round(100*(1-sd/Math.max(1e-6,mean)))));
             VD.res.hiss={s:len,even:even};voxBest("hiss",Math.round(len*10)/10);voxLog("hiss",len);
             $("#vhS").textContent=len.toFixed(1)+" s";$("#vhH").innerHTML=(len>=goal?"🎉 Goal reached! ":"")+"<b>"+even+"%</b> even. "+(even<60?"Try to keep the same strength start to finish.":"Smooth and steady.");
             b.disabled=false;b.textContent="Next ▶";b.onclick=next;var again=document.createElement("button");again.className="btn ghost";again.textContent="Again";again.onclick=function(){vdHiss(box,next);};b.parentNode.appendChild(again);return;}}}
-      VOX.raf=requestAnimationFrame(loop);})();});};}
+      lastT=now;VOX.raf=requestAnimationFrame(loop);})();});};}
 function vdSiren(box,next){var r=voxRange()||{lo:voxCenter()-7,hi:voxCenter()+7},kid=voxKid();
   box.innerHTML='<div class="vxSay">'+(kid?"Hum or do a lip trill (“brrr” like a motor). Slide <b>low → high → low</b> like a siren.":"Lip trill (“brrr”) or hum. Glide <b>low → high → low</b> through your whole range, smoothly, no breaks.")+'</div>'+voxLadder("vsLad")+'<div class="t-hint" id="vsH" style="text-align:center;margin-top:6px">Tap Start, then glide for about 10 seconds</div><div class="actions" style="justify-content:center;margin-top:8px"><button class="btn" id="vsGo">▶ Start</button></div>';
   voxLadSet("vsLad",{band:[r.lo,r.hi]});
