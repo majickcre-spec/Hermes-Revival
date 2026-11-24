@@ -1379,6 +1379,20 @@ export async function run() {
       await pg.locator("#scRec").click(); for (let k = 0; k < 20 && !(await pg.evaluate(() => !!SC.raw && !SC.mr)); k++) await pg.waitForTimeout(250);
       const tr = await pg.evaluate(() => ({ dur: SC.raw.duration, kept: (SC.b - SC.a) * SC.raw.duration }));
       assert(tr.dur > 2.5 && tr.kept < 1.8 && tr.kept > 0.6, "didn't trim to the sound: " + JSON.stringify(tr));
+      for (let k = 0; k < 8 && (await pg.evaluate(() => !!micStream)); k++) await pg.waitForTimeout(150);
+      assert(await pg.evaluate(() => !micStream), "the mic stayed on after recording (iPhone would play back quietly)");
+      /* playback: loop keeps going past the end; the shaped sound is not silent */
+      await pg.locator("#scLoop").click(); await pg.locator("#scPlay").click(); await pg.waitForTimeout(400);
+      const pd = await pg.evaluate(() => { let pk = 0; const b = SC.cache; for (let c = 0; c < b.numberOfChannels; c++) for (const v of b.getChannelData(c)) pk = Math.max(pk, Math.abs(v)); return { dur: b.duration, pk }; });
+      assert(pd.pk > 0.5 && pd.pk < 0.95, "playback level off: " + JSON.stringify(pd));
+      await pg.waitForTimeout(Math.round(pd.dur * 1000) + 600); assert(/Stop/.test(await pg.locator("#scPlay").innerText()), "Loop stopped at the end");
+      await pg.locator("#scPlay").click(); await pg.locator("#scLoop").click(); await pg.waitForTimeout(200);
+      /* a layer caught by real taps */
+      await pg.locator("#scLRec").click(); await pg.waitForTimeout(1200); await pg.evaluate(() => window.__bang(true)); await pg.waitForTimeout(500); await pg.evaluate(() => window.__bang(false)); await pg.waitForTimeout(800);
+      await pg.locator("#scLRec").click(); for (let k = 0; k < 20 && (await pg.evaluate(() => SC.layers.length)) < 1; k++) await pg.waitForTimeout(250);
+      assert((await pg.evaluate(() => SC.layers.length)) === 1 && (await pg.locator(".scLRow").count()) === 1, "caught layer didn't appear");
+      const d0 = await pg.evaluate(() => scRender().then((b) => b.duration)); await pg.locator("[data-la='0']").fill("2"); await pg.locator("[data-la='0']").dispatchEvent("change");
+      const d1 = await pg.evaluate(() => scRender().then((b) => b.duration)); assert(d1 > d0 + 1.2, "layer start time didn't move it: " + d0 + " → " + d1);
       await pg.locator("#scF_pitch").fill("-5"); await pg.locator("#scF_verb").fill("40"); await pg.locator("#scF_echo").fill("30"); await pg.locator("#scRev").click();
       await pg.locator("#scPlay").click(); await pg.waitForTimeout(700); assert(/Stop/.test(await pg.locator("#scPlay").innerText()), "Play didn't play the shaped sound");
       await pg.locator("#scPlay").click(); await pg.locator("#scName").fill("Metal Clank " + vp.width); await pg.locator("#scCats button").filter({ hasText: "Percussion" }).click();
@@ -1390,6 +1404,12 @@ export async function run() {
       await pg.reload(); await pg.waitForTimeout(800); await pg.locator("#profiles").getByText("Gina", { exact: true }).first().click(); await pg.waitForTimeout(500);
       await q.fill(""); await q.click(); await pg.keyboard.type("Sound Catcher"); await pg.waitForTimeout(400); await pg.locator("#searchResults .card:visible").filter({ has: pg.locator("h3", { hasText: /^Sound Catcher$/ }) }).first().click(); await pg.waitForTimeout(1500);
       assert(await pg.evaluate(() => !!SC.raw) && (await pg.locator("#scName").inputValue()) === "Metal Clank " + vp.width, "the take or its settings were lost on reload");
+      assert((await pg.locator(".scLRow").count()) === 1 && (await pg.evaluate(() => SC.layers[0].at)) === 2, "layers lost on reload");
+      /* a second layer from the library (the sound saved above) */
+      await pg.locator("#scLLib").click(); await pg.waitForTimeout(800); await pg.locator("#spkCats button").filter({ hasText: "Percussion" }).click().catch(() => {}); await pg.waitForTimeout(300);
+      await pg.screenshot({ path: "/tmp/aud/sc-pick.png" }); await pg.locator(".sndpick .sndtile").filter({ hasText: "Metal Clank" }).first().locator("[data-a=use]").click({ timeout: 5000 }); await pg.waitForTimeout(800);
+      assert((await pg.locator(".scLRow").count()) === 2, "library layer didn't appear");
+      await pg.screenshot({ path: "/tmp/aud/sc-layers-" + vp.width + ".png", fullPage: true });
       /* the Sampler's Library button finds it */
       await pg.locator("#scSave").click(); for (let k = 0; k < 20 && !(await pg.locator("#scToSamp").count()); k++) await pg.waitForTimeout(250);
       await pg.locator("#scToSamp").click(); await pg.waitForTimeout(2500); await pg.locator("#spLib").click(); await pg.waitForTimeout(800);

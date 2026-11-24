@@ -447,7 +447,7 @@ body.djOn #metFab{display:none!important}
 .sc.on.vg{opacity:.5}
 .sc.on.vn{opacity:.78}
 .sc.on.va{opacity:1}
-.sndpick{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;display:flex;align-items:flex-end;justify-content:center}
+.sndpick{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2147482600;display:flex;align-items:flex-end;justify-content:center}
 .sndpick-box{background:var(--card2);border:1px solid var(--line);border-radius:16px 16px 0 0;width:100%;max-width:640px;max-height:82vh;overflow:auto;overscroll-behavior:contain;touch-action:pan-x pan-y;padding:16px}
 .sndpick-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
 .scsteps{display:flex;gap:6px;flex-wrap:wrap}
@@ -9019,16 +9019,16 @@ function renderSessions(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=t
 /* ===== SOUND CATCHER — catch any sound (nature, objects, voice), trim it, shape it, save it as a sample =====
    The raw take is kept on this device as a draft until you start a new one, so a reload, lock or call never loses it.
    Saved sounds go into the Sound Library, so every Sampler pad can load them (Library button). */
-var SC={raw:null,a:0,b:1,fx:{pitch:0,rev:false,tone:0,grit:0,echo:0,verb:0},name:"",cat:"Textures",mr:null,chunks:[],t0:0,raf:null,play:null,peaks:[],busy:false,stopT:null};
+var SC={layers:[],loop:false,cache:null,cacheKey:"",playT0:0,playDur:0,playRaf:null,raw:null,a:0,b:1,fx:{pitch:0,rev:false,tone:0,grit:0,echo:0,verb:0},name:"",cat:"Textures",mr:null,chunks:[],t0:0,raf:null,play:null,peaks:[],busy:false,stopT:null};
 var SC_CATS=["Percussion","Textures","FX & Risers","Vocals","Keys & Bells","Loops"];
 var SC_FX=[["pitch","Pitch",-12,12,1,function(v){return (v>0?"+":"")+v+" st";}],["tone","Tone",-100,100,5,function(v){return v<0?"darker "+(-v):v>0?"brighter "+v:"natural";}],["echo","Echo",0,100,5,function(v){return v?v+"%":"off";}],["verb","Space",0,100,5,function(v){return v?v+"%":"off";}],["grit","Grit",0,100,5,function(v){return v?v+"%":"off";}]];
 function scDraftK(){return "sc-draft-"+(activeId()||"guest");}
-function scKeep(){save(mk("sc","draft"),{a:SC.a,b:SC.b,fx:SC.fx,name:SC.name,cat:SC.cat});}
+function scKeep(){SC.cache=null;save(mk("sc","draft"),{a:SC.a,b:SC.b,fx:SC.fx,name:SC.name,cat:SC.cat});}
 function scDecode(blob){return blob.arrayBuffer().then(function(ab){return new Promise(function(res,rej){try{var p=ac().decodeAudioData(ab.slice(0),res,rej);if(p&&p.then)p.then(res,rej);}catch(e){rej(e);}});});}
 function scAutoTrim(){var r=SC.raw;if(!r)return;var d=r.getChannelData(0),n=d.length,pk=0;for(var i=0;i<n;i++){var v=Math.abs(d[i]);if(v>pk)pk=v;}var th=Math.max(pk*0.04,0.002),s=0,e=n-1;while(s<n&&Math.abs(d[s])<th)s++;while(e>s&&Math.abs(d[e])<th)e--;
   var sr=r.sampleRate;s=Math.max(0,s-Math.round(0.02*sr));e=Math.min(n-1,e+Math.round(0.15*sr));if(e-s<0.05*sr){s=0;e=n-1;}SC.a=s/n;SC.b=(e+1)/n;}
 function scIR(oc,dur){var sr=oc.sampleRate,n=Math.max(1,Math.floor(sr*dur)),b=oc.createBuffer(2,n,sr),pre=Math.floor(sr*0.012);for(var c=0;c<2;c++){var x=b.getChannelData(c);for(var i=pre;i<n;i++){var t=(i-pre)/(n-pre);x[i]=(Math.random()*2-1)*Math.pow(1-t,2.4)*(i<pre+sr*0.004?(i-pre)/(sr*0.004):1);}}return b;}
-function scRender(){var r=SC.raw;if(!r)return Promise.reject(new Error("nothing"));var sr=r.sampleRate,s0=Math.floor(SC.a*r.length),s1=Math.max(s0+64,Math.floor(SC.b*r.length)),n=Math.min(r.length,s1)-s0,fx=SC.fx,rate=Math.pow(2,fx.pitch/12);
+function scRenderMain(){var r=SC.raw;if(!r)return Promise.reject(new Error("nothing"));var sr=r.sampleRate,s0=Math.floor(SC.a*r.length),s1=Math.max(s0+64,Math.floor(SC.b*r.length)),n=Math.min(r.length,s1)-s0,fx=SC.fx,rate=Math.pow(2,fx.pitch/12);
   var tail=(fx.verb>0?0.4+2.6*fx.verb/100:0)+(fx.echo>0?0.3+1.8*fx.echo/100:0)+0.05,len=Math.ceil(n/rate+tail*sr),OC=window.OfflineAudioContext||window.webkitOfflineAudioContext,oc=new OC(2,len,sr);
   var seg=oc.createBuffer(r.numberOfChannels,n,sr),fade=Math.min(Math.floor(n/4),Math.round(0.004*sr));
   for(var c=0;c<r.numberOfChannels;c++){var src=r.getChannelData(c).subarray(s0,s0+n),dst=seg.getChannelData(c);for(var i=0;i<n;i++)dst[i]=src[fx.rev?n-1-i:i];for(var f=0;f<fade;f++){var g=f/fade;dst[f]*=g;dst[n-1-f]*=g;}}
@@ -9042,6 +9042,27 @@ function scRender(){var r=SC.raw;if(!r)return Promise.reject(new Error("nothing"
   s.start(0);
   return oc.startRendering().then(function(b){var C=b.numberOfChannels,L=b.length,end=0,pk=0;for(var c2=0;c2<C;c2++){var d=b.getChannelData(c2);for(var i2=0;i2<L;i2++){var v=Math.abs(d[i2]);if(v>pk)pk=v;if(v>0.0006&&i2>end)end=i2;}}
     end=Math.min(L,end+Math.round(0.01*sr));var g2=pk>0?Math.min(8,0.89/pk):1,out=ac().createBuffer(C,Math.max(1,end),sr);for(var c3=0;c3<C;c3++){var a3=b.getChannelData(c3),o3=out.getChannelData(c3);for(var i3=0;i3<o3.length;i3++)o3[i3]=a3[i3]*g2;}return out;});}
+/* the finished sound: the main take with its effects, plus any layers on top (each with volume, start time, left/right) */
+function scKey(){return JSON.stringify([SC.a,SC.b,SC.fx,SC.layers.map(function(l){return [l.uid,l.vol,l.at,l.pan];}),SC.raw&&SC.raw.length]);}
+function scRender(){var k=scKey();if(SC.cache&&SC.cacheKey===k)return Promise.resolve(SC.cache);
+  return scRenderMain().then(function(main){if(!SC.layers.length)return main;var sr=main.sampleRate,len=main.length;
+    SC.layers.forEach(function(l){len=Math.max(len,Math.ceil(l.at*sr)+Math.ceil(l.buf.duration*sr));});
+    var OC=window.OfflineAudioContext||window.webkitOfflineAudioContext,oc=new OC(2,len,sr);
+    var m=oc.createBufferSource();m.buffer=main;m.connect(oc.destination);m.start(0);
+    SC.layers.forEach(function(l){var s2=oc.createBufferSource(),g=oc.createGain(),pn=oc.createStereoPanner?oc.createStereoPanner():null;s2.buffer=l.buf;g.gain.value=l.vol;s2.connect(g);if(pn){pn.pan.value=l.pan;g.connect(pn);pn.connect(oc.destination);}else g.connect(oc.destination);s2.start(l.at);});
+    return oc.startRendering().then(function(b){var pk=0;for(var c=0;c<b.numberOfChannels;c++){var d=b.getChannelData(c);for(var i=0;i<d.length;i++){var v=Math.abs(d[i]);if(v>pk)pk=v;}}
+      if(pk>0.89){var g2=0.89/pk;for(var c2=0;c2<b.numberOfChannels;c2++){var d2=b.getChannelData(c2);for(var j=0;j<d2.length;j++)d2[j]*=g2;}}return b;});})
+    .then(function(b){SC.cache=b;SC.cacheKey=k;return b;});}
+/* cut the silence off both ends of a fresh layer */
+function scTrimBuf(buf){var d=buf.getChannelData(0),n=d.length,pk=0;for(var i=0;i<n;i++){var v=Math.abs(d[i]);if(v>pk)pk=v;}var th=Math.max(pk*0.04,0.002),s=0,e=n-1;while(s<n&&Math.abs(d[s])<th)s++;while(e>s&&Math.abs(d[e])<th)e--;
+  var sr=buf.sampleRate;s=Math.max(0,s-Math.round(0.02*sr));e=Math.min(n-1,e+Math.round(0.15*sr));if(e-s<0.05*sr){s=0;e=n-1;}var out=ac().createBuffer(buf.numberOfChannels,e-s+1,sr);for(var c=0;c<buf.numberOfChannels;c++)out.getChannelData(c).set(buf.getChannelData(c).subarray(s,e+1));return out;}
+function scLayerK(i){return "sc-layer-"+i+"-"+(activeId()||"guest");}
+function scKeepLayers(){SC.cache=null;var meta=SC.layers.map(function(l){return {name:l.name,vol:l.vol,at:l.at,pan:l.pan};});save(mk("sc","layers"),meta);
+  SC.layers.forEach(function(l,i){if(l.savedAs!==scLayerK(i)){l.savedAs=scLayerK(i);idbPut(scLayerK(i),new Blob([bufferToWav(l.buf)],{type:"audio/wav"})).catch(function(){});}});
+  for(var j=SC.layers.length;j<4;j++)idbDel(scLayerK(j)).catch(function(){});}
+function scLoadLayers(){var meta=load(mk("sc","layers"),[]);if(!meta.length)return Promise.resolve();
+  return Promise.all(meta.map(function(m,i){return idbGet(scLayerK(i)).then(function(b){return b?scDecode(b).then(function(buf){return Object.assign({},m,{buf:buf,uid:"L"+i+Date.now(),savedAs:scLayerK(i)});}):null;}).catch(function(){return null;});}))
+    .then(function(a){SC.layers=a.filter(Boolean);SC.cache=null;});}
 function scPeaks(W){var r=SC.raw,p=[];if(!r)return p;var d=r.getChannelData(0),step=Math.max(1,Math.floor(d.length/W));for(var x=0;x<W;x++){var m=0;for(var i=x*step;i<Math.min(d.length,(x+1)*step);i++){var v=Math.abs(d[i]);if(v>m)m=v;}p.push(m);}return p;}
 function scDraw(live){var cv=$("#scWave");if(!cv)return;var x=cv.getContext("2d"),W=cv.width,H=cv.height;x.clearRect(0,0,W,H);x.fillStyle="rgba(255,255,255,.04)";x.fillRect(0,0,W,H);
   var p=live||scPeaks(W),mx=0;p.forEach(function(v){if(v>mx)mx=v;});var sc2=mx>0?Math.min(1/mx,40):1;
@@ -9056,10 +9077,16 @@ function renderSoundCatcher(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidd
     view.innerHTML='<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">🎙 Sound Catcher</span></div><div class="panel">'+
       '<div class="intro">Catch any sound — rain, a door, two rocks, your voice. Trim it, shape it, and save it to your sound library for the Sampler and your songs. Get close to the sound; headphones help when you play it back.</div>'+
       '<canvas id="scWave" class="scWave" width="900" height="200"></canvas><div class="scInfo"><span id="scTime">'+(has?scLenTxt():"")+'</span><span id="scHint">'+(has?"Drag the gold handles to trim":"")+'</span></div>'+
-      '<div class="actions scMain"><button class="btn scRec" id="scRec">● Record</button><button class="btn ghost" id="scPlay"'+(has?'':' disabled')+'>▶ Play</button></div>'+
+      '<div class="actions scMain"><button class="btn scRec" id="scRec">● Record</button><button class="btn ghost" id="scPlay"'+(has?'':' disabled')+'>▶ Play</button><button class="btn ghost scLoop'+(SC.loop?' sel':'')+'" id="scLoop"'+(has?'':' disabled')+' aria-label="Loop">🔁</button></div>'+
       '<div id="scBody" data-nocz="1"'+(has?'':' hidden')+'>'+
       '<div class="rrow2" style="margin-top:6px"><span class="rlab">Trim</span><span class="rchips tight"><button class="rchip sm" id="scAuto">✂ Auto-trim</button><button class="rchip sm" id="scFull">Whole take</button><button class="rchip sm'+(SC.fx.rev?' sel':'')+'" id="scRev">⇄ Reverse</button></span></div>'+
       SC_FX.map(function(f){return '<div class="rrow" style="margin-top:6px"><span class="rlab">'+f[1]+'</span><input type="range" id="scF_'+f[0]+'" min="'+f[2]+'" max="'+f[3]+'" step="'+f[4]+'" value="'+SC.fx[f[0]]+'" style="flex:1"><span class="rbpm" id="scV_'+f[0]+'" style="min-width:92px;text-align:right">'+f[5](SC.fx[f[0]])+'</span></div>';}).join("")+
+      '<div class="scLay"><div class="label" style="margin-top:12px">Layers <small style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--muted)">— stack other sounds on top of this one</small></div>'+
+        SC.layers.map(function(l,i){return '<div class="scLRow"><div class="scLTop"><b>'+esc(l.name)+'</b><span>'+l.buf.duration.toFixed(1)+' s</span><button class="rchip sm" data-lx="'+i+'" aria-label="Remove layer">✕</button></div>'+
+          '<div class="rrow"><span class="rlab">Volume</span><input type="range" min="0" max="1.2" step="0.05" value="'+l.vol+'" data-lv="'+i+'" style="flex:1"><span class="rbpm" id="scLvV'+i+'" style="min-width:56px;text-align:right">'+Math.round(l.vol*100)+'%</span></div>'+
+          '<div class="rrow"><span class="rlab">Starts</span><input type="range" min="0" max="4" step="0.05" value="'+l.at+'" data-la="'+i+'" style="flex:1"><span class="rbpm" id="scLaV'+i+'" style="min-width:56px;text-align:right">+'+l.at.toFixed(2)+' s</span></div>'+
+          '<div class="rrow"><span class="rlab">Left · Right</span><input type="range" min="-1" max="1" step="0.1" value="'+l.pan+'" data-lp="'+i+'" style="flex:1"><span class="rbpm" id="scLpV'+i+'" style="min-width:56px;text-align:right">'+(l.pan===0?"center":l.pan<0?"L "+Math.round(-l.pan*100):"R "+Math.round(l.pan*100))+'</span></div></div>';}).join("")+
+        (SC.layers.length<4?'<div class="rchips tight" style="margin-top:6px"><button class="rchip" id="scLRec">● Catch a layer</button><button class="rchip" id="scLLib">＋ From your library</button></div>':'<div class="site-note">4 layers is the most.</div>')+'</div>'+
       '<div class="rrow2" style="margin-top:10px"><span class="rlab">Name</span><input id="scName" class="pin-input name" maxlength="28" placeholder="name your sound" value="'+esc(SC.name)+'" style="flex:1;margin:0;min-width:0"></div>'+
       '<div class="rrow2" style="margin-top:6px"><span class="rlab">Type</span><span class="rchips tight" id="scCats"></span></div>'+
       '<div class="actions" style="justify-content:center;margin-top:10px"><button class="btn" id="scSave">💾 Save to Library</button><button class="btn ghost" id="scDl">⬇ WAV file</button></div></div>'+
@@ -9075,7 +9102,14 @@ function renderSoundCatcher(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidd
     $("#scAuto").onclick=function(){scAutoTrim();scKeep();scDraw();$("#scTime").textContent=scLenTxt();};
     $("#scFull").onclick=function(){SC.a=0;SC.b=1;scKeep();scDraw();$("#scTime").textContent=scLenTxt();};
     $("#scRev").onclick=function(){SC.fx.rev=!SC.fx.rev;this.classList.toggle("sel",SC.fx.rev);scKeep();};
-    SC_FX.forEach(function(f){var el=$("#scF_"+f[0]);el.oninput=function(){SC.fx[f[0]]=+el.value;$("#scV_"+f[0]).textContent=f[5](SC.fx[f[0]]);$("#scTime").textContent=scLenTxt();};el.onchange=function(){scKeep();if(SC.play){scStopPlay();scPlay();}};});
+    $("#scLoop").onclick=function(){SC.loop=!SC.loop;this.classList.toggle("sel",SC.loop);if(SC.play)SC.play.loop=SC.loop;};
+    view.querySelectorAll("[data-lx]").forEach(function(b){b.onclick=function(){scStopPlay();SC.layers.splice(+b.dataset.lx,1);SC.layers.forEach(function(l){l.savedAs=null;});scKeepLayers();draw();};});
+    var lab=function(k,v){return k==="v"?Math.round(v*100)+"%":k==="a"?"+"+v.toFixed(2)+" s":(v===0?"center":v<0?"L "+Math.round(-v*100):"R "+Math.round(v*100));};
+    [["lv","vol","scLvV","v"],["la","at","scLaV","a"],["lp","pan","scLpV","p"]].forEach(function(q){view.querySelectorAll("[data-"+q[0]+"]").forEach(function(el){var i=+el.getAttribute("data-"+q[0]);
+      el.oninput=function(){SC.layers[i][q[1]]=+el.value;var t=$("#"+q[2]+i);if(t)t.textContent=lab(q[3],+el.value);SC.cache=null;};el.onchange=function(){scKeepLayers();if(SC.play){scStopPlay();scPlay();}};});});
+    var lr=$("#scLRec");if(lr)lr.onclick=function(){if(SC.mr)return;scStartRec(draw,true);};
+    var ll=$("#scLLib");if(ll)ll.onclick=function(){scStopPlay();sndOpenPicker(function(r){if(!r||!r.buf)return;SC.layers.push({name:(r.name||"Sound").slice(0,28),buf:r.buf,vol:0.8,at:0,pan:0,uid:"L"+Date.now()});scKeepLayers();draw();var f=$("#scFb");if(f)f.textContent="Layer added — press Play to hear them together.";});};
+    SC_FX.forEach(function(f){var el=$("#scF_"+f[0]);el.oninput=function(){SC.cache=null;SC.fx[f[0]]=+el.value;$("#scV_"+f[0]).textContent=f[5](SC.fx[f[0]]);$("#scTime").textContent=scLenTxt();};el.onchange=function(){scKeep();if(SC.play){scStopPlay();scPlay();}};});
     $("#scName").oninput=function(){SC.name=this.value;scKeep();};
     var cc=$("#scCats");SC_CATS.forEach(function(k){var b=document.createElement("button");b.className="rchip sm"+(SC.cat===k?" sel":"");b.textContent=k;b.onclick=function(){SC.cat=k;scKeep();cc.querySelectorAll("button").forEach(function(x){x.classList.toggle("sel",x===b);});};cc.appendChild(b);});
     $("#scSave").onclick=function(){var btn=this;if(SC.busy)return;SC.busy=true;btn.disabled=true;fb("Bouncing…");scRender().then(function(buf){var blob=new Blob([bufferToWav(buf)],{type:"audio/wav"}),nm=(SC.name||"").trim()||("Caught sound "+(sndList().length+1));
@@ -9089,31 +9123,35 @@ function renderSoundCatcher(){if(toneRAF)cancelAnimationFrame(toneRAF);home.hidd
     function move(e){if(!drag)return;var t=pos(e),gap=0.05/Math.max(0.05,SC.raw.duration);if(drag==="a")SC.a=Math.min(t,SC.b-gap);else SC.b=Math.max(t,SC.a+gap);scDraw();var tt=$("#scTime");if(tt)tt.textContent=scLenTxt();}
     cv.onpointermove=move;cv.onpointerup=cv.onpointercancel=function(){if(drag){drag=null;scKeep();}};}
   /* bring back the last take (kept until a new recording) */
-  if(!SC.raw){idbGet(scDraftK()).then(function(b){if(b&&!SC.raw&&!SC.mr)return scLoadBlob(b,false).then(function(){draw();});}).catch(function(){});}
+  if(!SC.raw){idbGet(scDraftK()).then(function(b){if(b&&!SC.raw&&!SC.mr)return scLoadBlob(b,false).then(scLoadLayers).then(function(){draw();});}).catch(function(){});}
   draw();}
 function scLoadBlob(blob,keep){return scDecode(blob).then(function(buf){SC.raw=buf;if(keep){SC.a=0;SC.b=1;scAutoTrim();return idbPut(scDraftK(),blob).catch(function(){});}});}
-function scStartRec(redraw){var btn=$("#scRec"),fbE=$("#scFb");scStopPlay();
+function scStartRec(redraw,asLayer){var btn=$(asLayer?"#scLRec":"#scRec"),fbE=$("#scFb");scStopPlay();
   voxMicThen(btn,fbE,function(){teardown=function(){scStopRec();scStopPlay();try{stopMic();}catch(e){}};var mt=["audio/webm;codecs=opus","audio/mp4","audio/webm"].find(function(t){try{return MediaRecorder.isTypeSupported(t);}catch(e){return false;}}),mr;
     try{mr=new MediaRecorder(micStream,Object.assign({audioBitsPerSecond:256000},mt?{mimeType:mt}:{}));}catch(e){try{mr=new MediaRecorder(micStream);}catch(e2){mr=null;}}
     if(!mr){if(fbE)fbE.textContent="Recording isn't supported on this browser.";if(btn){btn.disabled=false;btn.textContent="● Record";}return;}
     SC.mr=mr;SC.chunks=[];SC.t0=performance.now();var live=[],buf=new Float32Array(toneAnalyser.fftSize);
     mr.ondataavailable=function(e){if(e.data&&e.data.size)SC.chunks.push(e.data);};
     mr.onstop=function(){var chunks=SC.chunks,type=(mr.mimeType||mt||"audio/webm");SC.mr=null;cancelAnimationFrame(SC.raf);clearTimeout(SC.stopT);
+      setTimeout(function(){if(!SC.mr)try{stopMic();}catch(e){}},60);   /* mic off → iPhone plays back at full speaker volume */
+      if(asLayer&&chunks.length){scDecode(new Blob(chunks,{type:type})).then(function(buf){SC.layers.push({name:"Layer "+(SC.layers.length+1),buf:scTrimBuf(buf),vol:0.8,at:0,pan:0,uid:"L"+Date.now()});scKeepLayers();if(redraw)redraw();var f=$("#scFb");if(f)f.textContent="Layer caught — press Play to hear it with your sound.";}).catch(function(){if(redraw)redraw();});return;}
       if(!chunks.length){if(redraw)redraw();var f=$("#scFb");if(f)f.textContent="Nothing was recorded — try again.";return;}
       var blob=new Blob(chunks,{type:type});SC.fx={pitch:0,rev:false,tone:0,grit:0,echo:0,verb:0};SC.name="";
       scLoadBlob(blob,true).then(function(){scKeep();if(redraw)redraw();var f=$("#scFb");if(f)f.textContent="Caught "+SC.raw.duration.toFixed(1)+" s. Trimmed to the sound — play it, shape it, save it.";})
         .catch(function(){if(redraw)redraw();var f=$("#scFb");if(f)f.textContent="Couldn't read that recording — try again.";});};
     try{mr.start(250);}catch(e){SC.mr=null;return;}
-    if(btn){btn.disabled=false;btn.textContent="■ Stop";btn.classList.add("on");}var pb=$("#scPlay");if(pb)pb.disabled=true;
+    if(btn){btn.disabled=false;btn.textContent="■ Stop";btn.classList.add("on");if(asLayer)btn.onclick=scStopRec;}var pb=$("#scPlay");if(pb)pb.disabled=true;
     SC.stopT=setTimeout(scStopRec,60000);
     (function loop(){if(!SC.mr)return;toneAnalyser.getFloatTimeDomainData(buf);var m=0;for(var i=0;i<buf.length;i++){var v=Math.abs(buf[i]);if(v>m)m=v;}live.push(m);if(live.length>900)live.shift();scDraw(live);
       var t=$("#scTime"),h=$("#scHint"),el=(performance.now()-SC.t0)/1000;if(t)t.textContent="● "+el.toFixed(1)+" s";if(h)h.textContent=m>0.02?"Hearing it":"Listening… make the sound";SC.raf=requestAnimationFrame(loop);})();});}
 function scStopRec(){if(SC.mr){try{SC.mr.stop();}catch(e){SC.mr=null;}}}
-function scPlay(){var b=$("#scPlay");if(b){b.textContent="…";}scRender().then(function(buf){unlockAudio();var a=ac(),s=a.createBufferSource(),g=a.createGain();g.gain.value=1;s.buffer=buf;s.connect(g);g.connect(a.destination);s.onended=function(){if(SC.play===s){SC.play=null;var b2=$("#scPlay");if(b2)b2.textContent="▶ Play";}};s.start();SC.play=s;if(b)b.textContent="■ Stop";})
+function scPlay(){var b=$("#scPlay");if(b){b.textContent="…";}scRender().then(function(buf){unlockAudio();try{audioPlaybackCategory();}catch(e){}var a=ac(),s=a.createBufferSource(),g=a.createGain();g.gain.value=1;s.buffer=buf;s.loop=SC.loop;s.connect(g);g.connect(a.destination);
+    s.onended=function(){if(SC.play===s){SC.play=null;cancelAnimationFrame(SC.playRaf);scDraw();var b2=$("#scPlay");if(b2)b2.textContent="▶ Play";}};s.start();SC.play=s;SC.playT0=a.currentTime;SC.playDur=buf.duration;if(b)b.textContent="■ Stop";
+    (function head(){if(SC.play!==s)return;var cv=$("#scWave");if(cv){scDraw();var x=cv.getContext("2d"),f=((a.currentTime-SC.playT0)%SC.playDur)/SC.playDur,px=Math.round((SC.a+(SC.b-SC.a)*Math.min(1,f))*cv.width);x.fillStyle="#fff";x.fillRect(px-1,0,3,cv.height);}SC.playRaf=requestAnimationFrame(head);})();})
   .catch(function(){if(b)b.textContent="▶ Play";});}
-function scStopPlay(){if(SC.play){try{SC.play.stop();}catch(e){}SC.play=null;}var b=$("#scPlay");if(b&&!SC.mr)b.textContent="▶ Play";}
+function scStopPlay(){cancelAnimationFrame(SC.playRaf);if(SC.play){try{SC.play.stop();}catch(e){}SC.play=null;try{scDraw();}catch(e){}}var b=$("#scPlay");if(b&&!SC.mr)b.textContent="▶ Play";}
 document.addEventListener("visibilitychange",function(){if(document.hidden&&SC.mr)scStopRec();});
-(function(){try{var st=document.createElement("style");st.textContent=".scWave{width:100%;height:150px;border-radius:12px;display:block;touch-action:none;cursor:ew-resize;margin-top:8px}.scInfo{display:flex;justify-content:space-between;font:700 .8rem system-ui;color:var(--muted);margin:4px 2px 0}.scMain .btn{flex:1;min-height:56px;font-size:1.05rem}.scRec.on{background:#e2554f;color:#fff}";document.head.appendChild(st);}catch(e){}})();
+(function(){try{var st=document.createElement("style");st.textContent=".scWave{width:100%;height:150px;border-radius:12px;display:block;touch-action:none;cursor:ew-resize;margin-top:8px}.scInfo{display:flex;justify-content:space-between;font:700 .8rem system-ui;color:var(--muted);margin:4px 2px 0}.scMain .btn{flex:1;min-height:56px;font-size:1.05rem}.scRec.on,#scLRec.on{background:#e2554f;color:#fff}.scMain .scLoop{flex:0 0 64px}.scLoop.sel{background:rgba(52,224,198,.25);border-color:#34e0c6}.scLRow{background:rgba(255,255,255,.04);border-radius:12px;padding:8px 10px;margin-top:8px}.scLTop{display:flex;align-items:center;gap:8px;margin-bottom:2px}.scLTop b{flex:1;font-size:.95rem}.scLTop span{font:700 .78rem system-ui;color:var(--muted)}";document.head.appendChild(st);}catch(e){}})();
 const MAKE_CARDS=[
  {ic:"🎙️",title:"Sing a Song",blurb:"Sing or hum your own tune — it maps the notes and rhythm onto a staff. Fix them, then save it as a section or a whole song.",go:()=>renderCompose()},
  {ic:"⭐",title:"My Songs",blurb:"Your saved melodies and imported songs — sing them back, or import a MIDI.",go:()=>renderMySongs()},
