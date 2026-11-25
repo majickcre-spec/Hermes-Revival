@@ -1455,6 +1455,40 @@ export async function run() {
     assert(!errs.length, errs.join(" | ")); await ctx.close();
   });
 
+  await S.test("REAL TAPS: Majick Sleep — replaces Majick Journey I & II (Trav/Star only), loads all 8 sounds in E (tones locked to E3), the melody floats (plays, rests, plays again), drum and melody fall away in deep sleep, and the end fades slowly", async () => {
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
+    await pg.addInitScript(() => { if (!sessionStorage.getItem("s")) { sessionStorage.setItem("s", "1"); localStorage.setItem("majick-profiles", JSON.stringify([{ id: "t1", name: "Trav", mode: "adult" }, { id: "g1", name: "Gina", mode: "adult" }])); } });
+    const openJ = async (who) => { await pg.goto(url + "/app.html"); await pg.waitForTimeout(800); await pg.locator("#profiles").getByText(who, { exact: true }).first().click(); await pg.waitForTimeout(500);
+      await pg.locator("#home button").filter({ hasText: /^Meditation$/ }).first().click(); await pg.waitForTimeout(600);
+      await pg.locator("#home").getByText("Brainwave binaural beats", { exact: false }).first().click(); await pg.waitForTimeout(1000);
+      await pg.locator("#view").getByText("Brainwave Journey", { exact: false }).filter({ visible: true }).first().click(); await pg.waitForTimeout(1200); };
+    await openJ("Gina"); assert(!(await pg.locator("#jTypes").innerText()).match(/Majick/), "another player sees the Majick journeys");
+    await openJ("Trav"); const names = await pg.locator("#jTypes").innerText();
+    assert(/Majick Sleep/.test(names) && !/Majick Journey/.test(names), "journey list: " + names.replace(/\s+/g, " ").slice(0, 300));
+    await pg.locator("#jTypes button").filter({ hasText: /Majick Sleep/ }).first().click(); await pg.waitForTimeout(400);
+    await pg.screenshot({ path: "/tmp/aud/sleep-pick.png" });
+    await pg.locator("#jPlay").click(); for (let k = 0; k < 30 && (await pg.evaluate(() => Object.values(MED.sampSt || {}).filter((v) => v === "on").length)) < 8; k++) await pg.waitForTimeout(300);
+    const st = await pg.evaluate(() => ({ st: MED.sampSt, car: MED.jSess && MED.jSess.carrier }));
+    assert(Object.keys(st.st).length === 8 && Object.values(st.st).every((v) => v === "on"), "not every sound loaded: " + JSON.stringify(st.st));
+    assert(Math.abs(st.car - 164.81) < 0.01, "tones not locked to E: " + st.car);
+    assert(await pg.evaluate(() => MED.sampL.lead.fl && MED.sampL.lead.fl.plays === 0), "melody started straight away instead of floating in later");
+    /* bring the melody's next entry forward: it plays, then rests at least its length + 40 s before the next */
+    await pg.evaluate(() => { MED.sampL.lead.fl.next = ac().currentTime + 1; }); await pg.waitForTimeout(2600);
+    const f1 = await pg.evaluate(() => ({ p: MED.sampL.lead.fl.plays, gap: MED.sampL.lead.fl.next - ac().currentTime }));
+    assert(f1.p === 1 && f1.gap > 110, "melody didn't play then rest: " + JSON.stringify(f1));
+    await pg.screenshot({ path: "/tmp/aud/sleep-play.png" });
+    /* deep sleep: drum and melody gone, fire and pad still there */
+    await pg.evaluate(() => window.__jSkip(25 * 60)); await pg.waitForTimeout(16000);
+    const deep = await pg.evaluate(() => { const v = (k) => MED.sampL[k].g.gain.value / MED.sampL[k].base; return { perc: v("perc"), lead: v("lead"), fire: v("fire"), pad: v("pad") }; });
+    assert(deep.perc < 0.05 && deep.lead < 0.05 && deep.fire > 0.3 && deep.pad > 0.5, "deep sleep mix wrong: " + JSON.stringify(deep));
+    /* the end: a slow fade, no sudden stop */
+    await pg.evaluate(() => window.__jSkip(5 * 60 + 5)); await pg.waitForTimeout(1500); const g0 = await pg.evaluate(() => MED.master ? MED.master.gain.value : -1);
+    await pg.waitForTimeout(3000); const g1 = await pg.evaluate(() => MED.master ? MED.master.gain.value : -1);
+    assert(g1 > 0 && g1 > g0 * 0.7, "the end cut off instead of fading slowly: " + g0 + " → " + g1);
+    assert(/Sleep well/.test(await pg.locator("#view").innerText()), "no sleep ending message");
+    assert(!errs.length, errs.join(" | ")); await ctx.close();
+  });
+
   await S.test("Usage counts are anonymous: a stranger's device sends a random device number, minutes and screen names — never a player or account name; Travis's devices send nothing; only the travis account opens 📊 Usage (both orientations)", async () => {
     USAGE_LOG.length = 0;
     const flush = (pg) => pg.evaluate(() => { Object.defineProperty(document, "hidden", { configurable: true, get: () => true }); document.dispatchEvent(new Event("visibilitychange")); Object.defineProperty(document, "hidden", { configurable: true, get: () => false }); });
