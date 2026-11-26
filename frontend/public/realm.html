@@ -506,11 +506,11 @@ function hrIn(bpm,rr){if(!bpm)return;HR.bpm=bpm;const t=(performance.now()-S.t0)
  if(!HR.on){HR.on=true;HR.next=t+.2;S.breath=11;$("hrChip").hidden=false;$("hrBtn").textContent="Disconnect";hrNote("Connected — breathe with the walls");}}
 async function hrConnect(){if(HR.on||HR.sim){hrOff();return;}
  if(!navigator.bluetooth){hrNote(/iPhone|iPad|iPod/.test(navigator.userAgent)?"iPhone only allows Bluetooth in the Bluefy app — open this page there":"This browser can't reach Bluetooth here — try Chrome on a computer or Android");return;}
- try{hrNote("Pick your heart sensor…");const dev=await navigator.bluetooth.requestDevice({filters:[{services:["heart_rate"]}],optionalServices:["heart_rate"]});
+ try{hrNote("Pick your heart sensor…");const dev=await navigator.bluetooth.requestDevice({filters:[{services:["heart_rate"]}].concat("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".split("").map(c=>({namePrefix:c}))),optionalServices:["heart_rate","battery_service","device_information"]});
   const srv=await dev.gatt.connect(),svc=await srv.getPrimaryService("heart_rate"),ch=await svc.getCharacteristic("heart_rate_measurement");
   ch.addEventListener("characteristicvaluechanged",e=>hrData(e.target.value));await ch.startNotifications();HR.dev=dev;hrNote("Waiting for your heartbeat…");
   dev.addEventListener("gattserverdisconnected",()=>{if(HR.on){hrOff();hrNote("Sensor dropped — the room keeps going. Tap Connect to try again");}});}
- catch(e){hrNote(/cancel/i.test(e.message||"")?"No sensor picked":"Couldn't connect — is the sensor on and close by?");}}
+ catch(e){hrNote(/cancel/i.test(e.message||"")?"No sensor picked":/heart_rate|service|not found/i.test(e.message||"")?"That device doesn't share heart data here — close other heart apps (HeartMath, Elite HRV) and try again":"Couldn't connect — is the sensor on, clipped on and close by?");}}
 function hrOff(){HR.on=false;if(HR.sim){clearInterval(HR.sim);HR.sim=null;}try{HR.dev&&HR.dev.gatt.disconnect();}catch(e){}$("hrChip").hidden=true;$("hrBtn").textContent="Connect";hrNote("Connect a Bluetooth heart sensor");HR.coh=0;}
 $("hrBtn").onclick=hrConnect;
 /* how much your heart rate rises and falls with the breath (0..1) */
