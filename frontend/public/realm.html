@@ -223,6 +223,8 @@ vec3 mroom(vec3 d,vec3 ph,float px){float den=1.+d.z;if(den<.03)return pal(.1,ph
  float lw=length(w);w=rm(.9*sin(T*.05)*exp(-lw*1.6))*w;
  if(KF>0.){float sw=T*.09,a=atan(w.y,w.x)-sw,s=6.2831/KN;float af=abs(mod(a+s*.5,s)-s*.5)+sw;w=mix(w,length(w)*vec2(cos(af),sin(af)),KF);}
  if(IO>0.){float rr=max(dot(w,w),1e-4),inv=.05/rr;w=mix(w,w*inv,IO);js*=mix(1.,inv,IO);}
+ /* the tentacles spin: each scale turns at its own speed, the twist winds tighter and unwinds */
+ {float lr=log(length(w)+1e-6);w=rm(T*.16-lr*(.35+.25*sin(T*.06))+lr*lr*.015*sin(T*.04))*w;}
  if(MT>1.5)return juliaS(w*1.4,1.4*px*js/den,ph);
  float sc=6.*exp(-DZ);return deepM(w*sc,sc*px*js/den,ph);}
 vec3 DV=vec3(0.,0.,1.);
