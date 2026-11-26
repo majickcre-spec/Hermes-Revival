@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>MMU Realm</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,7 +18,7 @@
 *{box-sizing:border-box;min-width:0}
 html,body{margin:0;height:100%;background:#000;color:#fff;font:15px/1.45 Inter,system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:none}
 #gl{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:grab}
-.top{position:fixed;top:12px;left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;z-index:5;pointer-events:none}
+.top{position:fixed;top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));display:flex;align-items:center;justify-content:space-between;gap:8px;z-index:5;pointer-events:none}
 .pill{pointer-events:auto;min-height:44px;display:flex;align-items:center;gap:6px;padding:0 14px;border-radius:22px;background:rgba(6,4,16,.5);border:1px solid rgba(255,255,255,.22);color:#fff;font:600 14px Inter,system-ui;cursor:pointer;backdrop-filter:blur(6px)}
 .top .place{flex:1;min-width:0;}.place{text-align:center;line-height:1.2;font:700 14px Cinzel,serif;letter-spacing:.18em;text-shadow:0 0 14px currentColor,0 1px 6px #000}
 .lab{position:fixed;left:0;top:0;z-index:3;pointer-events:none;text-align:center;font:700 15px Inter,system-ui;padding:4px 12px;border-radius:14px;background:rgba(4,2,12,.55);border:1px solid currentColor;letter-spacing:.04em;text-shadow:0 0 10px #000,0 1px 4px #000;white-space:nowrap;transition:opacity .3s}
@@ -28,7 +29,7 @@ html,body{margin:0;height:100%;background:#000;color:#fff;font:15px/1.45 Inter,s
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
 .bubble{background:rgba(8,4,22,.72);border:1px solid var(--glow);border-radius:16px 16px 16px 4px;padding:10px 13px;font-size:14px;max-width:300px;backdrop-filter:blur(6px)}
 .bubble b{display:block;font:700 12px Cinzel,serif;letter-spacing:.08em;color:var(--glow)}
-.bar{position:fixed;left:12px;right:12px;bottom:22px;display:flex;justify-content:space-between;gap:10px;z-index:6}
+.bar{position:fixed;left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:max(22px,env(safe-area-inset-bottom));display:flex;justify-content:space-between;gap:10px;z-index:6}
 .btn{min-height:52px;padding:0 16px;border-radius:26px;border:1px solid rgba(255,255,255,.45);background:rgba(10,6,24,.45);color:#fff;font:700 15px Inter,system-ui;letter-spacing:.03em;cursor:pointer;backdrop-filter:blur(6px)}
 .btn.glow{background:linear-gradient(120deg,rgba(255,120,200,.45),rgba(110,90,255,.45));box-shadow:0 0 22px rgba(255,120,220,.4)}
 .btn:focus-visible,.pill:focus-visible{outline:3px solid #fff;outline-offset:3px}
@@ -36,6 +37,9 @@ html,body{margin:0;height:100%;background:#000;color:#fff;font:15px/1.45 Inter,s
 .nogl{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:30px;text-align:center;z-index:9;background:#05030c}
 .hide{display:none!important}
 .top,.bar,.ses{transition:opacity 1.2s}.immerse .top,.immerse .bar,.immerse .ses{opacity:0;pointer-events:none}.journey .host{display:none!important}
+.watch .top,.watch .bar,.watch .hint,.watch .host,.watch #labs,.watch .ses,.watch .chip,.watch .sheet{display:none!important}
+.wx{position:fixed;top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));z-index:9;width:48px;height:48px;border-radius:24px;border:1px solid rgba(255,255,255,.4);background:rgba(6,4,16,.55);color:#fff;font:700 18px Inter,system-ui;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .4s;backdrop-filter:blur(6px)}
+.watch .wx.on{opacity:1;pointer-events:auto}
 .sheet{position:fixed;left:8px;right:8px;bottom:8px;z-index:9;background:rgba(10,6,24,.92);border:1px solid rgba(255,255,255,.22);border-radius:20px;padding:12px 14px 14px;backdrop-filter:blur(10px);max-height:80vh;overflow:auto}
 .sheet[hidden],.ses[hidden],.chip[hidden]{display:none}
 .shh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font:700 15px Cinzel,serif;letter-spacing:.08em}
@@ -63,9 +67,11 @@ html,body{margin:0;height:100%;background:#000;color:#fff;font:15px/1.45 Inter,s
  <div class="shh"><b>Sessions &amp; tricks</b><button class="pill" id="shX" type="button">Done</button></div>
  <div class="srow"><div><b>🫁 Breath pace</b><small>The walls and the sound breathe at this pace</small></div><button class="pill" id="speed" type="button">5.5 a minute</button></div>
  <div class="srow"><div><b>🌻 Golden Ratio session</b><small>Tones step down by the golden ratio, breathe in 1 : out 1.6 · headphones</small></div><div class="seg"><button class="pill" data-gl="5" type="button">5 min</button><button class="pill" data-gl="10" type="button">10</button><button class="pill" data-gl="20" type="button">20</button></div></div>
+ <div class="srow"><div><b>📺 Watch mode</b><small>Hides every button, sharper picture — for AirPlay or just watching</small></div><button class="pill" id="watchBtn" type="button">Start</button></div>
  <div class="srow"><div><b>🌀 Living rooms</b><small>Rooms swell, flip over and turn inside out</small></div><button class="pill" id="livBtn" type="button" aria-pressed="true">On</button></div>
  <div class="srow"><div><b>🫀 Heart sync</b><small id="hrNote">Connect a Bluetooth heart sensor</small></div><button class="pill" id="hrBtn" type="button">Connect</button></div>
 </div>
+<button class="wx" id="wx" type="button" aria-label="Leave watch mode">✕</button>
 <div class="hint" id="hint">Drag to look around · pinch to zoom · tap a glowing window<br>Tap 🔇 for sound — headphones bring out the deep tones</div>
 <div class="host" id="host" style="--glow:#ffd89a">
   <svg id="hostSvg" width="66" height="100" viewBox="0 0 74 110" role="img" aria-label="Host"></svg>
@@ -322,7 +328,7 @@ function setRoom(i){try{if(!G.mom)S.free=false;}catch(e){S.free=false;}S.room=i;
   $("place").innerHTML=R.n.toUpperCase()+(i<0?'':'<small style="display:block;font:600 10px Inter;letter-spacing:.2em;opacity:.8">'+(R.tag||(R.mt?"ENDLESS DIVE":SHN[R.sh].toUpperCase()))+"</small>");S.fn=new Float32Array(60);(SHAPES[R.sh]||[]).forEach((v,j)=>S.fn.set(nz(v),j*3));S.nf=(SHAPES[R.sh]||[]).length;$("place").style.color=R.c;$("backT").textContent=i<0?"Home":"Sphere";
   clearTimeout(S.ht);S.ht=setTimeout(()=>{if(!S.fly)$("host").style.opacity=0;},8000);if(i>=0)$("hint").style.opacity=0;$("hName").textContent=R.h+" · HOST";$("hSay").textContent=R.say;$("hostSvg").innerHTML=i<0?LUMEN:GEM(R.c);$("host").style.setProperty("--glow",R.c);}
 setRoom(-1);
-let QS=1;function size(){const s=Math.min(2,devicePixelRatio||1)*0.62*QS;cv.width=Math.round(innerWidth*s);cv.height=Math.round(innerHeight*s);}size();addEventListener("resize",size);
+let QS=1;function size(){const s=Math.min(2,devicePixelRatio||1)*(document.body.classList.contains("watch")?0.82:0.62)*QS;cv.width=Math.round(innerWidth*s);cv.height=Math.round(innerHeight*s);}size();addEventListener("resize",size);
 /* look around: drag; a gentle drift when idle */
 const PTS=new Map();let pinch=null;const pd2=()=>{const v=[...PTS.values()];return Math.hypot(v[0].x-v[1].x,v[0].y-v[1].y);};
 cv.addEventListener("pointerdown",e=>{PTS.set(e.pointerId,{x:e.clientX,y:e.clientY});if(PTS.size===2){pinch={d:pd2(),f:S.foTo,z:S.dzTo};drag=null;}},true);
@@ -338,7 +344,7 @@ cv.addEventListener("pointermove",e=>{if(!drag||S.fly||pinch)return;const k=2.6/
   const ny=drag.yaw-dx*k,np=S.cur===MILKY?drag.pit-dy*k:Math.max(-1.3,Math.min(1.3,drag.pit-dy*k));if(S.cur===MILKY)S.free=true;S.vy=(ny-S.yaw)*0.5;S.vp=(np-S.pit)*0.5;S.yaw=ny;S.pit=np;});
 cv.addEventListener("pointerup",e=>{if(!drag)return;cv.style.cursor="grab";if(drag.moved<8&&!S.fly)tap(e.clientX,e.clientY);drag=null;});
 function proj(w){const W=innerWidth,H=innerHeight,m=Math.min(W,H);let l=rx(ry(w,-S.yaw),-S.pit);if(l[2]<=0.05)return null;const f=S.fo+S.z*9;return [W/2+l[0]/l[2]*f*m,H/2-l[1]/l[2]*f*m,l[2]];}
-function tap(x,y){if(S.dz>.5||G.on||livBusy())return;let best=-1,bd=1e9;S.dirs.forEach((w,i)=>{const p=proj(w);if(!p)return;const d=Math.hypot(p[0]-x,p[1]-y);if(d<bd){bd=d;best=i;}});
+function tap(x,y){if(document.body.classList.contains("watch")){wxShow();return;}if(S.dz>.5||G.on||livBusy())return;let best=-1,bd=1e9;S.dirs.forEach((w,i)=>{const p=proj(w);if(!p)return;const d=Math.hypot(p[0]-x,p[1]-y);if(d<bd){bd=d;best=i;}});
   const lim=Math.min(innerWidth,innerHeight)*0.2;if(best<0||bd>lim)return;
   if(S.room<0)flyTo(best);else if(S.cur.dives){const dv=S.cur.dives[best];$("fade").style.background="#000";$("fade").style.opacity=.85;setTimeout(()=>{S.mt=dv[0];S.mc=[dv[1],dv[2]];S.yaw=0;S.pit=0;S.vy=S.vp=0;S.maxd=dv[3];S.dz=S.dzTo=0;S.dive=false;if(dv[0]===1)refOrbit(dv[1],dv[2]);zl();$("hSay").textContent=S.cur.st[best]+" — pinch or tap Zoom to dive.";$("host").style.opacity=1;clearTimeout(S.ht);S.ht=setTimeout(()=>{$("host").style.opacity=0;},6000);$("fade").style.opacity=0;setTimeout(()=>{$("fade").style.background="#fff";},500);},450);}
   else{$("hSay").textContent=S.cur.st[best]+(S.cur.tapSay||" — in the full build this light opens that lesson right here.");}}
@@ -350,6 +356,11 @@ const PACES=[[11,"5.5 a minute"],[8,"7.5 a minute"],[16,"3.75 a minute"]];let pi
 const LIV={on:true};
 $("livBtn").onclick=()=>{LIV.on=!LIV.on;$("livBtn").textContent=LIV.on?"On":"Off";$("livBtn").setAttribute("aria-pressed",LIV.on);try{localStorage.setItem("realm-liv",LIV.on?"1":"0");}catch(e){}};
 try{if(localStorage.getItem("realm-liv")==="0"){LIV.on=false;$("livBtn").textContent="Off";}}catch(e){}
+/* watch mode: nothing on screen but the realm; a tap shows ✕ for a few seconds */
+let wxT=null;function wxShow(){const b=$("wx");b.classList.add("on");clearTimeout(wxT);wxT=setTimeout(()=>b.classList.remove("on"),5000);}
+function watch(on){document.body.classList.toggle("watch",on);$("sheet").hidden=true;size();if(on){wxShow();}else $("wx").classList.remove("on");}
+$("watchBtn").onclick=()=>watch(true);$("wx").onclick=()=>watch(false);
+addEventListener("keydown",e=>{if(e.key==="Escape"&&document.body.classList.contains("watch"))watch(false);});
 $("trk").onclick=()=>{$("sheet").hidden=!$("sheet").hidden;};$("shX").onclick=()=>{$("sheet").hidden=true;};
 let fq={n:0,t:performance.now()};function frame(){requestAnimationFrame(frame);const t=(performance.now()-S.t0)/1000;
   if(++fq.n===45){const ms=(performance.now()-fq.t)/45;if(ms>30&&QS>(S.mt?.45:.75)){QS*=.85;size();}else if(ms<14&&QS<1&&!(S.mt&&(S.dive||Math.abs(S.dzTo-S.dz)>.02))){QS=Math.min(1,QS*1.1);size();}fq={n:0,t:performance.now()};}
