@@ -238,21 +238,34 @@ vec3 h33(vec3 p){p=fract(p*vec3(.1031,.1030,.0973));p+=dot(p,p.yxz+33.33);return
 /* stars in real 3D around you: as you travel, near ones sweep past, far ones drift */
 vec3 stars3D(vec3 ro,vec3 rd,float px,float tmaxS){vec3 col=vec3(0.);float cs=1.3;vec3 cp=floor(ro/cs),sg=sign(rd)+step(0.,-abs(rd));vec3 ri=sg/max(abs(rd),vec3(1e-4));
  vec3 tM=((cp+max(sg,0.))*cs-ro)*ri,tD=abs(cs*ri);
- for(int i=0;i<16;i++){vec3 h=h33(cp+71.);if(h.x>.55){vec3 sp=(cp+.15+.7*h)*cs,oc=sp-ro;float tc=dot(oc,rd);
-   if(tc>.05&&tc<tmaxS){float ang=length(oc-rd*tc)/tc,sz=max(.02/tc,px*.9);float b=smoothstep(sz+px,sz*.2,ang)*min(1.,2.5/(tc*tc+.4));
+ for(int i=0;i<22;i++){vec3 h=h33(cp+71.);if(h.x>.52){vec3 sp=(cp+.15+.7*h)*cs,oc=sp-ro;float tc=dot(oc,rd);
+   if(tc>.05&&tc<tmaxS){float ang=length(oc-rd*tc)/tc,sz=max(.02/tc,px*.9);float b=smoothstep(sz+px,sz*.2,ang)*min(1.4,4./(tc*tc+.4));
     col+=mix(vec3(.7,.82,1.),vec3(1.,.8,.55),h.z)*b*(1.6+.6*sin(T*(2.+3.*h.y)+h.z*30.));}}
   if(tM.x<tM.y&&tM.x<tM.z){cp.x+=sg.x;tM.x+=tD.x;}else if(tM.y<tM.z){cp.y+=sg.y;tM.y+=tD.y;}else{cp.z+=sg.z;tM.z+=tD.z;}}
  return col;}
 float sph(vec3 ro,vec3 rd,vec3 c,float r){vec3 oc=ro-c;float b=dot(oc,rd),q=dot(oc,oc)-r*r,h=b*b-q;if(h<0.)return -1.;float t=-b-sqrt(h);return t>0.?t:-1.;}
 vec3 PL(int i){float fi=float(i),R=3.+fi*2.3,a=T*(.05/(1.+fi))+fi*2.1;return vec3(R*sin(a),.25*sin(a*2.+fi),R*cos(a));}
+/* thousands of stars across the whole sky, three layers, crisp points with a slow twinkle */
+vec3 skyStars(vec3 d,float px){vec3 col=vec3(0.);
+ for(int k=0;k<3;k++){float fk=float(k),sc=55.+fk*85.;vec3 p=d*sc,id=floor(p);vec3 h=h33(id+fk*17.3);
+  if(h.x>.8+fk*.055){vec3 sp=normalize((id+.5+(h-.5)*.6)/sc);float ang=acos(clamp(dot(sp,d),-1.,1.));float sz=max(px*.9,(.0026-fk*.0007)*(.4+h.y*h.y*1.6));
+   float tw=.7+.3*sin(T*(.6+h.y*1.5)+h.z*40.);col+=mix(vec3(.72,.82,1.),vec3(1.,.86,.62),h.z)*smoothstep(sz+px,sz*.25,ang)*(1.8-fk*.45)*(.5+h.y)*tw;}}
+ return col;}
+/* a great spiral galaxy in the sky, seen at an angle, turning slowly, full of its own stars */
+vec3 spiralGal(vec3 d,float px){vec3 g0=normalize(vec3(-.55,.42,.72));vec3 ux=normalize(cross(vec3(0.,1.,0.),g0)),uy=cross(g0,ux);float cz=dot(d,g0);if(cz<.25)return vec3(0.);
+ vec2 p=vec2(dot(d,ux),dot(d,uy))/cz;p=rm(.55)*p;p.y/=.68;p/=.6;float r=length(p);if(r>3.5)return vec3(0.);
+ float a=atan(p.y,p.x)-T*.012,sw=a-log(r+.002)*2.3;float arms=pow(.5+.5*cos(2.*sw),4.);
+ float cl=smoothstep(.56,.82,fbm(vec3(p*6.,2.)))*arms,dust=smoothstep(.48,.72,fbm(vec3(p*4.5+3.,1.)))*pow(.5+.5*cos(2.*sw+1.1),2.);
+ vec3 col=(vec3(.5,.66,1.)*arms*1.1+vec3(1.,.45,.72)*cl*1.1)*exp(-r*1.1)*(1.-.85*dust)*1.3+vec3(1.,.86,.62)*exp(-r*r*10.)*2.2+vec3(1.,.8,.55)*exp(-r*2.6)*.5;
+ float pxp=px/cz/.62*2.5;vec2 q=p*90.;vec2 id=floor(q);float hs=h31(vec3(id,5.3));float dens=arms*exp(-r*.9)+exp(-r*r*6.);
+ if(hs>1.-.12*dens){vec2 o=vec2(h31(vec3(id,1.1)),h31(vec3(id,2.2)))-.5;float dd=length(fract(q)-.5-o*.5)/90.;col+=vec3(.9,.92,1.)*smoothstep(max(pxp,.0025),0.,dd)*1.2;}
+ return col*smoothstep(3.5,2.2,r);}
 vec3 galaxy(vec3 d,float px){vec3 g=rx(ry(d,.7),.45);float lat=g.y,band=exp(-lat*lat/.035);
  float n=fbm(g*2.6+vec3(0.,0.,T*.003)),dust=smoothstep(.5,.78,fbm(g*5.5+7.3));
  vec3 col=mix(vec3(.18,.28,.85),vec3(.95,.5,.8),n)*band*(.35+.9*n)*(1.-.8*dust*band);
  col+=vec3(1.,.82,.55)*exp(-lat*lat/.005)*.4*(1.-dust);
  {
-  vec2 wW=d.xy/max(1.+d.z,.04);vec2 wg=rm(T*.01)*wW/(.08+GZ*.55);float r2=length(wg);if(r2<3.){float a=atan(wg.y,wg.x);
-   float arm=pow(.5+.5*cos(2.*(a-log(max(r2,.02))*2.3)),3.);float hii=smoothstep(.62,.8,fbm(vec3(wg*4.,1.7)));
-   col+=(vec3(.55,.7,1.)*arm*(.55+.6*fbm(vec3(wg*3.,0.)))+vec3(1.,.45,.7)*hii*arm)*exp(-r2*1.15)*.9+vec3(1.,.85,.6)*exp(-r2*r2*18.)*.5;}}
+  col+=skyStars(d,px)+spiralGal(d,px);}
  /* the sun, planets and near stars in real space around you */
  vec3 ro=CP;float ts=sph(ro,d,vec3(0.),1.),tp=1e9;int pi=-1;
  for(int i=0;i<3;i++){float r=.22+float(i)*.16;float t=sph(ro,d,PL(i),r);if(t>0.&&t<tp){tp=t;pi=i;}}
@@ -278,7 +291,7 @@ vec2 qmap(vec3 d,out float aS,out vec3 ex){
  aS=.22*t*t;ex=vec3((b1-b2)*t,t,fi);return vec2(dot(p,u),dot(p,v))*.22+fi*.173;}
 vec3 room(vec3 d,vec3 ph,float px){vec3 gb=vec3(0.);if(MT>2.5)gb=galaxy(d,px)*.95;else if(MT>.5)return mroom(d,ph,px);
  float aS,aS2;vec3 ex,ex2;vec2 q0=qmap(d,aS,ex);vec2 qa=qmap(AD,aS2,ex2);vec2 lq=q0-qa;if(NF<.5)lq.x-=floor(lq.x+.5);
- vec3 col=geo2(lq,qa,LZ,aS,ph,px)*(MT>2.5?.8*(1.-.95*smoothstep(asin(min(1.,1./max(length(CP),1.01)))*3.2,asin(min(1.,1./max(length(CP),1.01)))*1.05,acos(clamp(dot(d,normalize(-CP)),-1.,1.)))):1.);if(NF<.5)return col+gb;
+ vec3 col=geo2(lq,qa,LZ,aS,ph,px)*(MT>2.5?.45*(1.-.95*smoothstep(asin(min(1.,1./max(length(CP),1.01)))*3.2,asin(min(1.,1./max(length(CP),1.01)))*1.05,acos(clamp(dot(d,normalize(-CP)),-1.,1.)))):1.);if(NF<.5)return col+gb;
  float e=ex.x,t=ex.y,fi=ex.z,fe=1.-smoothstep(.2,1.2,LZ);
  if(CRY>0.){vec3 sp=.5+.5*cos(6.2831*(fract(fi*.137+T*.02+dot(q0,vec2(.6,.35)))+vec3(0.,.33,.67)));float sw=exp(-pow(fract(q0.x*.25+q0.y*.15-T*.06)-.5,2.)*90.);
   col=mix(col,col*.6+sp*sp*.55,CRY*.7)+vec3(1.)*sw*.35*CRY;float l1=smoothstep(px*3.*t,0.,abs(e*.7-.006*t)),l2=smoothstep(px*3.*t,0.,abs(e*.7-.012*t)),l3=smoothstep(px*3.*t,0.,abs(e*.7-.018*t));col+=vec3(l1,l2,l3)*CRY*fe*.9;}
