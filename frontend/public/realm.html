@@ -49,6 +49,19 @@ html,body{margin:0;height:100%;background:#000;color:#fff;font:15px/1.45 Inter,s
 .ses small{display:block;opacity:.85;font-size:12.5px;letter-spacing:.06em}
 .chip{position:fixed;right:12px;top:64px;z-index:5;padding:6px 12px;border-radius:14px;background:rgba(6,4,16,.55);border:1px solid rgba(255,140,160,.45);font:600 13px Inter,system-ui}
 .ses:not([hidden])~.chip{top:120px}
+.chip{cursor:pointer;color:#fff}
+.hrv{position:fixed;left:max(12px,env(safe-area-inset-left));bottom:96px;width:min(360px,calc(100% - 24px));z-index:7;background:rgba(6,4,16,.82);border:1px solid rgba(255,140,160,.45);border-radius:18px;padding:10px 12px;backdrop-filter:blur(8px);font-size:13px}
+.hrv[hidden]{display:none}
+.hrvh{display:flex;justify-content:space-between;align-items:center;gap:8px}.hrvh .pill{min-height:36px;width:36px;padding:0;justify-content:center}
+#hrDot{display:inline-block;width:10px;height:10px;border-radius:5px;background:#f3c14a;margin-right:6px;vertical-align:middle}
+.hrvb{display:flex;align-items:center;gap:12px;margin:6px 0}
+.big{display:flex;align-items:baseline;gap:6px}.big b{font:700 40px Inter,system-ui;line-height:1}.big small{opacity:.75}
+#hrHeart{font-size:26px;color:#ff6b8a;display:inline-block;transition:transform .12s}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;flex:1}.grid small{display:block;opacity:.7;font-size:11.5px}.grid b{font:700 16px Inter,system-ui}
+#hrvC{width:100%;height:96px;display:block;border-radius:10px;background:rgba(255,255,255,.04)}
+.hrvf{opacity:.75;font-size:12px;margin-top:6px}
+@media (orientation:landscape) and (max-height:520px){.hrv{left:auto;right:max(12px,env(safe-area-inset-right));top:110px;bottom:auto;width:330px}#hrvC{height:70px}.big b{font-size:32px}}
+.watch .hrv{display:none!important}
 @media (orientation:landscape) and (max-height:520px){.host{left:12px;right:auto;bottom:84px;max-width:46%}.host svg{width:46px;height:70px}.hint{top:60px}}
 @media (prefers-reduced-motion:reduce){.host svg{animation:none}}
 </style>
@@ -62,7 +75,14 @@ html,body{margin:0;height:100%;background:#000;color:#fff;font:15px/1.45 Inter,s
   <div style="display:flex;gap:6px;pointer-events:auto"><button class="pill" id="snd" type="button" aria-label="Sound" aria-pressed="false" style="padding:0;width:44px;justify-content:center;font-size:18px">🔇</button><button class="pill" id="trk" type="button" aria-label="Sessions and tricks" style="padding:0;width:44px;justify-content:center;font-size:20px">✦</button></div>
 </div>
 <div class="ses" id="ses" hidden><div><span id="sesT"></span><small id="sesB"></small></div><button class="pill" id="sesX" type="button">Stop</button></div>
-<div class="chip" id="hrChip" hidden></div>
+<button class="chip" id="hrChip" type="button" hidden aria-label="Heart dashboard"></button>
+<div class="hrv" id="hrv" hidden role="region" aria-label="Heart dashboard">
+ <div class="hrvh"><span><i id="hrDot"></i><b id="hrName">Heart sensor</b> · <span id="hrStat">waiting</span></span><button class="pill" id="hrvX" type="button" aria-label="Hide heart dashboard">✕</button></div>
+ <div class="hrvb"><div class="big"><span id="hrHeart">♥</span><b id="hrBpm">--</b><small>bpm</small></div>
+  <div class="grid"><div><small>Beat gap</small><b id="hrRR">--</b></div><div><small>RMSSD</small><b id="hrRm">--</b></div><div><small>SDNN</small><b id="hrSd">--</b></div><div><small>In sync</small><b id="hrCo">--</b></div></div></div>
+ <canvas id="hrvC"></canvas>
+ <div class="hrvf" id="hrFoot">Waiting for the first heartbeat…</div>
+</div>
 <div class="sheet" id="sheet" hidden role="dialog" aria-label="Sessions and tricks">
  <div class="shh"><b>Sessions &amp; tricks</b><button class="pill" id="shX" type="button">Done</button></div>
  <div class="srow"><div><b>🫁 Breath pace</b><small>The walls and the sound breathe at this pace</small></div><button class="pill" id="speed" type="button">5.5 a minute</button></div>
@@ -112,7 +132,7 @@ const FS=`precision highp float;
 uniform vec2 R;uniform float T,B,M,Z,F,K,NP,PR;uniform vec3 PAL,PAL2;uniform vec3 PD[11];uniform vec3 PC[11];uniform float MT;uniform vec2 MC;uniform sampler2D RT;uniform float RL,MI,DZ,MAXD;
 vec3 ry(vec3 v,float a){float c=cos(a),s=sin(a);return vec3(c*v.x+s*v.z,v.y,-s*v.x+c*v.z);}
 vec3 rx(vec3 v,float a){float c=cos(a),s=sin(a);return vec3(v.x,c*v.y-s*v.z,s*v.y+c*v.z);}
-uniform float YAW,PIT,FO,NF,MS,LZ,HB,HC,GS,CRY,GZ,AU,ROLL,WARP,KN,KF,IO,LV,FL,IO2,BRA;uniform vec3 AD;uniform vec3 FN[20];
+uniform float YAW,PIT,FO,NF,MS,LZ,HB,HC,GS,CRY,GZ,AU,ROLL,WARP,KN,KF,IO,LV,FL,IO2,BRA;uniform vec3 CP;uniform vec3 AD;uniform vec3 FN[20];
 vec3 pal(float t,vec3 d){return .5+.5*cos(6.2831*(t+d));}
 /* the inner wall: a kaleidoscopic 3D fractal evaluated on the direction you look, so it surrounds you with no seams */
 vec3 wall(vec3 d,vec3 ph,float k,float sc){vec3 p=d*sc;p.xz=mat2(cos(T*.01),-sin(T*.01),sin(T*.01),cos(T*.01))*p.xz;
@@ -212,31 +232,40 @@ float vn(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
  return mix(mix(mix(h31(i),h31(i+vec3(1.,0.,0.)),f.x),mix(h31(i+vec3(0.,1.,0.)),h31(i+vec3(1.,1.,0.)),f.x),f.y),mix(mix(h31(i+vec3(0.,0.,1.)),h31(i+vec3(1.,0.,1.)),f.x),mix(h31(i+vec3(0.,1.,1.)),h31(i+vec3(1.,1.,1.)),f.x),f.y),f.z);}
 float fbm(vec3 p){float a=.5,s=0.;for(int i=0;i<5;i++){s+=a*vn(p);p*=2.03;a*=.5;}return s;}
 /* the Milky Way: the galaxy's band across the sky, stars streaming past as you travel, a spiral galaxy growing ahead */
+vec3 h33(vec3 p){p=fract(p*vec3(.1031,.1030,.0973));p+=dot(p,p.yxz+33.33);return fract((p.xxy+p.yxx)*p.zyx);}
+/* stars in real 3D around you: as you travel, near ones sweep past, far ones drift */
+vec3 stars3D(vec3 ro,vec3 rd,float px,float tmaxS){vec3 col=vec3(0.);float cs=1.3;vec3 cp=floor(ro/cs),sg=sign(rd)+step(0.,-abs(rd));vec3 ri=sg/max(abs(rd),vec3(1e-4));
+ vec3 tM=((cp+max(sg,0.))*cs-ro)*ri,tD=abs(cs*ri);
+ for(int i=0;i<16;i++){vec3 h=h33(cp+71.);if(h.x>.55){vec3 sp=(cp+.15+.7*h)*cs,oc=sp-ro;float tc=dot(oc,rd);
+   if(tc>.05&&tc<tmaxS){float ang=length(oc-rd*tc)/tc,sz=max(.02/tc,px*.9);float b=smoothstep(sz+px,sz*.2,ang)*min(1.,2.5/(tc*tc+.4));
+    col+=mix(vec3(.7,.82,1.),vec3(1.,.8,.55),h.z)*b*(1.6+.6*sin(T*(2.+3.*h.y)+h.z*30.));}}
+  if(tM.x<tM.y&&tM.x<tM.z){cp.x+=sg.x;tM.x+=tD.x;}else if(tM.y<tM.z){cp.y+=sg.y;tM.y+=tD.y;}else{cp.z+=sg.z;tM.z+=tD.z;}}
+ return col;}
+float sph(vec3 ro,vec3 rd,vec3 c,float r){vec3 oc=ro-c;float b=dot(oc,rd),q=dot(oc,oc)-r*r,h=b*b-q;if(h<0.)return -1.;float t=-b-sqrt(h);return t>0.?t:-1.;}
+vec3 PL(int i){float fi=float(i),R=3.+fi*2.3,a=T*(.05/(1.+fi))+fi*2.1;return vec3(R*sin(a),.25*sin(a*2.+fi),R*cos(a));}
 vec3 galaxy(vec3 d,float px){vec3 g=rx(ry(d,.7),.45);float lat=g.y,band=exp(-lat*lat/.035);
  float n=fbm(g*2.6+vec3(0.,0.,T*.003)),dust=smoothstep(.5,.78,fbm(g*5.5+7.3));
  vec3 col=mix(vec3(.18,.28,.85),vec3(.95,.5,.8),n)*band*(.35+.9*n)*(1.-.8*dust*band);
  col+=vec3(1.,.82,.55)*exp(-lat*lat/.005)*.4*(1.-dust);
- float den=1.+DV.z;
- if(den>.04){vec2 w=DV.xy/den;float r=length(w),lr=log(max(r,1e-5)),th=atan(w.y,w.x);
-  for(int k=0;k<3;k++){float fk=float(k),Nt=40.+fk*28.,sp=(.13+fk*.07)*(1.+20.*WARP);vec2 q=vec2(th,lr-T*sp)*Nt/6.2831;vec2 id=floor(q),f=fract(q)-.5;
-   float hs=h31(vec3(id,fk*7.1));if(hs>.62){vec2 o=vec2(h31(vec3(id,3.3+fk)),h31(vec3(id,9.1+fk)))-.5;vec2 dd=f-o*.6;dd.y*=mix(.8,.035,WARP);
-    float cpx=px/den/max(r,1e-4)*Nt/6.2831;float rad=min(.09+.05*WARP,cpx*(1.1+1.8*hs)*(1.+WARP));
-    col+=mix(vec3(.75,.85,1.),vec3(1.,.85,.65),fract(hs*13.))*smoothstep(rad+cpx,rad*.3,length(dd))*(.6+.8*hs)*(.55+.45*sin(T*(2.+hs*3.)+hs*40.));}}
+ {
   vec2 wW=d.xy/max(1.+d.z,.04);vec2 wg=rm(T*.01)*wW/(.08+GZ*.55);float r2=length(wg);if(r2<3.){float a=atan(wg.y,wg.x);
    float arm=pow(.5+.5*cos(2.*(a-log(max(r2,.02))*2.3)),3.);float hii=smoothstep(.62,.8,fbm(vec3(wg*4.,1.7)));
    col+=(vec3(.55,.7,1.)*arm*(.55+.6*fbm(vec3(wg*3.,0.)))+vec3(1.,.45,.7)*hii*arm)*exp(-r2*1.15)*.9+vec3(1.,.85,.6)*exp(-r2*r2*18.)*.5;}}
- /* the sun: a real ball in front of you; dragging flies you around it, every side has its own spots, bright regions and flames */
- float rs=min(.42,.1*exp(DZ*.12))*(1.+.03*(B-1.)/.08),ang=acos(clamp(DV.z,-1.,1.));
- if(ang<rs*4.5){float tr=tan(rs);vec2 dp=DV.xy/max(DV.z,.01)/tr;float r1=length(dp),sa=atan(DV.y,DV.x);
-  if(r1<1.){vec3 nv=vec3(dp,-sqrt(1.-r1*r1));vec3 nw=ry(rx(nv,PIT),YAW);nw=ry(nw,T*.04);
-   float g1=fbm(nw*7.+vec3(0.,T*.05,0.)),g2=fbm(nw*2.2+3.1),spot=smoothstep(.66,.72,g2),act=smoothstep(.55,.62,fbm(nw*3.3+8.));
-   float limb=-nv.z;vec3 surf=mix(vec3(1.,.3,.02),vec3(1.,.82,.4),g1)*(.75+.8*limb)+vec3(1.,.95,.8)*pow(limb,6.)*.5;
-   surf=mix(surf,vec3(.35,.08,.0),spot*.85)+vec3(1.,.9,.6)*act*.35*(1.-spot);col=surf*2.1;}
-  else{float h=ang/rs-1.;vec3 nl=ry(rx(vec3(cos(sa),sin(sa),0.),PIT),YAW);nl=ry(nl,T*.04);float pf=fbm(nl*3.+vec3(T*.06));
-   float prom=smoothstep(.5,.72,pf)*smoothstep(pf*.55+.05,0.,h)*(.6+.4*fbm(vec3(sa*9.,h*20.,T*.3)));
-   float rays=pow(.5+.5*cos(sa*14.+YAW*3.+PIT*2.+fbm(vec3(sa*2.,h*3.,T*.1))*5.+T*.12),4.)+pow(.5+.5*cos(sa*7.-T*.07),6.)*.6;
-   float cor=exp(-h*rs*7./max(rs,.05)*.9)*(.45+.8*rays*exp(-h*1.5));
-   col+=vec3(1.,.62,.25)*cor*1.4+vec3(1.,.28,.08)*prom*1.8+vec3(1.,.9,.7)*exp(-h*h*8.)*.25;}}
+ /* the sun, planets and near stars in real space around you */
+ vec3 ro=CP;float ts=sph(ro,d,vec3(0.),1.),tp=1e9;int pi=-1;
+ for(int i=0;i<3;i++){float r=.22+float(i)*.16;float t=sph(ro,d,PL(i),r);if(t>0.&&t<tp){tp=t;pi=i;}}
+ float tsun=ts>0.?ts:1e9,tnear=min(tsun,tp);
+ col+=stars3D(ro,d,px,tnear);
+ vec3 oc=-ro;float tca=dot(oc,d);if(tca>0.){float dm=length(oc-d*tca);vec3 q=normalize(ro+d*tca);float ra=atan(q.z,q.x)+atan(q.y,length(q.xz))*2.;
+  float rays=pow(.5+.5*cos(ra*6.+T*.15),5.)+pow(.5+.5*cos(ra*11.-T*.09),8.)*.7;
+  if(dm>1.&&tnear>tca*.5){float gl=exp(-(dm-1.)*1.7);col+=vec3(1.,.72,.35)*gl*1.4+vec3(1.,.85,.6)*rays*exp(-(dm-1.)*.9)*.55+vec3(1.,.95,.85)*exp(-(dm-1.)*7.)*1.2;}}
+ if(ts>0.&&ts<=tp){vec3 n=normalize(ro+d*ts);float lb=max(dot(n,-d),0.);vec3 nr=ry(n,T*.03);
+  float g=fbm(nr*24.+vec3(T*.08))*.5+fbm(nr*60.)*.25;
+  col=vec3(1.,.93,.75)*(2.6+1.6*lb)+vec3(1.,.55,.15)*(1.-lb)*1.6+vec3(.25,.12,.0)*(g-.4);}
+ else if(pi>=0){vec3 c=PL(pi);vec3 n=normalize(ro+d*tp-c),L=normalize(-c);float df=max(dot(n,L),0.),rim=pow(1.-max(dot(n,-d),0.),3.);
+  vec3 base=pi==0?vec3(.25,.55,.9):pi==1?vec3(.85,.4,.25):vec3(.9,.75,.45);float bands=pi==2?.5+.5*sin(n.y*28.+fbm(n*5.)*4.):fbm(n*6.+float(pi));
+  col=base*(.15+1.1*df)*(.7+.5*bands)+vec3(.5,.7,1.)*rim*.5*df;}
+ {vec3 c=PL(2);float t=-(ro.y-c.y)/(abs(d.y)>1e-4?d.y:1e-4);if(t>0.&&t<min(tsun,tp+.001)){vec3 hp=ro+d*t-c;float rr=length(hp.xz);if(rr>.62&&rr<1.05){float rg=.5+.5*sin(rr*90.);col=mix(col,vec3(.95,.85,.65)*(.6+.6*rg),.55*smoothstep(1.05,.95,rr)*smoothstep(.62,.7,rr));}}}
  return col;}
 /* where a view direction lands on the room's walls: sphere, or a face of the solid */
 vec2 qmap(vec3 d,out float aS,out vec3 ex){
@@ -247,7 +276,7 @@ vec2 qmap(vec3 d,out float aS,out vec3 ex){
  aS=.22*t*t;ex=vec3((b1-b2)*t,t,fi);return vec2(dot(p,u),dot(p,v))*.22+fi*.173;}
 vec3 room(vec3 d,vec3 ph,float px){vec3 gb=vec3(0.);if(MT>2.5)gb=galaxy(d,px)*.95;else if(MT>.5)return mroom(d,ph,px);
  float aS,aS2;vec3 ex,ex2;vec2 q0=qmap(d,aS,ex);vec2 qa=qmap(AD,aS2,ex2);vec2 lq=q0-qa;if(NF<.5)lq.x-=floor(lq.x+.5);
- vec3 col=geo2(lq,qa,LZ,aS,ph,px)*(MT>2.5?.85*(1.-.94*smoothstep(min(.42,.1*exp(DZ*.12))*2.6,min(.42,.1*exp(DZ*.12))*1.05,acos(clamp(DV.z,-1.,1.)))):1.);if(NF<.5)return col+gb;
+ vec3 col=geo2(lq,qa,LZ,aS,ph,px)*(MT>2.5?.8*(1.-.95*smoothstep(asin(min(1.,1./max(length(CP),1.01)))*3.2,asin(min(1.,1./max(length(CP),1.01)))*1.05,acos(clamp(dot(d,normalize(-CP)),-1.,1.)))):1.);if(NF<.5)return col+gb;
  float e=ex.x,t=ex.y,fi=ex.z,fe=1.-smoothstep(.2,1.2,LZ);
  if(CRY>0.){vec3 sp=.5+.5*cos(6.2831*(fract(fi*.137+T*.02+dot(q0,vec2(.6,.35)))+vec3(0.,.33,.67)));float sw=exp(-pow(fract(q0.x*.25+q0.y*.15-T*.06)-.5,2.)*90.);
   col=mix(col,col*.6+sp*sp*.55,CRY*.7)+vec3(1.)*sw*.35*CRY;float l1=smoothstep(px*3.*t,0.,abs(e*.7-.006*t)),l2=smoothstep(px*3.*t,0.,abs(e*.7-.012*t)),l3=smoothstep(px*3.*t,0.,abs(e*.7-.018*t));col+=vec3(l1,l2,l3)*CRY*fe*.9;}
@@ -301,7 +330,7 @@ if(!gl)$("nogl").classList.remove("hide");
 else{const mk=(t,s)=>{const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))console.error(gl.getShaderInfoLog(o));return o;};
   const pr=gl.createProgram();gl.attachShader(pr,mk(gl.VERTEX_SHADER,"attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}"));gl.attachShader(pr,mk(gl.FRAGMENT_SHADER,FS));gl.linkProgram(pr);gl.useProgram(pr);
   const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);const loc=gl.getAttribLocation(pr,"p");gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
-  ["R","T","B","M","Z","K","NP","PR","PAL","YAW","PIT","PD","PC","FO","NF","MS","FN","MT","MC","RT","RL","MI","DZ","MAXD","LZ","AD","HB","HC","GS","CRY","GZ","AU","ROLL","WARP","KN","KF","IO","LV","FL","IO2","BRA"].forEach(k=>U[k]=gl.getUniformLocation(pr,k));}
+  ["R","T","B","M","Z","K","NP","PR","PAL","YAW","PIT","PD","PC","FO","NF","MS","FN","MT","MC","RT","RL","MI","DZ","MAXD","LZ","AD","HB","HC","GS","CRY","GZ","AU","ROLL","WARP","KN","KF","IO","LV","FL","IO2","BRA","CP"].forEach(k=>U[k]=gl.getUniformLocation(pr,k));}
 
 /* reference orbit for the deep zoom, in double precision */
 const FX=gl&&gl.getExtension("OES_texture_float");let RTEX=null,RLEN=2;
@@ -370,7 +399,7 @@ let fq={n:0,t:performance.now()};function frame(){requestAnimationFrame(frame);c
   if(deep()){const nowT=performance.now(),dtt=Math.min(.1,(nowT-(S.lastF||nowT))/1000);S.lastF=nowT;if(S.dive&&S.mt!==1){S.dzTo=Math.min(S.maxd-1,S.dzTo+dtt*.35);if(fq.n%10===0)zl();}else if(S.dive){const P=120,ph=((performance.now()-S.diveT)/1000%P)/P;S.dzTo=(S.maxd-1)*(.5-.5*Math.cos(ph*2*Math.PI));if(fq.n%10===0)zl();}S.dz+=(S.dzTo-S.dz)*.06;S.fo=S.foTo=1.1;}
   else if(S.dive&&!S.fly){const P=26,ph=((performance.now()-S.diveT)/1000%P)/P;S.fo=S.foTo=1.1*Math.pow(27,ph);const edge=ph>.95?(ph-.95)/.05:ph<.05?1-ph/.05:0;$("fade").style.transition="none";$("fade").style.background="#000";$("fade").style.opacity=edge*.9;S.dfade=1;}else if(S.dfade){S.dfade=0;$("fade").style.opacity=0;$("fade").style.transition="";$("fade").style.background="#fff";}
   sesTick(t);S.melt+=(S.meltTo-S.melt)*0.04;if(fq.n%6===0)sndTick(t);
-  if(gl){gl.viewport(0,0,cv.width,cv.height);gl.uniform2f(U.R,cv.width,cv.height);gl.uniform1f(U.T,t);gl.uniform1f(U.B,1+0.08*(2*(S.br?S.br.v:.5)-1));gl.uniform1f(U.HB,HR.on?t-HR.last:9);gl.uniform1f(U.HC,HR.coh);gl.uniform1f(U.GS,G.fl||0);gl.uniform1f(U.CRY,S.cur.cry||0);gl.uniform1f(U.GZ,G.gz||0);gl.uniform1f(U.AU,S.au||0);gl.uniform1f(U.ROLL,S.roll||0);gl.uniform1f(U.WARP,G.warp||0);{const L=livingM(t);gl.uniform1f(U.KN,L[0]);gl.uniform1f(U.KF,L[1]);gl.uniform1f(U.IO,L[2]);}{const L2=livingR(t);S.liv=L2;gl.uniform1f(U.LV,L2[0]);gl.uniform1f(U.FL,L2[1]);gl.uniform1f(U.IO2,L2[2]);}gl.uniform1f(U.BRA,G.on?1:.35);gl.uniform1f(U.M,S.melt);gl.uniform1f(U.Z,S.z);S.fo*=Math.pow(S.foTo/S.fo,.1);gl.uniform1f(U.FO,S.fo);
+  if(gl){gl.viewport(0,0,cv.width,cv.height);gl.uniform2f(U.R,cv.width,cv.height);gl.uniform1f(U.T,t);gl.uniform1f(U.B,1+0.08*(2*(S.br?S.br.v:.5)-1));gl.uniform1f(U.HB,HR.on?t-HR.last:9);gl.uniform1f(U.HC,HR.coh);gl.uniform1f(U.GS,G.fl||0);gl.uniform1f(U.CRY,S.cur.cry||0);gl.uniform1f(U.GZ,G.gz||0);gl.uniform1f(U.AU,S.au||0);gl.uniform1f(U.ROLL,S.roll||0);gl.uniform1f(U.WARP,G.warp||0);{const L=livingM(t);gl.uniform1f(U.KN,L[0]);gl.uniform1f(U.KF,L[1]);gl.uniform1f(U.IO,L[2]);}{const L2=livingR(t);S.liv=L2;gl.uniform1f(U.LV,L2[0]);gl.uniform1f(U.FL,L2[1]);gl.uniform1f(U.IO2,L2[2]);}gl.uniform1f(U.BRA,G.on?1:.35);{const dtc=Math.min(.1,Math.max(0,t-(S.cpt||t)));S.cpt=t;if(S.cur&&S.cur.mt===3){S.cpa=(S.cpa||0)+dtc*.035*(1+S.dz*.35+(G.warp||0)*25);}else S.cpa=0;const a=S.cpa||0,r=8.5-2.5*Math.sin(a*.8),y=1.6*Math.sin(a*1.3);S.cp=[r*Math.sin(a),y,-r*Math.cos(a)];gl.uniform3fv(U.CP,S.cp);}gl.uniform1f(U.M,S.melt);gl.uniform1f(U.Z,S.z);S.fo*=Math.pow(S.foTo/S.fo,.1);gl.uniform1f(U.FO,S.fo);
     gl.uniform1f(U.K,S.cur.k);gl.uniform1f(U.NF,S.nf);gl.uniform1f(U.MT,S.mt||0);gl.uniform2fv(U.MC,S.mc||[0,0]);gl.uniform1f(U.DZ,S.dz);gl.uniform1f(U.LZ,S.mt===2?0:S.dz/Math.log(3));if(S.dz<.02||!S.anc)S.anc=ry(rx([0,0,1],S.pit),S.yaw);gl.uniform3fv(U.AD,S.anc);gl.uniform1f(U.MAXD,FX?(S.maxd||11):11);gl.uniform1f(U.RL,RLEN);gl.uniform1f(U.MI,Math.min(1950,500+S.dz*55));gl.uniform1i(U.RT,0);gl.uniform1f(U.MS,S.cur.ms);gl.uniform3fv(U.FN,S.fn);gl.uniform3fv(U.PAL,S.cur.pal);gl.uniform1f(U.YAW,S.yaw);gl.uniform1f(U.PIT,S.pit);gl.uniform1f(U.NP,S.dirs.length);gl.uniform1f(U.PR,S.pr);
     const pd=new Float32Array(33),pc=new Float32Array(33);S.dirs.forEach((w,i)=>{pd.set(w,i*3);pc.set(S.cols[i],i*3);});gl.uniform3fv(U.PD,pd);gl.uniform3fv(U.PC,pc);gl.drawArrays(gl.TRIANGLES,0,3);}
   S.labels.forEach((el,i)=>{const p=proj(S.dirs[i]);if(!p||S.z>0.02||S.dz>.5||G.gs>.3||livBusy()){el.style.opacity=0;return;}const off=Math.min(innerWidth,innerHeight)*S.pr*1.1*S.fo/p[2];el.style.opacity=1;el.style.transform="translate("+(p[0]-0)+"px,"+(p[1]+off)+"px) translate(-50%,0)";});}
@@ -452,7 +481,7 @@ const livBusy=()=>S.liv&&(S.liv[2]>.12||Math.abs(Math.sin(S.liv[1]))>.15||Math.c
 function livingM(t){if(!S.mt)return [1,0,0];const P=26,c=Math.floor(t/P),k=(t%P)/P;const KN=[6,5,8,3][c%4];
  const kf=ss(.0,.16,k)*(1-ss(.55,.72,k));const io=.85*ss(.74,.84,k)*(1-ss(.9,1,k))*(c%2?1:0);return [KN,kf,io];}
 /* the golden journey: scenes timed by the session, nothing to touch */
-const MILKY={n:"Milky Way",tag:"GALAXY",sh:"sphere",ms:.15,mt:3,c:"#c9d8ff",pal:[.55,.7,.95],k:.72,h:"STAR",say:"Drag to fly all the way around the sun. Pinch to come closer.",tapSay:" — rest your eyes here and let it carry you.",st:["Spiral Arms","Star Nursery","Galactic Core","Nebula","Star Stream"]};
+const MILKY={n:"Milky Way",tag:"GALAXY",sh:"sphere",ms:.15,mt:3,c:"#c9d8ff",pal:[.55,.7,.95],k:.72,h:"STAR",say:"You're travelling around the sun. Drag to look anywhere. Pinch to fly faster.",tapSay:" — rest your eyes here and let it carry you.",st:["Spiral Arms","Star Nursery","Galactic Core","Nebula","Star Stream"]};
 const CRYSTAL={n:"Crystal",tag:"CRYSTAL CHAMBER",sh:"icosa",ms:0,cry:1,c:"#f1e6ff",pal:[0,.33,.67],k:.74,h:"PRISM",say:"Light splits into every colour here. Breathe, and watch it move.",tapSay:" — rest your eyes here and let it carry you.",st:["Prism","Rainbow","Facets","White Light","Spectrum"]};
 ROOMS.push(MILKY,CRYSTAL);if(S.room===-1)setRoom(-1);
 const ss=(a,b,x)=>{const k=Math.max(0,Math.min(1,(x-a)/(b-a)));return k*k*(3-2*k);};
@@ -499,29 +528,46 @@ addEventListener("pointerdown",()=>{if(G.on)immerse(true);},true);
 document.querySelectorAll("[data-gl]").forEach(b=>b.onclick=()=>gStart(+b.dataset.gl));
 $("sesX").onclick=()=>gStop();
 /* ---------- heart sync: Bluetooth heart sensor, the walls pulse with each beat and bloom as heart and breath fall into step ---------- */
-const HR={on:false,bpm:0,next:0,last:-9,ser:[],coh:0,sim:null};
+const HR={on:false,bpm:0,next:0,last:-9,ser:[],coh:0,sim:null,n:0,rx:-99,rrs:[],name:""};
 function hrNote(s){$("hrNote").textContent=s;}
 function hrData(dv){const f=dv.getUint8(0);let i=1;const bpm=(f&1)?dv.getUint16(i,true):dv.getUint8(i);i+=(f&1)?2:1;if(f&8)i+=2;const rr=[];if(f&16)for(;i+1<dv.byteLength;i+=2)rr.push(dv.getUint16(i,true)/1024);hrIn(bpm,rr);}
-function hrIn(bpm,rr){if(!bpm)return;HR.bpm=bpm;const t=(performance.now()-S.t0)/1000;const ib=rr.length?60/rr[rr.length-1]:bpm;HR.ser.push([t,ib]);while(HR.ser.length&&HR.ser[0][0]<t-64)HR.ser.shift();
- if(!HR.on){HR.on=true;HR.next=t+.2;S.breath=11;$("hrChip").hidden=false;$("hrBtn").textContent="Disconnect";hrNote("Connected — breathe with the walls");}}
+function hrIn(bpm,rr){if(!bpm)return;HR.bpm=bpm;const t=(performance.now()-S.t0)/1000;HR.n++;HR.rx=t;(rr.length?rr:[60/bpm]).forEach(x=>HR.rrs.push([t,x*1000,!!rr.length]));while(HR.rrs.length&&HR.rrs[0][0]<t-64)HR.rrs.shift();const ib=rr.length?60/rr[rr.length-1]:bpm;HR.ser.push([t,ib]);while(HR.ser.length&&HR.ser[0][0]<t-64)HR.ser.shift();
+ if(!HR.on){HR.on=true;HR.next=t+.2;S.breath=11;$("hrChip").hidden=false;$("hrv").hidden=false;$("hrBtn").textContent="Disconnect";hrNote("Connected — breathe with the walls");}}
 async function hrConnect(){if(HR.on||HR.sim){hrOff();return;}
  if(!navigator.bluetooth){hrNote(/iPhone|iPad|iPod/.test(navigator.userAgent)?"iPhone only allows Bluetooth in the Bluefy app — open this page there":"This browser can't reach Bluetooth here — try Chrome on a computer or Android");return;}
  try{hrNote("Pick your heart sensor…");const dev=await navigator.bluetooth.requestDevice({filters:[{services:["heart_rate"]}].concat("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".split("").map(c=>({namePrefix:c}))),optionalServices:["heart_rate","battery_service","device_information"]});
   const srv=await dev.gatt.connect(),svc=await srv.getPrimaryService("heart_rate"),ch=await svc.getCharacteristic("heart_rate_measurement");
-  ch.addEventListener("characteristicvaluechanged",e=>hrData(e.target.value));await ch.startNotifications();HR.dev=dev;hrNote("Waiting for your heartbeat…");
+  ch.addEventListener("characteristicvaluechanged",e=>hrData(e.target.value));await ch.startNotifications();HR.dev=dev;HR.name=dev.name||"Heart sensor";$("hrName").textContent=HR.name;$("hrv").hidden=false;$("hrStat").textContent="connected — waiting for beats";hrNote("Waiting for your heartbeat…");
   dev.addEventListener("gattserverdisconnected",()=>{if(HR.on){hrOff();hrNote("Sensor dropped — the room keeps going. Tap Connect to try again");}});}
  catch(e){hrNote(/cancel/i.test(e.message||"")?"No sensor picked":/heart_rate|service|not found/i.test(e.message||"")?"That device doesn't share heart data here — close other heart apps (HeartMath, Elite HRV) and try again":"Couldn't connect — is the sensor on, clipped on and close by?");}}
-function hrOff(){HR.on=false;if(HR.sim){clearInterval(HR.sim);HR.sim=null;}try{HR.dev&&HR.dev.gatt.disconnect();}catch(e){}$("hrChip").hidden=true;$("hrBtn").textContent="Connect";hrNote("Connect a Bluetooth heart sensor");HR.coh=0;}
+function hrOff(){HR.on=false;$("hrv").hidden=true;HR.n=0;HR.rrs=[];HR.ser=[];if(HR.sim){clearInterval(HR.sim);HR.sim=null;}try{HR.dev&&HR.dev.gatt.disconnect();}catch(e){}$("hrChip").hidden=true;$("hrBtn").textContent="Connect";hrNote("Connect a Bluetooth heart sensor");HR.coh=0;}
 $("hrBtn").onclick=hrConnect;
+$("hrChip").onclick=()=>{$("hrv").hidden=!$("hrv").hidden;};$("hrvX").onclick=()=>{$("hrv").hidden=true;};
+/* the heart dashboard: is it really reading you? */
+function hrDash(t){if($("hrv").hidden)return;const ago=t-HR.rx,ok=ago<2.5,stale=ago>6;
+ $("hrDot").style.background=HR.n===0?"#f3c14a":ok?"#5be38a":stale?"#ff5b6b":"#f3c14a";
+ $("hrStat").textContent=HR.n===0?"connected — waiting for beats":ok?"receiving":stale?"no data — check the clip":"waiting…";
+ $("hrBpm").textContent=HR.n?HR.bpm:"--";const rr=HR.rrs.slice(-60),real=rr.filter(r=>r[2]);
+ $("hrRR").textContent=rr.length?Math.round(rr[rr.length-1][1])+" ms":"--";
+ if(rr.length>=10){const v=rr.map(r=>r[1]);let d=0;for(let i=1;i<v.length;i++)d+=(v[i]-v[i-1])**2;const m=v.reduce((a,b)=>a+b,0)/v.length;
+  $("hrRm").textContent=Math.round(Math.sqrt(d/(v.length-1)))+" ms";$("hrSd").textContent=Math.round(Math.sqrt(v.reduce((a,b)=>a+(b-m)**2,0)/v.length))+" ms";}else{$("hrRm").textContent="--";$("hrSd").textContent="--";}
+ $("hrCo").textContent=HR.n?Math.round(HR.coh*100)+"%":"--";
+ $("hrFoot").textContent=HR.n?HR.n+" readings received · last "+ago.toFixed(1)+" s ago"+(real.length?" · beat timing from the sensor":" · this sensor sends heart rate only, no beat timing"):"Waiting for the first heartbeat…";
+ const c=$("hrvC"),W=c.clientWidth*devicePixelRatio,H=c.clientHeight*devicePixelRatio;if(c.width!==W)c.width=W;if(c.height!==H)c.height=H;const g=c.getContext("2d");g.clearRect(0,0,W,H);
+ /* breath pace behind */g.strokeStyle="rgba(255,216,154,.35)";g.lineWidth=2*devicePixelRatio;g.beginPath();for(let i=0;i<=120;i++){const tt=t-60+i/2,y=H-(.15+.7*breathAt(tt).v)*H;i?g.lineTo(i/120*W,y):g.moveTo(0,y);}g.stroke();
+ /* heart rate line */const pts=HR.ser.filter(p=>p[0]>t-60);if(pts.length>1){let lo=Math.min(...pts.map(p=>p[1])),hi=Math.max(...pts.map(p=>p[1]));if(hi-lo<6){const mid=(hi+lo)/2;lo=mid-3;hi=mid+3;}
+  g.strokeStyle="#ff6b8a";g.lineWidth=2.5*devicePixelRatio;g.beginPath();pts.forEach((p,i)=>{const x=(p[0]-(t-60))/60*W,y=H-(.1+.8*(p[1]-lo)/(hi-lo))*H;i?g.lineTo(x,y):g.moveTo(x,y);});g.stroke();
+  g.fillStyle="rgba(255,255,255,.6)";g.font=(11*devicePixelRatio)+"px Inter,system-ui";g.fillText(Math.round(hi)+"",4*devicePixelRatio,13*devicePixelRatio);g.fillText(Math.round(lo)+"",4*devicePixelRatio,H-4*devicePixelRatio);}}
 /* how much your heart rate rises and falls with the breath (0..1) */
 function hrCoh(){const s=HR.ser;if(s.length<12)return 0;const w=2*Math.PI/S.breath;let m=0;s.forEach(p=>m+=p[1]);m/=s.length;let re=0,im=0,v=0;s.forEach(([t,x])=>{const d=x-m;re+=d*Math.cos(w*t);im+=d*Math.sin(w*t);v+=d*d;});if(v<1e-6)return 0;return Math.min(1,2*(re*re+im*im)/(s.length*v));}
-window.__hrSim=(bpm)=>{if(HR.sim)clearInterval(HR.sim);HR.sim=setInterval(()=>{const t=(performance.now()-S.t0)/1000,b=bpm+6*Math.sin(2*Math.PI*t/S.breath);hrIn(Math.round(b),[60/b]);},1000);};
+window.__hrSim=(bpm)=>{HR.name="Simulated sensor";$("hrName").textContent=HR.name;if(HR.sim)clearInterval(HR.sim);HR.sim=setInterval(()=>{const t=(performance.now()-S.t0)/1000,b=bpm+6*Math.sin(2*Math.PI*t/S.breath);hrIn(Math.round(b),[60/b]);},1000);};
 function sesTick(t){const br=breathAt(t);S.br=br;
  const gdt0=Math.min(.2,Math.max(0,t-(G.lt0||t)));G.lt0=t;if(G.on){G.e=(t-G.t0)/G.total;gDirect(t,gdt0);}
  if(SND.an&&SND.on){SND.an.getFloatTimeDomainData(SND.abuf);let q=0;for(let i=0;i<512;i++)q+=SND.abuf[i]*SND.abuf[i];const rms=Math.sqrt(q/512);S.auA=(S.auA||rms)+(rms-(S.auA||rms))*.01;S.au=Math.max(0,Math.min(1,(rms/Math.max(S.auA,1e-4)-1)*2));}else S.au=0;
  if(G.on){const g=gAt(t);if(!g){gStop("✨ Session complete — take your time coming back");shot&&SND.on&&shot("bell",.3,{rate:1.3348});}else{$("sesT").innerHTML="🌻 <b>"+g.name+"</b> · "+g.hz.toFixed(2)+" Hz · "+Math.floor(g.left/60)+":"+String(Math.floor(g.left%60)).padStart(2,"0")+" left";$("sesB").textContent=br.inh?"breathe in":"breathe out";G.hz=g.hz;}}
  const gdt=Math.min(.2,Math.max(0,t-(G.lt||t)));G.lt=t;G.gs+=((G.on?1:0)-G.gs)*Math.min(1,gdt*1.1);G.fl=(G.fl||0)+(((G.on||G.flower)&&G.flower?1:0)-(G.fl||0))*Math.min(1,gdt*.5);
- if(HR.on){if(t>=HR.next){HR.last=t;HR.next=t+60/Math.max(35,HR.bpm);}if(fq.n%30===0){HR.coh+=(hrCoh()-HR.coh)*.3;$("hrChip").textContent="🫀 "+HR.bpm+" · in sync "+Math.round(HR.coh*100)+"%";}}}
+ if(HR.on||HR.dev){if(HR.on&&t>=HR.next){HR.last=t;HR.next=t+60/Math.max(35,HR.bpm);const hh=$("hrHeart");hh.style.transform="scale(1.35)";setTimeout(()=>hh.style.transform="",130);}if(fq.n%12===0)hrDash(t);}
+ if(HR.on){if(fq.n%30===0){HR.coh+=(hrCoh()-HR.coh)*.3;$("hrChip").textContent="🫀 "+HR.bpm+" · in sync "+Math.round(HR.coh*100)+"%";}}}
 
 frame();window.__S=S;window.__SND=SND;window.__G=G;window.__fly=flyTo;
 }
