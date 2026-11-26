@@ -205,11 +205,11 @@ vec3 jewel(float t){t=fract(t)*5.;vec3 c0=vec3(.05,.03,.16),c1=vec3(.36,.1,.6),c
  float k=fract(t);k=k*k*(3.-2.*k);if(t<1.)return mix(c0,c1,k);if(t<2.)return mix(c1,c2,k);if(t<3.)return mix(c2,c3,k);if(t<4.)return mix(c3,c4,k);return mix(c4,c0,k);}
 /* colour: jewel-tone bands outside, thin glowing gold filaments on the edge, deep violet glow inside */
 vec3 shadeM(bool o,float n,float m2,vec2 der,float trap,float pc,vec3 ph){
- if(!o){float t=sqrt(sqrt(trap));return vec3(.03,.015,.08)+jewel(.15+t*.5+T*.01)*(.12+.3*t*t);}
+ if(!o){float t=sqrt(sqrt(trap));return vec3(.025,.012,.06)+jewel(.15+t*.5+T*.01)*(.08+.2*t*t);}
  float nu=n-log2(.5*log2(m2));float L=max(abs(der.x),abs(der.y));float de=sqrt(m2)*.5*log(m2)/(L*length(der/max(L,1e-30)));
- vec3 band=jewel(log(nu+1.)*.55+T*.03)*(.55+.6*exp(-nu*.003));
+ vec3 band=jewel(log(nu+1.)*.55+T*.03)*(.38+.42*exp(-nu*.003));
  vec3 gold=vec3(1.,.8,.45);
- return band*(.3+.7*smoothstep(pc*.15,pc*1.6,de))+gold*smoothstep(pc*1.3,pc*.15,de)*.95+gold*exp(-de/(pc*5.))*.12;}
+ return band*(.1+.9*smoothstep(pc*.7,pc*2.4,de))+gold*smoothstep(pc*.75,pc*.12,de)*.55;}
 /* deep Mandelbrot: exact centre path from the CPU in double precision (RT); each pixel follows only its tiny difference */
 vec3 deepM(vec2 dc,float pc,vec3 ph){vec2 dz=vec2(0.),der=vec2(0.);float m=0.,n=0.,m2=0.,trap=9.;bool o=false;
  for(int i=0;i<2000;i++){if(float(i)>=MI)break;vec2 Zm=texture2D(RT,vec2((m+.5)/2000.,.5)).xy;vec2 zf=Zm+dz;
