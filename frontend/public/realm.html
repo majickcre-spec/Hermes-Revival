@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MMU Realm</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: awe, calm, enveloping
+   IDEA: you stand at the centre of a hollow fractal sphere; its windows are doors to the rooms of the school
+   PICTURE: full-screen raymarched sphere interior, drag to look all around, breathing on 5.5 s
+   COLOUR and TYPE: each sphere has its own light; Cinzel names, Inter text
+   LAYOUT: world fills the screen; labels float on the windows; host bottom-left; Dissolve at the thumb */
+:root{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0;height:100%;background:#000;color:#fff;font:15px/1.45 Inter,system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:none}
+#gl{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:grab}
+.top{position:fixed;top:12px;left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;z-index:5;pointer-events:none}
+.pill{pointer-events:auto;min-height:44px;display:flex;align-items:center;gap:6px;padding:0 14px;border-radius:22px;background:rgba(6,4,16,.5);border:1px solid rgba(255,255,255,.22);color:#fff;font:600 14px Inter,system-ui;cursor:pointer;backdrop-filter:blur(6px)}
+.top .place{flex:1;min-width:0;}.place{text-align:center;line-height:1.2;font:700 14px Cinzel,serif;letter-spacing:.18em;text-shadow:0 0 14px currentColor,0 1px 6px #000}
+.lab{position:fixed;left:0;top:0;z-index:3;pointer-events:none;text-align:center;font:700 15px Inter,system-ui;padding:4px 12px;border-radius:14px;background:rgba(4,2,12,.55);border:1px solid currentColor;letter-spacing:.04em;text-shadow:0 0 10px #000,0 1px 4px #000;white-space:nowrap;transition:opacity .3s}
+.lab small{display:block;font:600 11px Inter;opacity:.9}
+.hint{position:fixed;left:0;right:0;top:64px;text-align:center;font-size:13px;opacity:.85;z-index:4;pointer-events:none;text-shadow:0 1px 6px #000;transition:opacity 1s}
+.host{position:fixed;left:12px;right:12px;bottom:96px;display:flex;align-items:flex-end;gap:10px;z-index:4;pointer-events:none;transition:opacity .5s}
+.host svg{flex:none;animation:float 6s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.bubble{background:rgba(8,4,22,.72);border:1px solid var(--glow);border-radius:16px 16px 16px 4px;padding:10px 13px;font-size:14px;max-width:300px;backdrop-filter:blur(6px)}
+.bubble b{display:block;font:700 12px Cinzel,serif;letter-spacing:.08em;color:var(--glow)}
+.bar{position:fixed;left:12px;right:12px;bottom:22px;display:flex;justify-content:space-between;gap:10px;z-index:6}
+.btn{min-height:52px;padding:0 16px;border-radius:26px;border:1px solid rgba(255,255,255,.45);background:rgba(10,6,24,.45);color:#fff;font:700 15px Inter,system-ui;letter-spacing:.03em;cursor:pointer;backdrop-filter:blur(6px)}
+.btn.glow{background:linear-gradient(120deg,rgba(255,120,200,.45),rgba(110,90,255,.45));box-shadow:0 0 22px rgba(255,120,220,.4)}
+.btn:focus-visible,.pill:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.fade{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:7;transition:opacity .45s}
+.nogl{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:30px;text-align:center;z-index:9;background:#05030c}
+.hide{display:none!important}
+.top,.bar,.ses{transition:opacity 1.2s}.immerse .top,.immerse .bar,.immerse .ses{opacity:0;pointer-events:none}.journey .host{display:none!important}
+.sheet{position:fixed;left:8px;right:8px;bottom:8px;z-index:9;background:rgba(10,6,24,.92);border:1px solid rgba(255,255,255,.22);border-radius:20px;padding:12px 14px 14px;backdrop-filter:blur(10px);max-height:80vh;overflow:auto}
+.sheet[hidden],.ses[hidden],.chip[hidden]{display:none}
+.shh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font:700 15px Cinzel,serif;letter-spacing:.08em}
+.srow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid rgba(255,255,255,.12)}
+.srow small{display:block;opacity:.75;font-size:12.5px;margin-top:2px}.seg{display:flex;gap:6px;flex:none}.seg .pill{padding:0 12px}
+.ses{position:fixed;left:12px;right:12px;top:64px;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(6,4,16,.55);border:1px solid rgba(255,216,154,.4);border-radius:16px;padding:6px 6px 6px 12px;font-size:13.5px;backdrop-filter:blur(6px)}
+.ses small{display:block;opacity:.85;font-size:12.5px;letter-spacing:.06em}
+.chip{position:fixed;right:12px;top:64px;z-index:5;padding:6px 12px;border-radius:14px;background:rgba(6,4,16,.55);border:1px solid rgba(255,140,160,.45);font:600 13px Inter,system-ui}
+.ses:not([hidden])~.chip{top:120px}
+@media (orientation:landscape) and (max-height:520px){.host{left:12px;right:auto;bottom:84px;max-width:46%}.host svg{width:46px;height:70px}.hint{top:60px}}
+@media (prefers-reduced-motion:reduce){.host svg{animation:none}}
+</style>
+</head>
+<body>
+<canvas id="gl" aria-label="Drag to look around the sphere. Tap a glowing window to enter it."></canvas>
+<div id="labs"></div>
+<div class="top">
+  <button class="pill" id="back" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg><span id="backT">Home</span></button>
+  <div class="place" id="place" style="color:#ffd89a">THE SPHERE</div>
+  <div style="display:flex;gap:6px;pointer-events:auto"><button class="pill" id="snd" type="button" aria-label="Sound" aria-pressed="false" style="padding:0;width:44px;justify-content:center;font-size:18px">🔇</button><button class="pill" id="trk" type="button" aria-label="Sessions and tricks" style="padding:0;width:44px;justify-content:center;font-size:20px">✦</button></div>
+</div>
+<div class="ses" id="ses" hidden><div><span id="sesT"></span><small id="sesB"></small></div><button class="pill" id="sesX" type="button">Stop</button></div>
+<div class="chip" id="hrChip" hidden></div>
+<div class="sheet" id="sheet" hidden role="dialog" aria-label="Sessions and tricks">
+ <div class="shh"><b>Sessions &amp; tricks</b><button class="pill" id="shX" type="button">Done</button></div>
+ <div class="srow"><div><b>🫁 Breath pace</b><small>The walls and the sound breathe at this pace</small></div><button class="pill" id="speed" type="button">5.5 a minute</button></div>
+ <div class="srow"><div><b>🌻 Golden Ratio session</b><small>Tones step down by the golden ratio, breathe in 1 : out 1.6 · headphones</small></div><div class="seg"><button class="pill" data-gl="5" type="button">5 min</button><button class="pill" data-gl="10" type="button">10</button><button class="pill" data-gl="20" type="button">20</button></div></div>
+ <div class="srow"><div><b>🌀 Living rooms</b><small>Rooms swell, flip over and turn inside out</small></div><button class="pill" id="livBtn" type="button" aria-pressed="true">On</button></div>
+ <div class="srow"><div><b>🫀 Heart sync</b><small id="hrNote">Connect a Bluetooth heart sensor</small></div><button class="pill" id="hrBtn" type="button">Connect</button></div>
+</div>
+<div class="hint" id="hint">Drag to look around · pinch to zoom · tap a glowing window<br>Tap 🔇 for sound — headphones bring out the deep tones</div>
+<div class="host" id="host" style="--glow:#ffd89a">
+  <svg id="hostSvg" width="66" height="100" viewBox="0 0 74 110" role="img" aria-label="Host"></svg>
+  <div class="bubble"><b id="hName"></b><span id="hSay"></span></div>
+</div>
+<div class="bar">
+  <button class="btn" id="still" type="button">Hold still</button>
+  <button class="btn" id="zoom" type="button">Zoom 1×</button>
+  <button class="btn glow" id="dis" type="button">Dissolve</button>
+</div>
+<div class="fade" id="fade"></div>
+<div class="nogl hide" id="nogl">This browser didn't start 3D graphics. Try Safari or Chrome, updated.</div>
+<script>
+{
+const $=(id)=>document.getElementById(id);
+/* rooms: name, colour, palette phase (vec3), fractal constant, host name, host line */
+const ROOMS=[
+ {n:"Theory",sh:"cube",ms:1,c:"#7fe8ff",pal:[.55,.65,.85],k:.73,h:"PRISM",say:"The crystals around you are the six theory lessons. Intervals still glows — two levels left.",st:["Scales & Modes","Intervals","Key Signatures","Circle of Fifths","Reading the Staff","Musical Terms"]},
+ {n:"Ear Training",sh:"icosa",ms:0.6,c:"#c79bff",pal:[.75,.55,.95],k:.69,h:"ECHO",say:"Listen to the walls ring. Each one is a different way to train your ear.",st:["Interval Trainer","Chord Ear","Scale Ear","Progressions","Cadences","Note ID"]},
+ {n:"Vocal",sh:"octa",ms:0.6,c:"#ff9bd2",pal:[.95,.6,.75],k:.76,h:"AURA",say:"Breathe in with the sphere, then let your voice fill it.",st:["Daily Warm-Up","Scale Runs","Long Tones","Range Finder","Hold & Dynamics","Sing the Interval"]},
+ {n:"Rhythm",sh:"tetra",ms:1,c:"#ffb36b",pal:[.05,.2,.35],k:.7,h:"PULSE",say:"Everything here moves in time. Find the beat in the walls.",st:["Metronome Flow","Rhythm Mind","Clap Back","Subdivisions","Polyrhythm","Groove"]},
+ {n:"Instruments",sh:"dodeca",ms:0.7,c:"#ffe27a",pal:[.1,.18,.3],k:.74,h:"STRING",say:"Piano, guitar, bass and ukulele live behind these lights.",st:["Piano","Guitar","Bass","Ukulele","Fretboard","Drums"]},
+ {n:"Create",sh:"cube",ms:0.5,c:"#8dff9e",pal:[.3,.45,.6],k:.71,h:"SPARK",say:"Catch a sound, chop it, build something new.",st:["Sound Catcher","Sampler","Hum to Chords","Melody Lab","Learn a Song","Studio"]},
+ {n:"Lyric Lab",sh:"dodeca",ms:1,c:"#ff8f8f",pal:[.98,.1,.3],k:.75,h:"MUSE",say:"Words become songs in here. Start with a feeling.",st:["New song","Rhymes","Melody","Backing","Takes","Arrange"]},
+ {n:"Infinity",sh:"sphere",ms:0,mt:1,c:"#e9d8ff",pal:[.8,.55,.25],k:.72,h:"ZERO",say:"Pinch, or tap Zoom, to dive — the set opens forever. Tap a light to go somewhere new.",st:["Seahorse Valley","Mini Mandelbrot","Golden Spiral","Lightning Tree","Julia Dance"],
+  dives:[[1,-0.743643887037151,0.131825904205330,29],[1,-0.7436423016578859,0.13182651981259472,13.6],[1,-0.10109636384562,0.95628651080914,28],[1,0,1,31],[2,0,0,0]]},
+ {n:"Meditation",sh:"sphere",ms:0,c:"#9fb7ff",pal:[.6,.7,.95],k:.68,h:"STILL",say:"Slow down. The sphere breathes with you.",st:["Majick Sleep","Breathwork","Brainwave Journeys","Heart Sync","Soundscapes","Resonance"]}];
+const HUB={n:"The Sphere",sh:"sphere",ms:.35,c:"#ffd89a",pal:[.0,.12,.32],k:.78,h:"LUMEN",say:"Welcome inside. Every window around you is a room of the school. Look around, then fly through one."};
+const PHI=(1+Math.sqrt(5))/2,IP=1/PHI;const nz=v=>{const l=Math.hypot(...v);return v.map(x=>x/l);};
+const cyc=(a,b,c)=>[[a,b,c],[c,a,b],[b,c,a]];const sg=(v)=>{let o=[[]];v.forEach(x=>{o=o.flatMap(p=>x===0?[[...p,0]]:[[...p,x],[...p,-x]]);});return o;};
+const SHAPES={sphere:[],cube:[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]],octa:sg([1,1,1]),tetra:[[1,1,1],[1,-1,-1],[-1,1,-1],[-1,-1,1]],
+ dodeca:cyc(0,1,PHI).flatMap(v=>sg(v)),icosa:[...sg([1,1,1]),...cyc(0,IP,PHI).flatMap(v=>sg(v))]};
+const SHN={infinity:"Endless dive",sphere:"Sphere",cube:"Cube",octa:"Diamond",tetra:"Pyramid",dodeca:"Dodecahedron",icosa:"Icosahedron"};
+const LUMEN='<defs><radialGradient id="hg" cx="50%" cy="35%" r="65%"><stop offset="0" stop-color="#fff8e6"/><stop offset=".45" stop-color="#ffc979"/><stop offset="1" stop-color="#7b3fe4" stop-opacity="0"/></radialGradient><linearGradient id="hb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd89a"/><stop offset=".6" stop-color="#b06cff" stop-opacity=".75"/><stop offset="1" stop-color="#3c1a8a" stop-opacity="0"/></linearGradient></defs><circle cx="37" cy="22" r="20" fill="url(#hg)"/><circle cx="37" cy="22" r="27" fill="none" stroke="#ffe3ad" stroke-opacity=".5"/><path d="M37 40 C18 50 14 78 8 108 L66 108 C60 78 56 50 37 40Z" fill="url(#hb)"/><circle cx="30" cy="20" r="2" fill="#2a1250"/><circle cx="44" cy="20" r="2" fill="#2a1250"/>';
+const GEM=(c)=>'<defs><linearGradient id="pg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".5" stop-color="'+c+'"/><stop offset="1" stop-color="#6b4cff" stop-opacity=".5"/></linearGradient><linearGradient id="pb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+c+'"/><stop offset="1" stop-color="#3c1a8a" stop-opacity="0"/></linearGradient></defs><polygon points="37,2 57,22 37,42 17,22" fill="url(#pg)"/><polygon points="37,10 49,22 37,34 25,22" fill="none" stroke="#fff" stroke-opacity=".7"/><path d="M37 44 L62 108 L12 108 Z" fill="url(#pb)" opacity=".85"/>';
+
+const FS=`precision highp float;
+uniform vec2 R;uniform float T,B,M,Z,F,K,NP,PR;uniform vec3 PAL,PAL2;uniform vec3 PD[11];uniform vec3 PC[11];uniform float MT;uniform vec2 MC;uniform sampler2D RT;uniform float RL,MI,DZ,MAXD;
+vec3 ry(vec3 v,float a){float c=cos(a),s=sin(a);return vec3(c*v.x+s*v.z,v.y,-s*v.x+c*v.z);}
+vec3 rx(vec3 v,float a){float c=cos(a),s=sin(a);return vec3(v.x,c*v.y-s*v.z,s*v.y+c*v.z);}
+uniform float YAW,PIT,FO,NF,MS,LZ,HB,HC,GS,CRY,GZ,AU,ROLL,WARP,KN,KF,IO,LV,FL,IO2,BRA;uniform vec3 AD;uniform vec3 FN[20];
+vec3 pal(float t,vec3 d){return .5+.5*cos(6.2831*(t+d));}
+/* the inner wall: a kaleidoscopic 3D fractal evaluated on the direction you look, so it surrounds you with no seams */
+vec3 wall(vec3 d,vec3 ph,float k,float sc){vec3 p=d*sc;p.xz=mat2(cos(T*.01),-sin(T*.01),sin(T*.01),cos(T*.01))*p.xz;
+ float acc=0.,mn=9.;vec3 col=vec3(0.);
+ for(int i=0;i<9;i++){p=abs(p)/dot(p,p)-vec3(k,k*.93,k*1.07);float l=length(p);mn=min(mn,abs(l-.9));col+=pal(l*.35+float(i)*.045+T*.012,ph)*exp(-abs(l-1.05)*6.);}
+ col*=.11;col+=pal(mn*1.5+T*.015,ph)*.9*exp(-mn*9.);return col*col*1.6;}
+/* depth: a soft volume of light drifting behind the wall */
+vec3 deep(vec3 d,vec3 ph){vec3 col=vec3(0.);float s=.25;for(int r=0;r<4;r++){vec3 p=d*s+vec3(.5,.3,.2)+vec3(0.,0.,T*.004);p=abs(vec3(.85)-mod(p,vec3(1.7)));float pa=0.,a=0.;
+ for(int i=0;i<9;i++){p=abs(p)/dot(p,p)-.55;a+=abs(length(p)-pa);pa=length(p);}col+=pal(float(r)*.08+T*.01,ph)*a*a*.00035*s;s+=.33;}return col;}
+
+vec2 fold(vec2 p,float n){float a=atan(p.y,p.x),s=6.2831/n;a=abs(mod(a+s*.5,s)-s*.5);return length(p)*vec2(cos(a),sin(a));}
+/* temple geometry nested 7 times, each 3x smaller: as you zoom in, finer layers fade in so there is always tiny detail */
+float hsh(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5);}
+mat2 rm(float a){float c=cos(a),s=sin(a);return mat2(c,-s,s,c);}
+/* crisp n-point star: negative inside */
+float starSD(vec2 c,float R){vec2 f=fold(c,8.);vec2 tip=vec2(R,0.),inn=R*.38*vec2(.9239,.3827);vec2 e=normalize(inn-tip);return -dot(f-tip,vec2(-e.y,e.x));}
+vec2 rfold(vec2 p,float n){float a=atan(p.y,p.x),s=6.2831/n;a=mod(a+s*.5,s)-s*.5;return length(p)*vec2(cos(a),sin(a));}
+float seg(vec2 p,vec2 a,vec2 b){vec2 pa=p-a,ba=b-a;float h=clamp(dot(pa,ba)/dot(ba,ba),0.,1.);return length(pa-ba*h);}
+/* an eighth note, head at the origin, about 1.7 tall; negative inside */
+float noteSD(vec2 p){vec2 h=rm(.45)*p;float head=(length(h*vec2(1.,1.5))-.3)/1.5;
+ float stem=seg(p,vec2(.27,0.),vec2(.27,1.38))-.045;float flag=seg(p,vec2(.27,1.38),vec2(.62,.92))-.07;return min(head,min(stem,flag));}
+vec3 geo2(vec2 lq,vec2 qa,float lz,float aS,vec3 ph,float px){vec3 col=vec3(0.);float A0=floor(lz)-1.;vec2 q0=qa+lq*pow(3.,-lz);
+ for(int k=0;k<8;k++){float ab=A0+float(k);float fk=mod(ab,7.);float nrel=6.*pow(3.,ab-lz);float aa=px*nrel*aS;
+  float w=smoothstep(.09,.045,aa)*smoothstep(.0003,.0015,aa);
+  if(w>0.){vec2 p0=vec2(hsh(vec2(ab,1.7)),hsh(vec2(ab,8.3)));if(ab<13.)p0+=fract(qa*6.*pow(3.,ab));vec2 q=fract(p0)+lq*nrel;q.y+=T*(.02+fk*.006)*(mod(fk,2.)*2.-1.);vec2 id=floor(q);float h=hsh(id+fk);vec2 c0=fract(q)-.5;vec2 c=c0;
+   /* evolve: twist, turn inside out, morph star <-> lotus */
+   float big=1.-smoothstep(.004,.03,aa);
+   c=rm(sin(T*(.17+fk*.05)+fk)*2.2*(.6-length(c))*(.35+big))*c;
+   float io=.5+.5*sin(T*(.11+fk*.03)+fk*1.7);io=io*io*(3.-2.*io)*.85*(1.-.55*MS);float r2=max(dot(c,c),.02);
+   c=mix(c,c*.09/r2,io);float sc=mix(1.,.09/r2,io);float la=aa*max(sc,1.);
+   float odd=mod(ab,2.);if(odd>.5)c=rm(T*(.25+h*.5)*(h<.5?-1.:1.)+h*6.28)*c;
+   vec2 a=abs(c);if(a.y>a.x)a=a.yx;float th=.95+.3*sin(T*(.11+fk*.05)+fk);
+   float s1=dot(a-vec2(.5,0.),vec2(cos(th),sin(th)));float s2=dot(a-vec2(.5,.5),vec2(cos(th+.785),sin(th+.785)));float sA=min(abs(s1),abs(s2)+.01);
+   vec2 f=fold(c,8.);float r=length(c);float pet=abs(length((f-vec2(.22,0.))*vec2(1.,2.3))-.1);float rg=min(abs(r-.36),abs(r-.12));
+   float sa=1.15+.3*sin(T*(.09+fk*.04));float sB=min(min(pet,rg),abs(dot(f-vec2(.36,0.),vec2(cos(sa),sin(sa)))));
+   float mo=.5+.5*sin(T*(.07+fk*.025)+fk*2.3);mo=mix(odd,mo,.75);float sw=mix(sA,sB,mo);
+   float nf=1e3;
+   if(MS>0.&&odd>.5){vec2 np=rm(-1.5708)*(rfold(c,8.)-vec2(.25,0.))/.12;nf=noteSD(np+vec2(0.,.6))*.12;sw=mix(sw,abs(nf),MS*.5);}
+   if(MS>0.&&mod(ab,3.)<.5){float yy=c0.y+.09*sin(c0.x*6.2831+T*.6+fk);float l5=yy/.06;float sd=abs(l5-floor(l5+.5))*.06;sd=max(sd,abs(yy)-.13);
+     float xi=c0.x*4.+T*(.35+fk*.05);float ni=floor(xi);float hp=hsh(vec2(ni,id.y+fk));vec2 np=vec2((fract(xi)-.5)/4.,yy-(floor(hp*9.)-4.)*.03);
+     nf=min(nf,noteSD(np/.1)*.1);sw=mix(sw,sd,MS);}
+   vec3 hue=pal(fk*.23+T*(.05+fk*.02)+q0.y*2.+q0.x*fk*.5+r*.6,ph);
+   float lw=la*.75;float line=smoothstep(lw+la,lw,sw);
+   /* rings of light running through the shape */
+   float run=pow(.5+.5*sin(r*22.-T*(3.+fk*.4)+h*6.28),8.);
+   col+=w*hue*line*(.8+fk*.05+1.1*run);if(nf<1e2)col+=w*MS*mix(hue,vec3(1.),.3)*smoothstep(la,-la,nf)*1.2;
+   /* tiny twinkling stars, only where they are big enough to read as stars */
+   float wt=smoothstep(.1,.055,aa)*smoothstep(.006,.014,aa);
+   if(wt>0.&&h>.25){float tw=pow(.5+.5*sin(T*(1.3+h*2.7)+h*40.),3.);vec2 g=rm(T*(h-.5)*2.)*(c0-vec2(.5*(fract(h*7.)-.5),.5*(fract(h*13.)-.5)));
+    float sd=starSD(g,.09+.08*tw);float h2=fract(h*91.7);if(h2<MS){float ns=.1+.05*tw;sd=noteSD((g+vec2(0.,.05))/ns)*ns;}col+=wt*tw*mix(pal(h+T*.15,ph),vec3(1.),.35)*smoothstep(aa,-aa,sd)*1.4;}}
+  }
+ return col;}
+vec3 geo(vec3 d,vec3 ph,float px){float el=asin(clamp(d.y,-.999,.999)),ce=max(cos(el),.03);
+ return geo2(vec2(atan(d.x,d.z),log(tan(.7854+el*.5)))/6.2831,vec2(0.),0.,1./(6.2831*ce),ph,px);}
+/* the room's shape: sphere, or the inside of a platonic solid */
+/* Mandelbrot / Julia wrapped round you: looking up or down dives deeper (log-polar), and the dive loops with no seam */
+vec3 frac2(vec2 dir,float depth,float pk,vec3 ph,float jul){float r=jul>.5?1.5*exp(-depth*.35):.09*exp(-depth);
+ vec2 z=jul>.5?dir*r:vec2(0.),dz=jul>.5?vec2(1.,0.):vec2(0.);vec2 c=jul>.5?.7885*vec2(cos(T*.11),sin(T*.11)):MC+dir*r;float n=0.,m2=0.;
+ for(int i=0;i<150;i++){dz=2.*vec2(z.x*dz.x-z.y*dz.y,z.x*dz.y+z.y*dz.x)+(jul>.5?vec2(0.):vec2(1.,0.));z=vec2(z.x*z.x-z.y*z.y,2.*z.x*z.y)+c;m2=dot(z,z);if(m2>1e4)break;n+=1.;}
+ if(m2<=1e4)return pal(.62+.08*sin(T*.4),ph)*.05;
+ float nu=n-log2(.5*log2(m2));float de=sqrt(m2)*.5*log(m2)/max(length(dz),1e-9);float pc=r*pk*(jul>.5?.35:1.);
+ vec3 col=pal(nu*.03+T*.05+depth*.07,ph);col*=col*(.3+.9*exp(-nu*.012));
+ col+=mix(vec3(1.,.86,.56),pal(nu*.05+.3,ph),.45)*smoothstep(pc*3.5,pc*.6,de)*1.35;return col;}
+vec2 cm(vec2 a,vec2 b){return vec2(a.x*b.x-a.y*b.y,a.x*b.y+a.y*b.x);}
+/* deep Mandelbrot: the exact path of the centre point is worked out on the CPU in double precision (RT);
+   each pixel only follows its tiny difference from that path, so the zoom can go about a trillion times deep */
+/* colour: smooth bands outside, one steady edge tone where detail is finer than a pixel (no sparkle), soft colour inside */
+vec3 shadeM(bool o,float n,float m2,vec2 der,float trap,float pc,vec3 ph){
+ if(!o){float t=sqrt(sqrt(trap));vec3 ic=pal(.5+t*1.1+T*.015,ph);return ic*ic*(.45+.4*t);}
+ float nu=n-log2(.5*log2(m2));float L=max(abs(der.x),abs(der.y));float de=sqrt(m2)*.5*log(m2)/(L*length(der/max(L,1e-30)));
+ vec3 band=pal(log(nu+1.)*.9+T*.09,ph);band*=band*.95;
+ return band*(.06+.94*smoothstep(pc*.12,pc*1.3,de));}
+/* deep Mandelbrot: exact centre path from the CPU in double precision (RT); each pixel follows only its tiny difference */
+vec3 deepM(vec2 dc,float pc,vec3 ph){vec2 dz=vec2(0.),der=vec2(0.);float m=0.,n=0.,m2=0.,trap=9.;bool o=false;
+ for(int i=0;i<2000;i++){if(float(i)>=MI)break;vec2 Zm=texture2D(RT,vec2((m+.5)/2000.,.5)).xy;vec2 zf=Zm+dz;
+  der=2.*cm(zf,der)+vec2(1.,0.);dz=2.*cm(Zm,dz)+cm(dz,dz)+dc;m+=1.;
+  vec2 z=texture2D(RT,vec2((m+.5)/2000.,.5)).xy+dz;m2=dot(z,z);trap=min(trap,m2);if(m2>1e4){o=true;break;}n+=1.;
+  if(m2<dot(dz,dz)||m>=RL-1.){dz=z;m=0.;}}
+ return shadeM(o,n,m2,der,trap,pc,ph);}
+vec3 juliaS(vec2 z,float pc,vec3 ph){vec2 c=.7885*vec2(cos(T*.11),sin(T*.11)),der=vec2(1.,0.);float n=0.,m2=0.,trap=9.;bool o=false;
+ for(int i=0;i<400;i++){der=2.*cm(z,der);z=cm(z,z)+c;m2=dot(z,z);trap=min(trap,m2);if(m2>1e4){o=true;break;}n+=1.;}
+ return shadeM(o,n,m2,der,trap,pc,ph);}
+/* true-shape view: the whole sphere is projected onto the fractal plane (stereographic, keeps shapes), the dive point straight ahead */
+vec3 mroom(vec3 d,vec3 ph,float px){float den=1.+d.z;if(den<.03)return pal(.1,ph)*.08;
+ vec2 w=rm(T*.008)*(d.xy/den);float js=1.;
+ /* alive: breathes with you, swirls, folds into a kaleidoscope and back, turns inside out */
+ float br=1.+.06*(B-1.)/.08;w/=br;js/=br;
+ float lw=length(w);w=rm(.9*sin(T*.05)*exp(-lw*1.6))*w;
+ if(KF>0.){float sw=T*.09,a=atan(w.y,w.x)-sw,s=6.2831/KN;float af=abs(mod(a+s*.5,s)-s*.5)+sw;w=mix(w,length(w)*vec2(cos(af),sin(af)),KF);}
+ if(IO>0.){float rr=max(dot(w,w),1e-4),inv=.05/rr;w=mix(w,w*inv,IO);js*=mix(1.,inv,IO);}
+ if(MT>1.5)return juliaS(w*1.4,1.4*px*js/den,ph);
+ float sc=6.*exp(-DZ);return deepM(w*sc,sc*px*js/den,ph);}
+vec3 DV=vec3(0.,0.,1.);
+/* noise for the galaxy */
+float h31(vec3 p){p=fract(p*vec3(443.897,441.423,437.195));p+=dot(p,p.yxz+19.19);return fract((p.x+p.y)*p.z);}
+float vn(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+ return mix(mix(mix(h31(i),h31(i+vec3(1.,0.,0.)),f.x),mix(h31(i+vec3(0.,1.,0.)),h31(i+vec3(1.,1.,0.)),f.x),f.y),mix(mix(h31(i+vec3(0.,0.,1.)),h31(i+vec3(1.,0.,1.)),f.x),mix(h31(i+vec3(0.,1.,1.)),h31(i+vec3(1.,1.,1.)),f.x),f.y),f.z);}
+float fbm(vec3 p){float a=.5,s=0.;for(int i=0;i<5;i++){s+=a*vn(p);p*=2.03;a*=.5;}return s;}
+/* the Milky Way: the galaxy's band across the sky, stars streaming past as you travel, a spiral galaxy growing ahead */
+vec3 galaxy(vec3 d,float px){vec3 g=rx(ry(d,.7),.45);float lat=g.y,band=exp(-lat*lat/.035);
+ float n=fbm(g*2.6+vec3(0.,0.,T*.003)),dust=smoothstep(.5,.78,fbm(g*5.5+7.3));
+ vec3 col=mix(vec3(.18,.28,.85),vec3(.95,.5,.8),n)*band*(.35+.9*n)*(1.-.8*dust*band);
+ col+=vec3(1.,.82,.55)*exp(-lat*lat/.005)*.4*(1.-dust);
+ float den=1.+DV.z;
+ if(den>.04){vec2 w=DV.xy/den;float r=length(w),lr=log(max(r,1e-5)),th=atan(w.y,w.x);
+  for(int k=0;k<3;k++){float fk=float(k),Nt=40.+fk*28.,sp=(.13+fk*.07)*(1.+20.*WARP);vec2 q=vec2(th,lr-T*sp)*Nt/6.2831;vec2 id=floor(q),f=fract(q)-.5;
+   float hs=h31(vec3(id,fk*7.1));if(hs>.62){vec2 o=vec2(h31(vec3(id,3.3+fk)),h31(vec3(id,9.1+fk)))-.5;vec2 dd=f-o*.6;dd.y*=mix(.8,.035,WARP);
+    float cpx=px/den/max(r,1e-4)*Nt/6.2831;float rad=min(.09+.05*WARP,cpx*(1.1+1.8*hs)*(1.+WARP));
+    col+=mix(vec3(.75,.85,1.),vec3(1.,.85,.65),fract(hs*13.))*smoothstep(rad+cpx,rad*.3,length(dd))*(.6+.8*hs)*(.55+.45*sin(T*(2.+hs*3.)+hs*40.));}}
+  vec2 wW=d.xy/max(1.+d.z,.04);vec2 wg=rm(T*.01)*wW/(.08+GZ*.55);float r2=length(wg);if(r2<3.){float a=atan(wg.y,wg.x);
+   float arm=pow(.5+.5*cos(2.*(a-log(max(r2,.02))*2.3)),3.);float hii=smoothstep(.62,.8,fbm(vec3(wg*4.,1.7)));
+   col+=(vec3(.55,.7,1.)*arm*(.55+.6*fbm(vec3(wg*3.,0.)))+vec3(1.,.45,.7)*hii*arm)*exp(-r2*1.15)*.9+vec3(1.,.85,.6)*exp(-r2*r2*18.)*.5;}}
+ /* the sun: a real ball in front of you; dragging flies you around it, every side has its own spots, bright regions and flames */
+ float rs=min(.42,.1*exp(DZ*.12))*(1.+.03*(B-1.)/.08),ang=acos(clamp(DV.z,-1.,1.));
+ if(ang<rs*4.5){float tr=tan(rs);vec2 dp=DV.xy/max(DV.z,.01)/tr;float r1=length(dp),sa=atan(DV.y,DV.x);
+  if(r1<1.){vec3 nv=vec3(dp,-sqrt(1.-r1*r1));vec3 nw=ry(rx(nv,PIT),YAW);nw=ry(nw,T*.04);
+   float g1=fbm(nw*7.+vec3(0.,T*.05,0.)),g2=fbm(nw*2.2+3.1),spot=smoothstep(.66,.72,g2),act=smoothstep(.55,.62,fbm(nw*3.3+8.));
+   float limb=-nv.z;vec3 surf=mix(vec3(1.,.3,.02),vec3(1.,.82,.4),g1)*(.75+.8*limb)+vec3(1.,.95,.8)*pow(limb,6.)*.5;
+   surf=mix(surf,vec3(.35,.08,.0),spot*.85)+vec3(1.,.9,.6)*act*.35*(1.-spot);col=surf*2.1;}
+  else{float h=ang/rs-1.;vec3 nl=ry(rx(vec3(cos(sa),sin(sa),0.),PIT),YAW);nl=ry(nl,T*.04);float pf=fbm(nl*3.+vec3(T*.06));
+   float prom=smoothstep(.5,.72,pf)*smoothstep(pf*.55+.05,0.,h)*(.6+.4*fbm(vec3(sa*9.,h*20.,T*.3)));
+   float rays=pow(.5+.5*cos(sa*14.+YAW*3.+PIT*2.+fbm(vec3(sa*2.,h*3.,T*.1))*5.+T*.12),4.)+pow(.5+.5*cos(sa*7.-T*.07),6.)*.6;
+   float cor=exp(-h*rs*7./max(rs,.05)*.9)*(.45+.8*rays*exp(-h*1.5));
+   col+=vec3(1.,.62,.25)*cor*1.4+vec3(1.,.28,.08)*prom*1.8+vec3(1.,.9,.7)*exp(-h*h*8.)*.25;}}
+ return col;}
+/* where a view direction lands on the room's walls: sphere, or a face of the solid */
+vec2 qmap(vec3 d,out float aS,out vec3 ex){
+ if(NF<.5){float el=asin(clamp(d.y,-.999,.999)),ce=max(cos(el),.03);aS=1./(6.2831*ce);ex=vec3(9.,1.,0.);vec2 qq=vec2(atan(d.x,d.z),log(tan(.7854+el*.5)))/6.2831;if(MT>2.5)qq.x+=qq.y*.9+T*.004;return qq;}
+ vec3 dd=ry(rx(d,.2),T*.012);float b1=-9.,b2=-9.;vec3 n1=vec3(0.,0.,1.);float fi=0.;
+ for(int i=0;i<20;i++){if(float(i)>=NF)break;float c=dot(dd,FN[i]);if(c>b1){b2=b1;b1=c;n1=FN[i];fi=float(i);}else if(c>b2)b2=c;}
+ float t=1./max(b1,.05);vec3 p=dd*t;vec3 u=normalize(cross(n1,abs(n1.y)<.9?vec3(0.,1.,0.):vec3(1.,0.,0.)));vec3 v=cross(n1,u);
+ aS=.22*t*t;ex=vec3((b1-b2)*t,t,fi);return vec2(dot(p,u),dot(p,v))*.22+fi*.173;}
+vec3 room(vec3 d,vec3 ph,float px){vec3 gb=vec3(0.);if(MT>2.5)gb=galaxy(d,px)*.95;else if(MT>.5)return mroom(d,ph,px);
+ float aS,aS2;vec3 ex,ex2;vec2 q0=qmap(d,aS,ex);vec2 qa=qmap(AD,aS2,ex2);vec2 lq=q0-qa;if(NF<.5)lq.x-=floor(lq.x+.5);
+ vec3 col=geo2(lq,qa,LZ,aS,ph,px)*(MT>2.5?.85*(1.-.94*smoothstep(min(.42,.1*exp(DZ*.12))*2.6,min(.42,.1*exp(DZ*.12))*1.05,acos(clamp(DV.z,-1.,1.)))):1.);if(NF<.5)return col+gb;
+ float e=ex.x,t=ex.y,fi=ex.z,fe=1.-smoothstep(.2,1.2,LZ);
+ if(CRY>0.){vec3 sp=.5+.5*cos(6.2831*(fract(fi*.137+T*.02+dot(q0,vec2(.6,.35)))+vec3(0.,.33,.67)));float sw=exp(-pow(fract(q0.x*.25+q0.y*.15-T*.06)-.5,2.)*90.);
+  col=mix(col,col*.6+sp*sp*.55,CRY*.7)+vec3(1.)*sw*.35*CRY;float l1=smoothstep(px*3.*t,0.,abs(e*.7-.006*t)),l2=smoothstep(px*3.*t,0.,abs(e*.7-.012*t)),l3=smoothstep(px*3.*t,0.,abs(e*.7-.018*t));col+=vec3(l1,l2,l3)*CRY*fe*.9;}
+ col*=mix(1.,.4+.6*smoothstep(0.,.3,e),fe)*(.85+.3*fract(sin(fi*12.9)*43.7));
+ float ln=smoothstep(px*2.6*t,px*1.*t,e*.7);col+=fe*mix(vec3(1.,.82,.5),vec3(1.),.4)*ln*(.9+.5*sin(T*1.3+fi));
+ col+=fe*mix(vec3(1.,.82,.5),pal(.2,ph),.5)*exp(-e/(.02*t))*.25;return col;}
+/* the sunflower: seeds at a divergence angle breathing around the golden angle; it folds, turns inside out, turns backwards, light waves through the seeds */
+vec3 sunflower(vec2 uv,float px,vec3 ph){if(length(uv)>.75)return vec3(0.);
+ float io=smoothstep(.2,.8,.5-.5*cos(T*.05));vec2 u=rm(.9*sin(T*.023)+T*.03*sin(T*.011))*uv;u.y*=1.+.38*sin(T*.06);u.x*=1.-.18*sin(T*.043);
+ float rr=dot(u,u),inv=.075/max(rr,.0006);vec2 ui=u*inv;u=mix(u,ui,io);float pxs=px*mix(1.,inv,io);
+ float c=.024,r=length(u);if(r>.52)return vec3(0.);float n0=r*r/(c*c),best=9.,bi=0.,ga=2.3999632+.012*sin(T*.07)+.006*sin(T*.031+1.);
+ vec2 bv=vec2(0.);for(int k=-34;k<=34;k++){float n=floor(n0)+float(k);if(n<1.)continue;float a=n*ga+T*.05*sin(T*.017);vec2 p=c*sqrt(n)*vec2(cos(a),sin(a));float dd=length(u-p);if(dd<best){best=dd;bi=n;bv=u-p;}}
+ float wave=.5+.5*sin(bi*.06-T*1.6);float sz=c*(.28+.1*(B-1.)/.08+.12*wave)*(1.+.25*AU);
+ float shp=mod(floor(bi/55.+T*.12),4.);vec2 lv=rm(-atan(u.y,u.x)+T*.5)*bv;float sd=best-sz;
+ if(shp>.5&&shp<1.5)sd=starSD(lv,sz*1.5);else if(shp>1.5&&shp<2.5)sd=(length(lv*vec2(.55,1.6))-sz*.9)*.8;else if(shp>2.5)sd=abs(best-sz*.8)-sz*.22;
+ float disc=smoothstep(pxs,-pxs,sd),ring=smoothstep(pxs*1.5,0.,abs(best-sz*1.4))*.5;
+ float arm=step(mod(bi,34.),.5)+step(mod(bi+floor(T*3.),21.),.5)*.7;
+ vec3 col=pal(bi*.003+T*.025-r*.9,ph);col=col*col*(disc*(.55+.6*arm+.5*wave)+ring);col*=smoothstep(.52,.32,r)*smoothstep(.75,.55,length(uv));
+ return col;}
+/* around the sunflower: a lotus that opens and closes with the breath, a turning Flower of Life, a ring of twinkling stars */
+vec3 bloom(vec2 uv,float px,vec3 ph){vec3 col=vec3(0.);float r=length(uv),a=atan(uv.y,uv.x),bo=.5+.5*(B-1.)/.08;
+ for(int L=0;L<3;L++){float fl=float(L),N=12.+fl*6.,r0=.5+fl*.085+.03*bo,ln=.07+.03*bo;float s=6.2831/N;float aa=mod(a+T*(.03-fl*.02)*(mod(fl,2.)*2.-1.)+s*.5*fl,s)-s*.5;
+  vec2 q=vec2(r-r0,aa*r);float pet=abs(length(q*vec2(1./ln,1./(.045+.015*bo)))-1.)*min(ln,.05);col+=pal(.1+fl*.18+T*.02,ph)*smoothstep(px*1.6,0.,pet)*(.75-fl*.15);}
+ vec2 f=rm(-T*.02)*uv*7.;vec2 hx=vec2(1.,1.732);vec2 g1=mod(f,hx)-hx*.5,g2=mod(f-hx*.5,hx)-hx*.5;float fol=min(abs(length(g1)-1.),abs(length(g2)-1.));
+ col+=pal(.6+T*.01,ph)*smoothstep(px*7.*1.5,0.,fol)*.22*smoothstep(.45,.25,r)*(.5+.5*sin(T*.3-r*8.));
+ for(int i=0;i<12;i++){float fi=float(i),an=fi*.5236+T*.07;vec2 sp=.68*vec2(cos(an),sin(an));float tw=pow(.5+.5*sin(T*1.7+fi*2.1),3.);float sd=starSD(rm(T*.4+fi)*(uv-sp),.018+.014*tw);col+=mix(pal(fi*.08+T*.05,ph),vec3(1.),.4)*smoothstep(px,-px,sd)*(.4+tw);}
+ return col;}
+void main(){vec2 uv=(gl_FragCoord.xy-.5*R)/min(R.x,R.y);uv=rm(ROLL)*uv;
+ if(M>0.){float r=length(uv);uv+=M*.12*vec2(sin(uv.y*7.+T*2.4),cos(uv.x*7.+T*2.1));}
+ /* living rooms: swell and shrink, flip over like a card, turn inside out (what is behind you blooms into the centre) */
+ float bb=(B-1.)/.08;vec2 ud=uv;float js=1.;{float bs=1.+.17*BRA*bb;ud/=bs;js/=bs;}
+ if(LV>0.){float sw=1.+LV*(.2*sin(T*.12)+.05*(B-1.)/.08);ud/=sw;js/=sw;}
+ if(FL!=0.){float cf=cos(FL),ac=max(abs(cf),.06);ud.y/=ac*sign(cf+1e-5);js/=ac;}
+ if(IO2>0.){float rr=max(dot(ud,ud),1e-4),inv=.09/rr;ud=mix(ud,ud*inv,IO2);js*=mix(1.,max(inv,1.),IO2);}
+ float fo=FO+Z*9.;vec3 d=normalize(vec3(ud,fo));DV=d;d=ry(rx(d,PIT),YAW);float px=1.4/(min(R.x,R.y)*fo)*js;
+ float sc=1.7/B;vec3 col=MT>.5?vec3(0.):wall(d,PAL,K,sc)*.6;col+=room(d,PAL,px)*(MT>.5?1.:1.+2.*(B-1.));
+ /* windows to the other rooms: a ring of light and a glimpse of that room's own fractal */
+ float wv=(1.-smoothstep(.3,1.,LZ))*(1.-GS);
+ for(int i=0;i<11;i++){if(float(i)>=NP||wv<=0.)break;float c=dot(d,PD[i]);float a=acos(clamp(c,-1.,1.));float rad=PR*(1.+.06*sin(T*1.14+float(i)));
+  float ring=exp(-pow((a-rad)/(.012+.01*PR),2.));float inside=smoothstep(rad,rad-.02,a);
+  if(inside>0.){vec3 g=wall(normalize(d*3.+PD[i]*2.),PC[i],.7+float(i)*.012,2.6)*1.6+geo(normalize(d*4.+PD[i]),PC[i],px*3.);col=mix(col,g,inside*.92*wv);}col+=(.5+.5*cos(6.2831*(PC[i]+.1)))*ring*1.6*wv;col+=(.5+.5*cos(6.2831*PC[i]))*exp(-a*a*40./max(PR,.05))*.15*wv;}
+ if(GS>.01){float fs=1.+.16*BRA*bb;vec2 uf=uv/fs;col=mix(col,col*.16,GS*.88)+(sunflower(uf,1.4/min(R.x,R.y)/fs,PAL)*1.7+bloom(uf,1.4/min(R.x,R.y)/fs,PAL))*GS;}
+ if(HC>0.)col=mix(col,col*vec3(1.15,1.,.8)*1.2,HC*.6);
+ if(HB<3.){float rg=exp(-pow((length(uv)-HB*1.3)*7.,2.))*exp(-HB*2.2);col+=col*rg*.9+vec3(1.,.55,.6)*rg*.06;}
+ col*=(1.+.3*AU)*(1.+.24*BRA*bb);
+ col=1.-exp(-col*1.3);col=pow(col,vec3(1.35));float lum=dot(col,vec3(.3,.59,.11));col=mix(vec3(lum),col,1.45);col=max(col,0.);
+ col*=1.-.25*dot(uv,uv);col=mix(col,vec3(1.),smoothstep(.85,1.,Z));gl_FragColor=vec4(col,1.);}`;
+
+const cv=$("gl"),gl=cv.getContext("webgl",{antialias:false,powerPreference:"high-performance"});let U={};
+if(!gl)$("nogl").classList.remove("hide");
+else{const mk=(t,s)=>{const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))console.error(gl.getShaderInfoLog(o));return o;};
+  const pr=gl.createProgram();gl.attachShader(pr,mk(gl.VERTEX_SHADER,"attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}"));gl.attachShader(pr,mk(gl.FRAGMENT_SHADER,FS));gl.linkProgram(pr);gl.useProgram(pr);
+  const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);const loc=gl.getAttribLocation(pr,"p");gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+  ["R","T","B","M","Z","K","NP","PR","PAL","YAW","PIT","PD","PC","FO","NF","MS","FN","MT","MC","RT","RL","MI","DZ","MAXD","LZ","AD","HB","HC","GS","CRY","GZ","AU","ROLL","WARP","KN","KF","IO","LV","FL","IO2","BRA"].forEach(k=>U[k]=gl.getUniformLocation(pr,k));}
+
+/* reference orbit for the deep zoom, in double precision */
+const FX=gl&&gl.getExtension("OES_texture_float");let RTEX=null,RLEN=2;
+function nucleus(cx,cy){let x=0,y=0,best=1e9,p=1;for(let n=1;n<=3000;n++){const nx=x*x-y*y+cx;y=2*x*y+cy;x=nx;const m=x*x+y*y;if(m>4)break;if(m<best){best=m;p=n;}}
+  let a=cx,b=cy;for(let it=0;it<80;it++){let zx=0,zy=0,dx=0,dy=0;for(let i=0;i<p;i++){const ndx=2*(zx*dx-zy*dy)+1,ndy=2*(zx*dy+zy*dx);dx=ndx;dy=ndy;const t=zx*zx-zy*zy+a;zy=2*zx*zy+b;zx=t;}
+   const den=dx*dx+dy*dy;if(!den)break;const sx=(zx*dx+zy*dy)/den,sy=(zy*dx-zx*dy)/den;a-=sx;b-=sy;if(Math.hypot(sx,sy)<1e-18)break;}
+  let zx=0,zy=0,lx=1,ly=0,bx=1,by=0;for(let i=1;i<p;i++){const t=zx*zx-zy*zy+a;zy=2*zx*zy+b;zx=t;const nlx=2*(zx*lx-zy*ly),nly=2*(zx*ly+zy*lx);lx=nlx;ly=nly;const ll=lx*lx+ly*ly;bx+=lx/ll;by+=-ly/ll;}
+  const size=1/(Math.hypot(bx,by)*(lx*lx+ly*ly));return {c:[a,b],p,size};}
+function refOrbit(cx,cy){if(!gl||!FX)return;const N=2000,a=new Float32Array(N*4);let x=0,y=0,n=0;
+  for(;n<N;n++){a[n*4]=x;a[n*4+1]=y;const nx=x*x-y*y+cx;y=2*x*y+cy;x=nx;if(x*x+y*y>1e8){n++;break;}}
+  RLEN=Math.max(2,n);if(!RTEX)RTEX=gl.createTexture();gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,RTEX);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,N,1,0,gl.RGBA,gl.FLOAT,a);}
+/* camera + world state */
+const S={dz:0,dzTo:0,fo:1.1,foTo:1.1,room:-1,yaw:0,pit:0,vy:0.0006,vp:0,still:false,melt:0,meltTo:0,z:0,fly:null,t0:performance.now(),breath:11,dirs:[],cols:[],labels:[]};
+const ry=(v,a)=>{const c=Math.cos(a),s=Math.sin(a);return [c*v[0]+s*v[2],v[1],-s*v[0]+c*v[2]];},rx=(v,a)=>{const c=Math.cos(a),s=Math.sin(a);return [v[0],c*v[1]-s*v[2],s*v[1]+c*v[2]];};
+function hexPh(h){/* map a room colour to a palette phase so its window glows in its own colour */const r=parseInt(h.slice(1,3),16)/255,g=parseInt(h.slice(3,5),16)/255,b=parseInt(h.slice(5,7),16)/255;return [Math.acos(2*r-1)/6.2831,Math.acos(2*g-1)/6.2831,Math.acos(2*b-1)/6.2831];}
+function setRoom(i){try{if(!G.mom)S.free=false;}catch(e){S.free=false;}S.room=i;const R=typeof i==="object"?i:(i<0?HUB:ROOMS[i]);S.cur=R;S.mt=R.mt||0;S.mc=R.dives?[R.dives[0][1],R.dives[0][2]]:[0,0];S.maxd=R.dives?R.dives[0][3]:81;S.dz=S.dzTo=0;S.dive=false;if(R.dives)refOrbit(S.mc[0],S.mc[1]);setTimeout(zl,0);
+  const items=i<0?ROOMS.map(r=>({name:r.n,col:r.c})):R.st.map(n=>({name:n,col:R.c}));
+  S.dirs=items.map((_,j)=>{const n=items.length;return ry(rx([0,0,1],(j%2?-1:1)*(i<0?0.32:0.42)),j*2*Math.PI/n+0.2);});
+  S.cols=items.map(x=>hexPh(x.col));S.pr=i<0?0.2:0.13;
+  $("labs").innerHTML=items.map(x=>'<div class="lab" style="color:'+x.col+'">'+x.name+(i<0?'':'<small>tap to open</small>')+'</div>').join("");S.labels=[...$("labs").children];
+  $("place").innerHTML=R.n.toUpperCase()+(i<0?'':'<small style="display:block;font:600 10px Inter;letter-spacing:.2em;opacity:.8">'+(R.tag||(R.mt?"ENDLESS DIVE":SHN[R.sh].toUpperCase()))+"</small>");S.fn=new Float32Array(60);(SHAPES[R.sh]||[]).forEach((v,j)=>S.fn.set(nz(v),j*3));S.nf=(SHAPES[R.sh]||[]).length;$("place").style.color=R.c;$("backT").textContent=i<0?"Home":"Sphere";
+  clearTimeout(S.ht);S.ht=setTimeout(()=>{if(!S.fly)$("host").style.opacity=0;},8000);if(i>=0)$("hint").style.opacity=0;$("hName").textContent=R.h+" · HOST";$("hSay").textContent=R.say;$("hostSvg").innerHTML=i<0?LUMEN:GEM(R.c);$("host").style.setProperty("--glow",R.c);}
+setRoom(-1);
+let QS=1;function size(){const s=Math.min(2,devicePixelRatio||1)*0.62*QS;cv.width=Math.round(innerWidth*s);cv.height=Math.round(innerHeight*s);}size();addEventListener("resize",size);
+/* look around: drag; a gentle drift when idle */
+const PTS=new Map();let pinch=null;const pd2=()=>{const v=[...PTS.values()];return Math.hypot(v[0].x-v[1].x,v[0].y-v[1].y);};
+cv.addEventListener("pointerdown",e=>{PTS.set(e.pointerId,{x:e.clientX,y:e.clientY});if(PTS.size===2){pinch={d:pd2(),f:S.foTo,z:S.dzTo};drag=null;}},true);
+cv.addEventListener("pointermove",e=>{if(PTS.has(e.pointerId))PTS.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pinch&&PTS.size===2){if(deep()){S.dive=false;S.dzTo=Math.max(0,Math.min(S.maxd-1,pinch.z+Math.log(pd2()/pinch.d)*1.6));}else S.foTo=Math.max(1.1,Math.min(60,pinch.f*pd2()/pinch.d));zl();}},true);
+const pend=e=>{PTS.delete(e.pointerId);if(PTS.size<2&&pinch){pinch=null;drag=null;}};cv.addEventListener("pointerup",pend);cv.addEventListener("pointercancel",pend);
+cv.addEventListener("wheel",e=>{e.preventDefault();if(deep()){S.dive=false;S.dzTo=Math.max(0,Math.min(S.maxd-1,S.dzTo-e.deltaY*.004));}else S.foTo=Math.max(1.1,Math.min(60,S.foTo*Math.exp(-e.deltaY*.0015)));zl();},{passive:false});
+const DZL=[0,Math.log(10),Math.log(1e3),Math.log(1e6),Math.log(1e9),Math.log(1e12)];const deep=()=>S.mt!==2&&(S.mt!==1||FX);
+function fmtX(v){const m=Math.exp(v)*1.001;if(m>=1e15){const e=Math.floor(Math.log10(m));return "10"+String(e).split("").map(c=>"⁰¹²³⁴⁵⁶⁷⁸⁹"[c]).join("")+"×";}return m<1e3?Math.round(m)+"×":m<1e6?Math.round(m/1e3)+" thousand×":m<1e9?(m/1e6).toFixed(m<1e7?1:0).replace(".0","")+" million×":m<1e12?(m/1e9).toFixed(m<1e10?1:0).replace(".0","")+" billion×":(m/1e12).toFixed(1).replace(".0","")+" trillion×";}
+const ZL=[1.1,3.3,9.9,29.7];function zl(){if(deep()){$("zoom").textContent=(S.dive?"∞ ":"Zoom ")+fmtX(S.dzTo);return;}const z=S.foTo/1.1;$("zoom").textContent="Zoom "+(z<10?z.toFixed(1).replace(".0",""):Math.round(z))+"×";}
+$("zoom").onclick=()=>{if(deep()){if(S.dive){S.dive=false;S.dzTo=0;zl();return;}const i=DZL.findIndex(z=>z>S.dzTo+.05&&z<=S.maxd-1);if(i<0){S.dive=true;S.diveT=performance.now()-S.dz/S.maxd*60000;zl();return;}S.dzTo=DZL[i];zl();return;}if(S.dive){S.dive=false;S.foTo=ZL[0];zl();return;}const i=ZL.findIndex(z=>z>S.foTo+.05);if(i<0){S.dive=true;S.diveT=performance.now();$("zoom").textContent="Zoom ∞";return;}S.foTo=ZL[i];zl();};
+let drag=null;cv.addEventListener("pointerdown",e=>{if(PTS.size>1)return;drag={x:e.clientX,y:e.clientY,yaw:S.yaw,pit:S.pit,t:performance.now(),moved:0};cv.setPointerCapture(e.pointerId);cv.style.cursor="grabbing";$("hint").style.opacity=0;});
+cv.addEventListener("pointermove",e=>{if(!drag||S.fly||pinch)return;const k=2.6/Math.min(innerWidth,innerHeight)/S.fo*1.1;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.moved=Math.max(drag.moved,Math.abs(dx)+Math.abs(dy));
+  const ny=drag.yaw-dx*k,np=S.cur===MILKY?drag.pit-dy*k:Math.max(-1.3,Math.min(1.3,drag.pit-dy*k));if(S.cur===MILKY)S.free=true;S.vy=(ny-S.yaw)*0.5;S.vp=(np-S.pit)*0.5;S.yaw=ny;S.pit=np;});
+cv.addEventListener("pointerup",e=>{if(!drag)return;cv.style.cursor="grab";if(drag.moved<8&&!S.fly)tap(e.clientX,e.clientY);drag=null;});
+function proj(w){const W=innerWidth,H=innerHeight,m=Math.min(W,H);let l=rx(ry(w,-S.yaw),-S.pit);if(l[2]<=0.05)return null;const f=S.fo+S.z*9;return [W/2+l[0]/l[2]*f*m,H/2-l[1]/l[2]*f*m,l[2]];}
+function tap(x,y){if(S.dz>.5||G.on||livBusy())return;let best=-1,bd=1e9;S.dirs.forEach((w,i)=>{const p=proj(w);if(!p)return;const d=Math.hypot(p[0]-x,p[1]-y);if(d<bd){bd=d;best=i;}});
+  const lim=Math.min(innerWidth,innerHeight)*0.2;if(best<0||bd>lim)return;
+  if(S.room<0)flyTo(best);else if(S.cur.dives){const dv=S.cur.dives[best];$("fade").style.background="#000";$("fade").style.opacity=.85;setTimeout(()=>{S.mt=dv[0];S.mc=[dv[1],dv[2]];S.yaw=0;S.pit=0;S.vy=S.vp=0;S.maxd=dv[3];S.dz=S.dzTo=0;S.dive=false;if(dv[0]===1)refOrbit(dv[1],dv[2]);zl();$("hSay").textContent=S.cur.st[best]+" — pinch or tap Zoom to dive.";$("host").style.opacity=1;clearTimeout(S.ht);S.ht=setTimeout(()=>{$("host").style.opacity=0;},6000);$("fade").style.opacity=0;setTimeout(()=>{$("fade").style.background="#fff";},500);},450);}
+  else{$("hSay").textContent=S.cur.st[best]+(S.cur.tapSay||" — in the full build this light opens that lesson right here.");}}
+function flyTo(i){const w=S.dirs[i];const tyaw=Math.atan2(w[0],w[2]),tpit=-Math.asin(Math.max(-1,Math.min(1,w[1])));S.fly={i,t:0,s:performance.now(),y0:S.yaw,p0:S.pit,ty:tyaw+Math.round((S.yaw-tyaw)/(2*Math.PI))*2*Math.PI,tp:tpit};$("host").style.opacity=0;sndFly();}
+$("back").onclick=()=>{if(S.room>=0&&!S.fly){$("fade").style.opacity=.9;setTimeout(()=>{setRoom(-1);S.z=0;$("fade").style.opacity=0;$("host").style.opacity=1;},450);}};
+$("dis").onclick=()=>{S.meltTo=S.meltTo?0:1;$("dis").textContent=S.meltTo?"Re-form":"Dissolve";};
+$("still").onclick=()=>{S.still=!S.still;$("still").textContent=S.still?"Drift":"Hold still";};
+const PACES=[[11,"5.5 a minute"],[8,"7.5 a minute"],[16,"3.75 a minute"]];let pi=0;$("speed").onclick=()=>{pi=(pi+1)%PACES.length;S.breath=PACES[pi][0];$("speed").textContent=PACES[pi][1];};
+const LIV={on:true};
+$("livBtn").onclick=()=>{LIV.on=!LIV.on;$("livBtn").textContent=LIV.on?"On":"Off";$("livBtn").setAttribute("aria-pressed",LIV.on);try{localStorage.setItem("realm-liv",LIV.on?"1":"0");}catch(e){}};
+try{if(localStorage.getItem("realm-liv")==="0"){LIV.on=false;$("livBtn").textContent="Off";}}catch(e){}
+$("trk").onclick=()=>{$("sheet").hidden=!$("sheet").hidden;};$("shX").onclick=()=>{$("sheet").hidden=true;};
+let fq={n:0,t:performance.now()};function frame(){requestAnimationFrame(frame);const t=(performance.now()-S.t0)/1000;
+  if(++fq.n===45){const ms=(performance.now()-fq.t)/45;if(ms>30&&QS>(S.mt?.45:.75)){QS*=.85;size();}else if(ms<14&&QS<1&&!(S.mt&&(S.dive||Math.abs(S.dzTo-S.dz)>.02))){QS=Math.min(1,QS*1.1);size();}fq={n:0,t:performance.now()};}
+  if(S.fly){const f=S.fly;f.t=(performance.now()-f.s)/1000;const a=Math.min(1,f.t/1.1),e=a*a*(3-2*a);S.yaw=f.y0+(f.ty-f.y0)*e;S.pit=f.p0+(f.tp-f.p0)*e;S.z=Math.max(0,(f.t-0.9)/1.3);S.z=S.z*S.z;
+    if(f.t>2.2&&!f.done){f.done=true;setRoom(f.i);const w0=S.dirs[0];S.yaw=S.mt?0:Math.atan2(w0[0],w0[2])+0.25;S.pit=S.mt?0:-Math.asin(w0[1])+0.1;f.y0=f.ty=S.yaw;f.p0=f.tp=S.pit;}if(f.t>2.2){S.z=Math.max(0,1-(f.t-2.2)/1.2);S.z*=S.z;}if(f.t>3.4){S.fly=null;S.z=0;$("host").style.opacity=1;}}
+  else if(!drag){if(!S.still&&!S.mt)S.yaw+=0.0009;S.yaw+=S.vy;S.pit+=S.vp;S.vy*=0.94;S.vp*=0.94;if(!S.free&&S.cur!==MILKY)S.pit=Math.max(-1.3,Math.min(1.3,S.pit));}
+  if(deep()){const nowT=performance.now(),dtt=Math.min(.1,(nowT-(S.lastF||nowT))/1000);S.lastF=nowT;if(S.dive&&S.mt!==1){S.dzTo=Math.min(S.maxd-1,S.dzTo+dtt*.35);if(fq.n%10===0)zl();}else if(S.dive){const P=120,ph=((performance.now()-S.diveT)/1000%P)/P;S.dzTo=(S.maxd-1)*(.5-.5*Math.cos(ph*2*Math.PI));if(fq.n%10===0)zl();}S.dz+=(S.dzTo-S.dz)*.06;S.fo=S.foTo=1.1;}
+  else if(S.dive&&!S.fly){const P=26,ph=((performance.now()-S.diveT)/1000%P)/P;S.fo=S.foTo=1.1*Math.pow(27,ph);const edge=ph>.95?(ph-.95)/.05:ph<.05?1-ph/.05:0;$("fade").style.transition="none";$("fade").style.background="#000";$("fade").style.opacity=edge*.9;S.dfade=1;}else if(S.dfade){S.dfade=0;$("fade").style.opacity=0;$("fade").style.transition="";$("fade").style.background="#fff";}
+  sesTick(t);S.melt+=(S.meltTo-S.melt)*0.04;if(fq.n%6===0)sndTick(t);
+  if(gl){gl.viewport(0,0,cv.width,cv.height);gl.uniform2f(U.R,cv.width,cv.height);gl.uniform1f(U.T,t);gl.uniform1f(U.B,1+0.08*(2*(S.br?S.br.v:.5)-1));gl.uniform1f(U.HB,HR.on?t-HR.last:9);gl.uniform1f(U.HC,HR.coh);gl.uniform1f(U.GS,G.fl||0);gl.uniform1f(U.CRY,S.cur.cry||0);gl.uniform1f(U.GZ,G.gz||0);gl.uniform1f(U.AU,S.au||0);gl.uniform1f(U.ROLL,S.roll||0);gl.uniform1f(U.WARP,G.warp||0);{const L=livingM(t);gl.uniform1f(U.KN,L[0]);gl.uniform1f(U.KF,L[1]);gl.uniform1f(U.IO,L[2]);}{const L2=livingR(t);S.liv=L2;gl.uniform1f(U.LV,L2[0]);gl.uniform1f(U.FL,L2[1]);gl.uniform1f(U.IO2,L2[2]);}gl.uniform1f(U.BRA,G.on?1:.35);gl.uniform1f(U.M,S.melt);gl.uniform1f(U.Z,S.z);S.fo*=Math.pow(S.foTo/S.fo,.1);gl.uniform1f(U.FO,S.fo);
+    gl.uniform1f(U.K,S.cur.k);gl.uniform1f(U.NF,S.nf);gl.uniform1f(U.MT,S.mt||0);gl.uniform2fv(U.MC,S.mc||[0,0]);gl.uniform1f(U.DZ,S.dz);gl.uniform1f(U.LZ,S.mt===2?0:S.dz/Math.log(3));if(S.dz<.02||!S.anc)S.anc=ry(rx([0,0,1],S.pit),S.yaw);gl.uniform3fv(U.AD,S.anc);gl.uniform1f(U.MAXD,FX?(S.maxd||11):11);gl.uniform1f(U.RL,RLEN);gl.uniform1f(U.MI,Math.min(1950,500+S.dz*55));gl.uniform1i(U.RT,0);gl.uniform1f(U.MS,S.cur.ms);gl.uniform3fv(U.FN,S.fn);gl.uniform3fv(U.PAL,S.cur.pal);gl.uniform1f(U.YAW,S.yaw);gl.uniform1f(U.PIT,S.pit);gl.uniform1f(U.NP,S.dirs.length);gl.uniform1f(U.PR,S.pr);
+    const pd=new Float32Array(33),pc=new Float32Array(33);S.dirs.forEach((w,i)=>{pd.set(w,i*3);pc.set(S.cols[i],i*3);});gl.uniform3fv(U.PD,pd);gl.uniform3fv(U.PC,pc);gl.drawArrays(gl.TRIANGLES,0,3);}
+  S.labels.forEach((el,i)=>{const p=proj(S.dirs[i]);if(!p||S.z>0.02||S.dz>.5||G.gs>.3||livBusy()){el.style.opacity=0;return;}const off=Math.min(innerWidth,innerHeight)*S.pr*1.1*S.fo/p[2];el.style.opacity=1;el.style.transform="translate("+(p[0]-0)+"px,"+(p[1]+off)+"px) translate(-50%,0)";});}
+/* ---------- SOUND: a meditation journey that follows the visuals ---------- */
+const SND={on:false,ctx:null,buf:{},L:{},P:{},next:{},osc:null};
+const SF={drone:"/sounds/user/maj-drone-e.mp3",pad:"/sounds/user/maj-pad-e.mp3",air:"/sounds/user/maj-air-hi-v2.mp3",melody:"/sounds/user/maj-sleep-melody.mp3",bell:"/sounds/user/maj-bell-fs.mp3",perc:"/sounds/user/maj-perc-theta.mp3",pluck:"/sounds/user/maj-pluck-e-v2.mp3",fire:"/sounds/nature/campfire.mp3",wind:"/sounds/nature/wind.mp3",bowl:"/sounds/nature/bowl.mp3",flight:"/sounds/nature/flight.mp3"};
+/* looping beds: file, base level, options */
+const BED={drone:["drone",.5,{}],pad:["pad",.8,{lp:4000}],sparkle:["pad",.3,{rate:2,hp:1100}],air:["air",.35,{}],fire:["fire",.5,{}],wind:["wind",.28,{lp:5000}],perc:["perc",.4,{lp:9000}],pluck:["pluck",.3,{}]};
+/* each room's sound: bed mix, bell sparkles, how often your melody floats by, singing bowls, brainwave beat (Hz) */
+const MIX={
+ "The Sphere":{drone:.8,pad:1,sparkle:.8,air:.7,wind:.3,bells:.7,mel:[45,100],beat:10},
+ "Theory":{drone:.6,pad:1,sparkle:.9,air:.5,bells:.9,mel:[25,60],beat:9},
+ "Ear Training":{drone:.7,pad:.9,sparkle:.6,air:.6,bells:.6,bowl:[14,30],mel:[60,120],beat:8},
+ "Vocal":{drone:.7,pad:1,sparkle:.7,air:.8,bells:.5,bowl:[18,36],mel:[40,90],beat:8},
+ "Rhythm":{drone:.6,pad:.7,sparkle:.5,perc:1,bells:.5,mel:[60,120],beat:7},
+ "Instruments":{drone:.6,pad:.8,sparkle:.9,bells:.6,mel:[50,110],beat:9},
+ "Create":{drone:.5,pad:.8,sparkle:1,air:.7,bells:.9,mel:[50,110],beat:9},
+ "Lyric Lab":{drone:.6,pad:1,sparkle:.6,air:.5,bells:.6,mel:[25,60],beat:8},
+ "Infinity":{drone:1,pad:.6,sparkle:.9,air:.9,wind:.4,bells:.5,mel:[70,140],beat:6},
+ "Milky Way":{drone:1,pad:.7,sparkle:.9,air:1,bells:.6,mel:[40,90],beat:6},
+ "Crystal":{drone:.6,pad:.9,sparkle:1,air:.6,bells:1.2,mel:[40,90],beat:6},
+ "Meditation":{drone:.9,pad:.9,sparkle:.4,air:.4,fire:1,wind:.8,bells:.3,mel:[45,100],beat:6}};
+const PENTA=[1,1.1225,1.3348,1.4983,1.7818,2,.8909];/* the bell is F#: E major pentatonic around it */
+function getBuf(k){if(!SND.buf[k])SND.buf[k]=fetch(SF[k]).then(r=>r.arrayBuffer()).then(a=>new Promise((res,rej)=>SND.ctx.decodeAudioData(a,res,rej)));return SND.buf[k];}
+function bed(name){if(SND.P[name])return SND.P[name];const [file,lv,o]=BED[name];
+ SND.P[name]=getBuf(file).then(b=>{const c=SND.ctx,s=c.createBufferSource();s.buffer=b;s.loop=true;if(o.rate)s.playbackRate.value=o.rate;
+  const f=c.createBiquadFilter();f.type=o.hp?"highpass":"lowpass";f.frequency.value=o.hp||o.lp||18000;const g=c.createGain();g.gain.value=0;
+  s.connect(f);f.connect(g);g.connect(SND.bus);s.start(0,Math.random()*b.duration);return SND.L[name]={s,f,g,lv,o};}).catch(()=>null);return SND.P[name];}
+function shot(file,lv,o={}){getBuf(file).then(b=>{if(!SND.on)return;const c=SND.ctx,s=c.createBufferSource();s.buffer=b;if(o.rate)s.playbackRate.value=o.rate;
+ const g=c.createGain();g.gain.value=lv;const p=c.createStereoPanner?c.createStereoPanner():null;let n=s;
+ if(o.lp){const f=c.createBiquadFilter();f.type="lowpass";f.frequency.value=o.lp;n.connect(f);n=f;}n.connect(g);
+ if(p){p.pan.value=o.pan||0;g.connect(p);p.connect(SND.bus);}else g.connect(SND.bus);
+ if(o.swell){g.gain.setValueAtTime(0,c.currentTime);g.gain.linearRampToValueAtTime(lv,c.currentTime+o.swell);g.gain.setTargetAtTime(0,c.currentTime+o.swell,.6);}
+ s.start();}).catch(()=>{});}
+function sndInit(){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;
+ try{if(navigator.audioSession)navigator.audioSession.type="playback";}catch(e){}
+ const c=SND.ctx=new AC();SND.master=c.createGain();SND.master.gain.value=0;const comp=c.createDynamicsCompressor();SND.master.connect(comp);comp.connect(c.destination);
+ SND.melt=c.createBiquadFilter();SND.melt.type="lowpass";SND.melt.frequency.value=18000;SND.melt.connect(SND.master);
+ SND.bus=c.createGain();SND.bus.connect(SND.melt);SND.an=c.createAnalyser();SND.an.fftSize=512;SND.master.connect(SND.an);SND.abuf=new Float32Array(512);
+ /* a long soft hall made from decaying noise (processing only) */
+ const len=c.sampleRate*4.5,ir=c.createBuffer(2,len,c.sampleRate);for(let ch=0;ch<2;ch++){const d=ir.getChannelData(ch);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3.2);}
+ SND.rev=c.createConvolver();SND.rev.buffer=ir;SND.wet=c.createGain();SND.wet.gain.value=.25;SND.bus.connect(SND.rev);SND.rev.connect(SND.wet);SND.wet.connect(SND.master);
+ /* brainwave tones: a slightly different pitch in each ear (best on headphones), tuned to E */
+ const car=164.81,mk=(f,pan)=>{const o=c.createOscillator();o.type="sine";o.frequency.value=f;const p=c.createStereoPanner?c.createStereoPanner():c.createGain();if(p.pan)p.pan.value=pan;const g=c.createGain();g.gain.value=.05;o.connect(g);g.connect(p);p.connect(SND.master);o.start();return o;};
+ SND.osc=[mk(car-5,-1),mk(car+5,1)];SND.car=car;return true;}
+function sndToggle(){const b=$("snd");
+ if(!SND.on){if(!SND.ctx&&!sndInit()){b.textContent="No sound";return;}SND.on=true;SND.ctx.resume();b.textContent="🔊";b.setAttribute("aria-pressed","true");
+  const t=SND.ctx.currentTime;SND.master.gain.cancelScheduledValues(t);SND.master.gain.setTargetAtTime(1.2,t,1.2);const now=(performance.now()-S.t0)/1000;SND.next={bell:now+2,mel:now+20,bowl:now+8};
+  try{localStorage.setItem("realm-snd","1");}catch(e){}}
+ else{SND.on=false;b.textContent="🔇";b.setAttribute("aria-pressed","false");const t=SND.ctx.currentTime;SND.master.gain.setTargetAtTime(0,t,.25);setTimeout(()=>{if(!SND.on)SND.ctx.suspend();},900);try{localStorage.setItem("realm-snd","0");}catch(e){}}}
+$("snd").onclick=sndToggle;
+document.addEventListener("visibilitychange",()=>{if(!SND.ctx)return;if(document.hidden)SND.ctx.suspend();else if(SND.on)SND.ctx.resume();});
+function sndFly(){if(!SND.on)return;shot("flight",.55,{swell:1.4,lp:6000});const L=SND.L.pad;if(L){const t=SND.ctx.currentTime;L.f.frequency.cancelScheduledValues(t);L.f.frequency.setTargetAtTime(9000,t,.5);}}
+function sndTick(t){if(!SND.on||!SND.ctx)return;const c=SND.ctx,now=c.currentTime,M=MIX[S.cur.n]||MIX["The Sphere"];
+ const deep=Math.min(1,S.dz/20),br=S.br?S.br.v:.5;
+ for(const k in BED){let v=BED[k][1]*(M[k]||0);if(k==="pad")v*=.68+.32*br;if(k==="drone")v*=1+.5*deep;if(k==="air")v*=1+.6*deep;if(k==="sparkle")v*=1+.4*deep;
+  if(v>.001&&!SND.P[k])bed(k);const L=SND.L[k];if(L)L.g.gain.setTargetAtTime(v,now,k==="pad"?.3:1.5);}
+ const P=SND.L.pad;if(P&&!S.fly)P.f.frequency.setTargetAtTime((1300+3000*br)*(1-.45*deep),now,.3);
+ SND.melt.frequency.setTargetAtTime(18000-16300*S.melt,now,.4);SND.wet.gain.setTargetAtTime(.25+.55*S.melt+.2*deep,now,.6);
+ const beat=G.on&&G.hz?G.hz:Math.max(3.5,M.beat-(M.beat-3.5)*deep);SND.beat=beat;if(SND.osc){SND.osc[0].frequency.setTargetAtTime(SND.car-beat/2,now,2);SND.osc[1].frequency.setTargetAtTime(SND.car+beat/2,now,2);}
+ if(M.bells&&t>SND.next.bell){shot("bell",.16*M.bells,{rate:PENTA[Math.floor(Math.random()*PENTA.length)],pan:Math.random()*1.4-.7});SND.next.bell=t+(2.5+Math.random()*6)/Math.max(.3,M.bells);}
+ if(M.mel&&t>SND.next.mel){shot("melody",.7,{lp:9000,swell:4});SND.next.mel=t+78+M.mel[0]+Math.random()*(M.mel[1]-M.mel[0]);}
+ if(M.bowl&&t>SND.next.bowl){shot("bowl",.35,{pan:Math.random()-.5});SND.next.bowl=t+M.bowl[0]+Math.random()*(M.bowl[1]-M.bowl[0]);}
+ if(!M.bowl&&t>SND.next.bowl)SND.next.bowl=t+5;}
+/* ---------- breath: shared by visuals and sound; golden sessions breathe in 1 : out 1.618 ---------- */
+
+function breathAt(t){const cyc=S.breath,fi=(G.on||HR.on)?1/(1+PHI):.5,p=((t%cyc)+cyc)%cyc/cyc;
+ return p<fi?{v:.5-.5*Math.cos(Math.PI*p/fi),inh:true}:{v:.5+.5*Math.cos(Math.PI*(p-fi)/(1-fi)),inh:false};}
+/* ---------- golden ratio session: tones step down by phi, phases sized by phi, a sunflower in front of you ---------- */
+const G={on:false,t0:0,total:600,gs:0,done:0};
+const GPH=[["Arrive",10,10,.236],["Drift",10,6.18,.382],["Deep",6.18,3.82,.236],["Return",3.82,10,.146]];
+function gAt(t){let e=(t-G.t0)/G.total,acc=0;for(const [n,a,b,f] of GPH){if(e<=acc+f){const k=Math.max(0,(e-acc)/f);return {name:n,hz:a+(b-a)*k,left:Math.max(0,G.total*(1-e))};}acc+=f;}return null;}
+/* the Mandelbrot's living cycle: a kaleidoscope folds in and out (3, 5, 6 or 8 copies) and every so often it turns inside out */
+/* the geometry rooms' living cycle; the main sphere only swells gently so its doorways stay easy to tap */
+function livingR(t){if(!LIV.on||S.mt===1||S.mt===2)return [0,0,0];if(S.mt===3)return [.6,0,0];const hub=S.room===-1&&!G.on;
+ const k1=((t+7)%40)/40,io=hub?0:.9*ss(0,.08,k1)*(1-ss(.23,.31,k1));
+ const k2=((t+20)%47)/47,fl=hub?0:(k2<.13?2*Math.PI*ss(0,.13,k2):0);return [hub?.35:1,fl,io];}
+const livBusy=()=>S.liv&&(S.liv[2]>.12||Math.abs(Math.sin(S.liv[1]))>.15||Math.cos(S.liv[1])<0);
+function livingM(t){if(!S.mt)return [1,0,0];const P=26,c=Math.floor(t/P),k=(t%P)/P;const KN=[6,5,8,3][c%4];
+ const kf=ss(.0,.16,k)*(1-ss(.55,.72,k));const io=.85*ss(.74,.84,k)*(1-ss(.9,1,k))*(c%2?1:0);return [KN,kf,io];}
+/* the golden journey: scenes timed by the session, nothing to touch */
+const MILKY={n:"Milky Way",tag:"GALAXY",sh:"sphere",ms:.15,mt:3,c:"#c9d8ff",pal:[.55,.7,.95],k:.72,h:"STAR",say:"Drag to fly all the way around the sun. Pinch to come closer.",tapSay:" — rest your eyes here and let it carry you.",st:["Spiral Arms","Star Nursery","Galactic Core","Nebula","Star Stream"]};
+const CRYSTAL={n:"Crystal",tag:"CRYSTAL CHAMBER",sh:"icosa",ms:0,cry:1,c:"#f1e6ff",pal:[0,.33,.67],k:.74,h:"PRISM",say:"Light splits into every colour here. Breathe, and watch it move.",tapSay:" — rest your eyes here and let it carry you.",st:["Prism","Rainbow","Facets","White Light","Spectrum"]};
+ROOMS.push(MILKY,CRYSTAL);if(S.room===-1)setRoom(-1);
+const ss=(a,b,x)=>{const k=Math.max(0,Math.min(1,(x-a)/(b-a)));return k*k*(3-2*k);};
+const SCN=[[0,"hub"],[.15,"fold"],[.165,"fly"],[.38,"milky"],[.58,"crystal"],[.71,"infinity"],[.87,"light"],[.92,"home"]];
+/* special moments: [when, kind, seconds] */
+const MOM=[[.27,"orbit",10],[.47,"warp",4],[.635,"loop",8],[.78,"roll",10]];
+function gRush(t,fn){G.rush={t0:t,fn,done:false};}
+function gEnter(name,t){G.cur=name;G.flower=(name==="hub"||name==="home")?1:0;
+ if(name==="hub"){if(S.room!==-1)setRoom(-1);G.flower=1;S.meltTo=0;}
+ if(name==="fold")G.flower=0;
+ if(name==="fly"){if(S.room===-1)flyTo(2);}
+ if(name==="milky")gRush(t,()=>{setRoom(MILKY);S.yaw=0;S.pit=0;G.e0=G.e;});
+ if(name==="crystal")gRush(t,()=>{setRoom(CRYSTAL);G.e0=G.e;});
+ if(name==="infinity")gRush(t,()=>{setRoom(7);const m=ROOMS[7].dives[1];S.mc=[m[1],m[2]];S.maxd=m[3];refOrbit(m[1],m[2]);S.yaw=0;S.pit=0;G.e0=G.e;});
+ if(name==="light"){S.meltTo=1;G.lightT=t;}
+ if(name==="home")gRush(t,()=>{setRoom(-1);S.meltTo=0;G.flower=1;S.dz=S.dzTo=0;});}
+function gDirect(t,dt){const e=G.e;
+ let want=null;for(const [f,n] of SCN)if(e>=f)want=n;if(want&&want!==G.cur)gEnter(want,t);
+ if(G.rush){const k=t-G.rush.t0;S.z=k<.45?ss(0,.45,k):1-ss(.45,.95,k);if(k>=.45&&!G.rush.done){G.rush.done=true;G.rush.fn();}if(k>.95){G.rush=null;S.z=0;}}
+ gMoments(t,dt);
+ if(S.fly)return;const drift=(r)=>{S.yaw+=dt*r;};
+ if(G.cur==="hub"||G.cur==="fold"||G.cur==="home")drift(.02);
+ if(G.cur==="fly"&&S.room===2){S.dz=S.dzTo=10*ss(.18,.38,e);if(!G.mom)drift(.015);}
+ if(G.cur==="milky"&&S.cur===MILKY){G.gz=ss(.385,.58,e);S.dz=S.dzTo=9*ss(.385,.58,e)+(G.wdz||0);drift(.008);}
+ if(G.cur==="crystal"&&S.cur===CRYSTAL){S.dz=S.dzTo=6*ss(.585,.71,e);if(!G.mom)drift(.02);}
+ if(G.cur==="infinity"&&S.room===7){S.dz=S.dzTo=13*ss(.715,.865,e);S.yaw=0;S.pit=0;}
+ if(G.cur==="light"){S.z=.92*ss(.88,.92,e);}}
+function gMoments(t,dt){const e=G.e;
+ for(const m of MOM){if(!G.done[m[0]]&&e>=m[0]&&!G.mom&&!G.rush&&!S.fly){G.done[m[0]]=1;G.mom={k:m[1],t0:t,dur:m[2],yaw:S.yaw,pit:S.pit};if(m[1]==="warp"&&SND.on)shot("flight",.7,{swell:1.2,lp:7000});}}
+ const M=G.mom;if(!M)return;const k=Math.min(1,(t-M.t0)/M.dur),ek=k*k*(3-2*k);
+ if(M.k==="orbit")S.yaw=M.yaw+2*Math.PI*ek;
+ if(M.k==="loop"){S.free=true;S.pit=M.pit+2*Math.PI*ek;}
+ if(M.k==="roll")S.roll=2*Math.PI*ek;
+ if(M.k==="warp"){G.warp=Math.pow(Math.sin(Math.PI*k),.6);G.wdz=(G.wdz||0)+dt*4.5*G.warp;}
+ if(k>=1){if(M.k==="loop"){S.free=false;S.pit=M.pit;}if(M.k==="roll")S.roll=0;if(M.k==="warp")G.warp=0;G.mom=null;}}
+function gStart(min){G.done={};G.mom=null;G.warp=0;G.wdz=0;S.roll=0;S.free=false;if(!SND.on)sndToggle();G.on=true;G.total=min*60;G.t0=(performance.now()-S.t0)/1000;G.cur=null;G.rush=null;G.flower=1;document.body.classList.add("journey");G.gz=0;S.breath=11;S.still=true;
+ $("sheet").hidden=true;$("ses").hidden=false;$("hint").style.opacity=0;immerse(true);}
+function gStop(msg){G.on=false;G.mom=null;G.warp=0;S.roll=0;S.free=false;document.body.classList.remove("journey");G.rush=null;S.z=0;S.meltTo=0;G.flower=0;immerse(false);$("sesT").textContent=msg||"";
+ if(S.room!==-1&&!msg)setRoom(-1);if(msg){setTimeout(()=>{if(!G.on)$("ses").hidden=true;},6000);}else $("ses").hidden=true;}
+/* during a session the buttons fade away; a tap brings them back for a few seconds */
+let imT=null;function immerse(on){clearTimeout(imT);document.body.classList.remove("immerse");if(on)imT=setTimeout(()=>{if(G.on)document.body.classList.add("immerse");},6000);}
+addEventListener("pointerdown",()=>{if(G.on)immerse(true);},true);
+
+document.querySelectorAll("[data-gl]").forEach(b=>b.onclick=()=>gStart(+b.dataset.gl));
+$("sesX").onclick=()=>gStop();
+/* ---------- heart sync: Bluetooth heart sensor, the walls pulse with each beat and bloom as heart and breath fall into step ---------- */
+const HR={on:false,bpm:0,next:0,last:-9,ser:[],coh:0,sim:null};
+function hrNote(s){$("hrNote").textContent=s;}
+function hrData(dv){const f=dv.getUint8(0);let i=1;const bpm=(f&1)?dv.getUint16(i,true):dv.getUint8(i);i+=(f&1)?2:1;if(f&8)i+=2;const rr=[];if(f&16)for(;i+1<dv.byteLength;i+=2)rr.push(dv.getUint16(i,true)/1024);hrIn(bpm,rr);}
+function hrIn(bpm,rr){if(!bpm)return;HR.bpm=bpm;const t=(performance.now()-S.t0)/1000;const ib=rr.length?60/rr[rr.length-1]:bpm;HR.ser.push([t,ib]);while(HR.ser.length&&HR.ser[0][0]<t-64)HR.ser.shift();
+ if(!HR.on){HR.on=true;HR.next=t+.2;S.breath=11;$("hrChip").hidden=false;$("hrBtn").textContent="Disconnect";hrNote("Connected — breathe with the walls");}}
+async function hrConnect(){if(HR.on||HR.sim){hrOff();return;}
+ if(!navigator.bluetooth){hrNote(/iPhone|iPad|iPod/.test(navigator.userAgent)?"iPhone only allows Bluetooth in the Bluefy app — open this page there":"This browser can't reach Bluetooth here — try Chrome on a computer or Android");return;}
+ try{hrNote("Pick your heart sensor…");const dev=await navigator.bluetooth.requestDevice({filters:[{services:["heart_rate"]}],optionalServices:["heart_rate"]});
+  const srv=await dev.gatt.connect(),svc=await srv.getPrimaryService("heart_rate"),ch=await svc.getCharacteristic("heart_rate_measurement");
+  ch.addEventListener("characteristicvaluechanged",e=>hrData(e.target.value));await ch.startNotifications();HR.dev=dev;hrNote("Waiting for your heartbeat…");
+  dev.addEventListener("gattserverdisconnected",()=>{if(HR.on){hrOff();hrNote("Sensor dropped — the room keeps going. Tap Connect to try again");}});}
+ catch(e){hrNote(/cancel/i.test(e.message||"")?"No sensor picked":"Couldn't connect — is the sensor on and close by?");}}
+function hrOff(){HR.on=false;if(HR.sim){clearInterval(HR.sim);HR.sim=null;}try{HR.dev&&HR.dev.gatt.disconnect();}catch(e){}$("hrChip").hidden=true;$("hrBtn").textContent="Connect";hrNote("Connect a Bluetooth heart sensor");HR.coh=0;}
+$("hrBtn").onclick=hrConnect;
+/* how much your heart rate rises and falls with the breath (0..1) */
+function hrCoh(){const s=HR.ser;if(s.length<12)return 0;const w=2*Math.PI/S.breath;let m=0;s.forEach(p=>m+=p[1]);m/=s.length;let re=0,im=0,v=0;s.forEach(([t,x])=>{const d=x-m;re+=d*Math.cos(w*t);im+=d*Math.sin(w*t);v+=d*d;});if(v<1e-6)return 0;return Math.min(1,2*(re*re+im*im)/(s.length*v));}
+window.__hrSim=(bpm)=>{if(HR.sim)clearInterval(HR.sim);HR.sim=setInterval(()=>{const t=(performance.now()-S.t0)/1000,b=bpm+6*Math.sin(2*Math.PI*t/S.breath);hrIn(Math.round(b),[60/b]);},1000);};
+function sesTick(t){const br=breathAt(t);S.br=br;
+ const gdt0=Math.min(.2,Math.max(0,t-(G.lt0||t)));G.lt0=t;if(G.on){G.e=(t-G.t0)/G.total;gDirect(t,gdt0);}
+ if(SND.an&&SND.on){SND.an.getFloatTimeDomainData(SND.abuf);let q=0;for(let i=0;i<512;i++)q+=SND.abuf[i]*SND.abuf[i];const rms=Math.sqrt(q/512);S.auA=(S.auA||rms)+(rms-(S.auA||rms))*.01;S.au=Math.max(0,Math.min(1,(rms/Math.max(S.auA,1e-4)-1)*2));}else S.au=0;
+ if(G.on){const g=gAt(t);if(!g){gStop("✨ Session complete — take your time coming back");shot&&SND.on&&shot("bell",.3,{rate:1.3348});}else{$("sesT").innerHTML="🌻 <b>"+g.name+"</b> · "+g.hz.toFixed(2)+" Hz · "+Math.floor(g.left/60)+":"+String(Math.floor(g.left%60)).padStart(2,"0")+" left";$("sesB").textContent=br.inh?"breathe in":"breathe out";G.hz=g.hz;}}
+ const gdt=Math.min(.2,Math.max(0,t-(G.lt||t)));G.lt=t;G.gs+=((G.on?1:0)-G.gs)*Math.min(1,gdt*1.1);G.fl=(G.fl||0)+(((G.on||G.flower)&&G.flower?1:0)-(G.fl||0))*Math.min(1,gdt*.5);
+ if(HR.on){if(t>=HR.next){HR.last=t;HR.next=t+60/Math.max(35,HR.bpm);}if(fq.n%30===0){HR.coh+=(hrCoh()-HR.coh)*.3;$("hrChip").textContent="🫀 "+HR.bpm+" · in sync "+Math.round(HR.coh*100)+"%";}}}
+
+frame();window.__S=S;window.__SND=SND;window.__G=G;window.__fly=flyTo;
+}
+</script>
+</body>
+</html>
