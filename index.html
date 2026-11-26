@@ -515,8 +515,8 @@ function sndTick(t){if(!SND.on||!SND.ctx)return;const c=SND.ctx,now=c.currentTim
  const P=SND.L.pad;if(P&&!S.fly)P.f.frequency.setTargetAtTime((1300+3000*br)*(1-.45*deep),now,.3);
  SND.melt.frequency.setTargetAtTime(18000-16300*S.melt,now,.4);SND.wet.gain.setTargetAtTime(.25+.55*S.melt+.2*deep,now,.6);
  const beat=G.on&&G.hz?G.hz:Math.max(3.5,M.beat-(M.beat-3.5)*deep);SND.beat=beat;if(SND.osc){SND.osc[0].frequency.setTargetAtTime(SND.car-beat/2,now,2);SND.osc[1].frequency.setTargetAtTime(SND.car+beat/2,now,2);}
- if(M.bells&&t>SND.next.bell&&MY.sil<.5){shot("bell",.16*M.bells,{rate:PENTA[Math.floor(Math.random()*PENTA.length)],pan:Math.random()*1.4-.7});SND.next.bell=t+(2.5+Math.random()*6)/Math.max(.3,M.bells);}
- if(M.mel&&t>SND.next.mel&&MY.sil<.5){shot("melody",.7,{lp:9000,swell:4});SND.next.mel=t+78+M.mel[0]+Math.random()*(M.mel[1]-M.mel[0]);}
+ if(M.bells&&t>SND.next.bell&&MY.sil<.5&&!MY.on){shot("bell",.16*M.bells,{rate:PENTA[Math.floor(Math.random()*PENTA.length)],pan:Math.random()*1.4-.7});SND.next.bell=t+(2.5+Math.random()*6)/Math.max(.3,M.bells);}
+ if(M.mel&&t>SND.next.mel&&MY.sil<.5&&!MY.on){shot("melody",.7,{lp:9000,swell:4});SND.next.mel=t+78+M.mel[0]+Math.random()*(M.mel[1]-M.mel[0]);}
  if(M.bowl&&t>SND.next.bowl){shot("bowl",.35,{pan:Math.random()-.5});SND.next.bowl=t+M.bowl[0]+Math.random()*(M.bowl[1]-M.bowl[0]);}
  if(!M.bowl&&t>SND.next.bowl)SND.next.bowl=t+5;}
 /* ---------- breath: shared by visuals and sound; golden sessions breathe in 1 : out 1.618 ---------- */
@@ -637,18 +637,28 @@ const SEQ={on:false,t0:0,n:0,paused:false};const SD=()=>60/SONG.bpm/4;
 const newBeat=()=>({k:[1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],s:Array(16).fill(0),h:[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]});
 const curChord=()=>[0,1,2,3].find(c=>!MY.built.includes(c));
 const here=()=>{const n=ROOMFOR[MY.step];return n===-2||S.room===n;};
-function myPluck(m,at,lv){shot("pluck",lv||.3,{rate:Math.pow(2,(m-64)/12),at});}
-function strum(T,at,lv){const c=SND.ctx;if(!c)return;const t=at||c.currentTime;T.forEach((m,j)=>shot("pluck",lv||.24,{rate:Math.pow(2,(m-64)/12),at:t+j*.02,pan:(j-1)*.3}));}
-let NZ=null;function noiseB(c){if(NZ)return NZ;const b=c.createBuffer(1,c.sampleRate*.5|0,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;return NZ=b;}
-function drum(k,at){const c=SND.ctx;if(!c||!SND.on)return;at=at||c.currentTime;const g=c.createGain();g.connect(SND.bus);
- if(k==="k"){const o=c.createOscillator();o.frequency.setValueAtTime(150,at);o.frequency.exponentialRampToValueAtTime(45,at+.12);g.gain.setValueAtTime(.9,at);g.gain.exponentialRampToValueAtTime(.001,at+.3);o.connect(g);o.start(at);o.stop(at+.32);return;}
- const s=c.createBufferSource();s.buffer=noiseB(c);const f=c.createBiquadFilter();f.type=k==="s"?"bandpass":"highpass";f.frequency.value=k==="s"?1800:7500;s.connect(f);f.connect(g);
- const L=k==="s"?.45:.15,D=k==="s"?.16:.045;g.gain.setValueAtTime(L,at);g.gain.exponentialRampToValueAtTime(.001,at+D);s.start(at);s.stop(at+D+.02);
- if(k==="s"){const o=c.createOscillator();o.frequency.value=190;const g2=c.createGain();g2.gain.setValueAtTime(.25,at);g2.gain.exponentialRampToValueAtTime(.001,at+.08);o.connect(g2);g2.connect(SND.bus);o.start(at);o.stop(at+.1);}}
-function seqStep(s,at){const bar=s>>4,i=s&15,ch=SONG.order[bar];
- if(i===0||i===8)strum(tones(ch),at,i?.15:.22);
+/* real sampled piano (every 3rd key, two strengths) and an acoustic kit */
+const SNDROOT="sounds/";const PS=[];for(let n=39;n<=90;n+=3)PS.push(n);
+PS.forEach(n=>[2,3].forEach(v=>SF["p"+n+"v"+v]=SNDROOT+"piano/"+n+"v"+v+".mp3"));["kick","snare","hhc","hho","crash"].forEach(k=>SF["d_"+k]=SNDROOT+"acoustic/"+k+".mp3");
+function qBus(){const c=SND.ctx;if(SND.qbus)return SND.qbus;const g=c.createGain();g.gain.value=.9;g.connect(SND.bus);
+ try{const len=c.sampleRate*1.8|0,ir=c.createBuffer(2,len,c.sampleRate);for(let ch=0;ch<2;ch++){const d=ir.getChannelData(ch);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3);}
+  const cv=c.createConvolver();cv.buffer=ir;const w=c.createGain();w.gain.value=.16;g.connect(cv);cv.connect(w);w.connect(SND.bus);}catch(e){}
+ return SND.qbus=g;}
+function pno(m,at,dur,lv,v,pan){const c=SND.ctx;if(!c||!SND.on)return null;const s0=PS.reduce((a,b)=>Math.abs(b-m)<Math.abs(a-m)?b:a),vo={};const t=at||c.currentTime;
+ getBuf("p"+s0+"v"+(v||2)).then(b=>{if(!SND.on)return;const s=c.createBufferSource();s.buffer=b;s.playbackRate.value=Math.pow(2,(m-s0)/12);const g=c.createGain(),st=Math.max(t,c.currentTime),end=st+(dur||1.5);
+  g.gain.setValueAtTime(lv,st);g.gain.setTargetAtTime(0,end,.16);let n=g;if(pan&&c.createStereoPanner){const p=c.createStereoPanner();p.pan.value=pan;g.connect(p);n=p;}
+  s.connect(g);n.connect(qBus());s.start(st);s.stop(end+1.2);vo.g=g;if(vo.cut!=null)cutVo(vo,vo.cut);}).catch(()=>{});return vo;}
+function cutVo(vo,at){if(!vo)return;if(!vo.g){vo.cut=at;return;}try{const c=SND.ctx,t=Math.max(at,c.currentTime);vo.g.gain.cancelScheduledValues(t);vo.g.gain.setTargetAtTime(0,t,.06);}catch(e){}}
+function release(vs,at){if(!SND.ctx)return;(vs||[]).forEach(v=>cutVo(v,at||SND.ctx.currentTime));}
+const VOICE=[[56,59,64],[54,59,63],[56,61,64],[57,61,64]],BASS=[40,47,49,45];
+function playChord(c,dur){if(!SND.ctx)return;release(MY.pv);const t=SND.ctx.currentTime;MY.pv=[pno(BASS[c],t,dur||1.8,.5,2)].concat(VOICE[c].map((m,j)=>pno(m,t+j*.012,dur||1.8,.42,2)));}
+function drum(k,at,lv){shot("d_"+({k:"kick",s:"snare",h:"hhc"}[k]||k),lv||({k:.85,s:.6,h:.28,crash:.3}[k]||.5),{at});}
+function seqStep(s,at){const d=SD(),bar=s>>4,i=s&15,ch=SONG.order[bar];
+ if(i===0){release(MY.qv,at);MY.qv=[];if(MY.step===6&&bar===0)drum("crash",at);}
+ if(i===0||i===8)MY.qv.push(pno(BASS[ch],at,d*7.6,.5,2));
+ const RH={0:[5.8,.4],6:[1.8,.28],8:[5.8,.34],14:[1.8,.28]}[i];if(RH)VOICE[ch].forEach((m,j)=>MY.qv.push(pno(m,at+j*.007,d*RH[0],RH[1],2)));
  if((MY.step>4||(MY.step===4&&S.room===3))&&MY.beat){if(MY.beat.k[i])drum("k",at);if(MY.beat.s[i])drum("s",at);if(MY.beat.h[i])drum("h",at);}
- if((MY.step>5||(MY.step===5&&S.room===2))&&MY.mel&&i%4===0){const v=MY.mel[bar*4+(i>>2)];if(v>=0)shot("bell",.34,{rate:Math.pow(2,(SONG.scale[v]-66)/12),at});}}
+ if((MY.step>5||(MY.step===5&&S.room===2))&&MY.mel&&i%4===0){const v=MY.mel[bar*4+(i>>2)];if(v>=0)MY.qv.push(pno(SONG.scale[v]+12,at,d*3.7,.55,3));}}
 function seqRun(){const c=SND.ctx,want=MY.on&&MY.step>=4&&SND.on&&c&&!SEQ.paused&&!document.hidden;
  if(!want){SEQ.on=false;return;}if(!SEQ.on){SEQ.on=true;SEQ.t0=c.currentTime+.1;SEQ.n=0;}
  const d=SD();if(SEQ.t0+SEQ.n*d<c.currentTime-.3)SEQ.n=Math.ceil((c.currentTime-SEQ.t0)/d);
@@ -690,22 +700,22 @@ function myTray(){const t=$("myTray"),s=MY.step,h=here();let html="";
  t.querySelectorAll("[data-k]").forEach(e=>e.onclick=()=>myKey(+e.dataset.k));
  t.querySelectorAll("[data-o]").forEach(e=>e.onclick=()=>myOrder(+e.dataset.o));
  t.querySelectorAll("[data-tab]").forEach(e=>e.onclick=()=>{MY.tab=+e.dataset.tab;myTray();});
- t.querySelectorAll("[data-i]").forEach(e=>e.onclick=()=>{const k=["k","s","h"][MY.tab],i=+e.dataset.i;MY.beat[k][i]^=1;if(MY.beat[k][i])drum(k);mySave();myTray();});
- t.querySelectorAll("[data-r]").forEach(e=>e.onclick=()=>{const i=MY.tab*4+(+e.dataset.c),r=+e.dataset.r;MY.mel[i]=MY.mel[i]===r?-1:r;if(MY.mel[i]>=0)shot("bell",.34,{rate:Math.pow(2,(SONG.scale[r]-66)/12)});mySave();myTray();});
+ t.querySelectorAll("[data-i]").forEach(e=>e.onclick=()=>{const k=["k","s","h"][MY.tab],i=+e.dataset.i;MY.beat[k][i]^=1;if(MY.beat[k][i])drum(k,0);mySave();myTray();});
+ t.querySelectorAll("[data-r]").forEach(e=>e.onclick=()=>{const i=MY.tab*4+(+e.dataset.c),r=+e.dataset.r;MY.mel[i]=MY.mel[i]===r?-1:r;if(MY.mel[i]>=0)pno(SONG.scale[r]+12,0,.9,.55,3);mySave();myTray();});
  if($("myLock"))$("myLock").onclick=()=>{myChime(4);myStep(5);};
  if($("myFin"))$("myFin").onclick=()=>{myStep(6);myChime(6);};
  MY.hl=-1;}
 function melOk(b){const v=MY.mel[b*4];return v>=0&&tones(SONG.order[b]).map(m=>m%12).includes(SONG.scale[v]%12);}
-function myChime(k){if(!SND.ctx)return;const t=SND.ctx.currentTime;[64,68,71,76].forEach((m,j)=>shot("bell",.22,{rate:Math.pow(2,(m-66)/12),at:t+j*.12}));}
-function myKey(m){myPluck(m,0,.34);if(MY.step!==2||S.room!==0)return;const c=curChord(),T=tones(c),want=T[MY.picks.length];
+function myChime(){if(!SND.ctx)return;const t=SND.ctx.currentTime;[64,68,71,76].forEach((m,j)=>pno(m+12,t+j*.11,j===3?1.6:.5,.4,3));}
+function myKey(m){release(MY.kv);MY.kv=[pno(m,0,1.1,.6,3)];if(MY.step!==2||S.room!==0)return;const c=curChord(),T=tones(c),want=T[MY.picks.length];
  if(m===want){MY.picks.push(m);myTray();const n=MY.picks.length;
   if(n===1)$("myHintT").textContent="Good — "+nn(m)+" is the root. Now count up "+(T[1]-T[0])+" half-steps (every key, black and white, is one).";
   else if(n===2)$("myHintT").textContent=nn(m)+" is the 3rd. Now "+(T[2]-T[1])+" more half-steps for the 5th.";
-  else{setTimeout(()=>strum(T),250);MY.built.push(c);MY.picks=[];mySave();
+  else{setTimeout(()=>{release(MY.kv);playChord(c,2);},250);MY.built.push(c);MY.picks=[];mySave();
    if(MY.built.length===4)setTimeout(()=>{myChime();myStep(3);},1100);else setTimeout(()=>{myShow();$("myHintT").textContent="✓ "+SONG.chords[c].nm+" is built: "+T.map(nn).join(" – ")+".";},900);}}
  else{const p=MY.picks;$("myHintT").textContent=!p.length?"That's "+nn(m)+". Start on the root: the lower "+nn(T[0])+" (it has a gold dot).":"That's "+nn(m)+" — "+(m-p[p.length-1])+" half-steps up from "+nn(p[p.length-1])+". You need "+(want-p[p.length-1])+".";}}
 const CLUE=["Start at home: the chord named after the key, E.","Next: the chord built on the 5th note of E's scale.","Then the sad one, the only minor chord.","Last: the chord on the 4th note, the one that leads home."];
-function myOrder(c){strum(tones(c));if(MY.step!==3||MY.order.includes(c))return;const k=MY.order.length;
+function myOrder(c){playChord(c,1.6);if(MY.step!==3||MY.order.includes(c))return;const k=MY.order.length;
  if(c===SONG.order[k]){MY.order.push(c);mySave();myTray();$("myHintT").textContent="";
   if(MY.order.length===4){$("myHintT").textContent="Listen — your progression…";setTimeout(()=>{myStep(4);},600);}}
  else $("myHintT").textContent="Not number "+(k+1)+" yet. Clue "+(k+1)+": "+CLUE[k];}
@@ -715,7 +725,7 @@ function myStart(fresh){const sv=!fresh&&myLoad();MY.on=true;
  SEQ.paused=false;if(!SND.on)sndToggle();$("sheet").hidden=true;$("myst").hidden=false;$("hint").style.opacity=0;document.body.classList.add("mystery");
  if(S.room!==-1)setRoom(-1);if(MY.step===1){S.yaw=0;S.pit=0;}MY.silTo=MY.sil=SILV[MY.step];MY.lastRoom=S.room;
  MY.nextHum=(performance.now()-S.t0)/1000+2.5;myShow();mySave();}
-function myEnd(){MY.on=false;SEQ.on=false;$("myst").hidden=true;$("myTray").hidden=true;document.body.classList.remove("mystery");MY.silTo=0;myClear();}
+function myEnd(){MY.on=false;SEQ.on=false;release(MY.qv);$("myst").hidden=true;$("myTray").hidden=true;document.body.classList.remove("mystery");MY.silTo=0;myClear();}
 function myClear(){$("myObjs").querySelectorAll("button").forEach(b=>b.style.display="none");}
 function myStep(n){MY.step=n;MY.picks=[];MY.tab=0;MY.silTo=SILV[n];myShow();mySave();}
 $("myHint").onclick=()=>{const hs=HINTS[MY.step];if(!hs)return;const a=hs();$("myHintT").textContent="💡 "+a[Math.min(MY.hint,a.length-1)];MY.hint++;};
@@ -725,7 +735,7 @@ document.querySelectorAll("[data-myst]").forEach(b=>b.onclick=()=>myStart(b.data
 {const sv=myLoad();if(sv&&sv.step>1)$("mystCont").hidden=false;}
 /* doorways open one at a time as the song grows */
 function myDoorOpen(i){if(!MY.on||MY.step>=6)return true;for(let s=2;s<=MY.step;s++)if(ROOMFOR[s]===i)return true;return false;}
-function myFound(c){if(MY.found.includes(c))return;MY.found.push(c);myPluck(SONG.chords[c].r+12,0,.4);myShow();$("myHintT").textContent="♪ "+nn(SONG.chords[c].r)+" — the root of the "+SONG.chords[c].nm+" chord.";mySave();
+function myFound(c){if(MY.found.includes(c))return;MY.found.push(c);pno(SONG.chords[c].r+12,0,1.6,.55,3);myShow();$("myHintT").textContent="♪ "+nn(SONG.chords[c].r)+" — the root of the "+SONG.chords[c].nm+" chord.";mySave();
  if(MY.found.length===4)setTimeout(()=>{myChime();myStep(2);},1200);}
 function myFrame(t){MY.sil+=(MY.silTo-MY.sil)*.03;if(!MY.on)return;const box=$("myObjs");
  if(S.room!==MY.lastRoom){MY.lastRoom=S.room;myShow();}
@@ -734,7 +744,7 @@ function myFrame(t){MY.sil+=(MY.silTo-MY.sil)*.03;if(!MY.on)return;const box=$("
  const place=(el,p)=>{if(!p){el.style.display="none";return;}el.style.display="";el.style.left=p[0]+"px";el.style.top=p[1]+"px";};
  box.querySelectorAll("[data-fr]").forEach(el=>{const c=+el.dataset.fr;place(el,MY.step===1&&S.room===-1&&!MY.found.includes(c)?proj(nz(SONG.chords[c].dir)):null);});
  if(MY.step===1&&S.room===-1&&t>MY.nextHum){const left=[0,1,2,3].filter(c=>!MY.found.includes(c));if(left.length&&SND.on){let bi=left[0],bz=-9,bl=null;left.forEach(c=>{const l=rx(ry(nz(SONG.chords[c].dir),-S.yaw),-S.pit);if(l[2]>bz){bz=l[2];bi=c;bl=l;}});
-   shot("pluck",.08+.3*Math.max(0,bz),{rate:Math.pow(2,(SONG.chords[bi].r+12-64)/12),pan:Math.max(-1,Math.min(1,bl[0]*1.3))});}MY.nextHum=t+3.5;}
+   pno(SONG.chords[bi].r+12,0,1.3,.08+.4*Math.max(0,bz),2,Math.max(-1,Math.min(1,bl[0]*1.3)));}MY.nextHum=t+3.5;}
  if(S.room===-1)S.labels.forEach((el,i)=>el.classList.toggle("sealed",!myDoorOpen(i)));
  seqRun();
  if(SEQ.on&&(MY.step===4||MY.step===5)){const cur=Math.floor((SND.ctx.currentTime-SEQ.t0)/SD())%64;if(cur!==MY.hl&&cur>=0){MY.hl=cur;const tr=$("myTray");
