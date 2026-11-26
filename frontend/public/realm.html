@@ -39,13 +39,25 @@ html,body{margin:0;height:100%;background:#000;color:#fff;font:15px/1.45 Inter,s
 .myst[hidden],.tray[hidden]{display:none}
 .myh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;font:700 14px Cinzel,serif;letter-spacing:.06em;color:#ffd89a}.myh span{display:flex;gap:6px}.myh .pill{min-height:38px;padding:0 12px;font-family:Inter,system-ui}
 #myHintT{margin-top:6px;color:#ffd89a;font-size:13.5px}#myDone{display:flex;gap:8px;margin-top:8px}#myDone[hidden]{display:none}
-.tray{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:6;display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 24px)}
-.slot{width:58px;height:58px;border-radius:14px;border:1px solid rgba(255,255,255,.35);background:rgba(6,4,16,.6);color:rgba(255,255,255,.5);font:700 18px Inter,system-ui}
-.slot.got{color:#fff;border-color:#ffd89a;box-shadow:0 0 16px rgba(255,216,154,.5);background:rgba(60,30,90,.6)}.slot:not([disabled]){cursor:pointer}
-.tray .seq{flex-basis:100%;text-align:center;font-size:13px;opacity:.85}
+.tray{position:fixed;left:0;right:0;margin:0 auto;width:max-content;bottom:max(14px,env(safe-area-inset-bottom));z-index:6;display:flex;flex-direction:column;gap:8px;align-items:center;max-width:calc(100% - 16px);background:rgba(6,4,16,.72);border:1px solid rgba(255,216,154,.35);border-radius:16px;padding:8px;backdrop-filter:blur(8px)}
+.qchips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.qchip{min-width:54px;min-height:40px;padding:0 10px;display:inline-flex;align-items:center;justify-content:center;border-radius:12px;border:1px solid rgba(255,255,255,.3);background:rgba(10,6,24,.6);color:rgba(255,255,255,.6);font:700 16px Inter,system-ui}
+.qchip.got{color:#fff;border-color:#ffd89a;box-shadow:0 0 12px rgba(255,216,154,.45)}.qchip.cur{color:#fff;border-color:#7fe8ff;box-shadow:0 0 12px rgba(127,232,255,.5)}
+.qchip.card{min-width:70px;min-height:52px;cursor:pointer;color:#fff;border-color:rgba(199,155,255,.8)}.qchip.card.used{opacity:.3}.qchip.card:active,.cell:active,.kw:active,.kk:active{transform:scale(.94)}
+.kb{position:relative;width:352px;height:124px;max-width:100%}
+.kw{position:absolute;top:0;width:32px;height:124px;background:#f4efe6;border:1px solid #2a2233;border-radius:0 0 7px 7px;color:#3a3245;font:700 11px Inter,system-ui;display:flex;align-items:flex-end;justify-content:center;padding:0 0 6px;cursor:pointer}
+.kk{position:absolute;top:0;width:22px;height:76px;z-index:2;background:#1c1528;border:1px solid #000;border-radius:0 0 5px 5px;color:#bbb;font:700 8px Inter,system-ui;display:flex;align-items:flex-end;justify-content:center;padding:0 0 4px;cursor:pointer}
+.kw.on,.kk.on{background:#ffd89a;color:#2a1a00;box-shadow:0 0 14px #ffd89a}.kw.root::before,.kk.root::before{content:"";position:absolute;left:50%;top:58%;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:#e8a93a;box-shadow:0 0 8px #ffd89a}.kk.root::before{top:40%}
+.tabs{display:flex;gap:6px;justify-content:center}.tabs .pill{min-height:40px;padding:0 12px}.tabs .pill[aria-pressed="true"]{background:#ffd89a;color:#1a1000}
+.qgrid{display:grid;gap:4px}.qgrid.g8{grid-template-columns:repeat(8,38px)}.qgrid.g5{grid-template-columns:34px repeat(4,54px);align-items:center}
+.cell{height:38px;border-radius:9px;border:1px solid rgba(255,255,255,.28);background:rgba(10,6,24,.6);color:rgba(255,255,255,.7);font:700 13px Inter,system-ui;cursor:pointer}.g5 .cell{height:30px}
+.cell.beat{border-color:rgba(255,216,154,.75)}.cell.tone{box-shadow:inset 0 0 0 2px rgba(255,216,154,.75)}.cell.on{background:#ffb36b;color:#1a0d00;border-color:#ffd89a}.g5 .cell.on{background:#ff9bd2}.cell.play{outline:2px solid #fff;outline-offset:1px}
+.rl{font:700 12px Inter,system-ui;text-align:right;opacity:.85}
+.pill.go{min-height:44px;padding:0 16px}.pill.go[disabled]{opacity:.5}
+.mystery .bar{display:none!important}
 #myObjs{position:fixed;inset:0;z-index:4;pointer-events:none}
-.frag{position:absolute;width:56px;height:56px;transform:translate(-50%,-50%);pointer-events:auto;border:0;cursor:pointer;background:radial-gradient(circle,#fff 0,#ffe6a8 18%,rgba(190,140,255,.55) 42%,rgba(190,140,255,0) 70%);clip-path:polygon(50% 0,64% 36%,100% 50%,64% 64%,50% 100%,36% 64%,0 50%,36% 36%);animation:fragp 2.2s ease-in-out infinite}
-@keyframes fragp{0%,100%{opacity:.55;transform:translate(-50%,-50%) scale(.85) rotate(0)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.1) rotate(20deg)}}
+.frag{position:absolute;width:64px;height:64px;transform:translate(-50%,-50%);pointer-events:auto;border:0;border-radius:50%;cursor:pointer;background:radial-gradient(circle,rgba(255,230,168,.45) 0,rgba(190,140,255,.25) 45%,rgba(190,140,255,0) 70%);color:#fff6d6;font:400 42px/64px serif;text-shadow:0 0 10px #ffd89a,0 0 22px #c79bff;animation:fragp 2.2s ease-in-out infinite}
+@keyframes fragp{0%,100%{opacity:.6;transform:translate(-50%,-50%) scale(.88) rotate(-8deg)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.12) rotate(8deg)}}
 .tile{position:absolute;min-width:52px;height:52px;padding:0 10px;transform:translate(-50%,-50%);pointer-events:auto;border-radius:26px;border:1px solid rgba(255,216,154,.7);background:rgba(30,14,50,.65);color:#fff;font:700 17px Inter,system-ui;cursor:pointer;box-shadow:0 0 14px rgba(255,216,154,.35);backdrop-filter:blur(4px)}
 .lab.sealed{opacity:.45!important}.lab.sealed::after{content:" 🔒"}
 .mystery .host{display:none!important}.watch .myst,.watch .tray,.watch #myObjs{display:none!important}
@@ -75,7 +87,7 @@ html,body{margin:0;height:100%;background:#000;color:#fff;font:15px/1.45 Inter,s
 .hrvf{opacity:.75;font-size:12px;margin-top:6px}
 @media (orientation:landscape) and (max-height:520px){.hrv{left:auto;right:max(12px,env(safe-area-inset-right));top:110px;bottom:auto;width:330px}#hrvC{height:70px}.big b{font-size:32px}}
 .watch .hrv{display:none!important}
-@media (orientation:landscape) and (max-height:520px){.myst{right:auto;width:min(44%,380px);top:60px;font-size:13px;padding:8px 10px}.tray{left:auto;right:max(12px,env(safe-area-inset-right));transform:none;bottom:84px;max-width:40%}}
+@media (orientation:landscape) and (max-height:520px){.myst{right:auto;width:min(44%,380px);top:60px;font-size:13px;padding:8px 10px}.tray{left:auto;right:max(10px,env(safe-area-inset-right));margin:0;bottom:10px;max-width:50%}.kb{height:104px}.kw{height:104px}.kk{height:64px}.qgrid.g8 .cell{height:32px}.g5 .cell{height:24px}.tabs .pill{min-height:34px}.pill.go{min-height:36px}.tray{gap:5px;padding:6px}}
 @media (orientation:landscape) and (max-height:520px){.host{left:12px;right:auto;bottom:84px;max-width:46%}.host svg{width:46px;height:70px}.hint{top:60px}}
 @media (prefers-reduced-motion:reduce){.host svg{animation:none}}
 </style>
@@ -101,7 +113,7 @@ html,body{margin:0;height:100%;background:#000;color:#fff;font:15px/1.45 Inter,s
  <div class="shh"><b>Sessions &amp; tricks</b><button class="pill" id="shX" type="button">Done</button></div>
  <div class="srow"><div><b>🫁 Breath pace</b><small>The walls and the sound breathe at this pace</small></div><button class="pill" id="speed" type="button">5.5 a minute</button></div>
  <div class="srow"><div><b>🌻 Golden Ratio session</b><small>Tones step down by the golden ratio, breathe in 1 : out 1.6 · headphones</small></div><div class="seg"><button class="pill" data-gl="5" type="button">5 min</button><button class="pill" data-gl="10" type="button">10</button><button class="pill" data-gl="20" type="button">20</button></div></div>
- <div class="srow"><div><b>🗝 Mystery · The Silent Sphere</b><small>Find the lost fragments, solve the riddles, bring the music back · headphones</small></div><div class="seg"><button class="pill" data-myst="new" type="button">Start</button><button class="pill" id="mystCont" data-myst="cont" type="button" hidden>Continue</button></div></div>
+ <div class="srow"><div><b>🗝 Song Quest · The Silent Sphere</b><small>Find the hidden notes, then build the chords, their order, the beat and a melody — room by room · headphones</small></div><div class="seg"><button class="pill" data-myst="new" type="button">Start</button><button class="pill" id="mystCont" data-myst="cont" type="button" hidden>Continue</button></div></div>
  <div class="srow"><div><b>📺 Watch mode</b><small>Hides every button, sharper picture — for AirPlay or just watching</small></div><button class="pill" id="watchBtn" type="button">Start</button></div>
  <div class="srow"><div><b>🌀 Living rooms</b><small>Rooms swell, flip over and turn inside out</small></div><button class="pill" id="livBtn" type="button" aria-pressed="true">On</button></div>
  <div class="srow"><div><b>🫀 Heart sync</b><small id="hrNote">Connect a Bluetooth heart sensor</small></div><button class="pill" id="hrBtn" type="button">Connect</button></div>
@@ -111,7 +123,7 @@ html,body{margin:0;height:100%;background:#000;color:#fff;font:15px/1.45 Inter,s
 <div class="myst" id="myst" hidden role="region" aria-label="Mystery">
  <div class="myh"><b>🗝 The Silent Sphere</b><span><button class="pill" id="myHint" type="button">💡 Hint</button><button class="pill" id="myX" type="button" aria-label="Leave the mystery">✕</button></span></div>
  <div id="myGoal"></div><div id="myHintT"></div>
- <div id="myDone" hidden><button class="pill" id="myHome" type="button">Back to the sphere</button><button class="pill" id="myAgain" type="button">Play again</button></div>
+ <div id="myDone" hidden><button class="pill" id="myPlay" type="button">■ Stop</button><button class="pill" id="myHome" type="button">Back to the sphere</button><button class="pill" id="myAgain" type="button">Play again</button></div>
 </div>
 <div class="tray" id="myTray" hidden></div>
 <div class="hint" id="hint">Drag to look around · pinch to zoom · tap a glowing window<br>Tap 🔇 for sound — headphones bring out the deep tones</div>
@@ -476,7 +488,7 @@ function shot(file,lv,o={}){getBuf(file).then(b=>{if(!SND.on)return;const c=SND.
  if(o.lp){const f=c.createBiquadFilter();f.type="lowpass";f.frequency.value=o.lp;n.connect(f);n=f;}n.connect(g);
  if(p){p.pan.value=o.pan||0;g.connect(p);p.connect(SND.bus);}else g.connect(SND.bus);
  if(o.swell){g.gain.setValueAtTime(0,c.currentTime);g.gain.linearRampToValueAtTime(lv,c.currentTime+o.swell);g.gain.setTargetAtTime(0,c.currentTime+o.swell,.6);}
- s.start();}).catch(()=>{});}
+ s.start(o.at||0);}).catch(()=>{});}
 function sndInit(){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;
  try{if(navigator.audioSession)navigator.audioSession.type="playback";}catch(e){}
  const c=SND.ctx=new AC();SND.master=c.createGain();SND.master.gain.value=0;const comp=c.createDynamicsCompressor();SND.master.connect(comp);comp.connect(c.destination);
@@ -499,7 +511,7 @@ function sndFly(){if(!SND.on)return;shot("flight",.55,{swell:1.4,lp:6000});const
 function sndTick(t){if(!SND.on||!SND.ctx)return;const c=SND.ctx,now=c.currentTime,M=MIX[S.cur.n]||MIX["The Sphere"];
  const deep=Math.min(1,S.dz/20),br=S.br?S.br.v:.5;
  for(const k in BED){let v=BED[k][1]*(M[k]||0);if(k==="pad")v*=.68+.32*br;if(k==="drone")v*=1+.5*deep;if(k==="air")v*=1+.6*deep;if(k==="sparkle")v*=1+.4*deep;
-  v*=1.-.75*MY.sil;if(v>.001&&!SND.P[k])bed(k);const L=SND.L[k];if(L)L.g.gain.setTargetAtTime(v,now,k==="pad"?.3:1.5);}
+  v*=(1.-.75*MY.sil)*(SEQ.on?.45:1);if(v>.001&&!SND.P[k])bed(k);const L=SND.L[k];if(L)L.g.gain.setTargetAtTime(v,now,k==="pad"?.3:1.5);}
  const P=SND.L.pad;if(P&&!S.fly)P.f.frequency.setTargetAtTime((1300+3000*br)*(1-.45*deep),now,.3);
  SND.melt.frequency.setTargetAtTime(18000-16300*S.melt,now,.4);SND.wet.gain.setTargetAtTime(.25+.55*S.melt+.2*deep,now,.6);
  const beat=G.on&&G.hz?G.hz:Math.max(3.5,M.beat-(M.beat-3.5)*deep);SND.beat=beat;if(SND.osc){SND.osc[0].frequency.setTargetAtTime(SND.car-beat/2,now,2);SND.osc[1].frequency.setTargetAtTime(SND.car+beat/2,now,2);}
@@ -611,60 +623,125 @@ function sesTick(t){const br=breathAt(t);S.br=br;
  const gdt=Math.min(.2,Math.max(0,t-(G.lt||t)));G.lt=t;G.gs+=((G.on?1:0)-G.gs)*Math.min(1,gdt*1.1);G.fl=(G.fl||0)+(((G.on||G.flower)&&G.flower?1:0)-(G.fl||0))*Math.min(1,gdt*.5);
  if(HR.on||HR.dev){if(HR.on&&t>=HR.next){HR.last=t;HR.next=t+60/Math.max(35,HR.bpm);const hh=$("hrHeart");hh.style.transform="scale(1.35)";setTimeout(()=>hh.style.transform="",130);}if(fq.n%12===0)hrDash(t);}
  if(HR.on){if(fq.n%30===0){HR.coh+=(hrCoh()-HR.coh)*.3;$("hrChip").textContent="🫀 "+HR.bpm+" · in sync "+Math.round(HR.coh*100)+"%";}}}
-/* ---------- MYSTERY · Chapter 1: The Silent Sphere ---------- */
-const NOTE_N=["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"];
-const noteRate=n=>Math.pow(2,(n-6)/12);   /* the bell is F♯ */
-const FRAGS=[{dir:[0,0,-1],n:4,where:"behind you"},{dir:[.3,.92,.25],n:8,where:"above you"},{dir:[-.4,-.88,.2],n:11,where:"below you"}];
-const MY={on:false,step:0,found:[],seq:[],hint:0,sil:0,silTo:0,nextHum:0,done:false};
-const MYSTEPS={
- 1:{goal:()=>"The sphere has gone silent. Find the 3 lost fragments of light — "+MY.found.length+" of 3 found.",hints:["Listen with headphones — each fragment hums from its direction. Drag to look all around.","One hides directly behind where you started. Others are far above and far below.","Turn around for the first one. Then look straight up, then straight down."]},
- 2:{goal:()=>"A major chord stacks three notes: the root, the 3rd (4 half-steps up) and the 5th (7 half-steps up). Tap the fragments from the root up to rebuild the chord.",hints:["The root is the lowest of the three: E.","E is the root. G♯ is 4 half-steps above E — that's the 3rd.","Tap E, then G♯, then B."]},
- 3:{goal:()=>"Colour is returning. The Theory doorway has opened — fly into it.",hints:["Look for the glowing doorway marked Theory.","Turn until you see Theory, then tap it."]},
- 4:{goal:()=>"The riddle on the wall: “I am the 5th note of E's scale. Songs lean on me before they come home. Who am I?” Tap the right note on the ring around you.",hints:["Count up the scale from E, calling E step 1.","E is 1, F♯ is 2, G♯ is 3, A is 4… what's 5?","It's B — the 5th of E, the note that pulls songs back home."]},
- 5:{goal:()=>"✨ Chapter 1 complete. The first chord of the sphere has returned.",hints:[]}};
-function mySave(){try{localStorage.setItem("realm-myst",JSON.stringify({step:MY.step,found:MY.found}));}catch(e){}}
-function myLoad(){try{return JSON.parse(localStorage.getItem("realm-myst")||"null");}catch(e){return null;}}
-function myShow(){const st=MYSTEPS[MY.step];$("myGoal").textContent=st?st.goal():"";$("myHint").hidden=!(st&&st.hints.length);$("myHintT").textContent="";MY.hint=0;
- $("myDone").hidden=MY.step!==5;$("myTray").hidden=!(MY.step===1||MY.step===2);myTray();}
-function myTray(){$("myTray").innerHTML=FRAGS.map((f,i)=>{const got=MY.found.includes(i);return '<button class="slot'+(got?" got":"")+'" data-fi="'+i+'" type="button" '+(MY.step===2?"":"disabled")+'>'+(got?NOTE_N[f.n]:"?")+'</button>';}).join("");
- if(MY.step===2){const order=[0,2,1];$("myTray").innerHTML=order.map(i=>'<button class="slot got" data-fi="'+i+'" type="button">'+NOTE_N[FRAGS[i].n]+'</button>').join("")+'<div class="seq">'+(MY.seq.map(i=>NOTE_N[FRAGS[i].n]).join(" → ")||"your chord: …")+'</div>';}
- $("myTray").querySelectorAll("[data-fi]").forEach(b=>b.onclick=()=>myChord(+b.dataset.fi));}
-function myStart(fresh){const sv=!fresh&&myLoad();MY.on=true;MY.step=sv&&sv.step?sv.step:1;MY.found=sv&&sv.found?sv.found:[];MY.seq=[];if(MY.step>=5){MY.step=1;MY.found=[];}
- if(!SND.on)sndToggle();$("sheet").hidden=true;$("myst").hidden=false;$("hint").style.opacity=0;document.body.classList.add("mystery");
- if(MY.step<=3&&S.room!==-1)setRoom(-1);if(MY.step===4&&S.room!==0)setRoom(0);MY.silTo=MY.step<=1?1:MY.step===2?.65:MY.step===3?.35:.25;MY.sil=MY.silTo;if(MY.step===1){S.yaw=0;S.pit=0;}
- MY.nextHum=(performance.now()-S.t0)/1000+3;myShow();mySave();}
-function myEnd(){MY.on=false;$("myst").hidden=true;document.body.classList.remove("mystery");MY.silTo=0;myClear();}
+/* ---------- SONG QUEST · Chapter 1: The Silent Sphere ---------- */
+const NOTE_N=["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"];const nn=m=>NOTE_N[m%12];
+const SONG={bpm:96,
+ chords:[{r:52,nm:"E",min:0,dir:[0,0,-1]},{r:59,nm:"B",min:0,dir:[.3,.92,.25]},{r:61,nm:"C♯m",min:1,dir:[-.4,-.88,.2]},{r:57,nm:"A",min:0,dir:[.95,.1,.3]}],
+ order:[0,1,2,3],shuffle:[2,0,3,1],scale:[76,73,71,68,66,64],
+ hits:["Don't Stop Believin' (Journey — same key, E)","Let It Be (The Beatles)","With or Without You (U2)","I'm Yours (Jason Mraz)","Someone Like You (Adele)"]};
+const tones=c=>{const C=SONG.chords[c];return [C.r,C.r+(C.min?3:4),C.r+7];};
+const ROOMFOR=[null,-1,0,1,3,2,-2];const SILV=[1,1,.8,.6,.4,.2,0];
+const KW=[52,53,55,57,59,60,62,64,65,67,69],KB=[54,56,58,61,63,66,68];
+const MY={on:false,step:0,found:[],built:[],picks:[],order:[],beat:null,mel:null,tab:0,hint:0,sil:0,silTo:0,nextHum:0,lastRoom:null,hl:-1};
+const SEQ={on:false,t0:0,n:0,paused:false};const SD=()=>60/SONG.bpm/4;
+const newBeat=()=>({k:[1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],s:Array(16).fill(0),h:[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]});
+const curChord=()=>[0,1,2,3].find(c=>!MY.built.includes(c));
+const here=()=>{const n=ROOMFOR[MY.step];return n===-2||S.room===n;};
+function myPluck(m,at,lv){shot("pluck",lv||.3,{rate:Math.pow(2,(m-64)/12),at});}
+function strum(T,at,lv){const c=SND.ctx;if(!c)return;const t=at||c.currentTime;T.forEach((m,j)=>shot("pluck",lv||.24,{rate:Math.pow(2,(m-64)/12),at:t+j*.02,pan:(j-1)*.3}));}
+let NZ=null;function noiseB(c){if(NZ)return NZ;const b=c.createBuffer(1,c.sampleRate*.5|0,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;return NZ=b;}
+function drum(k,at){const c=SND.ctx;if(!c||!SND.on)return;at=at||c.currentTime;const g=c.createGain();g.connect(SND.bus);
+ if(k==="k"){const o=c.createOscillator();o.frequency.setValueAtTime(150,at);o.frequency.exponentialRampToValueAtTime(45,at+.12);g.gain.setValueAtTime(.9,at);g.gain.exponentialRampToValueAtTime(.001,at+.3);o.connect(g);o.start(at);o.stop(at+.32);return;}
+ const s=c.createBufferSource();s.buffer=noiseB(c);const f=c.createBiquadFilter();f.type=k==="s"?"bandpass":"highpass";f.frequency.value=k==="s"?1800:7500;s.connect(f);f.connect(g);
+ const L=k==="s"?.45:.15,D=k==="s"?.16:.045;g.gain.setValueAtTime(L,at);g.gain.exponentialRampToValueAtTime(.001,at+D);s.start(at);s.stop(at+D+.02);
+ if(k==="s"){const o=c.createOscillator();o.frequency.value=190;const g2=c.createGain();g2.gain.setValueAtTime(.25,at);g2.gain.exponentialRampToValueAtTime(.001,at+.08);o.connect(g2);g2.connect(SND.bus);o.start(at);o.stop(at+.1);}}
+function seqStep(s,at){const bar=s>>4,i=s&15,ch=SONG.order[bar];
+ if(i===0||i===8)strum(tones(ch),at,i?.15:.22);
+ if((MY.step>4||(MY.step===4&&S.room===3))&&MY.beat){if(MY.beat.k[i])drum("k",at);if(MY.beat.s[i])drum("s",at);if(MY.beat.h[i])drum("h",at);}
+ if((MY.step>5||(MY.step===5&&S.room===2))&&MY.mel&&i%4===0){const v=MY.mel[bar*4+(i>>2)];if(v>=0)shot("bell",.34,{rate:Math.pow(2,(SONG.scale[v]-66)/12),at});}}
+function seqRun(){const c=SND.ctx,want=MY.on&&MY.step>=4&&SND.on&&c&&!SEQ.paused&&!document.hidden;
+ if(!want){SEQ.on=false;return;}if(!SEQ.on){SEQ.on=true;SEQ.t0=c.currentTime+.1;SEQ.n=0;}
+ const d=SD();if(SEQ.t0+SEQ.n*d<c.currentTime-.3)SEQ.n=Math.ceil((c.currentTime-SEQ.t0)/d);
+ while(SEQ.t0+SEQ.n*d<c.currentTime+.15){seqStep(SEQ.n%64,SEQ.t0+SEQ.n*d);SEQ.n++;}}
+const HINTS={1:()=>["Wear headphones. The hum gets louder and moves to the middle as you turn toward it.","One is behind where you started, one far above, one far below, one to your right.","Turn around, then look straight up, straight down, and to your right."],
+ 2:()=>{const c=curChord(),C=SONG.chords[c],T=tones(c);return ["Every key is one half-step — count white and black keys. Start on "+nn(C.r)+", then count up "+(T[1]-T[0])+".","The "+C.nm+" chord is "+T.map(nn).join(" – ")+"."];},
+ 3:()=>["Tap any chord to hear it first.","E is home. B sits on the 5th note, C♯m is the minor one, A sits on the 4th.","The order is E, B, C♯m, A."],
+ 4:()=>["Tap Snare. Beat 2 is the box marked 2, beat 4 is the box marked 4.","Put snare on 2 and 4, then tap Lock in the beat."],
+ 5:()=>["Gold-ringed notes are in that chord. Start each chord on one of them.","Easy hook: start on a gold note, then step to the note next to it."]};
+function myGoal(){const s=MY.step,need=ROOMFOR[s];
+ if(s===6)return "🎉 Your song is complete! E – B – C♯m – A is the I – V – vi – IV progression, the most-used chords in pop. Famous songs built on the same chords: "+SONG.hits.join(" · ")+".";
+ if(!here())return need===-1?"Tap ← Sphere to go back to the sphere.":"✨ The "+ROOMS[need].n+" doorway is open. "+(S.room>=0?"Tap ← Sphere, then fly":"Fly")+" into "+ROOMS[need].n+".";
+ if(s===1)return "The sphere's song has gone silent. Its 4 chords are hidden as glowing ♪ notes. Every few seconds one hums its note — louder when you face it. That note is a chord's root: the note the chord is built on. Turn toward the hum and tap the ♪. Found "+MY.found.length+" of 4.";
+ if(s===2){const c=curChord(),C=SONG.chords[c],T=tones(c);return "Build the "+C.nm+" chord on the keyboard. A chord is 3 notes stacked. Start on the root, "+nn(C.r)+". Count up "+(T[1]-T[0])+" half-steps for the 3rd, then "+(T[2]-T[1])+" more for the 5th."+(C.min?" This one is minor: its 3rd is one half-step lower, so it sounds sad.":"")+" Chords built: "+MY.built.length+" of 4.";}
+ if(s===3)return "Put the chords in order (tap one to hear it). Clues: 1 — home, the chord named after the key. 2 — the chord on the 5th note of E's scale. 3 — the sad one, the only minor chord. 4 — the chord on the 4th note, which leads home.";
+ if(s===4)return "Your chords are playing. Now the beat. The pop rule: the snare hits on beats 2 and 4. Open Snare and put hits on 2 and 4. Add kicks and hi-hats any way you like, then Lock in the beat.";
+ return "Last layer: a melody on top. Pick one note per beat. Notes with a gold ring belong to that chord, so they always fit. The rule: start each chord on a gold note. Fill each chord's 4 beats, then Finish the song.";}
+function mySave(){try{localStorage.setItem("realm-quest",JSON.stringify({step:MY.step,found:MY.found,built:MY.built,order:MY.order,beat:MY.beat,mel:MY.mel}));}catch(e){}}
+function myLoad(){try{return JSON.parse(localStorage.getItem("realm-quest")||"null");}catch(e){return null;}}
+function myShow(){$("myGoal").textContent=myGoal();const hs=HINTS[MY.step];$("myHint").hidden=!(hs&&here());$("myHintT").textContent="";MY.hint=0;
+ $("myDone").hidden=MY.step!==6;$("myPlay").textContent=SEQ.paused?"▶ Play my song":"■ Stop";myTray();}
+function chips(fn){return '<div class="qchips">'+SONG.chords.map((C,c)=>fn(C,c)).join("")+'</div>';}
+function myTray(){const t=$("myTray"),s=MY.step,h=here();let html="";
+ if(s===1)html=chips((C,c)=>'<span class="qchip'+(MY.found.includes(c)?" got":"")+'">♪ '+(MY.found.includes(c)?nn(C.r):"?")+'</span>');
+ else if(s===2){const cc=curChord();html=chips((C,c)=>'<span class="qchip'+(MY.built.includes(c)?" got":c===cc?" cur":"")+'">'+C.nm+(MY.built.includes(c)?" ✓":"")+'</span>');
+  if(h){html+='<div class="kb">'+KW.map((m,i)=>'<button type="button" class="kw'+(MY.picks.includes(m)?" on":"")+(!MY.picks.length&&m===SONG.chords[cc].r?" root":"")+'" data-k="'+m+'" style="left:'+i*32+'px">'+nn(m)+'</button>').join("")
+   +KB.map(m=>'<button type="button" class="kk'+(MY.picks.includes(m)?" on":"")+(!MY.picks.length&&m===SONG.chords[cc].r?" root":"")+'" data-k="'+m+'" style="left:'+((KW.indexOf(m-1)+1)*32-11)+'px">'+nn(m)+'</button>').join("")+'</div>';}}
+ else if(s===3&&h){html='<div class="qchips">'+[0,1,2,3].map(k=>'<span class="qchip'+(MY.order[k]!=null?" got":"")+'">'+(k+1)+'. '+(MY.order[k]!=null?SONG.chords[MY.order[k]].nm:"…")+'</span>').join("")+'</div><div class="qchips">'
+   +SONG.shuffle.map(c=>'<button type="button" class="qchip card'+(MY.order.includes(c)?" used":"")+'" data-o="'+c+'">'+SONG.chords[c].nm+'</button>').join("")+'</div>';}
+ else if(s===4&&h){const L={k:"Kick",s:"Snare",h:"Hi-hat"},tb=["k","s","h"][MY.tab];
+  html='<div class="tabs">'+["k","s","h"].map((k,i)=>'<button type="button" class="pill" data-tab="'+i+'" aria-pressed="'+(i===MY.tab)+'">'+L[k]+'</button>').join("")+'</div><div class="qgrid g8">'
+   +MY.beat[tb].map((v,i)=>'<button type="button" class="cell'+(v?" on":"")+(i%4===0?" beat":"")+'" data-i="'+i+'">'+(i%4===0?i/4+1:"")+'</button>').join("")+'</div>'
+   +'<button type="button" class="pill go" id="myLock" '+(MY.beat.s[4]&&MY.beat.s[12]?"":"disabled")+'>'+(MY.beat.s[4]&&MY.beat.s[12]?"Lock in the beat ✓":"Lock in the beat (snare on 2 + 4)")+'</button>';}
+ else if(s===5&&h){const b=MY.tab,ch=SONG.order[b],T=tones(ch).map(m=>m%12);
+  html='<div class="tabs">'+SONG.order.map((c,i)=>'<button type="button" class="pill" data-tab="'+i+'" aria-pressed="'+(i===b)+'">'+(melOk(i)?"✓ ":"")+SONG.chords[c].nm+'</button>').join("")+'</div><div class="qgrid g5">'
+   +SONG.scale.map((m,r)=>'<span class="rl">'+nn(m)+'</span>'+[0,1,2,3].map(cI=>'<button type="button" class="cell'+(MY.mel[b*4+cI]===r?" on":"")+(T.includes(m%12)?" tone":"")+'" data-r="'+r+'" data-c="'+cI+'"></button>').join("")).join("")+'</div>'
+   +'<button type="button" class="pill go" id="myFin" '+([0,1,2,3].every(melOk)?"":"disabled")+'>'+([0,1,2,3].every(melOk)?"Finish the song ✓":"Finish (start each chord on gold)")+'</button>';}
+ t.innerHTML=html;t.hidden=!html;t.dataset.s=s;
+ t.querySelectorAll("[data-k]").forEach(e=>e.onclick=()=>myKey(+e.dataset.k));
+ t.querySelectorAll("[data-o]").forEach(e=>e.onclick=()=>myOrder(+e.dataset.o));
+ t.querySelectorAll("[data-tab]").forEach(e=>e.onclick=()=>{MY.tab=+e.dataset.tab;myTray();});
+ t.querySelectorAll("[data-i]").forEach(e=>e.onclick=()=>{const k=["k","s","h"][MY.tab],i=+e.dataset.i;MY.beat[k][i]^=1;if(MY.beat[k][i])drum(k);mySave();myTray();});
+ t.querySelectorAll("[data-r]").forEach(e=>e.onclick=()=>{const i=MY.tab*4+(+e.dataset.c),r=+e.dataset.r;MY.mel[i]=MY.mel[i]===r?-1:r;if(MY.mel[i]>=0)shot("bell",.34,{rate:Math.pow(2,(SONG.scale[r]-66)/12)});mySave();myTray();});
+ if($("myLock"))$("myLock").onclick=()=>{myChime(4);myStep(5);};
+ if($("myFin"))$("myFin").onclick=()=>{myStep(6);myChime(6);};
+ MY.hl=-1;}
+function melOk(b){const v=MY.mel[b*4];return v>=0&&tones(SONG.order[b]).map(m=>m%12).includes(SONG.scale[v]%12);}
+function myChime(k){if(!SND.ctx)return;const t=SND.ctx.currentTime;[64,68,71,76].forEach((m,j)=>shot("bell",.22,{rate:Math.pow(2,(m-66)/12),at:t+j*.12}));}
+function myKey(m){myPluck(m,0,.34);if(MY.step!==2||S.room!==0)return;const c=curChord(),T=tones(c),want=T[MY.picks.length];
+ if(m===want){MY.picks.push(m);myTray();const n=MY.picks.length;
+  if(n===1)$("myHintT").textContent="Good — "+nn(m)+" is the root. Now count up "+(T[1]-T[0])+" half-steps (every key, black and white, is one).";
+  else if(n===2)$("myHintT").textContent=nn(m)+" is the 3rd. Now "+(T[2]-T[1])+" more half-steps for the 5th.";
+  else{setTimeout(()=>strum(T),250);MY.built.push(c);MY.picks=[];mySave();
+   if(MY.built.length===4)setTimeout(()=>{myChime();myStep(3);},1100);else setTimeout(()=>{myShow();$("myHintT").textContent="✓ "+SONG.chords[c].nm+" is built: "+T.map(nn).join(" – ")+".";},900);}}
+ else{const p=MY.picks;$("myHintT").textContent=!p.length?"That's "+nn(m)+". Start on the root: the lower "+nn(T[0])+" (it has a gold dot).":"That's "+nn(m)+" — "+(m-p[p.length-1])+" half-steps up from "+nn(p[p.length-1])+". You need "+(want-p[p.length-1])+".";}}
+const CLUE=["Start at home: the chord named after the key, E.","Next: the chord built on the 5th note of E's scale.","Then the sad one, the only minor chord.","Last: the chord on the 4th note, the one that leads home."];
+function myOrder(c){strum(tones(c));if(MY.step!==3||MY.order.includes(c))return;const k=MY.order.length;
+ if(c===SONG.order[k]){MY.order.push(c);mySave();myTray();$("myHintT").textContent="";
+  if(MY.order.length===4){$("myHintT").textContent="Listen — your progression…";setTimeout(()=>{myStep(4);},600);}}
+ else $("myHintT").textContent="Not number "+(k+1)+" yet. Clue "+(k+1)+": "+CLUE[k];}
+function myStart(fresh){const sv=!fresh&&myLoad();MY.on=true;
+ Object.assign(MY,{step:1,found:[],built:[],order:[],beat:newBeat(),mel:Array(16).fill(-1),picks:[],tab:0});
+ if(sv&&sv.step)Object.assign(MY,{step:sv.step,found:sv.found||[],built:sv.built||[],order:sv.order||[],beat:sv.beat||newBeat(),mel:sv.mel||Array(16).fill(-1)});
+ SEQ.paused=false;if(!SND.on)sndToggle();$("sheet").hidden=true;$("myst").hidden=false;$("hint").style.opacity=0;document.body.classList.add("mystery");
+ if(S.room!==-1)setRoom(-1);if(MY.step===1){S.yaw=0;S.pit=0;}MY.silTo=MY.sil=SILV[MY.step];MY.lastRoom=S.room;
+ MY.nextHum=(performance.now()-S.t0)/1000+2.5;myShow();mySave();}
+function myEnd(){MY.on=false;SEQ.on=false;$("myst").hidden=true;$("myTray").hidden=true;document.body.classList.remove("mystery");MY.silTo=0;myClear();}
 function myClear(){$("myObjs").querySelectorAll("button").forEach(b=>b.style.display="none");}
-function myStep(n){MY.step=n;MY.seq=[];myShow();mySave();MY.silTo=n<=1?1:n===2?.65:n===3?.35:n===4?.25:0;}
-function myChime(ns,gap){ns.forEach((n,i)=>setTimeout(()=>SND.on&&shot("bell",.3,{rate:noteRate(n),pan:(i-1)*.4}),i*(gap||0)));}
-function myFound(i){if(MY.found.includes(i))return;MY.found.push(i);myChime([FRAGS[i].n]);myTray();$("myGoal").textContent=MYSTEPS[1].goal();mySave();
- if(MY.found.length===3)setTimeout(()=>{myChime([4,8,11],260);myStep(2);},900);}
-function myChord(i){if(MY.step!==2)return;myChime([FRAGS[i].n]);const want=[0,1,2];MY.seq.push(i);
- if(MY.seq[MY.seq.length-1]!==want[MY.seq.length-1]){$("myHintT").textContent="Not quite — a chord grows upward from its root. Try again from the lowest note.";MY.seq=[];myTray();return;}
- myTray();if(MY.seq.length===3){setTimeout(()=>{myChime([4,8,11],0);setTimeout(()=>myChime([4,8,11,16],180),700);myStep(3);},500);}}
-function myTile(n){myChime([n]);if(n===11){setTimeout(()=>{myChime([4,8,11],0);setTimeout(()=>{myChime([4,11,16,20],220);SND.on&&shot("melody",.6,{lp:9000,swell:3});},800);myStep(5);myClear();},400);}
- else{const up=((n-4)+12)%12;$("myHintT").textContent=NOTE_N[n]+" is "+up+" half-steps above E. The 5th note of the E scale is the one you want.";}}
-$("myHint").onclick=()=>{const st=MYSTEPS[MY.step];if(!st)return;$("myHintT").textContent="💡 "+st.hints[Math.min(MY.hint,st.hints.length-1)];MY.hint++;};
+function myStep(n){MY.step=n;MY.picks=[];MY.tab=0;MY.silTo=SILV[n];myShow();mySave();}
+$("myHint").onclick=()=>{const hs=HINTS[MY.step];if(!hs)return;const a=hs();$("myHintT").textContent="💡 "+a[Math.min(MY.hint,a.length-1)];MY.hint++;};
 $("myX").onclick=()=>myEnd();$("myAgain").onclick=()=>{myEnd();myStart(true);};$("myHome").onclick=()=>{myEnd();if(S.room!==-1)setRoom(-1);};
+$("myPlay").onclick=()=>{SEQ.paused=!SEQ.paused;$("myPlay").textContent=SEQ.paused?"▶ Play my song":"■ Stop";};
 document.querySelectorAll("[data-myst]").forEach(b=>b.onclick=()=>myStart(b.dataset.myst==="new"));
-{const sv=myLoad();if(sv&&sv.step>1&&sv.step<5)$("mystCont").hidden=false;}
-/* which doorways are open in the mystery: none until the chord is built, then Theory; all once it's solved */
-function myDoorOpen(i){if(!MY.on||MY.step>=5)return true;return MY.step>=3&&i===0;}
-/* place the fragments and the note ring, hum clues, entering the Theory room */
-function myFrame(t){MY.sil+=(MY.silTo-MY.sil)*.03;if(!MY.on)return;const box=$("myObjs");let html="";
- if(MY.step===4&&S.room!==0){MY.silTo=.35;}
- if(MY.step===3&&S.room===0)myStep(4);
- if(!MY.els){MY.els=true;box.innerHTML=FRAGS.map((f,i)=>'<button class="frag" data-fr="'+i+'" type="button" aria-label="Fragment of light"></button>').join("")+NOTE_N.map((nm,n)=>'<button class="tile" data-tl="'+n+'" type="button">'+nm+'</button>').join("");
-  box.querySelectorAll("[data-fr]").forEach(b=>b.onclick=e=>{e.stopPropagation();myFound(+b.dataset.fr);});box.querySelectorAll("[data-tl]").forEach(b=>b.onclick=e=>{e.stopPropagation();myTile(+b.dataset.tl);});}
+{const sv=myLoad();if(sv&&sv.step>1)$("mystCont").hidden=false;}
+/* doorways open one at a time as the song grows */
+function myDoorOpen(i){if(!MY.on||MY.step>=6)return true;for(let s=2;s<=MY.step;s++)if(ROOMFOR[s]===i)return true;return false;}
+function myFound(c){if(MY.found.includes(c))return;MY.found.push(c);myPluck(SONG.chords[c].r+12,0,.4);myShow();$("myHintT").textContent="♪ "+nn(SONG.chords[c].r)+" — the root of the "+SONG.chords[c].nm+" chord.";mySave();
+ if(MY.found.length===4)setTimeout(()=>{myChime();myStep(2);},1200);}
+function myFrame(t){MY.sil+=(MY.silTo-MY.sil)*.03;if(!MY.on)return;const box=$("myObjs");
+ if(S.room!==MY.lastRoom){MY.lastRoom=S.room;myShow();}
+ if(!MY.els){MY.els=true;box.innerHTML=SONG.chords.map((C,c)=>'<button class="frag" data-fr="'+c+'" type="button" aria-label="Hidden note">♪</button>').join("");
+  box.querySelectorAll("[data-fr]").forEach(b=>b.onclick=e=>{e.stopPropagation();myFound(+b.dataset.fr);});}
  const place=(el,p)=>{if(!p){el.style.display="none";return;}el.style.display="";el.style.left=p[0]+"px";el.style.top=p[1]+"px";};
- box.querySelectorAll("[data-fr]").forEach(el=>{const i=+el.dataset.fr;place(el,MY.step===1&&S.room===-1&&!MY.found.includes(i)?proj(nz(FRAGS[i].dir)):null);});
- box.querySelectorAll("[data-tl]").forEach(el=>{const n=+el.dataset.tl,a=n/12*Math.PI*2;place(el,MY.step===4&&S.room===0?proj(nz([Math.sin(a),-.12,Math.cos(a)])):null);});
- if(MY.step===1&&S.room===-1&&t>MY.nextHum){const left=FRAGS.map((f,i)=>i).filter(i=>!MY.found.includes(i));if(left.length&&SND.on){let bi=left[0],bz=-9,bl=null;left.forEach(i=>{const w=nz(FRAGS[i].dir),l=rx(ry(w,-S.yaw),-S.pit);if(l[2]>bz){bz=l[2];bi=i;bl=l;}});
-   shot("bell",.05+.16*Math.max(0,bz),{rate:noteRate(FRAGS[bi].n),pan:Math.max(-1,Math.min(1,bl[0]*1.3))});}MY.nextHum=t+4.5;}
- /* sealed doorways in the sphere */
- if(S.room===-1)S.labels.forEach((el,i)=>el.classList.toggle("sealed",!myDoorOpen(i)));}
+ box.querySelectorAll("[data-fr]").forEach(el=>{const c=+el.dataset.fr;place(el,MY.step===1&&S.room===-1&&!MY.found.includes(c)?proj(nz(SONG.chords[c].dir)):null);});
+ if(MY.step===1&&S.room===-1&&t>MY.nextHum){const left=[0,1,2,3].filter(c=>!MY.found.includes(c));if(left.length&&SND.on){let bi=left[0],bz=-9,bl=null;left.forEach(c=>{const l=rx(ry(nz(SONG.chords[c].dir),-S.yaw),-S.pit);if(l[2]>bz){bz=l[2];bi=c;bl=l;}});
+   shot("pluck",.08+.3*Math.max(0,bz),{rate:Math.pow(2,(SONG.chords[bi].r+12-64)/12),pan:Math.max(-1,Math.min(1,bl[0]*1.3))});}MY.nextHum=t+3.5;}
+ if(S.room===-1)S.labels.forEach((el,i)=>el.classList.toggle("sealed",!myDoorOpen(i)));
+ seqRun();
+ if(SEQ.on&&(MY.step===4||MY.step===5)){const cur=Math.floor((SND.ctx.currentTime-SEQ.t0)/SD())%64;if(cur!==MY.hl&&cur>=0){MY.hl=cur;const tr=$("myTray");
+  if(MY.step===4)tr.querySelectorAll("[data-i]").forEach(e=>e.classList.toggle("play",+e.dataset.i===(cur&15)));
+  else tr.querySelectorAll("[data-c]").forEach(e=>e.classList.toggle("play",(cur>>4)===MY.tab&&+e.dataset.c===((cur&15)>>2)));}}}
 
-frame();window.__S=S;window.__MY=MY;window.__SND=SND;window.__G=G;window.__fly=flyTo;
+frame();window.__S=S;window.__MY=MY;window.__SND=SND;window.__SEQ=SEQ;window.__G=G;window.__fly=flyTo;
 }
 </script>
 </body>
