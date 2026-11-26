@@ -114,6 +114,7 @@ html,body{margin:0;height:100%;background:#000;color:#fff;font:15px/1.45 Inter,s
  <div class="srow"><div><b>🫁 Breath pace</b><small>The walls and the sound breathe at this pace</small></div><button class="pill" id="speed" type="button">5.5 a minute</button></div>
  <div class="srow"><div><b>🌻 Golden Ratio session</b><small>Tones step down by the golden ratio, breathe in 1 : out 1.6 · headphones</small></div><div class="seg"><button class="pill" data-gl="5" type="button">5 min</button><button class="pill" data-gl="10" type="button">10</button><button class="pill" data-gl="20" type="button">20</button></div></div>
  <div class="srow"><div><b>🗝 Song Quest · The Silent Sphere</b><small>Find the hidden notes, then build the chords, their order, the beat and a melody — room by room · headphones</small></div><div class="seg"><button class="pill" data-myst="new" type="button">Start</button><button class="pill" id="mystCont" data-myst="cont" type="button" hidden>Continue</button></div></div>
+ <div class="srow"><div><b>🌙 Dream music</b><small>Breathing drones, chords, bells, chimes and bowls in 3D — for deep learning and high moments · headphones</small></div><button class="pill" id="dreamBtn" type="button" aria-pressed="false">Off</button></div>
  <div class="srow"><div><b>📺 Watch mode</b><small>Hides every button, sharper picture — for AirPlay or just watching</small></div><button class="pill" id="watchBtn" type="button">Start</button></div>
  <div class="srow"><div><b>🌀 Living rooms</b><small>Rooms swell, flip over and turn inside out</small></div><button class="pill" id="livBtn" type="button" aria-pressed="true">On</button></div>
  <div class="srow"><div><b>🫀 Heart sync</b><small id="hrNote">Connect a Bluetooth heart sensor</small></div><button class="pill" id="hrBtn" type="button">Connect</button></div>
@@ -511,12 +512,12 @@ function sndFly(){if(!SND.on)return;shot("flight",.55,{swell:1.4,lp:6000});const
 function sndTick(t){if(!SND.on||!SND.ctx)return;const c=SND.ctx,now=c.currentTime,M=MIX[S.cur.n]||MIX["The Sphere"];
  const deep=Math.min(1,S.dz/20),br=S.br?S.br.v:.5;
  for(const k in BED){let v=BED[k][1]*(M[k]||0);if(k==="pad")v*=.68+.32*br;if(k==="drone")v*=1+.5*deep;if(k==="air")v*=1+.6*deep;if(k==="sparkle")v*=1+.4*deep;
-  v*=(1.-.75*MY.sil)*(SEQ.on?.45:1);if(v>.001&&!SND.P[k])bed(k);const L=SND.L[k];if(L)L.g.gain.setTargetAtTime(v,now,k==="pad"?.3:1.5);}
+  v*=(1.-.75*MY.sil)*(SEQ.on?.45:1)*(DREAM.run?(k==="pad"||k==="sparkle"?0:k==="air"?.15:k==="drone"?.45:.4):1);if(v>.001&&!SND.P[k])bed(k);const L=SND.L[k];if(L)L.g.gain.setTargetAtTime(v,now,k==="pad"?.3:1.5);}
  const P=SND.L.pad;if(P&&!S.fly)P.f.frequency.setTargetAtTime((1300+3000*br)*(1-.45*deep),now,.3);
  SND.melt.frequency.setTargetAtTime(18000-16300*S.melt,now,.4);SND.wet.gain.setTargetAtTime(.25+.55*S.melt+.2*deep,now,.6);
  const beat=G.on&&G.hz?G.hz:Math.max(3.5,M.beat-(M.beat-3.5)*deep);SND.beat=beat;if(SND.osc){SND.osc[0].frequency.setTargetAtTime(SND.car-beat/2,now,2);SND.osc[1].frequency.setTargetAtTime(SND.car+beat/2,now,2);}
- if(M.bells&&t>SND.next.bell&&MY.sil<.5&&!MY.on){shot("bell",.16*M.bells,{rate:PENTA[Math.floor(Math.random()*PENTA.length)],pan:Math.random()*1.4-.7});SND.next.bell=t+(2.5+Math.random()*6)/Math.max(.3,M.bells);}
- if(M.mel&&t>SND.next.mel&&MY.sil<.5&&!MY.on){shot("melody",.7,{lp:9000,swell:4});SND.next.mel=t+78+M.mel[0]+Math.random()*(M.mel[1]-M.mel[0]);}
+ if(M.bells&&t>SND.next.bell&&MY.sil<.5&&!MY.on&&!DREAM.on){shot("bell",.16*M.bells,{rate:PENTA[Math.floor(Math.random()*PENTA.length)],pan:Math.random()*1.4-.7});SND.next.bell=t+(2.5+Math.random()*6)/Math.max(.3,M.bells);}
+ if(M.mel&&t>SND.next.mel&&MY.sil<.5&&!MY.on&&!DREAM.on){shot("melody",.7,{lp:9000,swell:4});SND.next.mel=t+78+M.mel[0]+Math.random()*(M.mel[1]-M.mel[0]);}
  if(M.bowl&&t>SND.next.bowl){shot("bowl",.35,{pan:Math.random()-.5});SND.next.bowl=t+M.bowl[0]+Math.random()*(M.bowl[1]-M.bowl[0]);}
  if(!M.bowl&&t>SND.next.bowl)SND.next.bowl=t+5;}
 /* ---------- breath: shared by visuals and sound; golden sessions breathe in 1 : out 1.618 ---------- */
@@ -737,7 +738,7 @@ document.querySelectorAll("[data-myst]").forEach(b=>b.onclick=()=>myStart(b.data
 function myDoorOpen(i){if(!MY.on||MY.step>=6)return true;for(let s=2;s<=MY.step;s++)if(ROOMFOR[s]===i)return true;return false;}
 function myFound(c){if(MY.found.includes(c))return;MY.found.push(c);pno(SONG.chords[c].r+12,0,1.6,.55,3);myShow();$("myHintT").textContent="♪ "+nn(SONG.chords[c].r)+" — the root of the "+SONG.chords[c].nm+" chord.";mySave();
  if(MY.found.length===4)setTimeout(()=>{myChime();myStep(2);},1200);}
-function myFrame(t){MY.sil+=(MY.silTo-MY.sil)*.03;if(!MY.on)return;const box=$("myObjs");
+function myFrame(t){dreamRun();MY.sil+=(MY.silTo-MY.sil)*.03;if(!MY.on)return;const box=$("myObjs");
  if(S.room!==MY.lastRoom){MY.lastRoom=S.room;myShow();}
  if(!MY.els){MY.els=true;box.innerHTML=SONG.chords.map((C,c)=>'<button class="frag" data-fr="'+c+'" type="button" aria-label="Hidden note">♪</button>').join("");
   box.querySelectorAll("[data-fr]").forEach(b=>b.onclick=e=>{e.stopPropagation();myFound(+b.dataset.fr);});}
@@ -751,7 +752,77 @@ function myFrame(t){MY.sil+=(MY.silTo-MY.sil)*.03;if(!MY.on)return;const box=$("
   if(MY.step===4)tr.querySelectorAll("[data-i]").forEach(e=>e.classList.toggle("play",+e.dataset.i===(cur&15)));
   else tr.querySelectorAll("[data-c]").forEach(e=>e.classList.toggle("play",(cur>>4)===MY.tab&&+e.dataset.c===((cur&15)>>2)));}}}
 
-frame();window.__S=S;window.__MY=MY;window.__SND=SND;window.__SEQ=SEQ;window.__G=G;window.__fly=flyTo;
+/* ---------- DREAM music v2: synth pad, overtone drone that breathes at 0.1 Hz, scenes that come and go, 3D bells ---------- */
+const DSET={k:{dir:"inst/kalimba/",n:[47,49,51,54,56,59,61,63,66,69,71]},gl:{dir:"inst/glass/",n:[63,66,70,74]},gk:{dir:"inst/glock/",n:[67,72,79,84,91,96]},mt:{dir:"inst/marktree/",n:[0,1,2]},
+ hc:{dir:"inst/hchime/",n:[48,50,52,54,56,58,60,62,64,66,68,69,72,74,76,78,80,82,84]},tb:{dir:"inst/tbell/",n:[48,50,52,54,56,58,60,62,64]},ts:{dir:"inst/tingsha/",n:[0,1,2,3]},gg:{dir:"inst/gong/",n:[0,1,2]}};
+Object.entries(DSET).forEach(([id,o])=>o.n.forEach(n=>SF[id+n]=SNDROOT+o.dir+n+".mp3"));
+const DREAM={on:false,run:false,t0:0,n:0,bus:null,arp:0,dir:1,lastMel:76,ov:[],ovs:[],cyc:-1,pad:[],sc:0,scStart:0,ci:-1,nc:0,chord:null,nextBowl:0,scale:1};
+/* scenes: busy ones are followed by a rest (drone, overtones, bowls) so nothing stays full for long */
+const DSCN=[
+ {dur:95,ch:[{b:40,v:[52,56,59,63,66]},{b:40,v:[54,58,61,64,66]}],len:36,arp:"k",ap:.5,mel:"gl",mr:[64,66,68,71,73,76,78,80],mp:.55,bell:"hc",ov:[[4,5,6],[5,6,8],[6,8,10]]},
+ {dur:55,rest:1,ov:[[5,6,7],[7,8,9],[8,10,12],[4,6,9]],bowl:13},
+ {dur:100,ch:[{b:49,v:[56,59,64,66,71]},{b:45,v:[56,59,61,64,68]},{b:40,v:[56,59,63,66,71]},{b:47,v:[54,59,61,64,66]}],len:24,arp:"hc",ap:.42,mel:"gk",mr:[76,78,80,83,85,88],mp:.45,bell:"tb",ov:[[4,5,6],[6,8,9]]},
+ {dur:55,rest:1,ov:[[3,4,5],[5,7,9],[6,9,12]],bowl:11,gong:1},
+ {dur:95,ch:[{b:45,v:[57,61,64,68,71]},{b:49,v:[56,61,64,68,71]},{b:42,v:[57,61,64,66,69]},{b:47,v:[54,59,61,64,66]}],len:30,arp:"k",ap:.38,mel:"tb",mr:[59,61,64,66,68,71],mp:.4,bell:"gl",ov:[[4,5,6],[5,6,8]]},
+ {dur:50,rest:1,ov:[[2,3,4],[4,5,6],[6,7,8]],bowl:15}];
+const mhz=m=>440*Math.pow(2,(m-69)/12);
+function sp3(c,az,el,r,spin,st,life){const p=c.createPanner();p.panningModel="HRTF";p.distanceModel="inverse";p.refDistance=1;p.rolloffFactor=.5;
+ const pos=a=>[r*Math.sin(a)*Math.cos(el),r*Math.sin(el),r*Math.cos(a)*Math.cos(el)];const q0=pos(az);
+ if(p.positionX){p.positionX.setValueAtTime(q0[0],st);p.positionY.setValueAtTime(q0[1],st);p.positionZ.setValueAtTime(q0[2],st);
+  if(spin)for(let i=1;i<=6;i++){const q=pos(az+spin*i/6),tt=st+life*i/6;p.positionX.linearRampToValueAtTime(q[0],tt);p.positionY.linearRampToValueAtTime(q[1],tt);p.positionZ.linearRampToValueAtTime(q[2],tt);}}
+ else if(p.setPosition)p.setPosition(q0[0],q0[1],q0[2]);return p;}
+function dBus(){const c=SND.ctx;if(DREAM.bus)return DREAM.bus;const inp=c.createGain();const dry=c.createGain();dry.gain.value=.5;inp.connect(dry);dry.connect(SND.bus);
+ try{const len=c.sampleRate*6|0,ir=c.createBuffer(2,len,c.sampleRate);for(let ch=0;ch<2;ch++){const d=ir.getChannelData(ch);let lp=0;for(let i=0;i<len;i++){lp+=.18*((Math.random()*2-1)-lp);d[i]=lp*Math.pow(1-i/len,2.2)*3;}}
+  const cv=c.createConvolver();cv.buffer=ir;const w=c.createGain();w.gain.value=.65;inp.connect(cv);cv.connect(w);w.connect(SND.bus);
+  const dl=c.createDelay(2),dr=c.createDelay(2),fb=c.createGain(),lpf=c.createBiquadFilter(),send=c.createGain(),mL=c.createStereoPanner(),mR=c.createStereoPanner();
+  dl.delayTime.value=.68;dr.delayTime.value=.68;fb.gain.value=.36;lpf.type="lowpass";lpf.frequency.value=2400;send.gain.value=.2;mL.pan.value=-.75;mR.pan.value=.75;
+  inp.connect(send);send.connect(dl);dl.connect(lpf);lpf.connect(mL);mL.connect(cv);mL.connect(SND.bus);lpf.connect(dr);dr.connect(mR);mR.connect(cv);mR.connect(SND.bus);dr.connect(fb);fb.connect(dl);}catch(e){}
+ return DREAM.bus=inp;}
+function dPlay(key,rate,at,dur,lv,o={}){const c=SND.ctx;if(!c||!SND.on)return;getBuf(key).then(b=>{if(!SND.on||!DREAM.run)return;const s=c.createBufferSource();s.buffer=b;s.playbackRate.value=rate;const g=c.createGain(),st=Math.max(at,c.currentTime),a=o.att||.005,end=st+dur;
+  g.gain.setValueAtTime(0,st);g.gain.linearRampToValueAtTime(lv,st+a);g.gain.setTargetAtTime(0,end,o.rel||.6);let n=s;if(o.lp){const f=c.createBiquadFilter();f.type="lowpass";f.frequency.value=o.lp;s.connect(f);n=f;}n.connect(g);
+  const P=o.pos||[Math.random()*6.28,(Math.random()-.4)*.6,1.8,(Math.random()-.5)*.8];const p=sp3(c,P[0],P[1],P[2],P[3],st,dur+2);g.connect(p);p.connect(dBus());s.start(st,o.off||0);s.stop(end+(o.rel||.6)*6);}).catch(()=>{});}
+function dNote(set,m,at,dur,lv,o){const L=DSET[set].n,s0=L.reduce((a,b)=>Math.abs(b-m)<Math.abs(a-m)?b:a);dPlay(set+s0,set==="ts"||set==="gg"||set==="mt"?1:Math.pow(2,(m-s0)/12),at,dur,lv,o);}
+function dPad(notes,at,len,amp){const c=SND.ctx;DREAM.pad.forEach(v=>v.g.gain.setTargetAtTime(0,at,1.6));const old=DREAM.pad;setTimeout(()=>old.forEach(v=>v.os.forEach(o=>{try{o.stop();}catch(e){}})),(at-c.currentTime+9)*1000);DREAM.pad=[];
+ notes.forEach((m,j)=>{const f=mhz(m),g=c.createGain();g.gain.setValueAtTime(0,at);g.gain.setTargetAtTime(amp/notes.length,at,1.3);const os=[];
+  [[1,"sine",1],[1.004,"triangle",.42],[.996,"sine",.5],[2.003,"sine",.12]].forEach(([k,ty,lv])=>{const o=c.createOscillator(),og=c.createGain();o.type=ty;o.frequency.value=f*k;og.gain.value=lv;o.connect(og);og.connect(g);o.start(at);os.push(o);});
+  const p=sp3(c,(j/(notes.length-1)-.5)*2.4,.05,2,.25*(j%2?1:-1),at,len);g.connect(p);p.connect(DREAM.pf);DREAM.pad.push({g,os});});}
+function dStart(){const c=SND.ctx;dBus();const pf=c.createBiquadFilter();pf.type="lowpass";pf.frequency.value=800;pf.Q.value=.6;pf.connect(dBus());DREAM.pf=pf;DREAM.ov=[];
+ for(let h=1;h<=12;h++){const o=c.createOscillator();o.frequency.value=82.407*h;const g=c.createGain();g.gain.value=0;const p=sp3(c,h*2.4,((h%3)-1)*.3,2.2,0,c.currentTime,1);o.connect(g);g.connect(p);p.connect(dBus());o.start();DREAM.ov.push({o,g,p,h,az:h*2.4});}
+ DREAM.t0=c.currentTime+.2;DREAM.n=0;DREAM.sc=0;DREAM.scStart=DREAM.t0;DREAM.ci=-1;DREAM.nc=0;DREAM.cyc=-1;DREAM.nextBowl=DREAM.t0+4;DREAM.run=true;}
+function dStop(){const c=SND.ctx;if(!c||!DREAM.run)return;const t=c.currentTime;DREAM.run=false;DREAM.ov.forEach(v=>{v.g.gain.cancelScheduledValues(t);v.g.gain.setTargetAtTime(0,t,.6);v.o.stop(t+5);});DREAM.ov=[];
+ DREAM.pad.forEach(v=>{v.g.gain.cancelScheduledValues(t);v.g.gain.setTargetAtTime(0,t,1);v.os.forEach(o=>o.stop(t+6));});DREAM.pad=[];}
+const DT=()=>60/66/3;
+function dStep(n,at){const c=SND.ctx,tt=at-DREAM.t0,B=.5-.5*Math.cos(2*Math.PI*tt/10),d=DT();
+ let sc=DSCN[DREAM.sc],ts=at-DREAM.scStart;if(ts>sc.dur*DREAM.scale){DREAM.sc=(DREAM.sc+1)%DSCN.length;DREAM.scStart=at;ts=0;sc=DSCN[DREAM.sc];DREAM.ci=-1;DREAM.nc=n;DREAM.chord=null;DREAM.nextBowl=at+2;
+  if(!sc.ch&&DREAM.pad.length){DREAM.pad.forEach(v=>v.g.gain.setTargetAtTime(0,at,2.5));}if(sc.gong)dNote("gg",0,at+1,14,.1,{att:.4,rel:4,lp:2500,pos:[Math.PI,-.1,2.5,.6]});
+  dPlay("mt"+[0,1,2][n%3],1,at,5,.07,{att:.8,rel:1.6,lp:6000});}
+ const E=Math.pow(Math.sin(Math.PI*Math.min(1,ts/(sc.dur*DREAM.scale))),.6);
+ const cyc=Math.floor(tt/10);if(cyc!==DREAM.cyc){DREAM.cyc=cyc;DREAM.ovs=sc.ov[cyc%sc.ov.length];}
+ if(n%3===0){DREAM.ov.forEach(v=>{const on=DREAM.ovs.includes(v.h),amp=on?(sc.rest?.085:.055)*(.03+.97*B*B)*(.45+.55*E)*Math.sqrt(3/v.h):(v.h===1?.03:v.h===2?.02:0);v.g.gain.setTargetAtTime(amp,at,.9);});
+  if(DREAM.pf)DREAM.pf.frequency.setTargetAtTime(320+1700*B*B*(.5+.5*E),at,.9);}
+ if(n%24===0)DREAM.ov.forEach(v=>{v.az+=.25;const r=2.2,el=((v.h%3)-1)*.3;if(v.p.positionX){v.p.positionX.linearRampToValueAtTime(r*Math.sin(v.az)*Math.cos(el),at+d*24);v.p.positionZ.linearRampToValueAtTime(r*Math.cos(v.az)*Math.cos(el),at+d*24);}});
+ if(sc.ch&&n>=DREAM.nc){DREAM.ci=(DREAM.ci+1)%sc.ch.length;const C=DREAM.chord=sc.ch[DREAM.ci];dPad([C.b].concat(C.v),at,sc.len*d,.22*(.45+.55*E));DREAM.nc=n+sc.len;
+  if(sc.bell&&Math.random()<.6){const m=C.v[C.v.length-1]+(sc.bell==="tb"?-12:sc.bell==="hc"?12:0);dNote(sc.bell,m,at+d*2,7,.09*(.5+.5*E),{att:.01,rel:2,lp:4500});}}
+ if(sc.rest){if(at>DREAM.nextBowl){dPlay("bowl",Math.random()<.7?1.103:.827,at,14,.32,{att:.05,rel:3,off:.0,pos:[Math.random()*6.28,-.15,2.4,.7]});DREAM.nextBowl=at+sc.bowl*(.8+Math.random()*.5)*Math.max(.5,DREAM.scale);}
+  if(Math.random()<.006)dNote("ts",0,at,5,.05,{att:.01,rel:2,lp:7000});
+  if(Math.random()<.012*B)dNote("hc",[76,80,83,85,88][Math.floor(Math.random()*5)]-12,at,6,.05,{att:.01,rel:2,lp:5000});}
+ if(sc.arp&&DREAM.chord){const A=DREAM.chord.v.concat(DREAM.chord.v.map(m=>m+12)).filter(m=>m<=(sc.arp==="hc"?84:80));
+  if(i3(n)&&Math.random()<sc.ap*(.3+.7*E)*(.55+.45*B)){DREAM.arp+=DREAM.dir;if(DREAM.arp>=A.length-1||DREAM.arp<=0){DREAM.dir*=-1;DREAM.arp=Math.max(0,Math.min(A.length-1,DREAM.arp));}if(Math.random()<.15)DREAM.arp=Math.floor(Math.random()*A.length);
+   dNote(sc.arp,A[DREAM.arp],at+Math.random()*.02,d*3,(sc.arp==="hc"?.1:.17)*(.75+Math.random()*.5),{rel:1.1,lp:3000});}}
+ if(sc.mel&&n%6===3&&Math.random()<sc.mp*(.1+.9*B)*(.3+.7*E)){const R=sc.mr;let k=Math.max(0,R.indexOf(DREAM.lastMel));k=Math.max(0,Math.min(R.length-1,k+[-2,-1,-1,1,1,2][Math.floor(Math.random()*6)]));DREAM.lastMel=R[k];
+  dNote(sc.mel,R[k],at,d*9,(sc.mel==="tb"?.12:.1)*(.4+.6*B),{att:.03,rel:1.6,lp:3600});}}
+const i3=n=>n%24>=3&&(n%2===0||Math.random()<.35);
+function dListen(){const c=SND.ctx,L=c.listener,y=S.yaw,p=S.pit,f=[Math.sin(y)*Math.cos(p),-Math.sin(p),Math.cos(y)*Math.cos(p)];
+ try{if(L.forwardX){const t=c.currentTime;L.forwardX.setTargetAtTime(f[0],t,.05);L.forwardY.setTargetAtTime(f[1],t,.05);L.forwardZ.setTargetAtTime(f[2],t,.05);L.upX.value=0;L.upY.value=1;L.upZ.value=0;}else if(L.setOrientation)L.setOrientation(f[0],f[1],f[2],0,1,0);}catch(e){}}
+function dreamRun(){const c=SND.ctx,want=DREAM.on&&SND.on&&c&&!document.hidden&&!(MY.on&&MY.step>=4)&&!G.on;
+ if(!want){if(DREAM.run)dStop();return;}if(!DREAM.run)dStart();dListen();const d=DT();
+ if(DREAM.t0+DREAM.n*d<c.currentTime-.3)DREAM.n=Math.ceil((c.currentTime-DREAM.t0)/d);
+ while(DREAM.t0+DREAM.n*d<c.currentTime+.2){dStep(DREAM.n,DREAM.t0+DREAM.n*d);DREAM.n++;}}
+function dreamSet(on){DREAM.on=on;if(on&&!SND.on)sndToggle();$("dreamBtn").textContent=on?"On":"Off";$("dreamBtn").setAttribute("aria-pressed",on);try{localStorage.setItem("realm-dream",on?"1":"0");}catch(e){}}
+$("dreamBtn").onclick=()=>dreamSet(!DREAM.on);
+/* Dream is the waiting room's default music; off only if the player switched it off */
+{let v=null;try{v=localStorage.getItem("realm-dream");}catch(e){}if(v!=="0"){DREAM.on=true;$("dreamBtn").textContent="On";$("dreamBtn").setAttribute("aria-pressed","true");}}
+frame();window.__S=S;window.__MY=MY;window.__SND=SND;window.__SEQ=SEQ;window.__DREAM=DREAM;window.__G=G;window.__fly=flyTo;
 }
 </script>
 </body>
