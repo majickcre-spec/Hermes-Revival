@@ -200,11 +200,16 @@ vec2 cm(vec2 a,vec2 b){return vec2(a.x*b.x-a.y*b.y,a.x*b.y+a.y*b.x);}
 /* deep Mandelbrot: the exact path of the centre point is worked out on the CPU in double precision (RT);
    each pixel only follows its tiny difference from that path, so the zoom can go about a trillion times deep */
 /* colour: smooth bands outside, one steady edge tone where detail is finer than a pixel (no sparkle), soft colour inside */
+/* jewel tones: deep indigo, violet, magenta, gold, teal */
+vec3 jewel(float t){t=fract(t)*5.;vec3 c0=vec3(.05,.03,.16),c1=vec3(.36,.1,.6),c2=vec3(.9,.22,.55),c3=vec3(1.,.74,.32),c4=vec3(.08,.62,.68);
+ float k=fract(t);k=k*k*(3.-2.*k);if(t<1.)return mix(c0,c1,k);if(t<2.)return mix(c1,c2,k);if(t<3.)return mix(c2,c3,k);if(t<4.)return mix(c3,c4,k);return mix(c4,c0,k);}
+/* colour: jewel-tone bands outside, thin glowing gold filaments on the edge, deep violet glow inside */
 vec3 shadeM(bool o,float n,float m2,vec2 der,float trap,float pc,vec3 ph){
- if(!o){float t=sqrt(sqrt(trap));vec3 ic=pal(.5+t*1.1+T*.015,ph);return ic*ic*(.45+.4*t);}
+ if(!o){float t=sqrt(sqrt(trap));return vec3(.03,.015,.08)+jewel(.15+t*.5+T*.01)*(.12+.3*t*t);}
  float nu=n-log2(.5*log2(m2));float L=max(abs(der.x),abs(der.y));float de=sqrt(m2)*.5*log(m2)/(L*length(der/max(L,1e-30)));
- vec3 band=pal(log(nu+1.)*.9+T*.09,ph);band*=band*.95;
- return band*(.06+.94*smoothstep(pc*.12,pc*1.3,de));}
+ vec3 band=jewel(log(nu+1.)*.55+T*.03)*(.55+.6*exp(-nu*.003));
+ vec3 gold=vec3(1.,.8,.45);
+ return band*(.3+.7*smoothstep(pc*.15,pc*1.6,de))+gold*smoothstep(pc*1.3,pc*.15,de)*.95+gold*exp(-de/(pc*5.))*.12;}
 /* deep Mandelbrot: exact centre path from the CPU in double precision (RT); each pixel follows only its tiny difference */
 vec3 deepM(vec2 dc,float pc,vec3 ph){vec2 dz=vec2(0.),der=vec2(0.);float m=0.,n=0.,m2=0.,trap=9.;bool o=false;
  for(int i=0;i<2000;i++){if(float(i)>=MI)break;vec2 Zm=texture2D(RT,vec2((m+.5)/2000.,.5)).xy;vec2 zf=Zm+dz;
