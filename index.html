@@ -38,7 +38,7 @@ html,body{margin:0;height:100%;background:#000;color:#fff;font:15px/1.45 Inter,s
 .myst{position:fixed;left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));top:64px;z-index:6;background:rgba(6,4,16,.78);border:1px solid rgba(255,216,154,.5);border-radius:16px;padding:10px 12px;font-size:14px;backdrop-filter:blur(8px)}
 .myst[hidden],.tray[hidden]{display:none}
 .myh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;font:700 14px Cinzel,serif;letter-spacing:.06em;color:#ffd89a}.myh span{display:flex;gap:6px}.myh .pill{min-height:38px;padding:0 12px;font-family:Inter,system-ui}
-#myHintT{margin-top:6px;color:#ffd89a;font-size:13.5px}#myDone{display:flex;gap:8px;margin-top:8px}#myDone[hidden]{display:none}
+#myHintT{margin-top:6px;color:#ffd89a;font-size:13.5px}#myHintT:empty{display:none}.myst:not(.open) #myGoal{display:none}#myHint[hidden],#myMore[hidden]{display:none}#myGoal{margin-top:4px}#myShort{flex:1;font:700 14px Inter,system-ui;letter-spacing:0;color:#ffd89a;line-height:1.25}.myh{margin-bottom:0}#myDone{display:flex;gap:8px;margin-top:8px}#myDone[hidden]{display:none}
 .tray{position:fixed;left:0;right:0;margin:0 auto;width:max-content;bottom:max(14px,env(safe-area-inset-bottom));z-index:6;display:flex;flex-direction:column;gap:8px;align-items:center;max-width:calc(100% - 16px);background:rgba(6,4,16,.72);border:1px solid rgba(255,216,154,.35);border-radius:16px;padding:8px;backdrop-filter:blur(8px)}
 .qchips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
 .qchip{min-width:54px;min-height:40px;padding:0 10px;display:inline-flex;align-items:center;justify-content:center;border-radius:12px;border:1px solid rgba(255,255,255,.3);background:rgba(10,6,24,.6);color:rgba(255,255,255,.6);font:700 16px Inter,system-ui}
@@ -123,7 +123,7 @@ html,body{margin:0;height:100%;background:#000;color:#fff;font:15px/1.45 Inter,s
 <button class="wx" id="wx" type="button" aria-label="Leave watch mode">✕</button>
 <div id="myObjs"></div>
 <div class="myst" id="myst" hidden role="region" aria-label="Mystery">
- <div class="myh"><b>🗝 The Silent Sphere</b><span><button class="pill" id="myHint" type="button">💡 Hint</button><button class="pill" id="myX" type="button" aria-label="Leave the mystery">✕</button></span></div>
+ <div class="myh"><b id="myShort">🗝</b><span><button class="pill" id="myMore" type="button" aria-label="Show the full clue" aria-expanded="true">ⓘ</button><button class="pill" id="myHint" type="button">💡 Hint</button><button class="pill" id="myX" type="button" aria-label="Leave the mystery">✕</button></span></div>
  <div id="myGoal"></div><div id="myHintT"></div>
  <div id="myDone" hidden><button class="pill" id="myPlay" type="button">■ Stop</button><button class="pill" id="myHome" type="button">Back to the sphere</button><button class="pill" id="myAgain" type="button">Play again</button></div>
 </div>
@@ -690,7 +690,12 @@ function myGoal(){const s=MY.step,need=ROOMFOR[s];
  return "Last layer: a melody on top. Pick one note per beat. Notes with a gold ring belong to that chord, so they always fit. The rule: start each chord on a gold note. Fill each chord's 4 beats, then Finish the song.";}
 function mySave(){try{localStorage.setItem("realm-quest",JSON.stringify({step:MY.step,found:MY.found,built:MY.built,order:MY.order,beat:MY.beat,mel:MY.mel}));}catch(e){}}
 function myLoad(){try{return JSON.parse(localStorage.getItem("realm-quest")||"null");}catch(e){return null;}}
-function myShow(){$("myGoal").textContent=myGoal();const hs=HINTS[MY.step];$("myHint").hidden=!(hs&&here());$("myHintT").textContent="";MY.hint=0;
+function myShortT(){const s=MY.step,need=ROOMFOR[s];if(s===6)return "🎉 Your song is complete";if(!here())return need===-1?"🗝 Back to the sphere":"🗝 Fly into "+ROOMS[need].n;
+ if(s===1)return "🗝 Find the hidden ♪ notes · "+MY.found.length+" of 4";if(s===2){const c=curChord();return "🗝 Build the "+SONG.chords[c].nm+" chord · "+MY.built.length+" of 4";}
+ return ["","","","🗝 Put the chords in order","🗝 Build the beat","🗝 Add a melody"][s];}
+function myOpen(on,ms){const m=$("myst");clearTimeout(MY.ot);m.classList.toggle("open",on);$("myMore").setAttribute("aria-expanded",on);if(on&&ms&&MY.step!==6)MY.ot=setTimeout(()=>myOpen(false),ms);}
+$("myMore").onclick=()=>myOpen(!$("myst").classList.contains("open"),12000);
+function myShow(){const sh=myShortT();if(sh!==MY.lastShort){MY.lastShort=sh;myOpen(true,9000);}$("myShort").textContent=sh;$("myMore").hidden=MY.step===6;$("myGoal").textContent=myGoal();const hs=HINTS[MY.step];$("myHint").hidden=!(hs&&here());$("myHintT").textContent="";MY.hint=0;
  $("myDone").hidden=MY.step!==6;$("myPlay").textContent=SEQ.paused?"▶ Play my song":"■ Stop";myTray();}
 function chips(fn){return '<div class="qchips">'+SONG.chords.map((C,c)=>fn(C,c)).join("")+'</div>';}
 function myTray(){const t=$("myTray"),s=MY.step,h=here();let html="";
@@ -749,7 +754,7 @@ document.querySelectorAll("[data-myst]").forEach(b=>b.onclick=()=>myStart(b.data
 function myDoorOpen(i){if(!MY.on||MY.step>=6)return true;for(let s=2;s<=MY.step;s++)if(ROOMFOR[s]===i)return true;return false;}
 function myFound(c){if(MY.found.includes(c))return;MY.found.push(c);pno(SONG.chords[c].r+12,0,1.6,.55,3);myShow();$("myHintT").textContent="♪ "+nn(SONG.chords[c].r)+" — the root of the "+SONG.chords[c].nm+" chord.";mySave();
  if(MY.found.length===4)setTimeout(()=>{myChime();myStep(2);},1200);}
-function myFrame(t){dreamRun();MY.sil+=(MY.silTo-MY.sil)*.03;if(!MY.on)return;const box=$("myObjs");
+function myFrame(t){dreamRun();{const h=$("myHintT").textContent;if(h!==MY.lastHint){MY.lastHint=h;MY.hintT=t;}else if(h&&t-MY.hintT>8){$("myHintT").textContent="";MY.lastHint="";}}MY.sil+=(MY.silTo-MY.sil)*.03;if(!MY.on)return;const box=$("myObjs");
  if(S.room!==MY.lastRoom){MY.lastRoom=S.room;myShow();}
  if(!MY.els){MY.els=true;box.innerHTML=SONG.chords.map((C,c)=>'<button class="frag" data-fr="'+c+'" type="button" aria-label="Hidden note">♪</button>').join("");
   box.querySelectorAll("[data-fr]").forEach(b=>b.onclick=e=>{e.stopPropagation();myFound(+b.dataset.fr);});}
