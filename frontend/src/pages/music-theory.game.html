@@ -3694,10 +3694,10 @@ function bkGrooveGrid(id){const p=id==="off"?RHYTHM_PATTERNS.find(x=>x.id==="qua
   return h+'</div><div class="bk-ggs">Count it: '+swEsc(p.say||"")+'</div></div>';}
 function bkGrooveName(id){if(id==="off")return "No drums";const p=RHYTHM_PATTERNS.find(x=>x.id===id);return p?p.name.replace(/\s*\(.*\)/,""):id;}
 function bkApply(song){const b=bkCfg(song),gi=RHYTHM_PATTERNS.findIndex(x=>x.id===b.g),gp=RHYTHM_PATTERNS[gi];R.bpm=(song.bpm||90)*(gp&&gp.kit?2:1);R.patIdx=gi>=0?gi:RHYTHM_PATTERNS.findIndex(x=>x.id==="quarter");R.sound=b.ds;R.gv=b.g==="off"?0:b.dv;
-  if(BK.play)R.gv=+swMix().clk||0; /* playing the song: the Groove slider sets the drums; "No drums" falls back to a quarter-note click */
-  try{if(BK.bus)BK.bus.gain.value=BK.play?(+swMix().ch||0):b.cv;}catch(e){}}
+  if(BK.play)R.gv=+swMixHeard().clk||0; /* playing the song: the Groove slider sets the drums; "No drums" falls back to a quarter-note click */
+  try{if(BK.bus)BK.bus.gain.value=BK.play?(+swMixHeard().ch||0):b.cv;}catch(e){}}
 function bkNote(key,midi,T,dur,gain,syn){const a=ac();if(sfInstReady(key)&&sfPlayKey(key,midi,T-a.currentTime,dur,gain))return;proSynth(a,BK.bus,T,midi,dur,Math.round(70+gain*40),syn);}
-function bkPlayBar(T){const song=swSong(),b=bkCfg(song),spb=60/(song.bpm||90),bar=spb*4,v=BK.play?(+swMix().ch||0):b.cv;let c,i=-1;
+function bkPlayBar(T){const song=swSong(),b=bkCfg(song),spb=60/(song.bpm||90),bar=spb*4,v=BK.play?(+swMixHeard().ch||0):b.cv;let c,i=-1;
   if(BK.seq){const sc=BK.seq[BK.bar++];if(!sc)return;c=Object.assign({},sc,bkVoice(sc.pcs));}else{const ch=bkChords(song);i=BK.bar%ch.length;c=ch[i];BK.bar++;}
   if(v>0.001){if(b.cs==="pad"){proSynth(ac(),BK.bus,T,c.bass,bar*1.02,80,"pad");c.up.forEach(m=>proSynth(ac(),BK.bus,T,m,bar*1.02,74,"pad"));}
     else if(b.cs==="guitar"){[[0,1],[1.5,0.7],[2,0.85],[3,0.7],[3.5,0.6]].forEach(h=>{[c.bass].concat(c.up).forEach((m,k)=>bkNote("guitar",m,T+h[0]*spb+k*0.011,spb*0.9,0.75*h[1]*v,"pluck"));});}
@@ -3751,8 +3751,11 @@ function bkWire(song){const g=$("#bkGo");if(!g)return;g.onclick=()=>{BK.on?bkSto
 function bkTempo(song){const t=$("#bkTv");if(t)t.textContent=song.bpm||90;if(BK.on){const gp=RHYTHM_PATTERNS.find(x=>x.id===bkCfg(song).g);R.bpm=(song.bpm||90)*(gp&&gp.kit?2:1);}}
 /* ---- mixer: melody, chords, your voice, click — each with its own level (0 = off) ---- */
 function swMix(){const D=swData();if(!D.mix||typeof D.mix!=="object")D.mix={mel:0.8,ch:0.7,vox:1,clk:D.click?0.6:0};return D.mix;}
+/* Hear toggles: listen to any layer alone or together. Recording ignores them so you always hear your backing. */
+function swHeard(){const D=swData();if(!D.hear||typeof D.hear!=="object")D.hear={vox:1,mel:1,ch:1,clk:1};return D.hear;}
+function swMixHeard(){const m=swMix(),h=swHeard(),rec=!!(SW.vrec||SW.rec),o={};["mel","ch","vox","clk"].forEach(k=>o[k]=(rec||h[k])?(+m[k]||0):0);return o;}
 function swBus(layer){const a=ac();SW.bus=SW.bus||{};let b=SW.bus[layer];if(!b||b.context!==a){b=a.createGain();try{b.connect(pianoMaster(a));}catch(e){b.connect(a.destination);}SW.bus[layer]=b;}b.gain.value=swMix()[layer]||0;return b;}
-function swNote(midi,t,dur,layer){let v=+swMix()[layer]||0;if(v<=0.001)return;if(layer==="ch")v*=0.85;else v*=0.8; /* chords at full level: you sing to them */const vc=swData().voice||"piano",a=ac();
+function swNote(midi,t,dur,layer){let v=+swMixHeard()[layer]||0;if(v<=0.001)return;if(layer==="ch")v*=0.85;else v*=0.8; /* chords at full level: you sing to them */const vc=swData().voice||"piano",a=ac();
   if(vc==="voice"){playSustain(midiToFreq(midi),t,dur,0.9*v);return;}
   const key=vc==="piano"?"piano":(SF.folder&&SF.folder[vc]?vc:null);
   if(key){if(!sfInstReady(key))sfLoadInst(key);if(sfInstReady(key)&&sfPlayKey(key,midi,t,dur,(key==="piano"?0.92:0.95)*Math.min(1.2,v)))return;}
@@ -3761,13 +3764,18 @@ function swNote(midi,t,dur,layer){let v=+swMix()[layer]||0;if(v<=0.001)return;if
 function swTakeMeta(song,tag,i){const k=swTakeKey(song,tag,i),m=song.takeMeta&&song.takeMeta[k];if(m&&m.at)return m;
   const s16=60/(song.bpm||90)/4,steps=swSteps(),at={},sec=song.sections.find(x=>x.tag===tag&&!x.same);if(sec)swLinesOf(song,sec).forEach((ln,li)=>{at[li]=0.2+16*s16+li*steps*s16;});return {bpm:song.bpm||90,at:at,legacy:1};}
 function swTakeFor(song,tag,li){const n=swTakeN(song,tag);if(!n)return 0;const cov=i=>{const m=swTakeMeta(song,tag,i);return m.at[li]!=null&&Math.abs((m.bpm||0)-(song.bpm||90))<0.6&&!(SW.voxBad&&SW.voxBad[swTakeKey(song,tag,i)]);};
+  const lt=song.lineTake&&song.lineTake[tag]&&+song.lineTake[tag][li];if(lt&&lt<=n&&cov(lt))return lt;
   const sel=swTakeSel(song,tag);if(sel&&cov(sel))return sel;for(let i=n;i>=1;i--)if(cov(i))return i;return 0;}
+/* every take that holds this line (newest last) */
+/* the take you chose for a line (even one that can't play here), for the chooser */
+function swLineCur(song,tag,li){const L=swLineTakes(song,tag,li),lt=song.lineTake&&song.lineTake[tag]&&+song.lineTake[tag][li];return (lt&&L.includes(lt))?lt:swTakeFor(song,tag,li)||(L.length?L[L.length-1]:0);}
+function swLineTakes(song,tag,li){const n=swTakeN(song,tag),o=[];for(let i=1;i<=n;i++){const m=swTakeMeta(song,tag,i);if(m.at[li]!=null&&Math.abs((m.bpm||0)-(song.bpm||90))<0.6)o.push(i);}return o;}
 function swVoxLoad(key){SW.voxBuf=SW.voxBuf||{};if(SW.voxBuf[key])return Promise.resolve();const bad=()=>{SW.voxBad=SW.voxBad||{};SW.voxBad[key]=1;};
   return Promise.resolve((SW.takeBlob||{})[key]||idbGet("swtake:"+key)).then(bl=>bl?bl.arrayBuffer():null).then(ab=>ab?ac().decodeAudioData(ab):null).then(buf=>{if(!buf){bad();return;}
     let sum=0,pk=0,cnt=0;for(let c=0;c<buf.numberOfChannels;c++){const d=buf.getChannelData(c);for(let i=0;i<d.length;i+=4){const v=d[i],av=v<0?-v:v;sum+=v*v;cnt++;if(av>pk)pk=av;}}
     const rms=Math.sqrt(sum/Math.max(1,cnt));let g=rms>0.0004?0.16/rms:1;if(g<1)g=1;if(g>9)g=9;if(pk*g>2.4)g=Math.max(1,2.4/pk);SW.voxBuf[key]={buf:buf,g:g};}).catch(()=>bad());}
-function swVoxIn(){const a=ac(),fx=swData().vfx||"warm";let C=SW.voxCh;if(C&&C.ctx===a&&C.fx===fx){C.inp.gain.value=swMix().vox||0;return C.inp;}
-  try{if(C)C.inp.disconnect();}catch(e){}const inp=a.createGain();inp.gain.value=swMix().vox||0;
+function swVoxIn(){const a=ac(),fx=swData().vfx||"warm";let C=SW.voxCh;if(C&&C.ctx===a&&C.fx===fx){C.inp.gain.value=swMixHeard().vox||0;return C.inp;}
+  try{if(C)C.inp.disconnect();}catch(e){}const inp=a.createGain();inp.gain.value=swMixHeard().vox||0;
   const cp=a.createDynamicsCompressor();cp.threshold.value=-10;cp.knee.value=8;cp.ratio.value=8;cp.attack.value=0.003;cp.release.value=0.25;
   const P=({nat:{},warm:{sat:2.5,rv:[1.4,3.2],rw:0.14},space:{sat:1.6,rv:[2.2,2.6],rw:0.26,dl:0.75,dw:0.18,fb:0.3}})[fx]||{};let nd=inp;
   if(P.sat){const sh=a.createWaveShaper(),N=1024,cv=new Float32Array(N);for(let i=0;i<N;i++){const x=i/(N-1)*2-1;cv[i]=Math.tanh(P.sat*x)/Math.tanh(P.sat);}sh.curve=cv;sh.oversample="2x";nd.connect(sh);nd=sh;}
@@ -3777,7 +3785,7 @@ function swVoxIn(){const a=ac(),fx=swData().vfx||"warm";let C=SW.voxCh;if(C&&C.c
   if(P.dw){const dl=a.createDelay(2);dl.delayTime.value=Math.min(1.5,60/(swSong().bpm||90)*(P.dl||0.75));const fb=a.createGain();fb.gain.value=P.fb||0.25;const dw=a.createGain();dw.gain.value=P.dw;cp.connect(dl);dl.connect(fb);fb.connect(dl);dl.connect(dw);dw.connect(out);}
   if(P.rw){const cl=a.createConvolver(),sr=a.sampleRate,L=Math.floor(sr*P.rv[0]),bu=a.createBuffer(2,L,sr);for(let ch=0;ch<2;ch++){const d2=bu.getChannelData(ch);for(let i=0;i<L;i++)d2[i]=(Math.random()*2-1)*Math.pow(1-i/L,P.rv[1]);}cl.buffer=bu;const rw=a.createGain();rw.gain.value=P.rw;cp.connect(cl);cl.connect(rw);rw.connect(out);}
   SW.voxCh={ctx:a,fx:fx,inp:inp};return inp;}
-function swMixApply(){const m=swMix();try{Object.keys(SW.bus||{}).forEach(k=>{SW.bus[k].gain.value=m[k]||0;});}catch(e){}try{if(SW.voxCh)SW.voxCh.inp.gain.value=m.vox||0;}catch(e){}try{if(BK.play&&BK.bus)BK.bus.gain.value=m.ch||0;}catch(e){}try{if(BK.play)R.gv=+m.clk||0;}catch(e){}}
+function swMixApply(){const m=swMixHeard();try{Object.keys(SW.bus||{}).forEach(k=>{SW.bus[k].gain.value=m[k]||0;});}catch(e){}try{if(SW.voxCh)SW.voxCh.inp.gain.value=m.vox||0;}catch(e){}try{if(BK.play&&BK.bus)BK.bus.gain.value=m.ch||0;}catch(e){}try{if(BK.play)R.gv=+m.clk||0;}catch(e){}}
 /* ---- record a vocal take over the loop (or the section): hear melody / chords / click at the levels you set ---- */
 /* ---- undo: deleting a section or a line can be taken back for a few seconds ---- */
 function swSnap(song,label){SW.undo={id:song.id,json:JSON.stringify(song),label:label,t:Date.now()};}
@@ -3796,7 +3804,8 @@ function swThrowLast(){const D=swData(),T=SW.takeSnap,song=swSong();if(!T||T.id!
   SW.takeSnap=null;SW.lastRec=null;SW.recNote="Take thrown out — everything it changed is back the way it was. Go again when you're ready.";swSave();swDraw();swUndoToast();}
 function swRecNoteHTML(){if(!SW.recNote)return "";return SW.recNote+(SW.lastRec&&SW.lastRec.length?' <button class="rchip sm sel" id="swHear" style="margin-left:6px">▶ Hear it back</button>':"")+(SW.lastRec&&SW.lastRec.length&&SW.takeSnap?' <button class="rchip sm" id="swThrow" style="margin-left:6px;border-color:#ff9f9a;color:#ff9f9a">🗑 Throw out this whole take</button>':"");}
 function swRecTake(){const song=swSong(),D=swData(),b=$("#swRecB");if(SW.vrec){SW.vrec.finish(true);return;}swTakeSnap(song);
-  let k=swLoopKeys();if(!k){const act=SW.active,sec=(act&&song.sections.find(x=>x.id===act.s))||song.sections[0];k=new Set();if(sec)swLinesOf(song,sec).forEach((ln,li)=>{if(ln.t.trim())k.add(sec.id+":"+li);});}
+  const only=SW.recOnly,runUp=SW.recRunUp;SW.recOnly=null;SW.recRunUp=null;
+  let k=only||(SW.selL&&SW.selL.size?new Set(SW.selL):null)||swLoopKeys();if(!k){const act=SW.active,sec=(act&&song.sections.find(x=>x.id===act.s))||song.sections[0];k=new Set();if(sec)swLinesOf(song,sec).forEach((ln,li)=>{if(ln.t.trim())k.add(sec.id+":"+li);});}
   if(!k.size){if(!swHasWords(song)){swJamStart();return;}if(b)b.textContent="Write a line first";return;}/* no words yet: record over your chords as a jam — keep the rounds you like as takes */
   unlockAudio();if(b)b.textContent="Turning on the mic…";
   ensureMic().then(ok=>{if(!ok){if(b)b.textContent="● Record";const m=$("#swRecMsg");if(m)m.textContent=micHelp();return;}
@@ -3816,12 +3825,13 @@ function swRecTake(){const song=swSong(),D=swData(),b=$("#swRecB");if(SW.vrec){S
         const blob=new Blob([buf],{type:"audio/wav"}),dur=n2/sr,byTag={};
         lines.forEach(L=>{const off=T0+L.at-R.t0+lat-trim;if(off<0||off>dur-0.2)return;const sec=song.sections.find(x=>x.id===L.sec);if(!sec)return;(byTag[sec.tag]=byTag[sec.tag]||{})[L.li]=+off.toFixed(4);});
         const tags=Object.keys(byTag);song.takes=song.takes||{};song.takeSel=song.takeSel||{};song.takeMeta=song.takeMeta||{};SW.takeBlob=SW.takeBlob||{};
-        SW.lastRec=[];tags.forEach(tag=>{const tn=(+song.takes[tag]||0)+1,key=swTakeKey(song,tag,tn);SW.lastRec.push({song:song.id,tag:tag,tn:tn});song.takes[tag]=tn;song.takeSel[tag]=tn;song.takeMeta[key]={bpm:song.bpm||90,at:byTag[tag]};SW.takeBlob[key]=blob;idbPut("swtake:"+key,blob).catch(()=>{});});
+        SW.lastRec=[];tags.forEach(tag=>{const tn=(+song.takes[tag]||0)+1,key=swTakeKey(song,tag,tn);SW.lastRec.push({song:song.id,tag:tag,tn:tn});song.takes[tag]=tn;song.takeSel[tag]=tn;song.takeMeta[key]={bpm:song.bpm||90,at:byTag[tag]};SW.takeBlob[key]=blob;idbPut("swtake:"+key,blob).catch(()=>{});
+          song.lineTake=song.lineTake||{};const ltg=song.lineTake[tag]=song.lineTake[tag]||{};Object.keys(byTag[tag]).forEach(li=>{ltg[li]=tn;});});
         SW.recNote=tags.length?"✓ Take saved.":"Nothing recorded — try again.";swSave();swDraw();swAfterMic();});};
     if(b)b.textContent="■ Stop recording";const m=$("#swRecMsg");if(m)m.innerHTML='<span class="swCount">Get ready…</span> 🎧 Headphones keep the music out of your take.';
     /* keep the Stop button and the 4-3-2-1 on screen while you sing (landscape especially) */
     try{const pb=$("#swPlay"),mm=$("#swRecMsg");if(pb&&mm){const r1=pb.getBoundingClientRect(),r2=mm.getBoundingClientRect();if(r2.bottom>innerHeight-10||r1.top<0){const bk=$("#bkGo"),pin=bk&&bk.closest("[class]");let ph=0;try{let e=bk;while(e&&e!==document.body){const cs=getComputedStyle(e);if(cs.position==="sticky"||cs.position==="fixed"){ph=e.getBoundingClientRect().height;break;}e=e.parentElement;}}catch(x){}window.scrollTo({top:Math.max(0,scrollY+r1.top-12-ph),behavior:"smooth"});}}}catch(e){}
-    swPlaySecs(song.sections,{pick:(sec,li)=>k.has(sec.id+":"+li),rec:true,noVox:true,onEnd:()=>R.finish(false)});
+    swPlaySecs(song.sections,{pick:(sec,li)=>k.has(sec.id+":"+li),rec:true,noVox:true,runUp:runUp,onEnd:()=>R.finish(false)});
     if(!SW.stopT)R.finish(true);});}
 /* big "now playing" chord in the pinned bar while a loop or the song plays, with the next chord, so you can play along */
 function swNowChord(c,nx){const el=$("#bkCh");if(!el)return;el.classList.add("now");el.innerHTML='<b class="on" title="'+c.pcs.map(p=>swKeyNames(swSong())[p]).join(" ")+'">'+c.name+'<small>'+c.roman+' · '+c.pcs.map(p=>swKeyNames(swSong())[p]).join(" ")+'</small></b>'+(nx?'<b class="nx">next '+nx.name+'</b>':'');}
@@ -3849,7 +3859,7 @@ const SW_CSS=`<style>
  .sw-fit{display:flex;flex-wrap:wrap;gap:3px;margin:4px 0 0 1.6em}.sw-fit span{display:inline-flex;flex-direction:column;align-items:center;padding:2px 5px;border-radius:7px;background:rgba(127,240,214,.08);font:700 .74rem system-ui}.sw-fit i{font:800 .62rem ui-monospace,monospace;color:#7ff0d6;font-style:normal}
  .sw-fit span[data-nk]{cursor:pointer}.sw-fit span.nsel{background:rgba(244,183,64,.25);box-shadow:0 0 0 1px var(--gold,#f4b740)}
  .sw-nedit{align-items:center}.sw-nedit .nnm{opacity:.78;font-size:.74rem}
- .sw-tools{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0 1.6em}.sw-line:not(.on) .sw-tools,.sw-line:not(.on) .sw-fit,.sw-line:not(.on) .sw-ideas,.sw-line:not(.on) .sw-msg{display:none!important}
+ .sw-tools{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0 1.6em}.sw-n{background:none;border:1px solid transparent;color:inherit;font:800 .85rem system-ui;min-width:1.9em;min-height:1.9em;border-radius:8px;padding:0;cursor:pointer;opacity:.75}.sw-n.sel{background:#f4b740;color:#1a1000;opacity:1}.sw-line.sel{border-color:rgba(244,183,64,.55)}.sw-hear{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0 2px}.sw-hear>span{font:800 .72rem system-ui;letter-spacing:.08em;text-transform:uppercase;opacity:.7}.sw-hear button{min-height:36px;padding:0 10px;border-radius:999px;border:1px solid rgba(244,183,64,.45);background:rgba(244,183,64,.12);color:inherit;font:700 .82rem system-ui}.sw-hear button.off{opacity:.45;background:none;border-color:rgba(255,255,255,.18);text-decoration:line-through}.sw-hear .sw-selx{border-color:rgba(255,255,255,.3);background:none}.sw-tk{display:inline-flex;align-items:center;gap:4px}.sw-tkc{font:800 .8rem system-ui;min-width:4.6em;text-align:center}.sw-ltk{background:none;border:0;color:inherit;font:700 .8rem system-ui;opacity:.8;padding:4px;min-height:32px}.sw-line:not(.on) .sw-tools,.sw-line:not(.on) .sw-fit,.sw-line:not(.on) .sw-ideas,.sw-line:not(.on) .sw-msg{display:none!important}
  .sw-msg{font:700 .78rem system-ui;color:var(--muted,#9BA1AC);margin:4px 0 0 1.6em}.sw-addl{background:transparent;border:0;color:var(--muted,#9BA1AC);font:800 .82rem system-ui;padding:8px 2px}
  .sw-ideas{background:#1A1D23;border:1px solid rgba(244,183,64,.35);border-radius:12px;padding:10px;margin:8px 0 0}
  .sw-ideas h5{margin:8px 0 3px;font:900 .74rem system-ui;letter-spacing:.04em;text-transform:uppercase;color:var(--muted,#9BA1AC)}
@@ -3924,7 +3934,7 @@ function swDraw(){if(JAM&&JAM.review){swJamDraw();return;}const D=swData(),song=
     const hd='<div class="sw-hd"><select class="sw-tag" aria-label="Section type">'+SW_TAGS.map(t=>'<option'+(t===sec.tag?" selected":"")+'>'+t+'</option>').join("")+'</select><select class="sw-rsch" aria-label="Rhyme scheme" style="background:rgba(255,255,255,.06);color:#cfd4de;border:1px solid rgba(255,255,255,.14);border-radius:8px;font:700 .72rem system-ui;padding:3px 4px">'+SW_RHYMES.map(r=>'<option value="'+r+'"'+(swScheme(song,sec)===r?" selected":"")+'>'+(r==="free"?"rhyme: free":r)+'</option>').join("")+'</select>'+(swSecName(song,sec)!==sec.tag?'<span class="sw-name">'+swEsc(swSecName(song,sec).slice(sec.tag.length).trim())+'</span>':'')+'<span style="flex:1"></span><button data-sa="play" aria-label="Play section">▶</button><button data-sa="up" aria-label="Move up"'+(si?"":" disabled")+'>↑</button><button data-sa="down" aria-label="Move down"'+(si<song.sections.length-1?"":" disabled")+'>↓</button><button data-sa="del" aria-label="Delete section">✕</button></div>';
     let melRow="";if(firstOfTag&&!tgt){if(SW.mp===sec.tag){const i=SW.pi[sec.tag]||0,c=swCand(song,sec.tag,i);melRow='<div class="sw-mp"><div class="sw-mlist">'+Array.from({length:swCands(song,sec.tag)+6},(_,j)=>{const cj=swCand(song,sec.tag,j);return '<button data-m="pick:'+j+'" class="'+(j===i?"sel":"")+'">'+swMelSvg(cj)+'<span>'+swEsc(cj.label.replace(/ in [A-G][#b]? (major|minor)$/,""))+'</span><small>'+(cj.src==="sung"?"from your voice":(j===i?"▶ playing":"tap to hear"))+'</small></button>';}).join("")+'</div>'+(function(){const cur=song.mel[sec.tag],cS=c.S||16,sc=n=>({midi:n.midi,step:n.step*16/cS,len:n.len*16/cS});const two=(c.a||[]).map(sc).concat((c.b||[]).map(n=>{const x=sc(n);x.step+=16;return x;})),cmp=cur&&cur!==c?(cur.a||[]).map(n=>({midi:n.midi,step:n.step*16/(cur.S||16),len:n.len*16/(cur.S||16)})).concat((cur.b||[]).map(n=>({midi:n.midi,step:n.step*16/(cur.S||16)+16,len:n.len*16/(cur.S||16)}))):null;
       return '<div class="sw-rollbox">'+swRollSvg(two,32,st=>swChord(song,sec.tag,Math.floor(st/16),1),cmp,song)+'<div class="sw-rollkey">line 1 | line 2 · <i style="background:#f4b740"></i>chord note <i style="background:transparent;border:2px solid #7ff0d6"></i>changed · dashed = your current</div></div><div class="sw-theory">'+swMelTheory(song,sec.tag,c,cur)+'</div>';})()+'<div class="row"><button data-m="listen">▶ Listen</button><button data-m="use" class="go">✓ Use for every '+sec.tag.toLowerCase()+'</button><button data-m="sing">🎤 Sing my own</button><button data-m="close">Close</button></div><div class="sw-msg" style="margin-left:0;text-align:center"></div></div>';}
-      else melRow='<div class="sw-melbar"><span>'+(SW.tkMsg&&SW.tkMsg.tag===sec.tag&&Date.now()<SW.tkMsg.until?swEsc(SW.tkMsg.t):'🎵 '+(mel?(mel.label||"Melody")+" · "+mel.n+" notes a line":"No melody yet"))+'</span>'+(swTakeN(song,sec.tag)?'<button data-m="take">'+(SW.takeOn===sec.tag?"■ Take":"▶ Take")+'</button>'+(swTakeN(song,sec.tag)>=1?'<button data-m="tkpick">'+swTakeSel(song,sec.tag)+'/'+swTakeN(song,sec.tag)+' ▾</button>':''):'')+'<button data-m="singsec">'+(SW.rec&&SW.rec.sec===sec.id?"■ Stop":"🎤 Sing it in")+'</button><button data-m="open">'+(mel?"Change":"Pick")+'</button></div>'+(SW.tkOpen===sec.tag&&swTakeN(song,sec.tag)>=1?'<div class="rchips tight" style="margin:4px 0 2px">'+Array.from({length:swTakeN(song,sec.tag)},(x,k)=>'<button class="rchip sm'+(swTakeSel(song,sec.tag)===k+1?" sel":"")+'" data-m="tk'+(k+1)+'">▶ Take '+(k+1)+'</button>').join("")+'<button class="rchip sm" data-m="tkdel">✕ Delete this take</button></div>':'');}
+      else melRow='<div class="sw-melbar"><span>'+(SW.tkMsg&&SW.tkMsg.tag===sec.tag&&Date.now()<SW.tkMsg.until?swEsc(SW.tkMsg.t):'🎵 '+(mel?(mel.label||"Melody")+" · "+mel.n+" notes a line":"No melody yet"))+'</span>'+'<button data-m="singsec">'+(SW.rec&&SW.rec.sec===sec.id?"■ Stop":"🎤 Sing it in")+'</button><button data-m="open">'+(mel?"Change":"Pick")+'</button></div>';}
     let chRow="";if(firstOfTag&&!tgt){const pr=swProgOf(song,sec.tag);
       if(SW.cp===sec.tag){const cur=song.prog?song.prog[sec.tag]:null;
         chRow='<div class="sw-mp">'+swProgList(song).map((p,i)=>'<button class="sw-form'+(cur===i?" sel":"")+'" data-chp="'+i+'">'+p.l+' — '+p.r.join("–")+' ('+p.r.map(swNash).join("-")+')<small style="display:block;opacity:.8;font-weight:700">'+p.c.map(c=>swChName(song,c)).join(" · ")+'</small></button>').join("")+'<div class="row"><button data-chp="-1">No chords</button><button data-ch="close">Close</button></div><div class="sw-sub" style="margin-top:4px">Chords repeat bar by bar under every '+sec.tag.toLowerCase()+'. Tap a chord on any line to see why the melody fits it.</div></div>';}
@@ -3933,8 +3943,9 @@ function swDraw(){if(JAM&&JAM.review){swJamDraw();return;}const D=swData(),song=
     if(tgt)return '<div class="sw-sec" data-sec="'+sec.id+'">'+hd+melRow+chRow+(tgt.lines.some(l=>l.t.trim())?tgt.lines.filter(l=>l.t.trim()).map(l=>'<div class="sw-lnk">'+swEsc(l.t)+'</div>').join(""):'<div class="sw-lnk">Repeats the first '+sec.tag.toLowerCase()+' — the words fill in as you write it.</div>')+'<button class="sw-addl" data-sa="unlink">✎ Write different words for this one</button></div>';
     const lines=sec.lines.map((ln,li)=>{const on=act&&act.s===sec.id&&act.l===li,syl=llSylN(ln.t);let fit="";const lch=swLineCh(song,sec.tag,li);
       if(mel&&syl){fit=(on?swLineRoll(song,sec,li):"")+'<div class="sw-fit">'+swFitHTML(song,sec,li)+'</div>'+swNEditHTML(song,sec,li);}
-      return '<div class="sw-line'+(on?" on":"")+'" data-s="'+sec.id+'" data-l="'+li+'"><div class="sw-row"><span class="sw-n">'+(li+1)+'</span>'+(function(){var sch=swScheme(song,sec);if(sch==="free")return "";var L2=sch[li%sch.length];return '<span style="font:900 .72rem system-ui;color:'+(SW_RCOL[L2]||"#cfd4de")+';min-width:1.1em">'+L2+'</span>';})()+'<input class="sw-t" value="'+swEsc(ln.t)+'" placeholder="'+(li===0?"Write line 1…":"")+'" enterkeyhint="next" autocomplete="off">'+(lch?'<button class="sw-chd" data-why="1" aria-label="Why these chords fit">'+lch+'</button>':'')+(D.syl?'<span class="sw-syl '+swSylClass(syl,mel)+'">'+(syl||"")+'</span>':'')+'</div>'+fit+
-        '<div class="sw-tools"><button data-a="play"'+(mel&&syl?"":" disabled")+' aria-label="Play line with melody">▶</button><button data-a="ideas">💡 Next-line ideas</button><button data-a="del" aria-label="Delete line">✕</button></div><div class="sw-msg"></div><div class="sw-ideas" style="display:none"></div></div>';}).join("");
+      const ltk=swLineTakes(song,sec.tag,li),lcur=ltk.length?swLineCur(song,sec.tag,li):0,lpos=ltk.indexOf(lcur),lsel=!!(SW.selL&&SW.selL.has(sec.id+":"+li));
+      return '<div class="sw-line'+(on?" on":"")+(lsel?" sel":"")+'" data-s="'+sec.id+'" data-l="'+li+'"><div class="sw-row"><button class="sw-n'+(lsel?" sel":"")+'" data-pick="1" aria-label="Select line '+(li+1)+'">'+(li+1)+'</button>'+(function(){var sch=swScheme(song,sec);if(sch==="free")return "";var L2=sch[li%sch.length];return '<span style="font:900 .72rem system-ui;color:'+(SW_RCOL[L2]||"#cfd4de")+';min-width:1.1em">'+L2+'</span>';})()+'<input class="sw-t" value="'+swEsc(ln.t)+'" placeholder="'+(li===0?"Write line 1…":"")+'" enterkeyhint="next" autocomplete="off">'+(lch?'<button class="sw-chd" data-why="1" aria-label="Why these chords fit">'+lch+'</button>':'')+(D.syl?'<span class="sw-syl '+swSylClass(syl,mel)+'">'+(syl||"")+'</span>':'')+(ltk.length&&!on?'<button class="sw-ltk" data-a="play" aria-label="Hear this line">🎙'+(ltk.length>1?ltk.length:'')+'</button>':'')+'</div>'+fit+
+        '<div class="sw-tools"><button data-a="play"'+(ln.t.trim()?"":" disabled")+' aria-label="Hear this line">▶</button><button data-a="redo"'+(ln.t.trim()?"":" disabled")+'>🎤 Redo line</button>'+(ltk.length?'<span class="sw-tk"><button data-a="tkprev" aria-label="Previous take">‹</button><span class="sw-tkc">Take '+(lpos+1)+'/'+ltk.length+'</span><button data-a="tknext" aria-label="Next take">›</button><button data-a="tkdel" aria-label="Delete this take">🗑</button></span>':'')+'<button data-a="ideas">💡 Next-line ideas</button><button data-a="del" aria-label="Delete line">✕</button></div><div class="sw-msg"></div><div class="sw-ideas" style="display:none"></div></div>';}).join("");
     return '<div class="sw-sec" data-sec="'+sec.id+'">'+hd+melRow+chRow+lines+'<button class="sw-addl" data-sa="addl">+ Line</button></div>';}).join("");
   view.innerHTML=SW_CSS+`<div class="play-top"><button class="back" id="eBack">←</button><span class="ttitle">✍️ Lyric Lab</span><button class="rchip sm" id="swLibBtn" style="margin-left:auto;flex:none">🎵 My songs</button></div>
   <div class="panel">
@@ -3945,6 +3956,7 @@ function swDraw(){if(JAM&&JAM.review){swJamDraw();return;}const D=swData(),song=
     <div class="rchips tight" style="justify-content:center;margin:6px 0">${["Verse","Pre-Chorus","Chorus","Bridge","Outro"].map(t=>'<button class="rchip sm" data-add="'+t+'">+ '+t+'</button>').join("")}</div>
     <div id="swCtl"><div class="sw-tempo"><button id="swTm" aria-label="Slower">−</button><span id="swTv">${song.bpm||90} BPM</span><button id="swTp" aria-label="Faster">+</button><button id="swClk" class="${D.click?"sel":""}">Click ${D.click?"on":"off"}</button></div>
     <div class="actions"><button class="btn" id="swPlay">${SW.stopT?"■ Stop":swPlayLbl()}</button><button class="btn ghost" id="swRecB">${SW.vrec?"■ Stop recording":"● Record"}</button><button class="btn ghost" id="swJam">${JAM&&JAM.on?"■ Stop jam":"🎤 Jam"}</button><button class="btn ghost" id="swVoice" style="display:none">${SW.voiceQ?"■ Stop voice":"🎤 My voice"}</button></div>
+    <div class="sw-hear" data-nocz><span>Hear</span>${[["vox","🎤 Voice"],["mel","🎵 Melody"],["ch","🎹 Chords"],["clk","🥁 Groove"]].map(x=>'<button data-hear="'+x[0]+'" class="'+(swHeard()[x[0]]?"":"off")+'" aria-pressed="'+(!!swHeard()[x[0]])+'">'+x[1]+'</button>').join("")}${SW.selL&&SW.selL.size?'<button class="sw-selx" id="swSelX">✕ '+SW.selL.size+' selected</button>':''}</div>
     <div class="rrow2"><span class="rlab">Recording</span><span class="rchips tight"><button class="rchip sm${D.recClick!==false?" sel":""}" id="swRecClk">🥁 Click while I sing</button></span></div>
     <div class="sw-sub" id="swRecMsg" data-nocz style="text-align:center;margin:2px 0 4px">${swRecNoteHTML()}</div>
     <div class="sw-mix" data-nocz>${[["mel","🎵 Melody"],["ch","🎹 Chords"],["vox","🎤 My voice"],["clk","🥁 Groove"]].map(x=>{const v=Math.round((+swMix()[x[0]]||0)*100);return '<label><span>'+x[1]+'</span><input type="range" min="0" max="100" value="'+v+'" data-mix="'+x[0]+'"><b>'+(v?v+"%":"off")+'</b></label>';}).join("")}</div>
@@ -3992,9 +4004,12 @@ function swWire(D,song){
     inp.oninput=()=>{if(SW.lastRec){SW.lastRec=null;SW.takeSnap=null;const rm=$("#swThrow");if(rm)rm.remove();}ln.t=inp.value;const n=llSylN(ln.t),sy=el.querySelector(".sw-syl");if(sy){sy.textContent=n||"";sy.className="sw-syl "+swSylClass(n,song.mel[sec.tag]);}if(song.mel[sec.tag])swRefit(song,sec,li,el);swSave();};
     inp.onkeydown=e=>{if(e.key==="Enter"&&!e.isComposing){e.preventDefault();if(li===sec.lines.length-1)sec.lines.push(swLine());SW.active={s:sec.id,l:li+1};swSave();swDraw();swFocus();}};
     el.querySelectorAll("[data-a]").forEach(b=>{b.onmousedown=e=>e.preventDefault();b.onclick=()=>swLineAct(b.dataset.a,sec,li,el);});
+    {const pk=el.querySelector("[data-pick]");if(pk){pk.onmousedown=e=>e.preventDefault();pk.onclick=e=>{e.stopPropagation();SW.selL=SW.selL||new Set();const k2=sec.id+":"+li;if(SW.selL.has(k2))SW.selL.delete(k2);else SW.selL.add(k2);swDraw();};}}
     el.querySelectorAll("[data-nk]").forEach(sp=>{sp.onmousedown=e=>e.preventDefault();sp.onclick=()=>swNSel(sec,li,+sp.dataset.nk);});
     el.querySelectorAll("[data-ne]").forEach(b=>{b.onmousedown=e=>e.preventDefault();b.onclick=()=>swNoteEdit(b.dataset.ne,sec,li);});});
   view.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{const tag=b.dataset.add,sec=swSec(tag);const prev=(tag==="Chorus"||tag==="Pre-Chorus")&&song.sections.find(x=>x.tag===tag&&!x.same&&x.lines.some(l=>l.t.trim()));if(prev){sec.same=prev.id;sec.lines=[];}song.sections.push(sec);if(!prev)SW.active={s:sec.id,l:0};swSave();swDraw();if(!prev)swFocus();});
+  view.querySelectorAll("[data-hear]").forEach(b=>b.onclick=()=>{const h=swHeard(),k=b.dataset.hear;h[k]=h[k]?0:1;swSave();swMixApply();b.classList.toggle("off",!h[k]);b.setAttribute("aria-pressed",!!h[k]);});
+  if($("#swSelX"))$("#swSelX").onclick=()=>{SW.selL=new Set();swDraw();};
   $("#swPlay").onclick=()=>{if(JAM&&JAM.on){swJamStop();return;}if(SW.vrec){SW.vrec.finish(true);return;}if(SW.stopT){SW.loopOn=false;swStopPlay();return;}swPlayMain();};
   if($("#swRecB"))$("#swRecB").onclick=()=>{if(JAM&&JAM.on){swJamStop();return;}SW.recNote="";swRecTake();};
   if($("#swJam"))$("#swJam").onclick=swJamStart;
@@ -4061,10 +4076,18 @@ function swRefit(song,sec,li,el){const ln=sec.lines[li],box=el.querySelector(".s
   const pb=el.querySelector('[data-a="play"]');if(pb)pb.disabled=!syl;}
 function swFocus(atStart){const a=SW.active;if(!a)return;const el=view.querySelector('.sw-line[data-s="'+a.s+'"][data-l="'+a.l+'"] .sw-t');if(el){el.focus();const p=atStart?0:el.value.length;try{el.setSelectionRange(p,p);}catch(e){}el.scrollIntoView({block:"nearest"});}}
 function swLineAct(a,sec,li,el){const song=swSong(),ln=sec.lines[li],msg=el.querySelector(".sw-msg"),say=t=>{if(msg)msg.textContent=t;};
-  if(a==="play"){swStopPlay();unlockAudio();const D2=swData(),nb=D2.bars||1,s16=swS16(),ev=[];
-    swLineNotes(song,sec.tag,li,ln.t).forEach(n=>ev.push({k:"n",at:0.05+n.step*s16,midi:n.midi,dur:Math.max(0.12,n.len*s16*0.92)}));
-    if((D2.acc||"block")!=="off")for(let b=0;b<nb;b++){const c=swChord(song,sec.tag,li*nb+b,1);if(c)c.midis.forEach(mm=>ev.push({k:"n",at:0.05+b*16*s16,midi:mm,dur:16*s16*0.9}));}
-    swRun(ev);}
+  const lsay=t=>{const m2=view.querySelector('.sw-line[data-s="'+sec.id+'"][data-l="'+li+'"] .sw-msg');if(m2)m2.textContent=t;};
+  const playLine=()=>{swPlaySecs([sec],{pick:(s2,l2)=>s2===sec&&l2===li,noLead:true});};
+  if(a==="play"){if(SW.stopT){SW.loopOn=false;swStopPlay();return;}playLine();}
+  else if(a==="redo"){if(!ln.t.trim())return;const ls=swLinesOf(song,sec);let ru=null;
+    if(li>0&&ls[li-1]&&ls[li-1].t.trim())ru={sec:sec,li:li-1};else{const si=song.sections.indexOf(sec);for(let j=si-1;j>=0&&!ru;j--){const L2=swLinesOf(song,song.sections[j]);for(let q=L2.length-1;q>=0;q--)if(L2[q].t.trim()){ru={sec:song.sections[j],li:q};break;}}}
+    SW.recOnly=new Set([sec.id+":"+li]);SW.recRunUp=ru;swRecTake();}
+  else if(a==="tkprev"||a==="tknext"){const L=swLineTakes(song,sec.tag,li);if(!L.length)return;const cur=swLineCur(song,sec.tag,li),i0=Math.max(0,L.indexOf(cur)),nx=L[(i0+(a==="tknext"?1:-1)+L.length)%L.length];
+    song.lineTake=song.lineTake||{};(song.lineTake[sec.tag]=song.lineTake[sec.tag]||{})[li]=nx;swSave();swStopPlay();swDraw();const key=swTakeKey(song,sec.tag,nx);
+    Promise.resolve((SW.takeBlob||{})[key]||idbGet("swtake:"+key)).then(bl=>{if(!bl||bl.size<=44){lsay(SW_TK_GONE);return;}return swVoxLoad(key).then(()=>{if(SW.voxBad&&SW.voxBad[key]){lsay(SW_TK_BAD);return;}playLine();});}).catch(()=>lsay(SW_TK_GONE));}
+  else if(a==="tkdel"){const cur=swLineCur(song,sec.tag,li);if(!cur)return;const b=view.querySelector('.sw-line[data-s="'+sec.id+'"][data-l="'+li+'"] [data-a="tkdel"]');
+    if(b&&b.dataset.sure!=="1"){const m=swTakeMeta(song,sec.tag,cur),nl=Object.keys(m.at||{}).length;b.dataset.sure="1";b.textContent=nl>1?"Delete this take ("+nl+" lines)? Tap again":"Delete this take? Tap again";setTimeout(()=>{if(b.isConnected){b.dataset.sure="";b.textContent="🗑";}},3000);return;}
+    song.takeSel=song.takeSel||{};song.takeSel[sec.tag]=cur;swMelAct("tkdel",sec,view.querySelector('.sw-sec[data-sec="'+sec.id+'"]')||el);}
   else if(a==="ideas"){const box=el.querySelector(".sw-ideas");if(SW.ideas&&SW.ideas.s===sec.id&&SW.ideas.l===li){SW.ideas=null;box.style.display="none";return;}SW.ideas={s:sec.id,l:li,w:null};swIdeas(song,sec,li,el);}
   else if(a==="del"){swSnap(song,"Line "+(li+1)+" deleted");sec.lines.splice(li,1);if(!sec.lines.length)sec.lines.push(swLine());SW.active=null;SW.ideas=null;swSave();swDraw();swUndoToast();}}
 /* ---- melody picker: one at a time, flip, listen, choose; or sing your own ---- */
@@ -4102,12 +4125,13 @@ function swMelAct(a,sec,el){const song=swSong(),tag=sec.tag,msg=el.querySelector
   if(a==="tkpick"){SW.tkOpen=SW.tkOpen===tag?null:tag;swDraw();return;}
   if(/^tk\d+$/.test(a||"")){const k=+a.slice(2);song.takeSel=song.takeSel||{};song.takeSel[tag]=k;SW.tkMsg=null;swSave();swStopPlay();swBlessAudio();swTakePlay(song,tag,null,tkTell);return;}
   if(a==="tkdel"){const n=swTakeN(song,tag);if(!n)return;const iDel=swTakeSel(song,tag);
+    const fixLT=()=>{const L=song.lineTake&&song.lineTake[tag];if(L)Object.keys(L).forEach(k=>{const v=+L[k];if(v===iDel)delete L[k];else if(v>iDel)L[k]=v-1;});};
     {const bt=view.querySelector('.sw-sec[data-sec="'+sec.id+'"] [data-m="tkdel"]');if(bt&&bt.dataset.sure!=="1"){bt.dataset.sure="1";bt.textContent="Delete take "+iDel+"? Tap again";setTimeout(()=>{if(bt.isConnected){bt.dataset.sure="";bt.textContent="✕ Delete this take";}},3000);return;}}
     swStopPlay();
     (async()=>{try{SW.takeBlob=SW.takeBlob||{};
       for(let j=iDel+1;j<=n;j++){const b2=SW.takeBlob[swTakeKey(song,tag,j)]||await idbGet("swtake:"+swTakeKey(song,tag,j));if(b2){SW.takeBlob[swTakeKey(song,tag,j-1)]=b2;await idbPut("swtake:"+swTakeKey(song,tag,j-1),b2);}song.takeMeta=song.takeMeta||{};const mj=song.takeMeta[swTakeKey(song,tag,j)];if(mj)song.takeMeta[swTakeKey(song,tag,j-1)]=mj;else delete song.takeMeta[swTakeKey(song,tag,j-1)];if(SW.voxBuf){delete SW.voxBuf[swTakeKey(song,tag,j-1)];}}
       await idbDel("swtake:"+swTakeKey(song,tag,n));delete SW.takeBlob[swTakeKey(song,tag,n)];if(song.takeMeta)delete song.takeMeta[swTakeKey(song,tag,n)];if(SW.voxBuf)delete SW.voxBuf[swTakeKey(song,tag,n)];
-      const left=n-1;if(left)song.takes[tag]=left;else delete song.takes[tag];
+      fixLT();const left=n-1;if(left)song.takes[tag]=left;else delete song.takes[tag];
       song.takeSel=song.takeSel||{};if(left)song.takeSel[tag]=Math.min(Math.max(1,iDel),left);else delete song.takeSel[tag];
       if(!left)SW.tkOpen=null;if(SW.lastRec&&SW.lastRec.some(r=>r.tag===tag)){SW.lastRec=null;SW.takeSnap=null;SW.recNote="";}swSave();}catch(e){}swDraw();})();
     return;}
@@ -4275,12 +4299,12 @@ function swRun(ev,onEnd){const a=ac(),t0=a.currentTime+0.15;SW.t0=t0;const v=swD
   const tick=()=>{const now=a.currentTime;while(i<ev.length&&t0+ev[i].at<now+0.3){const e=ev[i++],T=t0+e.at;if(e.k==="n"){if(e.layer)swNote(e.midi,Math.max(0,T-now),e.dur,e.layer);else melNote(e.midi,Math.max(0,T-now),e.dur,v);}else if(e.k==="c")click(T,e.acc?"accent":"beat",e.vol!=null?e.vol:0.6);
       else if(e.k==="v"){const vb=(SW.voxBuf||{})[e.key];if(vb){const sN=a.createBufferSource();sN.buffer=vb.buf;const gN=a.createGain();gN.gain.value=vb.g;sN.connect(gN);gN.connect(swVoxIn());const st=Math.max(T,a.currentTime+0.01),sk=st-T;sN.start(st,Math.max(0,e.off+sk),Math.max(0.05,e.dur-sk));(SW.voxSrc=SW.voxSrc||[]).push(sN);}}else if(e.k==="f")SW.tm.push(setTimeout(e.fn,Math.max(0,(T-now)*1000)));}
     if(i<ev.length)SW.tm.push(setTimeout(tick,60));};tick();SW.stopT=setTimeout(()=>{SW.stopT=null;swStopPlay();onEnd&&onEnd();},(end+0.5)*1000);}
-function swPlaySecs(secs,opt){opt=opt||{};swStopPlay();bkStop();unlockAudio();const D=swData(),song=swSong(),steps=swSteps(),s16=swS16(),bar=16*s16,band=D.acc==="band",MX=swMix(),recC=opt.rec?swRecPass(song,secs,opt.pick):[],recMode=(opt.rec&&recC.length)?"chords":"count",lead=((MX.clk>0.001||band||opt.rec)&&!opt.noLead)?bar*(opt.rec?(recMode==="chords"?recC.length:2):1):0;if(opt.rec)SW._recL=[];SW.lastLines=[];let off=lead,any=false;const ev=[],seq=lead?new Array(Math.max(1,Math.round(lead/bar))).fill(null):[],pick=opt.pick;
+function swPlaySecs(secs,opt){opt=opt||{};swStopPlay();bkStop();unlockAudio();const D=swData(),song=swSong(),steps=swSteps(),s16=swS16(),bar=16*s16,band=D.acc==="band",MX=swMixHeard(),MXR=swMix(),recC=opt.rec?swRecPass(song,secs,opt.pick):[],ru=(opt.rec&&opt.runUp&&swLinesOf(song,opt.runUp.sec)[opt.runUp.li]&&swLinesOf(song,opt.runUp.sec)[opt.runUp.li].t.trim())?opt.runUp:null,recMode=ru?"runup":(opt.rec&&recC.length)?"chords":"count",lead=ru?steps*s16:((MX.clk>0.001||band||opt.rec)&&!opt.noLead)?bar*(opt.rec?(recMode==="chords"?recC.length:2):1):0;if(opt.rec)SW._recL=[];SW.lastLines=[];let off=lead,any=false;const ev=[],seq=lead?new Array(Math.max(1,Math.round(lead/bar))).fill(null):[],pick=opt.pick;
   const pass=()=>secs.forEach(sec=>{const ls=swLinesOf(song,sec);/* no melody picked yet still plays the chords, click, groove and lyric timing (and records every line) — just no melody notes */ls.forEach((ln,li)=>{if(pick&&!pick(sec,li))return;if(!ln.t.trim())return;any=true;const at=off;
     swLineNotes(song,sec.tag,li,ln.t).forEach(n=>ev.push({k:"n",layer:"mel",at:at+n.step*s16,midi:n.midi,dur:Math.max(0.12,n.len*s16*0.92)}));
     if(SW.lastLines.length<512)SW.lastLines.push({sec:sec.id,li:li,at:at});
     {const nbb=D.bars||1;for(let b=0;b<nbb;b++){const c=swChord(song,sec.tag,li*nbb+b,1);if(!c)continue;const nx=swChord(song,sec.tag,li*nbb+b+1,1);ev.push({k:"f",at:at+b*16*s16,fn:()=>swNowChord(c,nx)});}}
-    if(!opt.noVox&&MX.vox>0.001){const ti=swTakeFor(song,sec.tag,li);if(ti){const tm=swTakeMeta(song,sec.tag,ti);ev.push({k:"v",at:at,key:swTakeKey(song,sec.tag,ti),off:tm.at[li],dur:steps*s16});}}
+    if(!opt.noVox&&MXR.vox>0.001){const ti=swTakeFor(song,sec.tag,li);if(ti){const tm=swTakeMeta(song,sec.tag,ti);ev.push({k:"v",at:at,key:swTakeKey(song,sec.tag,ti),off:tm.at[li],dur:steps*s16});}}
     const nb=D.bars||1,accSty=D.acc||"block";
     if(band)for(let b=0;b<nb;b++)seq.push(swChord(song,sec.tag,li*nb+b,1));
     else if(accSty!=="off")for(let b=0;b<nb;b++){const c=swChord(song,sec.tag,li*nb+b,1);if(!c)continue;const bt=at+b*16*s16;
@@ -4293,7 +4317,16 @@ function swPlaySecs(secs,opt){opt=opt||{};swStopPlay();bkStop();unlockAudio();co
   /* a loop is laid out several times back to back so the groove never breaks; it restarts seamlessly-ish every ~90 s */
   if(opt.loop){const one=off-lead,reps=Math.max(1,Math.min(32,Math.floor(90/Math.max(0.5,one))));for(let r=1;r<reps;r++)pass();}
   const grooveOn=MX.clk>0.001;
-  if(opt.rec&&lead&&recMode==="chords"){
+  if(ru){
+    /* RUN-UP: the line before plays with its take, melody and chords; your line records right after */
+    const say=(h)=>()=>{const m=$("#swRecMsg");if(m)m.innerHTML=h;};const rs=ru.sec,rl=ru.li,rt=swLinesOf(song,rs)[rl].t,nb=D.bars||1;
+    swLineNotes(song,rs.tag,rl,rt).forEach(n=>ev.push({k:"n",layer:"mel",at:n.step*s16,midi:n.midi,dur:Math.max(0.12,n.len*s16*0.92)}));
+    for(let b=0;b<nb;b++){const c=swChord(song,rs.tag,rl*nb+b,1);if(!c)continue;if(band)seq[b]=c;else if((D.acc||"block")!=="off")c.midis.forEach(mm=>ev.push({k:"n",layer:"ch",at:b*16*s16,midi:mm,dur:16*s16*0.9}));ev.push({k:"f",at:b*16*s16,fn:()=>swNowChord(c,null)});}
+    if(MXR.vox>0.001){const ti=swTakeFor(song,rs.tag,rl);if(ti){const tm=swTakeMeta(song,rs.tag,ti);ev.push({k:"v",at:0,key:swTakeKey(song,rs.tag,ti),off:tm.at[rl],dur:steps*s16});}}
+    ev.push({k:"f",at:0,fn:say('<div class="swPrac">Run-up · not recording</div><div class="swNow" style="opacity:.75">'+swEsc(rt)+'</div>')});
+    for(let q=0;q<steps/4;q++)ev.push({k:"c",at:q*4*s16,acc:q%4===0,vol:0.45});
+    if(D.recClick!==false)for(let tt=lead;tt<off-0.01;tt+=4*s16)ev.push({k:"c",at:tt,acc:Math.round((tt-lead)/(4*s16))%4===0,vol:0.55});
+  }else if(opt.rec&&lead&&recMode==="chords"){
     /* CHORDS FIRST: one pass of the chords you're about to sing, with the groove and no clicks; the last bar counts 4-3-2-1 on screen only */
     const say=(h)=>()=>{const m=$("#swRecMsg");if(m)m.innerHTML=h;};const n=recC.length;
     recC.forEach((c,b)=>{if(band)seq[b]=c;else if((D.acc||"block")!=="off")c.midis.forEach(mm=>ev.push({k:"n",layer:"ch",at:b*bar,midi:mm,dur:bar*0.9}));
@@ -4317,9 +4350,9 @@ function swPlaySecs(secs,opt){opt=opt||{};swStopPlay();bkStop();unlockAudio();co
   const go=()=>{SW.loopOn=!!opt.loop;swRun(ev,again);SW.lastClicks=ev.filter(e=>e.k==="c").map(e=>SW.t0+e.at);if(band)bkStartSeq(seq,SW.t0);else if(grooveOn)bkStartSeq(new Array(Math.ceil(off/(16*s16))+1).fill(null),SW.t0);const b=$("#swPlay");if(b)b.textContent="■ Stop";};
   const need=[...new Set(ev.filter(e=>e.k==="v"&&!(SW.voxBuf||{})[e.key]).map(e=>e.key))];
   /* a take whose audio is missing or unplayable on this phone is skipped: play again so another take of that line is used */
-  if(need.length){SW.stopT=SW.stopT||-1;const bad0=Object.keys(SW.voxBad||{}).length;Promise.all(need.map(swVoxLoad)).then(()=>{if(SW.stopT===-1)SW.stopT=null;if(Object.keys(SW.voxBad||{}).length>bad0&&!opt._retry){swPlaySecs(secs,Object.assign({},opt,{_retry:1}));return;}go();});}else go();}
+  if(need.length){SW.stopT=SW.stopT||-1;const bad0=Object.keys(SW.voxBad||{}).length;Promise.all(need.map(swVoxLoad)).then(()=>{if(SW.stopT===-1)SW.stopT=null;if(Object.keys(SW.voxBad||{}).length>bad0&&(opt._retry||0)<3){swPlaySecs(secs,Object.assign({},opt,{_retry:(opt._retry||0)+1}));return;}go();});}else go();}
 /* ---- loop any number of bars, starting at the line you're on ---- */
-function swPlayLbl(){try{if(BK.on&&!swHasWords(swSong()))return "■ Stop chords";}catch(e){}const L=swData().loop;return L?"🔁 Play loop":"▶ Play song";}
+function swPlayLbl(){try{if(BK.on&&!swHasWords(swSong()))return "■ Stop chords";}catch(e){}const nS=SW.selL?SW.selL.size:0;if(nS)return "▶ Play "+nS+(nS>1?" lines":" line");const L=swData().loop;return L?"🔁 Play loop":"▶ Play song";}
 function swLoopKeys(){const D=swData(),song=swSong(),L=D.loop;if(!L)return null;const nb=D.bars||1,act=SW.active,keys=new Set();
   const s0=(act&&song.sections.find(x=>x.id===act.s))||song.sections[0];if(!s0)return keys;
   if(L==="sec"){swLinesOf(song,s0).forEach((ln,li)=>keys.add(s0.id+":"+li));return keys;}
@@ -4329,7 +4362,7 @@ function swLoopKeys(){const D=swData(),song=swSong(),L=D.loop;if(!L)return null;
 function swLoopMark(){const k=swLoopKeys();view.querySelectorAll(".sw-line").forEach(e=>e.classList.toggle("lp",!!(k&&k.has(e.dataset.s+":"+e.dataset.l))));}
 /* no words yet (picked the key and chords first): Play song plays your chords with the groove, so you can hear them before writing */
 function swHasWords(song){return song.sections.some(sec=>swLinesOf(song,sec).some(ln=>ln.t.trim()));}
-function swPlayMain(){const song=swSong(),k=swLoopKeys();if(!swHasWords(song)){if(BK.on)bkStop();else bkStart();const b=$("#swPlay");if(b)b.textContent=swPlayLbl();return;}if(!k){swPlaySecs(song.sections);return;}
+function swPlayMain(){const song=swSong(),k=swLoopKeys();if(SW.selL&&SW.selL.size&&swHasWords(song)){swPlaySecs(song.sections,{pick:(s2,l2)=>SW.selL.has(s2.id+":"+l2)});return;}if(!swHasWords(song)){if(BK.on)bkStop();else bkStart();const b=$("#swPlay");if(b)b.textContent=swPlayLbl();return;}if(!k){swPlaySecs(song.sections);return;}
   if(!k.size){const b=$("#swPlay");if(b){b.textContent="Write a line to loop first";setTimeout(()=>{if(b.isConnected&&!SW.stopT)b.textContent=swPlayLbl();},1800);}return;}
   swPlaySecs(song.sections,{pick:(sec,li)=>k.has(sec.id+":"+li),loop:true});}
 /* ---- bounce: records exactly what you hear (melody, chords, groove, takes) to a WAV you can send ---- */

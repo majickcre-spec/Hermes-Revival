@@ -223,19 +223,48 @@ export async function run() {
       await idbPut("swtake:" + swTakeKey(sg, "Verse", 2), new Blob([new Uint8Array(4000).fill(7)], { type: "audio/mp4" }));   /* an old recording this browser can't decode */
       await idbPut("swtake:" + swTakeKey(sg, "Verse", 3), new Blob([buf], { type: "audio/wav" }));                          /* take 1 has no recording on this device */
       SW.takeBlob = {}; SW.voxBuf = {}; SW.voxBad = {}; swSave(); swDraw(); });
-    const bar = () => pg.evaluate(() => (document.querySelector(".sw-melbar span") || {}).textContent || "");
-    await pg.locator('[data-m="tkpick"]').first().click(); await pg.waitForTimeout(200);
-    await pg.locator('[data-m="tk1"]').first().click(); await pg.waitForTimeout(800); const m1 = await bar();
-    await pg.locator('[data-m="tk2"]').first().click(); await pg.waitForTimeout(2500); const m2 = await bar();
-    await pg.locator('[data-m="tk3"]').first().click(); await pg.waitForTimeout(1200); const p3 = await pg.evaluate(() => ({ on: SW.takeOn, msg: (document.querySelector(".sw-melbar span") || {}).textContent || "" }));
-    const r = await pg.evaluate(async () => { swStopPlay(); const sg = swSong(); sg.takeSel.Verse = 1; swSave(); SW.voxBuf = {}; SW.voxBad = {}; swPlaySecs(sg.sections, {}); await new Promise((z) => setTimeout(z, 3000));
+    const lmsg = () => pg.evaluate(() => (document.querySelector('.sw-line[data-l="0"] .sw-msg') || {}).textContent || "");
+    const flipTo = async (want) => { for (let k = 0; k < 4; k++) { const t = await pg.evaluate(() => (document.querySelector('.sw-line[data-l="0"] .sw-tkc') || {}).textContent || ""); if (t.startsWith("Take " + want + "/")) return; await pg.locator('.sw-line[data-l="0"] [data-a="tknext"]').click(); await pg.waitForTimeout(700); } };
+    await pg.locator('.sw-line[data-l="0"] .sw-t').click(); await pg.waitForTimeout(200);
+    await flipTo(1); const m1 = await lmsg();
+    await flipTo(2); await pg.waitForTimeout(1200); const m2 = await lmsg();
+    await flipTo(3); await pg.waitForTimeout(150); const p3 = await pg.evaluate(() => ({ vox: (SW.voxSrc || []).length, msg: (document.querySelector('.sw-line[data-l="0"] .sw-msg') || {}).textContent || "" }));
+    const r = await pg.evaluate(async () => { swStopPlay(); const sg = swSong(); sg.lineTake = { Verse: { 0: 1, 1: 1 } }; swSave(); SW.voxBuf = {}; SW.voxBad = {}; swPlaySecs(sg.sections, {}); await new Promise((z) => setTimeout(z, 3000));
       const keys = Object.keys(SW.voxBuf || {}), vox = (SW.voxSrc || []).length; swStopPlay();
       return { keys, vox, takes: sg.takes.Verse, b2: !!(await idbGet("swtake:" + swTakeKey(sg, "Verse", 2))), b3: !!(await idbGet("swtake:" + swTakeKey(sg, "Verse", 3))) }; });
     assert(/isn't on this phone/.test(m1), "missing take was silent: " + m1);
     assert(/can't play/.test(m2), "unplayable take was silent: " + m2);
-    assert(p3.on === "Verse" && !/isn't on|can't play/.test(p3.msg), "good take did not play: " + JSON.stringify(p3));
+    assert(p3.vox >= 1 && !/isn't on|can't play/.test(p3.msg), "good take did not play: " + JSON.stringify(p3));
     assert(r.vox >= 1 && r.keys.some((k) => /3$/.test(k)), "Play song did not fall back to the working take: " + JSON.stringify(r));
     assert(r.takes === 3 && r.b2 && r.b3, "a take was deleted: " + JSON.stringify(r));
+    assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
+  });
+
+  await S.test("Line takes: Hear toggles mute one layer, selected lines play and record alone, Redo line plays the line before as a run-up and saves a take for that line only (other lines and lyrics untouched)", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "Only One", ["am I the only one", "I feel so alone at night", "nobody hears me"], { bpm: 120, prog: { Verse: 1 } })], cur: "a1" } });
+    await open(pg);
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); SW.lib = false; const sg = swSong(); sg.mel.Verse = swCand(sg, "Verse", 0); const lyr0 = sg.sections[0].lines.map((l) => l.t).join("|"); swSave(); swDraw(); unlockAudio(); const a = ac(); await a.resume();
+      const o = a.createOscillator(), dd = a.createMediaStreamDestination(); o.connect(dd); o.start(); micStream = dd.stream; window.ensureMic = () => { micStream = dd.stream; return Promise.resolve(true); };
+      /* one take of the whole verse first */
+      swData().loop = "sec"; swSave(); swDraw(); document.getElementById("swRecB").click(); for (let k = 0; k < 40 && !(swSong().takes && swSong().takes.Verse); k++) await w(500); swData().loop = null; swSave(); swDraw();
+      const out = { t1: swSong().takes && swSong().takes.Verse };
+      /* Hear: voice off mutes only the voice */
+      document.querySelector('[data-hear="vox"]').click(); swPlaySecs(swSong().sections, {}); await w(4000); out.voxMuted = SW.voxCh ? SW.voxCh.inp.gain.value : -1; out.melOn = swMixHeard().mel > 0; swStopPlay(); document.querySelector('[data-hear="vox"]').click();
+      /* select line 2 only: Play plays just that line */
+      document.querySelectorAll('.sw-line[data-l="1"] [data-pick]')[0].click(); await w(100); out.lbl = document.getElementById("swPlay").textContent; document.getElementById("swPlay").click(); await w(800); out.played = (SW.lastLines || []).map((x) => x.li); swStopPlay(); document.getElementById("swSelX").click(); await w(100);
+      /* redo line 3: the run-up is line 2 (with its take), only line 3 is saved in the new take */
+      SW.active = { s: swSong().sections[0].id, l: 2 }; swDraw(); await w(100); document.querySelector('.sw-line[data-l="2"] [data-a="redo"]').click(); for (let k = 0; k < 40 && !(swSong().takes.Verse > 1); k++) await w(500); await w(300);
+      const s2 = swSong(), n = s2.takes.Verse, meta = s2.takeMeta[swTakeKey(s2, "Verse", n)];
+      out.t2 = n; out.newLines = Object.keys((meta && meta.at) || {}); out.lineTake = s2.lineTake && s2.lineTake.Verse; out.lyrSame = s2.sections[0].lines.map((l) => l.t).join("|") === lyr0;
+      out.oldBlob = !!(await idbGet("swtake:" + swTakeKey(s2, "Verse", 1))); out.chooser = (document.querySelector('.sw-line[data-l="2"] .sw-tkc') || {}).textContent || "";
+      try { o.stop(); } catch (e) {} return out; });
+    assert(r.t1 === 1, "first take not saved " + JSON.stringify(r));
+    assert(r.voxMuted === 0 && r.melOn, "Hear voice-off did not mute only the voice " + JSON.stringify(r));
+    assert(/Play 1 line/.test(r.lbl) && JSON.stringify(r.played) === "[1]", "selected line did not play alone " + JSON.stringify(r));
+    assert(r.t2 === 2 && JSON.stringify(r.newLines) === '["2"]', "Redo line saved more than that line " + JSON.stringify(r));
+    assert(r.lineTake && +r.lineTake[2] === 2 && +r.lineTake[0] === 1 && +r.lineTake[1] === 1, "line choices wrong after redo " + JSON.stringify(r));
+    assert(r.lyrSame && r.oldBlob, "redo changed lyrics or lost the first take " + JSON.stringify(r));
+    assert(/Take 2\/2/.test(r.chooser), "line 3 chooser not showing its 2 takes " + JSON.stringify(r));
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
   });
 
@@ -598,9 +627,9 @@ export async function run() {
     assert(r.barHasSec, "backing bar is not showing the section's chords " + JSON.stringify(r));
     assert(Math.abs(r.lead - 4 * r.bar) < 0.01 && r.leadCh >= 12 && r.prac && r.groove, "practice round " + JSON.stringify(r));
     assert(r.grooveStopped && r.micOff, "groove/mic left on after the take " + JSON.stringify(r));
-    /* a single take can be deleted (asks once) */
-    const d = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const song = swSong(), tag = song.sections[0].tag; song.takes = { [tag]: 1 }; song.takeSel = { [tag]: 1 }; swSave(); SW.tkOpen = tag; swDraw(); await w(100);
-      const b = view.querySelector('[data-m="tkdel"]'); if (!b) return { btn: false }; b.click(); await w(50); const still = swTakeN(swSong(), tag); view.querySelector('[data-m="tkdel"]').click(); await w(600); return { btn: true, askedFirst: still === 1, gone: swTakeN(swSong(), tag) === 0 }; });
+    /* a single take can be deleted from its line (asks once) */
+    const d = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); const song = swSong(), tag = song.sections[0].tag; song.takes = { [tag]: 1 }; song.takeSel = { [tag]: 1 }; song.takeMeta = { [swTakeKey(song, tag, 1)]: { bpm: song.bpm || 90, at: { 0: 0.2 } } }; swSave(); SW.active = { s: song.sections[0].id, l: 0 }; swDraw(); await w(100);
+      const b = view.querySelector('.sw-line[data-l="0"] [data-a="tkdel"]'); if (!b) return { btn: false }; b.click(); await w(50); const still = swTakeN(swSong(), tag); view.querySelector('.sw-line[data-l="0"] [data-a="tkdel"]').click(); await w(600); return { btn: true, askedFirst: still === 1, gone: swTakeN(swSong(), tag) === 0 }; });
     assert(d.btn && d.askedFirst && d.gone, "single take could not be deleted " + JSON.stringify(d)); await ctx.close();
   });
 
