@@ -113,6 +113,7 @@ html,body{margin:0;height:100%;background:#000;color:#fff;font:15px/1.45 Inter,s
  <div class="shh"><b>Sessions &amp; tricks</b><button class="pill" id="shX" type="button">Done</button></div>
  <div class="srow"><div><b>🫁 Breath pace</b><small>The walls and the sound breathe at this pace</small></div><button class="pill" id="speed" type="button">5.5 a minute</button></div>
  <div class="srow"><div><b>🌻 Golden Ratio session</b><small>Tones step down by the golden ratio, breathe in 1 : out 1.6 · headphones</small></div><div class="seg"><button class="pill" data-gl="5" type="button">5 min</button><button class="pill" data-gl="10" type="button">10</button><button class="pill" data-gl="20" type="button">20</button></div></div>
+ <div class="srow"><div><b>🌌 Deep Journey</b><small>Sink slowly into the fractal to a still black void, then rise through crystal and stars into the light · headphones</small></div><div class="seg"><button class="pill" data-dj="10" type="button">10 min</button><button class="pill" data-dj="20" type="button">20</button><button class="pill" data-dj="30" type="button">30</button></div></div>
  <div class="srow"><div><b>🗝 Song Quest · The Silent Sphere</b><small>Find the hidden notes, then build the chords, their order, the beat and a melody — room by room · headphones</small></div><div class="seg"><button class="pill" data-myst="new" type="button">Start</button><button class="pill" id="mystCont" data-myst="cont" type="button" hidden>Continue</button></div></div>
  <div class="srow"><div><b>🌙 Dream music</b><small>Breathing drones, chords, bells, chimes and bowls in 3D — for deep learning and high moments · headphones</small></div><button class="pill" id="dreamBtn" type="button" aria-pressed="false">Off</button></div>
  <div class="srow"><div><b>📺 Watch mode</b><small>Hides every button, sharper picture — for AirPlay or just watching</small></div><button class="pill" id="watchBtn" type="button">Start</button></div>
@@ -527,7 +528,12 @@ function breathAt(t){const cyc=S.breath,fi=(G.on||HR.on)?1/(1+PHI):.5,p=((t%cyc)
 /* ---------- golden ratio session: tones step down by phi, phases sized by phi, a sunflower in front of you ---------- */
 const G={on:false,t0:0,total:600,gs:0,done:0};
 const GPH=[["Arrive",10,10,.236],["Drift",10,6.18,.382],["Deep",6.18,3.82,.236],["Return",3.82,10,.146]];
-function gAt(t){let e=(t-G.t0)/G.total,acc=0;for(const [n,a,b,f] of GPH){if(e<=acc+f){const k=Math.max(0,(e-acc)/f);return {name:n,hz:a+(b-a)*k,left:Math.max(0,G.total*(1-e))};}acc+=f;}return null;}
+/* the Deep Journey: into the fractal (descent), a black void, then up through crystal and stars (ascent) */
+const DPH=[["Arrive",10,10,.1],["Descend",10,4,.4],["Rise",4,8,.37],["Light",8,10,.13]];
+const DSC=[[0,"hub"],[.1,"dive"],[.5,"crystal"],[.68,"milky"],[.87,"light"],[.92,"home"]];
+const DMOM=[[.3,"roll",18],[.6,"loop",12],[.74,"orbit",14],[.8,"warp",5]];
+const deepJ=()=>G.plan==="deep";
+function gAt(t){let e=(t-G.t0)/G.total,acc=0;for(const [n,a,b,f] of (deepJ()?DPH:GPH)){if(e<=acc+f){const k=Math.max(0,(e-acc)/f);return {name:n,hz:a+(b-a)*k,left:Math.max(0,G.total*(1-e))};}acc+=f;}return null;}
 /* the Mandelbrot's living cycle: a kaleidoscope folds in and out (3, 5, 6 or 8 copies) and every so often it turns inside out */
 /* the geometry rooms' living cycle; the main sphere only swells gently so its doorways stay easy to tap */
 function livingR(t){if(!LIV.on||S.mt===1||S.mt===2)return [0,0,0];if(MY.on)return [.35,0,0];if(S.mt===3)return [.6,0,0];const hub=S.room===-1&&!G.on;
@@ -545,43 +551,48 @@ const SCN=[[0,"hub"],[.15,"fold"],[.165,"fly"],[.38,"milky"],[.58,"crystal"],[.7
 /* special moments: [when, kind, seconds] */
 const MOM=[[.27,"orbit",10],[.47,"warp",4],[.635,"loop",8],[.78,"roll",10]];
 function gRush(t,fn){G.rush={t0:t,fn,done:false};}
-function gEnter(name,t){G.cur=name;G.flower=(name==="hub"||name==="home")?1:0;
- if(name==="hub"){if(S.room!==-1)setRoom(-1);G.flower=1;S.meltTo=0;}
+function gEnter(name,t){G.cur=name;G.flower=(name==="hub"||name==="home")&&!deepJ()?1:0;
+ if(name==="hub"){if(S.room!==-1)setRoom(-1);G.flower=deepJ()?0:1;S.meltTo=0;}
+ if(name==="dive")gRush(t,()=>{setRoom(7);const m=ROOMS[7].dives[1];S.mc=[m[1],m[2]];S.maxd=m[3];refOrbit(m[1],m[2]);S.yaw=0;S.pit=0;S.dz=S.dzTo=0;G.e0=G.e;});
  if(name==="fold")G.flower=0;
  if(name==="fly"){if(S.room===-1)flyTo(2);}
  if(name==="milky")gRush(t,()=>{setRoom(MILKY);S.yaw=0;S.pit=0;G.e0=G.e;});
  if(name==="crystal")gRush(t,()=>{setRoom(CRYSTAL);G.e0=G.e;});
  if(name==="infinity")gRush(t,()=>{setRoom(7);const m=ROOMS[7].dives[1];S.mc=[m[1],m[2]];S.maxd=m[3];refOrbit(m[1],m[2]);S.yaw=0;S.pit=0;G.e0=G.e;});
  if(name==="light"){S.meltTo=1;G.lightT=t;}
- if(name==="home")gRush(t,()=>{setRoom(-1);S.meltTo=0;G.flower=1;S.dz=S.dzTo=0;});}
+ if(name==="home")gRush(t,()=>{setRoom(-1);S.meltTo=0;G.flower=deepJ()?0:1;S.dz=S.dzTo=0;});}
 function gDirect(t,dt){const e=G.e;
- let want=null;for(const [f,n] of SCN)if(e>=f)want=n;if(want&&want!==G.cur)gEnter(want,t);
+ let want=null;for(const [f,n] of (deepJ()?DSC:SCN))if(e>=f)want=n;if(want&&want!==G.cur)gEnter(want,t);
  if(G.rush){const k=t-G.rush.t0;S.z=k<.45?ss(0,.45,k):1-ss(.45,.95,k);if(k>=.45&&!G.rush.done){G.rush.done=true;G.rush.fn();}if(k>.95){G.rush=null;S.z=0;}}
  gMoments(t,dt);
  if(S.fly)return;const drift=(r)=>{S.yaw+=dt*r;};
  if(G.cur==="hub"||G.cur==="fold"||G.cur==="home")drift(.02);
  if(G.cur==="fly"&&S.room===2){S.dz=S.dzTo=10*ss(.18,.38,e);if(!G.mom)drift(.015);}
- if(G.cur==="milky"&&S.cur===MILKY){G.gz=ss(.385,.58,e);S.dz=S.dzTo=9*ss(.385,.58,e)+(G.wdz||0);drift(.008);}
- if(G.cur==="crystal"&&S.cur===CRYSTAL){S.dz=S.dzTo=6*ss(.585,.71,e);if(!G.mom)drift(.02);}
+ const D=deepJ(),mk=D?[.685,.87]:[.385,.58],cr=D?[.505,.68]:[.585,.71];
+ if(G.cur==="milky"&&S.cur===MILKY){G.gz=ss(mk[0],mk[1],e);S.dz=S.dzTo=9*ss(mk[0],mk[1],e)+(G.wdz||0);drift(.008);}
+ if(G.cur==="crystal"&&S.cur===CRYSTAL){S.dz=S.dzTo=6*ss(cr[0],cr[1],e);if(!G.mom)drift(D?.012:.02);}
+ if(G.cur==="dive"&&S.room===7){const k=Math.min(1,Math.max(0,(e-.12)/.35));S.dz=S.dzTo=13*k*k*(3-2*k);S.yaw=0;S.pit=0;}
+ if(D){const f=$("fade");f.style.background="#000";f.style.opacity=(.94*ss(.41,.48,e)*(1-ss(.5,.58,e))).toFixed(3);}
  if(G.cur==="infinity"&&S.room===7){S.dz=S.dzTo=13*ss(.715,.865,e);S.yaw=0;S.pit=0;}
  if(G.cur==="light"){S.z=.92*ss(.88,.92,e);}}
 function gMoments(t,dt){const e=G.e;
- for(const m of MOM){if(!G.done[m[0]]&&e>=m[0]&&!G.mom&&!G.rush&&!S.fly){G.done[m[0]]=1;G.mom={k:m[1],t0:t,dur:m[2],yaw:S.yaw,pit:S.pit};if(m[1]==="warp"&&SND.on)shot("flight",.6,{swell:1.2,lp:G.on?1800:7000});}}
+ for(const m of (deepJ()?DMOM:MOM)){if(!G.done[m[0]]&&e>=m[0]&&!G.mom&&!G.rush&&!S.fly){G.done[m[0]]=1;G.mom={k:m[1],t0:t,dur:m[2],yaw:S.yaw,pit:S.pit};if(m[1]==="warp"&&SND.on)shot("flight",.6,{swell:1.2,lp:G.on?1800:7000});}}
  const M=G.mom;if(!M)return;const k=Math.min(1,(t-M.t0)/M.dur),ek=k*k*(3-2*k);
  if(M.k==="orbit")S.yaw=M.yaw+2*Math.PI*ek;
  if(M.k==="loop"){S.free=true;S.pit=M.pit+2*Math.PI*ek;}
  if(M.k==="roll")S.roll=2*Math.PI*ek;
  if(M.k==="warp"){G.warp=Math.pow(Math.sin(Math.PI*k),.6);G.wdz=(G.wdz||0)+dt*4.5*G.warp;}
  if(k>=1){if(M.k==="loop"){S.free=false;S.pit=M.pit;}if(M.k==="roll")S.roll=0;if(M.k==="warp")G.warp=0;G.mom=null;}}
-function gStart(min){G.done={};G.mom=null;G.warp=0;G.wdz=0;S.roll=0;S.free=false;if(!SND.on)sndToggle();G.on=true;G.total=min*60;G.t0=(performance.now()-S.t0)/1000;G.cur=null;G.rush=null;G.flower=1;document.body.classList.add("journey");G.gz=0;S.breath=11;S.still=true;
+function gStart(min,plan){G.plan=plan||"golden";G.done={};G.mom=null;G.warp=0;G.wdz=0;S.roll=0;S.free=false;if(!SND.on)sndToggle();G.on=true;G.total=min*60;G.t0=(performance.now()-S.t0)/1000;G.cur=null;G.rush=null;G.flower=1;document.body.classList.add("journey");G.gz=0;S.breath=11;S.still=true;
  $("sheet").hidden=true;$("ses").hidden=false;$("hint").style.opacity=0;immerse(true);}
-function gStop(msg){G.on=false;G.mom=null;G.warp=0;S.roll=0;S.free=false;document.body.classList.remove("journey");G.rush=null;S.z=0;S.meltTo=0;G.flower=0;immerse(false);$("sesT").textContent=msg||"";
+function gStop(msg){if(deepJ()){const f=$("fade");f.style.opacity=0;setTimeout(()=>{f.style.background="#fff";},600);}G.on=false;G.mom=null;G.warp=0;S.roll=0;S.free=false;document.body.classList.remove("journey");G.rush=null;S.z=0;S.meltTo=0;G.flower=0;immerse(false);$("sesT").textContent=msg||"";
  if(S.room!==-1&&!msg)setRoom(-1);if(msg){setTimeout(()=>{if(!G.on)$("ses").hidden=true;},6000);}else $("ses").hidden=true;}
 /* during a session the buttons fade away; a tap brings them back for a few seconds */
 let imT=null;function immerse(on){clearTimeout(imT);document.body.classList.remove("immerse");if(on)imT=setTimeout(()=>{if(G.on)document.body.classList.add("immerse");},6000);}
 addEventListener("pointerdown",()=>{if(G.on)immerse(true);},true);
 
 document.querySelectorAll("[data-gl]").forEach(b=>b.onclick=()=>gStart(+b.dataset.gl));
+document.querySelectorAll("[data-dj]").forEach(b=>b.onclick=()=>gStart(+b.dataset.dj,"deep"));
 $("sesX").onclick=()=>gStop();
 /* ---------- heart sync: Bluetooth heart sensor, the walls pulse with each beat and bloom as heart and breath fall into step ---------- */
 const HR={on:false,bpm:0,next:0,last:-9,ser:[],coh:0,sim:null,n:0,rx:-99,rrs:[],name:""};
@@ -620,7 +631,7 @@ window.__hrSim=(bpm)=>{HR.name="Simulated sensor";$("hrName").textContent=HR.nam
 function sesTick(t){const br=breathAt(t);S.br=br;
  const gdt0=Math.min(.2,Math.max(0,t-(G.lt0||t)));G.lt0=t;if(G.on){G.e=(t-G.t0)/G.total;gDirect(t,gdt0);}
  if(SND.an&&SND.on){SND.an.getFloatTimeDomainData(SND.abuf);let q=0;for(let i=0;i<512;i++)q+=SND.abuf[i]*SND.abuf[i];const rms=Math.sqrt(q/512);S.auA=(S.auA||rms)+(rms-(S.auA||rms))*.01;S.au=Math.max(0,Math.min(1,(rms/Math.max(S.auA,1e-4)-1)*2));}else S.au=0;
- if(G.on){const g=gAt(t);if(!g){gStop("✨ Session complete — take your time coming back");shot&&SND.on&&shot("bell",.3,{rate:1.3348});}else{$("sesT").innerHTML="🌻 <b>"+g.name+"</b> · "+g.hz.toFixed(2)+" Hz · "+Math.floor(g.left/60)+":"+String(Math.floor(g.left%60)).padStart(2,"0")+" left";$("sesB").textContent=br.inh?"breathe in":"breathe out";G.hz=g.hz;}}
+ if(G.on){const g=gAt(t);if(!g){gStop("✨ Session complete — take your time coming back");shot&&SND.on&&shot("bell",.3,{rate:1.3348});}else{$("sesT").innerHTML=(deepJ()?"🌌":"🌻")+" <b>"+g.name+"</b> · "+g.hz.toFixed(2)+" Hz · "+Math.floor(g.left/60)+":"+String(Math.floor(g.left%60)).padStart(2,"0")+" left";$("sesB").textContent=br.inh?"breathe in":"breathe out";G.hz=g.hz;}}
  const gdt=Math.min(.2,Math.max(0,t-(G.lt||t)));G.lt=t;G.gs+=((G.on?1:0)-G.gs)*Math.min(1,gdt*1.1);G.fl=(G.fl||0)+(((G.on||G.flower)&&G.flower?1:0)-(G.fl||0))*Math.min(1,gdt*.5);
  if(HR.on||HR.dev){if(HR.on&&t>=HR.next){HR.last=t;HR.next=t+60/Math.max(35,HR.bpm);const hh=$("hrHeart");hh.style.transform="scale(1.35)";setTimeout(()=>hh.style.transform="",130);}if(fq.n%12===0)hrDash(t);}
  if(HR.on){if(fq.n%30===0){HR.coh+=(hrCoh()-HR.coh)*.3;$("hrChip").textContent="🫀 "+HR.bpm+" · in sync "+Math.round(HR.coh*100)+"%";}}}
@@ -827,7 +838,7 @@ function jCircle(set,notes,at,dur,el0,el1,lv,ring){notes.forEach((m,i)=>{const k
   dNote(set,m,at+k*dur,5,lv*(.35+.65*Math.sin(Math.PI*(k*.85+.1))),{att:.06,rel:1.8,lp:5000,pos:ring==="v"?[az+k*Math.PI,Math.sin(k*2*Math.PI)*.9,2,0]:[az,el,2.2,.3]});});}
 function jStep(n,at){const c=SND.ctx,d=DT(),e=G.e||0,vt=(performance.now()-S.t0)/1000+(at-c.currentTime),B=breathAt(vt).v;
  const sm=x=>x*x*x*(x*(x*6-15)+10),down=e<.5?sm(Math.min(1,Math.max(0,(e-.04)/.46))):1-sm(Math.min(1,(e-.5)/.4)),up=sm(Math.min(1,Math.max(0,(e-.5)/.4)))*(1-ss(.92,1,e));
- const sec=e<.15?"hub":e<.5?"down":e<.87?"up":e<.92?"peak":"home";
+ const sec=e<(deepJ()?.1:.15)?"hub":e<.5?"down":e<.87?"up":e<.92?"peak":"home";
  if(sec!==DREAM.jsec){const was=DREAM.jsec;DREAM.jsec=sec;DREAM.ci=-1;DREAM.nc=n;
   if(sec==="up"&&was){dNote("gg",0,at,22,.07,{att:4,rel:6,lp:1800,pos:[0,-.2,2.6,0]});dNote("ts",0,at+6,6,.035,{att:1.5,rel:3,lp:6000});}
   if(sec==="peak"){dPlay("mt"+(n%3),1,at+1,8,.09,{att:3,rel:3});jCircle("gk",[76,80,83,88,92,95,100],at+1.5,8,-.3,.9,.05);}
