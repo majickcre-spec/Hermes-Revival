@@ -169,7 +169,7 @@ const FS=`precision highp float;
 uniform vec2 R;uniform float T,B,M,Z,F,K,NP,PR;uniform vec3 PAL,PAL2;uniform vec3 PD[11];uniform vec3 PC[11];uniform float MT;uniform vec2 MC;uniform sampler2D RT;uniform float RL,MI,DZ,MAXD;
 vec3 ry(vec3 v,float a){float c=cos(a),s=sin(a);return vec3(c*v.x+s*v.z,v.y,-s*v.x+c*v.z);}
 vec3 rx(vec3 v,float a){float c=cos(a),s=sin(a);return vec3(v.x,c*v.y-s*v.z,s*v.y+c*v.z);}
-uniform float YAW,PIT,FO,NF,MS,LZ,HB,HC,GS,CRY,GZ,AU,ROLL,WARP,KN,KF,IO,LV,FL,IO2,BRA,SIL,TP,TW,TR;uniform vec3 CP;uniform vec3 AD;uniform vec3 FN[20];
+uniform float YAW,PIT,FO,NF,MS,LZ,HB,HC,GS,CRY,GZ,AU,ROLL,WARP,KN,KF,IO,LV,FL,IO2,BRA,SIL,TP,TW,TR,TPA,TPB;uniform vec3 CP;uniform vec3 AD;uniform vec3 FN[20];
 vec3 pal(float t,vec3 d){return .5+.5*cos(6.2831*(t+d));}
 /* the inner wall: a kaleidoscopic 3D fractal evaluated on the direction you look, so it surrounds you with no seams */
 vec3 wall(vec3 d,vec3 ph,float k,float sc){vec3 p=d*sc;p.xz=mat2(cos(T*.01),-sin(T*.01),sin(T*.01),cos(T*.01))*p.xz;
@@ -344,7 +344,7 @@ vec3 tunnel(vec3 d,float px){
  P=trot(TR)*P;
  float r=max(length(P),1e-5),a=atan(P.y,P.x),lr=log(r);
  float sp=.55+.75*sin(T*.045),REP=18.;
- float v=lr*REP/6.2831-TP,band=floor(v),f=fract(v),h=thsh(band),h2=thsh(band+7.3);
+ float v=lr*REP/6.2831-TP,band=floor(v),f=fract(v),h=fract(band*.6180339887),h2=fract(band*.381966+.13);
  float dir=mod(band,2.)<.5?1.:-1.;
  float u=(a+lr*sp)/6.2831*REP+dir*TW*(.6+.8*h)+band*.5;
  vec2 p=vec2(fract(u)-.5,f-.5);
@@ -361,7 +361,9 @@ vec3 tunnel(vec3 d,float px){
  vec3 shine=mix(tpal(hue),vec3(1.),.5+.45*sin(p.y*6.+band+T*.5));
  vec3 col=shine*m+tpal(hue+.38)*mi*.95;
  col*=.5+.5*smoothstep(.0,.6,1.-abs(f-.5)*2.);
- float wave=smoothstep(.85,1.,sin(v*.35-T*1.6));col*=1.+.9*wave;col+=tpal(hue+.2)*wave*.08;
+ float ign=exp(-pow((lr+1.61)/.2,2.));col*=1.+1.5*ign;
+ float wv=0.;if(TPA<20.)wv+=exp(-pow((lr-(-1.61+1.9*TPA))*2.4,2.))*exp(-TPA*.3);if(TPB<20.)wv+=exp(-pow((lr-(-1.61+1.9*TPB))*2.4,2.))*exp(-TPB*.3);
+ col*=1.+1.4*wv;col+=tpal(hue+.2)*wv*.12;
  col=mix(col,tpal(hue)*.26,smoothstep(.18,.6,w));
  float cr=length(P);col+=vec3(1.,.94,.98)*(exp(-cr*cr*2600.)*1.4+exp(-cr*20.)*.2);
  col*=smoothstep(.02,.25,d.z);
@@ -423,7 +425,7 @@ if(!gl)$("nogl").classList.remove("hide");
 else{const mk=(t,s)=>{const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))console.error(gl.getShaderInfoLog(o));return o;};
   const pr=gl.createProgram();gl.attachShader(pr,mk(gl.VERTEX_SHADER,"attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}"));gl.attachShader(pr,mk(gl.FRAGMENT_SHADER,FS));gl.linkProgram(pr);gl.useProgram(pr);
   const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);const loc=gl.getAttribLocation(pr,"p");gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
-  ["R","T","B","M","Z","K","NP","PR","PAL","YAW","PIT","PD","PC","FO","NF","MS","FN","MT","MC","RT","RL","MI","DZ","MAXD","LZ","AD","HB","HC","GS","CRY","GZ","AU","ROLL","WARP","KN","KF","IO","LV","FL","IO2","BRA","CP","SIL","TP","TW","TR"].forEach(k=>U[k]=gl.getUniformLocation(pr,k));}
+  ["R","T","B","M","Z","K","NP","PR","PAL","YAW","PIT","PD","PC","FO","NF","MS","FN","MT","MC","RT","RL","MI","DZ","MAXD","LZ","AD","HB","HC","GS","CRY","GZ","AU","ROLL","WARP","KN","KF","IO","LV","FL","IO2","BRA","CP","SIL","TP","TW","TR","TPA","TPB"].forEach(k=>U[k]=gl.getUniformLocation(pr,k));}
 
 /* reference orbit for the deep zoom, in double precision */
 const FX=gl&&gl.getExtension("OES_texture_float");let RTEX=null,RLEN=2;
@@ -493,7 +495,7 @@ let fq={n:0,t:performance.now()};function frame(){requestAnimationFrame(frame);c
   else if(S.dive&&!S.fly){const P=26,ph=((performance.now()-S.diveT)/1000%P)/P;S.fo=S.foTo=1.1*Math.pow(27,ph);const edge=ph>.95?(ph-.95)/.05:ph<.05?1-ph/.05:0;$("fade").style.transition="none";$("fade").style.background="#000";$("fade").style.opacity=edge*.9;S.dfade=1;}else if(S.dfade){S.dfade=0;$("fade").style.opacity=0;$("fade").style.transition="";$("fade").style.background="#fff";}
   sesTick(t);myFrame(t);tunnelTick();S.melt+=(S.meltTo-S.melt)*0.04;if(fq.n%6===0)sndTick(t);
   if(gl){gl.viewport(0,0,cv.width,cv.height);gl.uniform2f(U.R,cv.width,cv.height);gl.uniform1f(U.T,t);gl.uniform1f(U.B,1+0.08*(2*(S.br?S.br.v:.5)-1));gl.uniform1f(U.HB,HR.on?t-HR.last:9);gl.uniform1f(U.HC,HR.coh);gl.uniform1f(U.GS,G.fl||0);gl.uniform1f(U.CRY,S.cur.cry||0);gl.uniform1f(U.GZ,G.gz||0);gl.uniform1f(U.AU,S.au||0);gl.uniform1f(U.ROLL,S.roll||0);gl.uniform1f(U.WARP,G.warp||0);{const L=livingM(t);gl.uniform1f(U.KN,L[0]);gl.uniform1f(U.KF,L[1]);gl.uniform1f(U.IO,L[2]);}{const L2=livingR(t);S.liv=L2;gl.uniform1f(U.LV,L2[0]);gl.uniform1f(U.FL,L2[1]);gl.uniform1f(U.IO2,L2[2]);}gl.uniform1f(U.BRA,G.on?1:.35);gl.uniform1f(U.SIL,MY.sil);{const dtc=Math.min(.1,Math.max(0,t-(S.cpt||t)));S.cpt=t;if(S.cur&&S.cur.mt===3){S.cpa=(S.cpa||0)+dtc*.035*(1+S.dz*.35+(G.warp||0)*25);}else S.cpa=0;const a=S.cpa||0,r=8.5-2.5*Math.sin(a*.8),y=1.6*Math.sin(a*1.3);S.cp=[r*Math.sin(a),y,-r*Math.cos(a)];gl.uniform3fv(U.CP,S.cp);}gl.uniform1f(U.M,S.melt);gl.uniform1f(U.Z,S.z);S.fo*=Math.pow(S.foTo/S.fo,.1);gl.uniform1f(U.FO,S.fo);
-    gl.uniform1f(U.K,S.cur.k);gl.uniform1f(U.NF,S.nf);gl.uniform1f(U.MT,S.mt||0);gl.uniform1f(U.TP,S.tp||0);gl.uniform1f(U.TW,S.tw||0);gl.uniform1f(U.TR,S.tr||0);gl.uniform2fv(U.MC,S.mc||[0,0]);gl.uniform1f(U.DZ,S.dz);gl.uniform1f(U.LZ,S.mt===2?0:S.dz/Math.log(3));if(S.dz<.02||!S.anc)S.anc=ry(rx([0,0,1],S.pit),S.yaw);gl.uniform3fv(U.AD,S.anc);gl.uniform1f(U.MAXD,FX?(S.maxd||11):11);gl.uniform1f(U.RL,RLEN);gl.uniform1f(U.MI,Math.min(1950,500+S.dz*55));gl.uniform1i(U.RT,0);gl.uniform1f(U.MS,S.cur.ms);gl.uniform3fv(U.FN,S.fn);gl.uniform3fv(U.PAL,S.cur.pal);gl.uniform1f(U.YAW,S.yaw);gl.uniform1f(U.PIT,S.pit);gl.uniform1f(U.NP,S.dirs.length);gl.uniform1f(U.PR,S.pr);
+    gl.uniform1f(U.K,S.cur.k);gl.uniform1f(U.NF,S.nf);gl.uniform1f(U.MT,S.mt||0);gl.uniform1f(U.TP,S.tp||0);gl.uniform1f(U.TW,S.tw||0);gl.uniform1f(U.TR,S.tr||0);gl.uniform1f(U.TPA,S.tpa==null?99:S.tpa);gl.uniform1f(U.TPB,S.tpb==null?99:S.tpb);gl.uniform2fv(U.MC,S.mc||[0,0]);gl.uniform1f(U.DZ,S.dz);gl.uniform1f(U.LZ,S.mt===2?0:S.dz/Math.log(3));if(S.dz<.02||!S.anc)S.anc=ry(rx([0,0,1],S.pit),S.yaw);gl.uniform3fv(U.AD,S.anc);gl.uniform1f(U.MAXD,FX?(S.maxd||11):11);gl.uniform1f(U.RL,RLEN);gl.uniform1f(U.MI,Math.min(1950,500+S.dz*55));gl.uniform1i(U.RT,0);gl.uniform1f(U.MS,S.cur.ms);gl.uniform3fv(U.FN,S.fn);gl.uniform3fv(U.PAL,S.cur.pal);gl.uniform1f(U.YAW,S.yaw);gl.uniform1f(U.PIT,S.pit);gl.uniform1f(U.NP,S.dirs.length);gl.uniform1f(U.PR,S.pr);
     const pd=new Float32Array(33),pc=new Float32Array(33);S.dirs.forEach((w,i)=>{pd.set(w,i*3);pc.set(S.cols[i],i*3);});gl.uniform3fv(U.PD,pd);gl.uniform3fv(U.PC,pc);gl.drawArrays(gl.TRIANGLES,0,3);}
   S.labels.forEach((el,i)=>{const p=proj(S.dirs[i]);if(!p||S.z>0.02||S.dz>.5||G.gs>.3||livBusy()){el.style.opacity=0;return;}const off=Math.min(innerWidth,innerHeight)*S.pr*1.1*S.fo/p[2];el.style.opacity=1;el.style.transform="translate("+(p[0]-0)+"px,"+(p[1]+off)+"px) translate(-50%,0)";});}
 /* ---------- SOUND: a meditation journey that follows the visuals ---------- */
@@ -586,7 +588,21 @@ const TSPD=[.5,1,2];S.tsi=1;S.tp=0;S.tw=0;
 function tunnelTick(){const n=performance.now(),dt=Math.min(.1,(n-(S.tlt||n))/1000);S.tlt=n;if(S.mt!==4)return;const br=S.br?S.br.v:.5,k=TSPD[S.tsi]*(S.still?.15:1);S.tt=(S.tt||0)+dt*k;const tt=S.tt;
  /* always forward, surging and easing; slow roll plus a full barrel roll about every 28 s */
  const surge=.7+.45*Math.sin(tt*.19)+.25*Math.sin(tt*.53);S.tp+=dt*.42*k*surge*(.6+.8*br);S.tw+=dt*.16*k;S.tr0=(S.tr0||0)+dt*.07*k;
- const cyc=tt/28,ph=cyc-Math.floor(cyc),e=ph<.6?0:ph>.84?1:((ph-.6)/.24);S.tr=S.tr0+6.2832*(Math.floor(cyc)+e*e*(3-2*e));}
+ const cyc=tt/28,ph=cyc-Math.floor(cyc),e=ph<.6?0:ph>.84?1:((ph-.6)/.24);S.tr=S.tr0+6.2832*(Math.floor(cyc)+e*e*(3-2*e));
+ tunnelSound(dt);}
+const TNOTE=[64,66,68,71,73,76,78,80],TINST=[["k",0,.16],["gk",12,.07],["gl",0,.11],["hc",0,.08]];
+const fr1=x=>x-Math.floor(x);
+function tSnd(set,m,lv,o){const c=SND.ctx;if(!c||!SND.on)return;o=o||{};const L=DSET[set].n,s0=L.reduce((a,b)=>Math.abs(b-m)<Math.abs(a-m)?b:a);
+ getBuf(set+s0).then(b=>{if(!SND.on||S.mt!==4)return;const s=c.createBufferSource();s.buffer=b;s.playbackRate.value=set==="ts"||set==="gg"||set==="mt"?1:Math.pow(2,(m-s0)/12);const g=c.createGain(),t=c.currentTime;
+  g.gain.setValueAtTime(lv,t);g.gain.setTargetAtTime(0,t+(o.dur||2.5),.7);const p=sp3(c,o.az||0,o.el||0,1.8,o.spin||0,t,5);s.connect(g);g.connect(p);p.connect(dBus());s.start(t);s.stop(t+9);}).catch(()=>{});}
+function tunnelSound(dt){const inh=!!(S.br&&S.br.inh);S.tpa=(S.tpa==null?99:S.tpa+dt);S.tpb=(S.tpb==null?99:S.tpb+dt);
+ if(inh&&!S.tInh){S.tpb=S.tpa;S.tpa=0;tSnd("tb",TNOTE[0]-12,.16,{dur:5});if(Math.random()<.35)tSnd("mt",0,.05,{dur:3,az:.3});}S.tInh=inh;
+ const ring=(lr0,key,echo)=>{const b=Math.floor(lr0*18/6.2831-S.tp);if(S[key]==null||b>S[key]+1||b<S[key]-4){S[key]=b;return;}
+  while(S[key]>b){S[key]--;const n=S[key],st=Math.floor(fr1(n*.381966+.13)*4),I=TINST[st],m=TNOTE[Math.floor(fr1(n*.6180339887)*8)]+I[1];
+   if(!echo)tSnd(I[0],m,I[2]*(.8+.4*Math.random()),{az:(Math.random()-.5)*.6,el:(Math.random()-.5)*.3,dur:I[0]==="k"?1.6:3});
+   else tSnd(I[0],m-12,I[2]*.45,{az:(S.tr||0)%6.2832,el:.15,spin:1.2,dur:2.5});}};
+ /* a ring plays its instrument as it lights up near the centre, and echoes softer and lower as it passes the middle of the view */
+ ring(-1.61,"tb0",0);ring(-.45,"tb1",1);}
 ROOMS.push(MILKY,CRYSTAL);if(S.room===-1)setRoom(-1);
 const ss=(a,b,x)=>{const k=Math.max(0,Math.min(1,(x-a)/(b-a)));return k*k*(3-2*k);};
 const SCN=[[0,"hub"],[.15,"fold"],[.165,"fly"],[.38,"milky"],[.58,"crystal"],[.71,"infinity"],[.87,"light"],[.92,"home"]];
@@ -863,14 +879,14 @@ function dStep(n,at){if(DREAM.mode==="j")return jStep(n,at);const c=SND.ctx,tt=a
   if(DREAM.pf)DREAM.pf.frequency.setTargetAtTime(320+1700*B*B*(.5+.5*E),at,.9);}
  if(n%24===0)DREAM.ov.forEach(v=>{v.az+=.25;const r=2.2,el=((v.h%3)-1)*.3;if(v.p.positionX){v.p.positionX.linearRampToValueAtTime(r*Math.sin(v.az)*Math.cos(el),at+d*24);v.p.positionZ.linearRampToValueAtTime(r*Math.cos(v.az)*Math.cos(el),at+d*24);}});
  if(sc.ch&&n>=DREAM.nc){DREAM.ci=(DREAM.ci+1)%sc.ch.length;const C=DREAM.chord=sc.ch[DREAM.ci];dPad([C.b].concat(C.v),at,sc.len*d,.22*(.45+.55*E));DREAM.nc=n+sc.len;
-  if(sc.bell&&Math.random()<.6){const m=C.v[C.v.length-1]+(sc.bell==="tb"?-12:sc.bell==="hc"?12:0);dNote(sc.bell,m,at+d*2,7,.09*(.5+.5*E),{att:.01,rel:2,lp:4500});}}
+  if(sc.bell&&S.mt!==4&&Math.random()<.6){const m=C.v[C.v.length-1]+(sc.bell==="tb"?-12:sc.bell==="hc"?12:0);dNote(sc.bell,m,at+d*2,7,.09*(.5+.5*E),{att:.01,rel:2,lp:4500});}}
  if(sc.rest){if(at>DREAM.nextBowl){dPlay("bowl",Math.random()<.7?1.103:.827,at,14,.32,{att:.05,rel:3,off:.0,pos:[Math.random()*6.28,-.15,2.4,.7]});DREAM.nextBowl=at+sc.bowl*(.8+Math.random()*.5)*Math.max(.5,DREAM.scale);}
   if(Math.random()<.006)dNote("ts",0,at,5,.05,{att:.01,rel:2,lp:7000});
-  if(Math.random()<.012*B)dNote("hc",[76,80,83,85,88][Math.floor(Math.random()*5)]-12,at,6,.05,{att:.01,rel:2,lp:5000});}
- if(sc.arp&&DREAM.chord){const A=DREAM.chord.v.concat(DREAM.chord.v.map(m=>m+12)).filter(m=>m<=(sc.arp==="hc"?84:80));
+  if(S.mt!==4&&Math.random()<.012*B)dNote("hc",[76,80,83,85,88][Math.floor(Math.random()*5)]-12,at,6,.05,{att:.01,rel:2,lp:5000});}
+ if(sc.arp&&DREAM.chord&&S.mt!==4){const A=DREAM.chord.v.concat(DREAM.chord.v.map(m=>m+12)).filter(m=>m<=(sc.arp==="hc"?84:80));
   if(i3(n)&&Math.random()<sc.ap*(.3+.7*E)*(.55+.45*B)){DREAM.arp+=DREAM.dir;if(DREAM.arp>=A.length-1||DREAM.arp<=0){DREAM.dir*=-1;DREAM.arp=Math.max(0,Math.min(A.length-1,DREAM.arp));}if(Math.random()<.15)DREAM.arp=Math.floor(Math.random()*A.length);
    dNote(sc.arp,A[DREAM.arp],at+Math.random()*.02,d*3,(sc.arp==="hc"?.1:.17)*(.75+Math.random()*.5),{rel:1.1,lp:3000});}}
- if(sc.mel&&n%6===3&&Math.random()<sc.mp*(.1+.9*B)*(.3+.7*E)){const R=sc.mr;let k=Math.max(0,R.indexOf(DREAM.lastMel));k=Math.max(0,Math.min(R.length-1,k+[-2,-1,-1,1,1,2][Math.floor(Math.random()*6)]));DREAM.lastMel=R[k];
+ if(sc.mel&&S.mt!==4&&n%6===3&&Math.random()<sc.mp*(.1+.9*B)*(.3+.7*E)){const R=sc.mr;let k=Math.max(0,R.indexOf(DREAM.lastMel));k=Math.max(0,Math.min(R.length-1,k+[-2,-1,-1,1,1,2][Math.floor(Math.random()*6)]));DREAM.lastMel=R[k];
   dNote(sc.mel,R[k],at,d*9,(sc.mel==="tb"?.12:.1)*(.4+.6*B),{att:.03,rel:1.6,lp:3600});}}
 const i3=n=>n%24>=3&&(n%2===0||Math.random()<.35);
 /* ---------- DEEP JOURNEY: the Golden Ratio session's score — half descent, half ascent, following the visuals ---------- */
