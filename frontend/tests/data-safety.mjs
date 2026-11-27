@@ -213,6 +213,32 @@ export async function run() {
     assert(r.n >= 4, "no chords played while singing (" + r.n + ") " + r.st); assert(/next/.test(r.now), "chord display not showing: " + r.now); await ctx.close();
   });
 
+  await S.test("Old takes: a missing or unplayable recording says so (never silent), a good take plays, Play song falls back to a take that works, nothing is deleted", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "Only One", ["am I the only one", "I feel so alone at night"], { bpm: 120, prog: { Verse: 1 }, takes: { Verse: 3 }, takeSel: { Verse: 2 } })], cur: "a1" } });
+    await open(pg);
+    await pg.evaluate(async () => { SW.lib = false; const sg = swSong(), sr = 44100, n = sr * 3, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf), w = (o, x) => { for (let i = 0; i < x.length; i++) v.setUint8(o + i, x.charCodeAt(i)); };
+      w(0, "RIFF"); v.setUint32(4, 36 + n * 2, true); w(8, "WAVEfmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, "data"); v.setUint32(40, n * 2, true);
+      for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.sin(i * 2 * Math.PI * 440 / sr) * 12000, true);
+      sg.takeMeta = {}; [1, 2, 3].forEach((k) => { sg.takeMeta[swTakeKey(sg, "Verse", k)] = { bpm: 120, at: { 0: 0.2, 1: 1.2 } }; });
+      await idbPut("swtake:" + swTakeKey(sg, "Verse", 2), new Blob([new Uint8Array(4000).fill(7)], { type: "audio/mp4" }));   /* an old recording this browser can't decode */
+      await idbPut("swtake:" + swTakeKey(sg, "Verse", 3), new Blob([buf], { type: "audio/wav" }));                          /* take 1 has no recording on this device */
+      SW.takeBlob = {}; SW.voxBuf = {}; SW.voxBad = {}; swSave(); swDraw(); });
+    const bar = () => pg.evaluate(() => (document.querySelector(".sw-melbar span") || {}).textContent || "");
+    await pg.locator('[data-m="tkpick"]').first().click(); await pg.waitForTimeout(200);
+    await pg.locator('[data-m="tk1"]').first().click(); await pg.waitForTimeout(800); const m1 = await bar();
+    await pg.locator('[data-m="tk2"]').first().click(); await pg.waitForTimeout(2500); const m2 = await bar();
+    await pg.locator('[data-m="tk3"]').first().click(); await pg.waitForTimeout(1200); const p3 = await pg.evaluate(() => ({ on: SW.takeOn, msg: (document.querySelector(".sw-melbar span") || {}).textContent || "" }));
+    const r = await pg.evaluate(async () => { swStopPlay(); const sg = swSong(); sg.takeSel.Verse = 1; swSave(); SW.voxBuf = {}; SW.voxBad = {}; swPlaySecs(sg.sections, {}); await new Promise((z) => setTimeout(z, 3000));
+      const keys = Object.keys(SW.voxBuf || {}), vox = (SW.voxSrc || []).length; swStopPlay();
+      return { keys, vox, takes: sg.takes.Verse, b2: !!(await idbGet("swtake:" + swTakeKey(sg, "Verse", 2))), b3: !!(await idbGet("swtake:" + swTakeKey(sg, "Verse", 3))) }; });
+    assert(/isn't on this phone/.test(m1), "missing take was silent: " + m1);
+    assert(/can't play/.test(m2), "unplayable take was silent: " + m2);
+    assert(p3.on === "Verse" && !/isn't on|can't play/.test(p3.msg), "good take did not play: " + JSON.stringify(p3));
+    assert(r.vox >= 1 && r.keys.some((k) => /3$/.test(k)), "Play song did not fall back to the working take: " + JSON.stringify(r));
+    assert(r.takes === 3 && r.b2 && r.b3, "a take was deleted: " + JSON.stringify(r));
+    assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
+  });
+
   await S.test("Throw out a Sing-it-in take: the audio AND the melody/words it filled are all removed; Undo brings them back", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "Only One", ["am I the only one", ""], { bpm: 160, prog: { Verse: 1 } })], cur: "a1" } });
     await open(pg); const r = await pg.evaluate(async () => { SW.lib = false; swDraw(); unlockAudio(); const a = ac(); await a.resume();

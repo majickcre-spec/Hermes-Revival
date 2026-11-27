@@ -3760,12 +3760,12 @@ function swNote(midi,t,dur,layer){let v=+swMix()[layer]||0;if(v<=0.001)return;if
 /* takes remember where each line starts inside the recording, so your voice lines up with the chords */
 function swTakeMeta(song,tag,i){const k=swTakeKey(song,tag,i),m=song.takeMeta&&song.takeMeta[k];if(m&&m.at)return m;
   const s16=60/(song.bpm||90)/4,steps=swSteps(),at={},sec=song.sections.find(x=>x.tag===tag&&!x.same);if(sec)swLinesOf(song,sec).forEach((ln,li)=>{at[li]=0.2+16*s16+li*steps*s16;});return {bpm:song.bpm||90,at:at,legacy:1};}
-function swTakeFor(song,tag,li){const n=swTakeN(song,tag);if(!n)return 0;const cov=i=>{const m=swTakeMeta(song,tag,i);return m.at[li]!=null&&Math.abs((m.bpm||0)-(song.bpm||90))<0.6;};
+function swTakeFor(song,tag,li){const n=swTakeN(song,tag);if(!n)return 0;const cov=i=>{const m=swTakeMeta(song,tag,i);return m.at[li]!=null&&Math.abs((m.bpm||0)-(song.bpm||90))<0.6&&!(SW.voxBad&&SW.voxBad[swTakeKey(song,tag,i)]);};
   const sel=swTakeSel(song,tag);if(sel&&cov(sel))return sel;for(let i=n;i>=1;i--)if(cov(i))return i;return 0;}
-function swVoxLoad(key){SW.voxBuf=SW.voxBuf||{};if(SW.voxBuf[key])return Promise.resolve();
-  return Promise.resolve((SW.takeBlob||{})[key]||idbGet("swtake:"+key)).then(bl=>bl?bl.arrayBuffer():null).then(ab=>ab?ac().decodeAudioData(ab):null).then(buf=>{if(!buf)return;
+function swVoxLoad(key){SW.voxBuf=SW.voxBuf||{};if(SW.voxBuf[key])return Promise.resolve();const bad=()=>{SW.voxBad=SW.voxBad||{};SW.voxBad[key]=1;};
+  return Promise.resolve((SW.takeBlob||{})[key]||idbGet("swtake:"+key)).then(bl=>bl?bl.arrayBuffer():null).then(ab=>ab?ac().decodeAudioData(ab):null).then(buf=>{if(!buf){bad();return;}
     let sum=0,pk=0,cnt=0;for(let c=0;c<buf.numberOfChannels;c++){const d=buf.getChannelData(c);for(let i=0;i<d.length;i+=4){const v=d[i],av=v<0?-v:v;sum+=v*v;cnt++;if(av>pk)pk=av;}}
-    const rms=Math.sqrt(sum/Math.max(1,cnt));let g=rms>0.0004?0.16/rms:1;if(g<1)g=1;if(g>9)g=9;if(pk*g>2.4)g=Math.max(1,2.4/pk);SW.voxBuf[key]={buf:buf,g:g};}).catch(()=>{});}
+    const rms=Math.sqrt(sum/Math.max(1,cnt));let g=rms>0.0004?0.16/rms:1;if(g<1)g=1;if(g>9)g=9;if(pk*g>2.4)g=Math.max(1,2.4/pk);SW.voxBuf[key]={buf:buf,g:g};}).catch(()=>bad());}
 function swVoxIn(){const a=ac(),fx=swData().vfx||"warm";let C=SW.voxCh;if(C&&C.ctx===a&&C.fx===fx){C.inp.gain.value=swMix().vox||0;return C.inp;}
   try{if(C)C.inp.disconnect();}catch(e){}const inp=a.createGain();inp.gain.value=swMix().vox||0;
   const cp=a.createDynamicsCompressor();cp.threshold.value=-10;cp.knee.value=8;cp.ratio.value=8;cp.attack.value=0.003;cp.release.value=0.25;
@@ -3924,7 +3924,7 @@ function swDraw(){if(JAM&&JAM.review){swJamDraw();return;}const D=swData(),song=
     const hd='<div class="sw-hd"><select class="sw-tag" aria-label="Section type">'+SW_TAGS.map(t=>'<option'+(t===sec.tag?" selected":"")+'>'+t+'</option>').join("")+'</select><select class="sw-rsch" aria-label="Rhyme scheme" style="background:rgba(255,255,255,.06);color:#cfd4de;border:1px solid rgba(255,255,255,.14);border-radius:8px;font:700 .72rem system-ui;padding:3px 4px">'+SW_RHYMES.map(r=>'<option value="'+r+'"'+(swScheme(song,sec)===r?" selected":"")+'>'+(r==="free"?"rhyme: free":r)+'</option>').join("")+'</select>'+(swSecName(song,sec)!==sec.tag?'<span class="sw-name">'+swEsc(swSecName(song,sec).slice(sec.tag.length).trim())+'</span>':'')+'<span style="flex:1"></span><button data-sa="play" aria-label="Play section">▶</button><button data-sa="up" aria-label="Move up"'+(si?"":" disabled")+'>↑</button><button data-sa="down" aria-label="Move down"'+(si<song.sections.length-1?"":" disabled")+'>↓</button><button data-sa="del" aria-label="Delete section">✕</button></div>';
     let melRow="";if(firstOfTag&&!tgt){if(SW.mp===sec.tag){const i=SW.pi[sec.tag]||0,c=swCand(song,sec.tag,i);melRow='<div class="sw-mp"><div class="sw-mlist">'+Array.from({length:swCands(song,sec.tag)+6},(_,j)=>{const cj=swCand(song,sec.tag,j);return '<button data-m="pick:'+j+'" class="'+(j===i?"sel":"")+'">'+swMelSvg(cj)+'<span>'+swEsc(cj.label.replace(/ in [A-G][#b]? (major|minor)$/,""))+'</span><small>'+(cj.src==="sung"?"from your voice":(j===i?"▶ playing":"tap to hear"))+'</small></button>';}).join("")+'</div>'+(function(){const cur=song.mel[sec.tag],cS=c.S||16,sc=n=>({midi:n.midi,step:n.step*16/cS,len:n.len*16/cS});const two=(c.a||[]).map(sc).concat((c.b||[]).map(n=>{const x=sc(n);x.step+=16;return x;})),cmp=cur&&cur!==c?(cur.a||[]).map(n=>({midi:n.midi,step:n.step*16/(cur.S||16),len:n.len*16/(cur.S||16)})).concat((cur.b||[]).map(n=>({midi:n.midi,step:n.step*16/(cur.S||16)+16,len:n.len*16/(cur.S||16)}))):null;
       return '<div class="sw-rollbox">'+swRollSvg(two,32,st=>swChord(song,sec.tag,Math.floor(st/16),1),cmp,song)+'<div class="sw-rollkey">line 1 | line 2 · <i style="background:#f4b740"></i>chord note <i style="background:transparent;border:2px solid #7ff0d6"></i>changed · dashed = your current</div></div><div class="sw-theory">'+swMelTheory(song,sec.tag,c,cur)+'</div>';})()+'<div class="row"><button data-m="listen">▶ Listen</button><button data-m="use" class="go">✓ Use for every '+sec.tag.toLowerCase()+'</button><button data-m="sing">🎤 Sing my own</button><button data-m="close">Close</button></div><div class="sw-msg" style="margin-left:0;text-align:center"></div></div>';}
-      else melRow='<div class="sw-melbar"><span>🎵 '+(mel?(mel.label||"Melody")+" · "+mel.n+" notes a line":"No melody yet")+'</span>'+(swTakeN(song,sec.tag)?'<button data-m="take">'+(SW.takeOn===sec.tag?"■ Take":"▶ Take")+'</button>'+(swTakeN(song,sec.tag)>=1?'<button data-m="tkpick">'+swTakeSel(song,sec.tag)+'/'+swTakeN(song,sec.tag)+' ▾</button>':''):'')+'<button data-m="singsec">'+(SW.rec&&SW.rec.sec===sec.id?"■ Stop":"🎤 Sing it in")+'</button><button data-m="open">'+(mel?"Change":"Pick")+'</button></div>'+(SW.tkOpen===sec.tag&&swTakeN(song,sec.tag)>=1?'<div class="rchips tight" style="margin:4px 0 2px">'+Array.from({length:swTakeN(song,sec.tag)},(x,k)=>'<button class="rchip sm'+(swTakeSel(song,sec.tag)===k+1?" sel":"")+'" data-m="tk'+(k+1)+'">▶ Take '+(k+1)+'</button>').join("")+'<button class="rchip sm" data-m="tkdel">✕ Delete this take</button></div>':'');}
+      else melRow='<div class="sw-melbar"><span>'+(SW.tkMsg&&SW.tkMsg.tag===sec.tag&&Date.now()<SW.tkMsg.until?swEsc(SW.tkMsg.t):'🎵 '+(mel?(mel.label||"Melody")+" · "+mel.n+" notes a line":"No melody yet"))+'</span>'+(swTakeN(song,sec.tag)?'<button data-m="take">'+(SW.takeOn===sec.tag?"■ Take":"▶ Take")+'</button>'+(swTakeN(song,sec.tag)>=1?'<button data-m="tkpick">'+swTakeSel(song,sec.tag)+'/'+swTakeN(song,sec.tag)+' ▾</button>':''):'')+'<button data-m="singsec">'+(SW.rec&&SW.rec.sec===sec.id?"■ Stop":"🎤 Sing it in")+'</button><button data-m="open">'+(mel?"Change":"Pick")+'</button></div>'+(SW.tkOpen===sec.tag&&swTakeN(song,sec.tag)>=1?'<div class="rchips tight" style="margin:4px 0 2px">'+Array.from({length:swTakeN(song,sec.tag)},(x,k)=>'<button class="rchip sm'+(swTakeSel(song,sec.tag)===k+1?" sel":"")+'" data-m="tk'+(k+1)+'">▶ Take '+(k+1)+'</button>').join("")+'<button class="rchip sm" data-m="tkdel">✕ Delete this take</button></div>':'');}
     let chRow="";if(firstOfTag&&!tgt){const pr=swProgOf(song,sec.tag);
       if(SW.cp===sec.tag){const cur=song.prog?song.prog[sec.tag]:null;
         chRow='<div class="sw-mp">'+swProgList(song).map((p,i)=>'<button class="sw-form'+(cur===i?" sel":"")+'" data-chp="'+i+'">'+p.l+' — '+p.r.join("–")+' ('+p.r.map(swNash).join("-")+')<small style="display:block;opacity:.8;font-weight:700">'+p.c.map(c=>swChName(song,c)).join(" · ")+'</small></button>').join("")+'<div class="row"><button data-chp="-1">No chords</button><button data-ch="close">Close</button></div><div class="sw-sub" style="margin-top:4px">Chords repeat bar by bar under every '+sec.tag.toLowerCase()+'. Tap a chord on any line to see why the melody fits it.</div></div>';}
@@ -4071,10 +4071,14 @@ function swLineAct(a,sec,li,el){const song=swSong(),ln=sec.lines[li],msg=el.quer
 function swTakeN(song,tag){return (song.takes&&+song.takes[tag])||0;}
 function swTakeSel(song,tag){const n=swTakeN(song,tag);if(!n)return 0;const x=song.takeSel?+song.takeSel[tag]:0;return (x>=1&&x<=n)?x:n;}
 function swTakeKey(song,tag,i){return song.id+":"+tag+(i>1?":"+i:"");}
+/* iPhone only lets an <audio> element play if play() starts inside the tap: start a silent one now, reuse it if the recording has to fall back to it */
+function swBlessAudio(){try{const au=new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=");au.playsInline=true;const p=au.play();if(p&&p.catch)p.catch(()=>{});SW.blessAu=au;}catch(e){SW.blessAu=null;}}
+const SW_TK_GONE="⚠ This take isn't on this phone.",SW_TK_BAD="⚠ This take can't play on this phone.";
 function swTakePlay(song,tag,done,tell){tell=tell||(()=>{});const idx=swTakeSel(song,tag);if(!idx){if(done)done();else tell("No recording saved yet — tap 🎤 Sing it in first.");return;}
   const key=swTakeKey(song,tag,idx),fin=()=>{SW.takeAud=null;SW.takeOn=null;if(done)done();else swDraw();},
-  goOld=bl=>{try{unlockAudio();const u=URL.createObjectURL(bl),au=new Audio(u);SW.takeAud=au;SW.takeOn=tag;
-    au.onended=au.onerror=()=>{try{URL.revokeObjectURL(u);}catch(e){}fin();};au.play().catch(()=>{SW.takeAud=null;SW.takeOn=null;tell("Couldn't play the recording here.");});swDraw();}catch(e){tell("Couldn't play the recording here.");}},
+  goOld=bl=>{try{unlockAudio();const u=URL.createObjectURL(bl),au=SW.blessAu||new Audio();SW.blessAu=null;au.src=u;SW.takeAud=au;SW.takeOn=tag;let ok=false;
+    au.onplaying=()=>{ok=true;};au.onended=()=>{try{URL.revokeObjectURL(u);}catch(e){}fin();};au.onerror=()=>{try{URL.revokeObjectURL(u);}catch(e){}SW.takeAud=null;SW.takeOn=null;if(!ok){if(SW.voxBad)SW.voxBad[key]=1;tell(SW_TK_BAD);}fin();};
+    au.play().catch(()=>{SW.takeAud=null;SW.takeOn=null;tell(SW_TK_BAD);});swDraw();}catch(e){tell(SW_TK_BAD);}},
   go=bl=>{unlockAudio();bl.arrayBuffer().then(ab=>ac().decodeAudioData(ab)).then(buf=>{
     let sum=0,pk=0,cnt=0;for(let c=0;c<buf.numberOfChannels;c++){const d=buf.getChannelData(c);for(let i=0;i<d.length;i+=4){const v=d[i],av=v<0?-v:v;sum+=v*v;cnt++;if(av>pk)pk=av;}}
     const rms=Math.sqrt(sum/Math.max(1,cnt));let g=rms>0.0004?0.16/rms:1;if(g<1)g=1;if(g>9)g=9;if(pk*g>2.4)g=Math.max(1,2.4/pk);
@@ -4089,13 +4093,14 @@ function swTakePlay(song,tag,done,tell){tell=tell||(()=>{});const idx=swTakeSel(
     SW.takeAud={pause(){try{src.onended=null;src.stop();}catch(e){}}};SW.takeOn=tag;
     src.onended=()=>fin();src.start();swDraw();
   }).catch(()=>goOld(bl));};
-  const bl=(SW.takeBlob||{})[key];if(bl)go(bl);else idbGet("swtake:"+key).then(b2=>{if(b2){SW.takeBlob=SW.takeBlob||{};SW.takeBlob[key]=b2;go(b2);}else tell("No recording saved yet — tap 🎤 Sing it in first.");});}
+  const bl=(SW.takeBlob||{})[key];if(bl)go(bl);else idbGet("swtake:"+key).then(b2=>{if(b2&&b2.size>44){SW.takeBlob=SW.takeBlob||{};SW.takeBlob[key]=b2;go(b2);}else{SW.voxBad=SW.voxBad||{};SW.voxBad[key]=1;tell(SW_TK_GONE);}}).catch(()=>tell(SW_TK_GONE));}
 function swMelAct(a,sec,el){const song=swSong(),tag=sec.tag,msg=el.querySelector(".sw-mp .sw-msg"),say=t=>{if(msg)msg.textContent=t;};let i=SW.pi[tag]||0;
-  if(a==="take"){const bar=el.querySelector(".sw-melbar span"),tell=t=>{if(bar)bar.textContent=t;};
+  const tkTell=t=>{SW.tkMsg={tag:tag,t:t,until:Date.now()+7000};swDraw();setTimeout(()=>{if(SW.tkMsg&&SW.tkMsg.t===t&&Date.now()>=SW.tkMsg.until){SW.tkMsg=null;swDraw();}},7100);};
+  if(a==="take"){const tell=tkTell;
     if(SW.takeAud){swStopPlay();swDraw();return;}
-    swStopPlay();swTakePlay(song,tag,null,tell);return;}
+    SW.tkMsg=null;swStopPlay();swBlessAudio();swTakePlay(song,tag,null,tell);return;}
   if(a==="tkpick"){SW.tkOpen=SW.tkOpen===tag?null:tag;swDraw();return;}
-  if(/^tk\d+$/.test(a||"")){const k=+a.slice(2);song.takeSel=song.takeSel||{};song.takeSel[tag]=k;swSave();swStopPlay();swTakePlay(song,tag,null,()=>{});return;}
+  if(/^tk\d+$/.test(a||"")){const k=+a.slice(2);song.takeSel=song.takeSel||{};song.takeSel[tag]=k;SW.tkMsg=null;swSave();swStopPlay();swBlessAudio();swTakePlay(song,tag,null,tkTell);return;}
   if(a==="tkdel"){const n=swTakeN(song,tag);if(!n)return;const iDel=swTakeSel(song,tag);
     {const bt=view.querySelector('.sw-sec[data-sec="'+sec.id+'"] [data-m="tkdel"]');if(bt&&bt.dataset.sure!=="1"){bt.dataset.sure="1";bt.textContent="Delete take "+iDel+"? Tap again";setTimeout(()=>{if(bt.isConnected){bt.dataset.sure="";bt.textContent="✕ Delete this take";}},3000);return;}}
     swStopPlay();
@@ -4311,7 +4316,8 @@ function swPlaySecs(secs,opt){opt=opt||{};swStopPlay();bkStop();unlockAudio();co
   const again=opt.loop?()=>{if(SW.loopOn)swPlaySecs(secs,Object.assign({},opt,{noLead:true}));}:opt.onEnd;
   const go=()=>{SW.loopOn=!!opt.loop;swRun(ev,again);SW.lastClicks=ev.filter(e=>e.k==="c").map(e=>SW.t0+e.at);if(band)bkStartSeq(seq,SW.t0);else if(grooveOn)bkStartSeq(new Array(Math.ceil(off/(16*s16))+1).fill(null),SW.t0);const b=$("#swPlay");if(b)b.textContent="■ Stop";};
   const need=[...new Set(ev.filter(e=>e.k==="v"&&!(SW.voxBuf||{})[e.key]).map(e=>e.key))];
-  if(need.length){SW.stopT=SW.stopT||-1;Promise.all(need.map(swVoxLoad)).then(()=>{if(SW.stopT===-1)SW.stopT=null;go();});}else go();}
+  /* a take whose audio is missing or unplayable on this phone is skipped: play again so another take of that line is used */
+  if(need.length){SW.stopT=SW.stopT||-1;const bad0=Object.keys(SW.voxBad||{}).length;Promise.all(need.map(swVoxLoad)).then(()=>{if(SW.stopT===-1)SW.stopT=null;if(Object.keys(SW.voxBad||{}).length>bad0&&!opt._retry){swPlaySecs(secs,Object.assign({},opt,{_retry:1}));return;}go();});}else go();}
 /* ---- loop any number of bars, starting at the line you're on ---- */
 function swPlayLbl(){try{if(BK.on&&!swHasWords(swSong()))return "■ Stop chords";}catch(e){}const L=swData().loop;return L?"🔁 Play loop":"▶ Play song";}
 function swLoopKeys(){const D=swData(),song=swSong(),L=D.loop;if(!L)return null;const nb=D.bars||1,act=SW.active,keys=new Set();
