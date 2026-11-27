@@ -113,6 +113,7 @@ html,body{margin:0;height:100%;background:#000;color:#fff;font:15px/1.45 Inter,s
  <div class="shh"><b>Sessions &amp; tricks</b><button class="pill" id="shX" type="button">Done</button></div>
  <div class="srow"><div><b>🫁 Breath pace</b><small>The walls and the sound breathe at this pace</small></div><button class="pill" id="speed" type="button">5.5 a minute</button></div>
  <div class="srow"><div><b>🌻 Golden Ratio session</b><small>Tones step down by the golden ratio, breathe in 1 : out 1.6 · headphones</small></div><div class="seg"><button class="pill" data-gl="5" type="button">5 min</button><button class="pill" data-gl="10" type="button">10</button><button class="pill" data-gl="20" type="button">20</button></div></div>
+ <div class="srow"><div><b>🌀 Hypnotic Tunnel</b><small>Bright shapes on black flowing from one centre, moving with your breath · rest your eyes on the middle</small></div><button class="pill" id="tunGo" type="button">Go</button></div>
  <div class="srow"><div><b>🌌 Deep Journey</b><small>Sink slowly into the fractal to a still black void, then rise through crystal and stars into the light · headphones</small></div><div class="seg"><button class="pill" data-dj="10" type="button">10 min</button><button class="pill" data-dj="20" type="button">20</button><button class="pill" data-dj="30" type="button">30</button></div></div>
  <div class="srow"><div><b>🗝 Song Quest · The Silent Sphere</b><small>Find the hidden notes, then build the chords, their order, the beat and a melody — room by room · headphones</small></div><div class="seg"><button class="pill" data-myst="new" type="button">Start</button><button class="pill" id="mystCont" data-myst="cont" type="button" hidden>Continue</button></div></div>
  <div class="srow"><div><b>🌙 Dream music</b><small>Breathing drones, chords, bells, chimes and bowls in 3D — for deep learning and high moments · headphones</small></div><button class="pill" id="dreamBtn" type="button" aria-pressed="false">Off</button></div>
@@ -168,7 +169,7 @@ const FS=`precision highp float;
 uniform vec2 R;uniform float T,B,M,Z,F,K,NP,PR;uniform vec3 PAL,PAL2;uniform vec3 PD[11];uniform vec3 PC[11];uniform float MT;uniform vec2 MC;uniform sampler2D RT;uniform float RL,MI,DZ,MAXD;
 vec3 ry(vec3 v,float a){float c=cos(a),s=sin(a);return vec3(c*v.x+s*v.z,v.y,-s*v.x+c*v.z);}
 vec3 rx(vec3 v,float a){float c=cos(a),s=sin(a);return vec3(v.x,c*v.y-s*v.z,s*v.y+c*v.z);}
-uniform float YAW,PIT,FO,NF,MS,LZ,HB,HC,GS,CRY,GZ,AU,ROLL,WARP,KN,KF,IO,LV,FL,IO2,BRA,SIL;uniform vec3 CP;uniform vec3 AD;uniform vec3 FN[20];
+uniform float YAW,PIT,FO,NF,MS,LZ,HB,HC,GS,CRY,GZ,AU,ROLL,WARP,KN,KF,IO,LV,FL,IO2,BRA,SIL,TP,TW;uniform vec3 CP;uniform vec3 AD;uniform vec3 FN[20];
 vec3 pal(float t,vec3 d){return .5+.5*cos(6.2831*(t+d));}
 /* the inner wall: a kaleidoscopic 3D fractal evaluated on the direction you look, so it surrounds you with no seams */
 vec3 wall(vec3 d,vec3 ph,float k,float sc){vec3 p=d*sc;p.xz=mat2(cos(T*.01),-sin(T*.01),sin(T*.01),cos(T*.01))*p.xz;
@@ -330,7 +331,32 @@ vec2 qmap(vec3 d,out float aS,out vec3 ex){
  for(int i=0;i<20;i++){if(float(i)>=NF)break;float c=dot(dd,FN[i]);if(c>b1){b2=b1;b1=c;n1=FN[i];fi=float(i);}else if(c>b2)b2=c;}
  float t=1./max(b1,.05);vec3 p=dd*t;vec3 u=normalize(cross(n1,abs(n1.y)<.9?vec3(0.,1.,0.):vec3(1.,0.,0.)));vec3 v=cross(n1,u);
  aS=.22*t*t;ex=vec3((b1-b2)*t,t,fi);return vec2(dot(p,u),dot(p,v))*.22+fi*.173;}
-vec3 room(vec3 d,vec3 ph,float px){vec3 gb=vec3(0.);if(MT>2.5)gb=galaxy(d,px)*.95;else if(MT>.5)return mroom(d,ph,px);
+/* HYPNOTIC TUNNEL: crisp iridescent shapes on black, rings flowing out of one glowing centre, neighbours counter-rotating */
+vec3 tpal(float t){return .6+.4*cos(6.2831*(t+vec3(0.,.33,.67)));}
+float thsh(float n){return fract(sin(n*91.731+.17)*43758.5453);}
+vec3 tunnel(vec3 d,float px){
+ float z=abs(d.z),rr=length(d.xy),th=atan(rr,z),a=atan(d.y,d.x+1e-6);
+ float lr=log(max(tan(min(th,1.52)),1e-5));
+ float REP=18.;
+ float v=lr*REP/6.2831-TP,band=floor(v),f=fract(v),h=thsh(band),h2=thsh(band+7.3);
+ float dir=mod(band,2.)<.5?1.:-1.;
+ float u=a/6.2831*REP+dir*TW*(.6+.8*h)+band*.5;
+ vec2 p=vec2(fract(u)-.5,f-.5);
+ float w=px*REP/6.2831/max(sin(th)*cos(th),1e-4)+.004;
+ float st=floor(h2*4.),sd,inner=1e3;
+ if(st<1.){vec2 q=abs(p)-vec2(.27,.37);sd=abs(length(max(q,0.))+min(max(q.x,q.y),0.)-.1)-.07;inner=length(p*vec2(1.,.62)+vec2(0.,.02))-.11;}
+ else if(st<2.){float c=fract((p.y+abs(p.x)*1.15)*2.6+.25);sd=(abs(c-.5)-.22)*.38;sd=max(sd,abs(p.x)-.44);}
+ else if(st<3.){sd=abs(length(p)-.27)-.08;inner=length(p)-.08;}
+ else {sd=abs(abs(p.x)+abs(p.y)*.8-.34)-.07;inner=abs(p.x)+abs(p.y)*.8-.1;}
+ float m=smoothstep(w,-w,sd),mi=smoothstep(w,-w,inner);
+ vec3 base=tpal(T*.006+band*.03+h*.13);
+ vec3 shine=mix(base,vec3(1.),.55+.45*sin(p.y*6.+band));
+ vec3 col=shine*m+tpal(T*.006+band*.03+h*.13+.38)*mi*.95;
+ col*=.55+.45*smoothstep(.0,.6,1.-abs(f-.5)*2.);
+ col=mix(col,tpal(T*.006+band*.03)*.28,smoothstep(.18,.6,w));
+ col+=vec3(1.,.93,.98)*(exp(-th*th*2600.)*1.4+exp(-th*22.)*.18);
+ return col;}
+vec3 room(vec3 d,vec3 ph,float px){if(MT>3.5)return tunnel(d,px);vec3 gb=vec3(0.);if(MT>2.5)gb=galaxy(d,px)*.95;else if(MT>.5)return mroom(d,ph,px);
  float aS,aS2;vec3 ex,ex2;vec2 q0=qmap(d,aS,ex);vec2 qa=qmap(AD,aS2,ex2);vec2 lq=q0-qa;if(NF<.5)lq.x-=floor(lq.x+.5);
  vec3 col=geo2(lq,qa,LZ,aS,ph,px)*(MT>2.5?.45*(1.-.95*smoothstep(asin(min(1.,1./max(length(CP),1.01)))*3.2,asin(min(1.,1./max(length(CP),1.01)))*1.05,acos(clamp(dot(d,normalize(-CP)),-1.,1.)))):1.);if(NF<.5)return col+gb;
  float e=ex.x,t=ex.y,fi=ex.z,fe=1.-smoothstep(.2,1.2,LZ);
@@ -387,7 +413,7 @@ if(!gl)$("nogl").classList.remove("hide");
 else{const mk=(t,s)=>{const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))console.error(gl.getShaderInfoLog(o));return o;};
   const pr=gl.createProgram();gl.attachShader(pr,mk(gl.VERTEX_SHADER,"attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}"));gl.attachShader(pr,mk(gl.FRAGMENT_SHADER,FS));gl.linkProgram(pr);gl.useProgram(pr);
   const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);const loc=gl.getAttribLocation(pr,"p");gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
-  ["R","T","B","M","Z","K","NP","PR","PAL","YAW","PIT","PD","PC","FO","NF","MS","FN","MT","MC","RT","RL","MI","DZ","MAXD","LZ","AD","HB","HC","GS","CRY","GZ","AU","ROLL","WARP","KN","KF","IO","LV","FL","IO2","BRA","CP","SIL"].forEach(k=>U[k]=gl.getUniformLocation(pr,k));}
+  ["R","T","B","M","Z","K","NP","PR","PAL","YAW","PIT","PD","PC","FO","NF","MS","FN","MT","MC","RT","RL","MI","DZ","MAXD","LZ","AD","HB","HC","GS","CRY","GZ","AU","ROLL","WARP","KN","KF","IO","LV","FL","IO2","BRA","CP","SIL","TP","TW"].forEach(k=>U[k]=gl.getUniformLocation(pr,k));}
 
 /* reference orbit for the deep zoom, in double precision */
 const FX=gl&&gl.getExtension("OES_texture_float");let RTEX=null,RLEN=2;
@@ -412,7 +438,7 @@ function setRoom(i){try{if(!G.mom)S.free=false;}catch(e){S.free=false;}S.room=i;
   S.cols=items.map(x=>hexPh(x.col));S.pr=i<0?0.2:0.13;
   $("labs").innerHTML=items.map(x=>'<div class="lab" style="color:'+x.col+'">'+x.name+(i<0?'':'<small>tap to open</small>')+'</div>').join("");S.labels=[...$("labs").children];
   $("place").innerHTML=R.n.toUpperCase()+(i<0?'':'<small style="display:block;font:600 10px Inter;letter-spacing:.2em;opacity:.8">'+(R.tag||(R.mt?"ENDLESS DIVE":SHN[R.sh].toUpperCase()))+"</small>");S.fn=new Float32Array(60);(SHAPES[R.sh]||[]).forEach((v,j)=>S.fn.set(nz(v),j*3));S.nf=(SHAPES[R.sh]||[]).length;$("place").style.color=R.c;$("backT").textContent=i<0?"Home":"Sphere";
-  clearTimeout(S.ht);S.ht=setTimeout(()=>{if(!S.fly)$("host").style.opacity=0;},8000);if(i>=0)$("hint").style.opacity=0;$("hName").textContent=R.h+" · HOST";$("hSay").textContent=R.say;$("hostSvg").innerHTML=i<0?LUMEN:GEM(R.c);$("host").style.setProperty("--glow",R.c);}
+  clearTimeout(S.ht);S.ht=setTimeout(()=>{if(!S.fly)$("host").style.opacity=0;},8000);if(i>=0||typeof i==="object")$("hint").style.opacity=0;$("hName").textContent=R.h+" · HOST";$("hSay").textContent=R.say;$("hostSvg").innerHTML=i<0?LUMEN:GEM(R.c);$("host").style.setProperty("--glow",R.c);}
 setRoom(-1);
 let QS=1;function size(){const s=Math.min(2,devicePixelRatio||1)*(document.body.classList.contains("watch")?0.82:0.62)*QS;cv.width=Math.round(innerWidth*s);cv.height=Math.round(innerHeight*s);}size();addEventListener("resize",size);
 /* look around: drag; a gentle drift when idle */
@@ -423,8 +449,8 @@ const pend=e=>{PTS.delete(e.pointerId);if(PTS.size<2&&pinch){pinch=null;drag=nul
 cv.addEventListener("wheel",e=>{e.preventDefault();if(deep()){S.dive=false;S.dzTo=Math.max(0,Math.min(S.maxd-1,S.dzTo-e.deltaY*.004));}else S.foTo=Math.max(1.1,Math.min(60,S.foTo*Math.exp(-e.deltaY*.0015)));zl();},{passive:false});
 const DZL=[0,Math.log(10),Math.log(1e3),Math.log(1e6),Math.log(1e9),Math.log(1e12)];const deep=()=>S.mt!==2&&(S.mt!==1||FX);
 function fmtX(v){const m=Math.exp(v)*1.001;if(m>=1e15){const e=Math.floor(Math.log10(m));return "10"+String(e).split("").map(c=>"⁰¹²³⁴⁵⁶⁷⁸⁹"[c]).join("")+"×";}return m<1e3?Math.round(m)+"×":m<1e6?Math.round(m/1e3)+" thousand×":m<1e9?(m/1e6).toFixed(m<1e7?1:0).replace(".0","")+" million×":m<1e12?(m/1e9).toFixed(m<1e10?1:0).replace(".0","")+" billion×":(m/1e12).toFixed(1).replace(".0","")+" trillion×";}
-const ZL=[1.1,3.3,9.9,29.7];function zl(){if(deep()){$("zoom").textContent=(S.dive?"∞ ":"Zoom ")+fmtX(S.dzTo);return;}const z=S.foTo/1.1;$("zoom").textContent="Zoom "+(z<10?z.toFixed(1).replace(".0",""):Math.round(z))+"×";}
-$("zoom").onclick=()=>{if(deep()){if(S.dive){S.dive=false;S.dzTo=0;zl();return;}const i=DZL.findIndex(z=>z>S.dzTo+.05&&z<=S.maxd-1);if(i<0){S.dive=true;S.diveT=performance.now()-S.dz/S.maxd*60000;zl();return;}S.dzTo=DZL[i];zl();return;}if(S.dive){S.dive=false;S.foTo=ZL[0];zl();return;}const i=ZL.findIndex(z=>z>S.foTo+.05);if(i<0){S.dive=true;S.diveT=performance.now();$("zoom").textContent="Zoom ∞";return;}S.foTo=ZL[i];zl();};
+const ZL=[1.1,3.3,9.9,29.7];function zl(){if(S.mt===4){$("zoom").textContent="Speed "+["½","1","2"][S.tsi]+"×";return;}if(deep()){$("zoom").textContent=(S.dive?"∞ ":"Zoom ")+fmtX(S.dzTo);return;}const z=S.foTo/1.1;$("zoom").textContent="Zoom "+(z<10?z.toFixed(1).replace(".0",""):Math.round(z))+"×";}
+$("zoom").onclick=()=>{if(S.mt===4){S.tsi=(S.tsi+1)%3;zl();return;}if(deep()){if(S.dive){S.dive=false;S.dzTo=0;zl();return;}const i=DZL.findIndex(z=>z>S.dzTo+.05&&z<=S.maxd-1);if(i<0){S.dive=true;S.diveT=performance.now()-S.dz/S.maxd*60000;zl();return;}S.dzTo=DZL[i];zl();return;}if(S.dive){S.dive=false;S.foTo=ZL[0];zl();return;}const i=ZL.findIndex(z=>z>S.foTo+.05);if(i<0){S.dive=true;S.diveT=performance.now();$("zoom").textContent="Zoom ∞";return;}S.foTo=ZL[i];zl();};
 let drag=null;cv.addEventListener("pointerdown",e=>{if(PTS.size>1)return;drag={x:e.clientX,y:e.clientY,yaw:S.yaw,pit:S.pit,t:performance.now(),moved:0};cv.setPointerCapture(e.pointerId);cv.style.cursor="grabbing";$("hint").style.opacity=0;});
 cv.addEventListener("pointermove",e=>{if(!drag||S.fly||pinch)return;const k=2.6/Math.min(innerWidth,innerHeight)/S.fo*1.1;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.moved=Math.max(drag.moved,Math.abs(dx)+Math.abs(dy));
   const ny=drag.yaw-dx*k,np=S.cur===MILKY?drag.pit-dy*k:Math.max(-1.3,Math.min(1.3,drag.pit-dy*k));if(S.cur===MILKY)S.free=true;S.vy=(ny-S.yaw)*0.5;S.vp=(np-S.pit)*0.5;S.yaw=ny;S.pit=np;});
@@ -435,7 +461,7 @@ function tap(x,y){if(document.body.classList.contains("watch")){wxShow();return;
   if(S.room<0){if(!myDoorOpen(best)){$("myHintT").textContent="That doorway is sealed — the music hasn't returned there yet.";return;}flyTo(best);}else if(S.cur.dives){const dv=S.cur.dives[best];$("fade").style.background="#000";$("fade").style.opacity=.85;setTimeout(()=>{S.mt=dv[0];S.mc=[dv[1],dv[2]];S.yaw=0;S.pit=0;S.vy=S.vp=0;S.maxd=dv[3];S.dz=S.dzTo=0;S.dive=false;if(dv[0]===1)refOrbit(dv[1],dv[2]);zl();$("hSay").textContent=S.cur.st[best]+" — pinch or tap Zoom to dive.";$("host").style.opacity=1;clearTimeout(S.ht);S.ht=setTimeout(()=>{$("host").style.opacity=0;},6000);$("fade").style.opacity=0;setTimeout(()=>{$("fade").style.background="#fff";},500);},450);}
   else{$("hSay").textContent=S.cur.st[best]+(S.cur.tapSay||" — in the full build this light opens that lesson right here.");}}
 function flyTo(i){const w=S.dirs[i];const tyaw=Math.atan2(w[0],w[2]),tpit=-Math.asin(Math.max(-1,Math.min(1,w[1])));S.fly={i,t:0,s:performance.now(),y0:S.yaw,p0:S.pit,ty:tyaw+Math.round((S.yaw-tyaw)/(2*Math.PI))*2*Math.PI,tp:tpit};$("host").style.opacity=0;sndFly();}
-$("back").onclick=()=>{if(S.room>=0&&!S.fly){$("fade").style.opacity=.9;setTimeout(()=>{setRoom(-1);S.z=0;$("fade").style.opacity=0;$("host").style.opacity=1;},450);}};
+$("back").onclick=()=>{if((S.room>=0||typeof S.room==="object")&&!S.fly){$("fade").style.opacity=.9;setTimeout(()=>{setRoom(-1);S.z=0;$("fade").style.opacity=0;$("host").style.opacity=1;zl();},450);}};
 $("dis").onclick=()=>{S.meltTo=S.meltTo?0:1;$("dis").textContent=S.meltTo?"Re-form":"Dissolve";};
 $("still").onclick=()=>{S.still=!S.still;$("still").textContent=S.still?"Drift":"Hold still";};
 const PACES=[[11,"5.5 a minute"],[8,"7.5 a minute"],[16,"3.75 a minute"]];let pi=0;$("speed").onclick=()=>{pi=(pi+1)%PACES.length;S.breath=PACES[pi][0];$("speed").textContent=PACES[pi][1];};
@@ -455,9 +481,9 @@ let fq={n:0,t:performance.now()};function frame(){requestAnimationFrame(frame);c
   else if(!drag){if(!S.still&&!S.mt)S.yaw+=0.0009;S.yaw+=S.vy;S.pit+=S.vp;S.vy*=0.94;S.vp*=0.94;if(!S.free&&S.cur!==MILKY)S.pit=Math.max(-1.3,Math.min(1.3,S.pit));}
   if(deep()){const nowT=performance.now(),dtt=Math.min(.1,(nowT-(S.lastF||nowT))/1000);S.lastF=nowT;if(S.dive&&S.mt!==1){S.dzTo=Math.min(S.maxd-1,S.dzTo+dtt*.35);if(fq.n%10===0)zl();}else if(S.dive){const P=120,ph=((performance.now()-S.diveT)/1000%P)/P;S.dzTo=(S.maxd-1)*(.5-.5*Math.cos(ph*2*Math.PI));if(fq.n%10===0)zl();}S.dz+=(S.dzTo-S.dz)*.06;S.fo=S.foTo=1.1;}
   else if(S.dive&&!S.fly){const P=26,ph=((performance.now()-S.diveT)/1000%P)/P;S.fo=S.foTo=1.1*Math.pow(27,ph);const edge=ph>.95?(ph-.95)/.05:ph<.05?1-ph/.05:0;$("fade").style.transition="none";$("fade").style.background="#000";$("fade").style.opacity=edge*.9;S.dfade=1;}else if(S.dfade){S.dfade=0;$("fade").style.opacity=0;$("fade").style.transition="";$("fade").style.background="#fff";}
-  sesTick(t);myFrame(t);S.melt+=(S.meltTo-S.melt)*0.04;if(fq.n%6===0)sndTick(t);
+  sesTick(t);myFrame(t);tunnelTick();S.melt+=(S.meltTo-S.melt)*0.04;if(fq.n%6===0)sndTick(t);
   if(gl){gl.viewport(0,0,cv.width,cv.height);gl.uniform2f(U.R,cv.width,cv.height);gl.uniform1f(U.T,t);gl.uniform1f(U.B,1+0.08*(2*(S.br?S.br.v:.5)-1));gl.uniform1f(U.HB,HR.on?t-HR.last:9);gl.uniform1f(U.HC,HR.coh);gl.uniform1f(U.GS,G.fl||0);gl.uniform1f(U.CRY,S.cur.cry||0);gl.uniform1f(U.GZ,G.gz||0);gl.uniform1f(U.AU,S.au||0);gl.uniform1f(U.ROLL,S.roll||0);gl.uniform1f(U.WARP,G.warp||0);{const L=livingM(t);gl.uniform1f(U.KN,L[0]);gl.uniform1f(U.KF,L[1]);gl.uniform1f(U.IO,L[2]);}{const L2=livingR(t);S.liv=L2;gl.uniform1f(U.LV,L2[0]);gl.uniform1f(U.FL,L2[1]);gl.uniform1f(U.IO2,L2[2]);}gl.uniform1f(U.BRA,G.on?1:.35);gl.uniform1f(U.SIL,MY.sil);{const dtc=Math.min(.1,Math.max(0,t-(S.cpt||t)));S.cpt=t;if(S.cur&&S.cur.mt===3){S.cpa=(S.cpa||0)+dtc*.035*(1+S.dz*.35+(G.warp||0)*25);}else S.cpa=0;const a=S.cpa||0,r=8.5-2.5*Math.sin(a*.8),y=1.6*Math.sin(a*1.3);S.cp=[r*Math.sin(a),y,-r*Math.cos(a)];gl.uniform3fv(U.CP,S.cp);}gl.uniform1f(U.M,S.melt);gl.uniform1f(U.Z,S.z);S.fo*=Math.pow(S.foTo/S.fo,.1);gl.uniform1f(U.FO,S.fo);
-    gl.uniform1f(U.K,S.cur.k);gl.uniform1f(U.NF,S.nf);gl.uniform1f(U.MT,S.mt||0);gl.uniform2fv(U.MC,S.mc||[0,0]);gl.uniform1f(U.DZ,S.dz);gl.uniform1f(U.LZ,S.mt===2?0:S.dz/Math.log(3));if(S.dz<.02||!S.anc)S.anc=ry(rx([0,0,1],S.pit),S.yaw);gl.uniform3fv(U.AD,S.anc);gl.uniform1f(U.MAXD,FX?(S.maxd||11):11);gl.uniform1f(U.RL,RLEN);gl.uniform1f(U.MI,Math.min(1950,500+S.dz*55));gl.uniform1i(U.RT,0);gl.uniform1f(U.MS,S.cur.ms);gl.uniform3fv(U.FN,S.fn);gl.uniform3fv(U.PAL,S.cur.pal);gl.uniform1f(U.YAW,S.yaw);gl.uniform1f(U.PIT,S.pit);gl.uniform1f(U.NP,S.dirs.length);gl.uniform1f(U.PR,S.pr);
+    gl.uniform1f(U.K,S.cur.k);gl.uniform1f(U.NF,S.nf);gl.uniform1f(U.MT,S.mt||0);gl.uniform1f(U.TP,S.tp||0);gl.uniform1f(U.TW,S.tw||0);gl.uniform2fv(U.MC,S.mc||[0,0]);gl.uniform1f(U.DZ,S.dz);gl.uniform1f(U.LZ,S.mt===2?0:S.dz/Math.log(3));if(S.dz<.02||!S.anc)S.anc=ry(rx([0,0,1],S.pit),S.yaw);gl.uniform3fv(U.AD,S.anc);gl.uniform1f(U.MAXD,FX?(S.maxd||11):11);gl.uniform1f(U.RL,RLEN);gl.uniform1f(U.MI,Math.min(1950,500+S.dz*55));gl.uniform1i(U.RT,0);gl.uniform1f(U.MS,S.cur.ms);gl.uniform3fv(U.FN,S.fn);gl.uniform3fv(U.PAL,S.cur.pal);gl.uniform1f(U.YAW,S.yaw);gl.uniform1f(U.PIT,S.pit);gl.uniform1f(U.NP,S.dirs.length);gl.uniform1f(U.PR,S.pr);
     const pd=new Float32Array(33),pc=new Float32Array(33);S.dirs.forEach((w,i)=>{pd.set(w,i*3);pc.set(S.cols[i],i*3);});gl.uniform3fv(U.PD,pd);gl.uniform3fv(U.PC,pc);gl.drawArrays(gl.TRIANGLES,0,3);}
   S.labels.forEach((el,i)=>{const p=proj(S.dirs[i]);if(!p||S.z>0.02||S.dz>.5||G.gs>.3||livBusy()){el.style.opacity=0;return;}const off=Math.min(innerWidth,innerHeight)*S.pr*1.1*S.fo/p[2];el.style.opacity=1;el.style.transform="translate("+(p[0]-0)+"px,"+(p[1]+off)+"px) translate(-50%,0)";});}
 /* ---------- SOUND: a meditation journey that follows the visuals ---------- */
@@ -545,6 +571,9 @@ function livingM(t){if(!S.mt)return [1,0,0];const P=26,c=Math.floor(t/P),k=(t%P)
 /* the golden journey: scenes timed by the session, nothing to touch */
 const MILKY={n:"Milky Way",tag:"GALAXY",sh:"sphere",ms:.15,mt:3,c:"#c9d8ff",pal:[.55,.7,.95],k:.72,h:"STAR",say:"You're travelling around the sun. Drag to look anywhere. Pinch to fly faster.",tapSay:" — rest your eyes here and let it carry you.",st:["Spiral Arms","Star Nursery","Galactic Core","Nebula","Star Stream"]};
 const CRYSTAL={n:"Crystal",tag:"CRYSTAL CHAMBER",sh:"icosa",ms:0,cry:1,c:"#f1e6ff",pal:[0,.33,.67],k:.74,h:"PRISM",say:"Light splits into every colour here. Breathe, and watch it move.",tapSay:" — rest your eyes here and let it carry you.",st:["Prism","Rainbow","Facets","White Light","Spectrum"]};
+const TUNNEL={n:"Hypnotic Tunnel",tag:"TRANCE",sh:"sphere",ms:0,mt:4,c:"#ffd6f5",pal:[.9,.6,.8],k:.7,h:"TRANCE",say:"Rest your eyes on the centre and let it draw you in. Breathe slowly — it moves with your breath.",st:[]};
+const TSPD=[.5,1,2];S.tsi=1;S.tp=0;S.tw=0;
+function tunnelTick(){const n=performance.now(),dt=Math.min(.1,(n-(S.tlt||n))/1000);S.tlt=n;if(S.mt!==4)return;const br=S.br?S.br.v:.5,k=TSPD[S.tsi]*(S.still?.15:1);S.tp+=dt*.42*k*(.45+1.1*br);S.tw+=dt*.12*k;}
 ROOMS.push(MILKY,CRYSTAL);if(S.room===-1)setRoom(-1);
 const ss=(a,b,x)=>{const k=Math.max(0,Math.min(1,(x-a)/(b-a)));return k*k*(3-2*k);};
 const SCN=[[0,"hub"],[.15,"fold"],[.165,"fly"],[.38,"milky"],[.58,"crystal"],[.71,"infinity"],[.87,"light"],[.92,"home"]];
@@ -592,6 +621,7 @@ let imT=null;function immerse(on){clearTimeout(imT);document.body.classList.remo
 addEventListener("pointerdown",()=>{if(G.on)immerse(true);},true);
 
 document.querySelectorAll("[data-gl]").forEach(b=>b.onclick=()=>gStart(+b.dataset.gl));
+$("tunGo").onclick=()=>{$("sheet").hidden=true;if(G.on)gStop();setRoom(TUNNEL);S.yaw=0;S.pit=0;S.vy=S.vp=0;zl();};
 document.querySelectorAll("[data-dj]").forEach(b=>b.onclick=()=>gStart(+b.dataset.dj,"deep"));
 $("sesX").onclick=()=>gStop();
 /* ---------- heart sync: Bluetooth heart sensor, the walls pulse with each beat and bloom as heart and breath fall into step ---------- */
