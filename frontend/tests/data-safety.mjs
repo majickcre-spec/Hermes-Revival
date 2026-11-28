@@ -721,21 +721,27 @@ export async function run() {
     assert(d.btn && d.askedFirst && d.gone, "single take could not be deleted " + JSON.stringify(d)); await ctx.close();
   });
 
-  await S.test("Jam: chords + groove loop while everything records; review shows rounds cut on the 1 with waveforms; slide, keep, save as takes or make a melody; lyrics never touched", async () => {
+  await S.test("Jam: chords + groove loop and nothing records until ● Record (warm-up is never kept); Stop before Record keeps nothing; review shows rounds cut on the 1 with waveforms; slide, keep, save as takes or make a melody; lyrics never touched", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, {});
     const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); renderIdeaLab(); await w(700);
       const D = swData(), song = swSong(); song.setup = true; song.bpm = 160; if (!song.sections.length) song.sections.push(swSec("Verse")); const sec = song.sections[0];
       ["What if there is only one", "I feel so alone", "I can't tell", "the way I do"].forEach((x, i) => { sec.lines[i] = sec.lines[i] || swLine(); sec.lines[i].t = x; });
       song.mel[sec.tag] = swCand(song, sec.tag, 1); song.prog = {}; song.prog[sec.tag] = 1; song.takes = { [sec.tag]: 1 }; D.acc = "block"; const m = swMix(); m.clk = 0.5; swSave(); swDraw(); SW.active = { s: sec.id, l: 0 }; await w(200);
       const lyr0 = swSong().sections[0].lines.map((l) => l.t).join("|");
-      const a = ac(); const o = a.createOscillator(), g = a.createGain(), dd = a.createMediaStreamDestination(); o.frequency.value = 220; g.gain.value = 0; o.connect(g); g.connect(dd); o.start(); micStream = dd.stream; toneAnalyser = a.createAnalyser(); window.ensureMic = () => Promise.resolve(true);
-      document.getElementById("swJam").click(); await w(300); const J = JAM, round = J.round; /* sing through round 2 only */ g.gain.setValueAtTime(0.4, J.start + round + 0.1); g.gain.setValueAtTime(0, J.start + 2 * round - 0.1);
-      await w(Math.round((2 * round + 1.2) * 1000)); const chordsPlayed = J.nb >= 8, groove = BK.play; document.getElementById("swJam").click(); await w(1500);
-      const rv = JAM && JAM.review, levels = JAM.rounds.map((x) => x.level), n = JAM.rounds.length, waves = document.querySelectorAll("[data-jw]").length, overview = !!document.getElementById("jmAll");
-      JAM.rounds[1].keep = true; JAM.rounds[1].shift = JAM.beat / 2; swJamDraw(); document.getElementById("jmSave").click(); await w(200);
+      const a = ac(); const o = a.createOscillator(), g = a.createGain(), dd = a.createMediaStreamDestination(); o.frequency.value = 220; g.gain.value = 0; o.connect(g); g.connect(dd); o.start(); micStream = dd.stream; toneAnalyser = a.createAnalyser(); window.ensureMic = () => { const d2 = a.createMediaStreamDestination(); g.connect(d2); micStream = d2.stream; return Promise.resolve(true); };
+      document.getElementById("swJam").click(); await w(1500); const loopMsg = /not recording yet/.test(document.getElementById("swRecMsg").textContent); document.getElementById("swJam").click(); await w(800);
+      const noRec = !JAM && /nothing was recorded/.test(document.getElementById("swRecMsg").textContent) && !micStream;
+      document.getElementById("swJam").click(); await w(300); const J = JAM, round = J.round; /* warm up (sing) in loop 1, press Record during loop 3, sing through loop 4 only */
+      g.gain.setValueAtTime(0.4, J.start + 0.1); g.gain.setValueAtTime(0, J.start + round - 0.1); g.gain.setValueAtTime(0.4, J.start + 3 * round + 0.1); g.gain.setValueAtTime(0, J.start + 4 * round - 0.1);
+      await w(Math.round((J.start + 2 * round + round / 2 - a.currentTime) * 1000)); document.getElementById("swJRec").click(); await w(200); const recMsg = /Recording/.test(document.getElementById("swRecMsg").textContent);
+      await w(Math.round((J.start + 4 * round + 1.2 - a.currentTime) * 1000)); const chordsPlayed = J.nb >= 16, groove = BK.play; document.getElementById("swJam").click(); await w(1500);
+      const rv = JAM && JAM.review, gone = JAM.rounds.filter((x) => x.gone).length, real = JAM.rounds.filter((x) => !x.gone), levels = JAM.rounds.map((x) => x.level), n = real.length, heads = [...document.querySelectorAll(".jmHead b")].map((b) => b.textContent), waves = document.querySelectorAll("[data-jw]").length, overview = !!document.getElementById("jmAll");
+      JAM.rounds[3].keep = true; JAM.rounds[3].shift = JAM.beat / 2; swJamDraw(); document.getElementById("jmSave").click(); await w(200);
       const s2 = swSong(), takes = s2.takes[sec.tag], meta = s2.takeMeta[swTakeKey(s2, sec.tag, takes)];
       document.getElementById("jmMel").click(); await w(300); const s3 = swSong();
-      return { chordsPlayed, groove, rv, n, sung2: levels[1] > 0.5 && levels[0] < 0.12, waves, overview, takes, lines: meta && Object.keys(meta.at).length, melSung: /jam round 2/.test((s3.mel[sec.tag] || {}).label || ""), lyrSame: s3.sections[0].lines.map((l) => l.t).join("|") === lyr0, micOff: !micStream, reviewClosed: !JAM }; });
+      return { loopMsg, noRec, recMsg, gone, heads, chordsPlayed, groove, rv, n, sung2: levels[3] > 0.5 && levels[2] < 0.12, waves, overview, takes, lines: meta && Object.keys(meta.at).length, melSung: /jam round 2/.test((s3.mel[sec.tag] || {}).label || ""), lyrSame: s3.sections[0].lines.map((l) => l.t).join("|") === lyr0, micOff: !micStream, reviewClosed: !JAM }; });
+    assert(r.loopMsg && r.noRec, "loop-only jam should record nothing " + JSON.stringify(r));
+    assert(r.recMsg && r.gone === 2 && r.heads.length === 1 && /^Round 2/.test(r.heads[0]), "warm-up kept or rounds misnumbered " + JSON.stringify(r));
     assert(r.chordsPlayed && r.groove && r.rv && r.n >= 2 && r.sung2, "jam/rounds " + JSON.stringify(r));
     assert(r.waves >= 1 && r.overview, "waveforms " + JSON.stringify(r));
     assert(r.takes === 2 && r.lines === 4, "kept round not saved as a take (existing take must stay) " + JSON.stringify(r));
@@ -1784,8 +1790,10 @@ export async function run() {
     assert(/Stop chords/.test(await pg.locator("#swPlay").innerText()) && (await pg.evaluate(() => BK.on)), "Play song with no words didn't play the chords");
     await pg.locator("#swPlay").click(); await pg.waitForTimeout(500); assert(!(await pg.evaluate(() => BK.on)), "second tap didn't stop the chords");
     await pg.locator("#swRecB").click(); await pg.waitForTimeout(1500);
-    assert(/JAMMING/i.test(await pg.locator("#view").innerText()), "Record with no words didn't start a jam");
-    await pg.locator("#swJam").click().catch(() => {}); await pg.waitForTimeout(1200);
+    assert(/RECORDING · THE LOOP/i.test(await pg.locator("#view").innerText()), "Record with no words didn't start a jam that records right away");
+    assert(/Stop & review/.test(await pg.locator("#swRecB").innerText()), "no Stop & review while the jam records");
+    await pg.locator("#swRecB").click(); await pg.waitForTimeout(1500);
+    assert(/YOUR JAM/i.test(await pg.locator("#view").innerText()), "Stop & review didn't open the jam review");
     for (let k = 0; k < 3 && !(await pg.locator("#swRecB").count()); k++) { await pg.locator("#view button").filter({ hasText: /Done|Back|←/ }).first().click().catch(() => {}); await pg.waitForTimeout(800); }
     await pg.locator("#view input.sw-t").first().click(); await pg.keyboard.type("Morning on the mountain"); await pg.waitForTimeout(300);
     await pg.evaluate(() => { window.__C = []; const on = window.swNote; window.swNote = function (mi, t, d, layer) { if (layer === "ch") window.__C.push(mi); return on.apply(this, arguments); }; });
