@@ -5,6 +5,7 @@ import type { Express, Request, Response } from 'express';
 import { storage } from './storage.js';
 import { register, login, verifyToken, loadState, saveState, accountsMode, isAdmin, canHeads, canMeditate, medGranted, setMedAccess, accountCount } from './accounts.js';
 import { recordUsage, usageStats } from './usage.js';
+import { lyricLines, lyricAiOn } from './lyriclines.js';
 import { putSession, putEeg, listSessions, getSession, getEeg, claudeKey, accountForKey, mdIndex, mdReport, csvTimeline, csvRR, putHeartlog, setResearch, deleteMine, adminSummary, adminCsv, adminFull } from './sessions.js';
 
 function requireAuth(req: Request, res: Response): string | null {
@@ -145,6 +146,13 @@ export function registerRoutes(app: Express) {
   });
   app.get('/api/admin/me', async (req: Request, res: Response) => {
     const acc = requireAuth(req, res); if (!acc) return; res.json({ admin: await isAdmin(acc) });
+  });
+  // Lyric Lab: original next-line ideas that rhyme and fit the rhythm (needs ANTHROPIC_API_KEY)
+  app.get('/api/lyric-lines', (req: Request, res: Response) => { res.json({ on: lyricAiOn() }); });
+  app.post('/api/lyric-lines', async (req: Request, res: Response) => {
+    const acc = requireAuth(req, res); if (!acc) return;
+    try { res.json(await lyricLines(acc, req.body || {})); }
+    catch (e: any) { res.status(e?.status || 500).json({ error: e?.msg || 'Couldn\u2019t get ideas right now.' }); }
   });
   app.post('/api/claude-key', async (req: Request, res: Response) => {
     const acc = requireAuth(req, res); if (!acc) return;

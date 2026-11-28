@@ -4877,11 +4877,13 @@ function swIdeas(song,sec,li,el){const box=el.querySelector(".sw-ideas");if(!box
   const aim=mel?mel.n:(an>=SW_SYL_LO&&an<=SW_SYL_HI?an:null);
   box.innerHTML='<div style="display:flex;align-items:center;gap:6px"><b style="flex:1">Line '+(li+1)+'</b><button class="rchip sm" data-x="1">Close</button></div>'+schNote+
     '<div class="sw-sub" style="margin:4px 0 0">'+(aim?"Aim for "+aim+" syllables"+(mel?" (the melody fits "+Math.max(1,aim-2)+"–"+(aim+2)+")":" to match line "+li):"Aim for "+SW_SYL_LO+"–"+SW_SYL_HI+" syllables")+' · this line: '+(llSylN(ln.t)||0)+'</div>'+
+    '<div class="sw-ai" style="margin-top:8px"><button class="rchip sm sel" data-ai="1">✨ Write line ideas</button></div>'+
     (above.trim()?'<h5>Match the rhythm of line '+li+'</h5><div class="sw-pros" data-p="a">…</div>'+(ln.t.trim()?'<div class="sw-pros" data-p="b" style="color:#7ff0d6">…</div>':'')+'<div class="sw-sub" style="margin:2px 0 0">Say both lines out loud. When the CAPITAL syllables fall in the same places, the lines sing to the same melody.</div>':'')+
     (prevs.length?'<h5>Rhyme with</h5>'+prevs.map(p=>'<span class="tg'+(p.w===W?" sel":"")+'" data-tg="'+swEsc(p.w)+'">'+swEsc(p.w)+' <small>(line '+(p.k+1)+')</small></span>').join(""):"")+
     '<div class="sw-fitm" style="margin-top:6px"></div><div data-r="1" style="margin-top:4px;color:var(--muted)">Looking…</div>'+
     (W?'<div style="margin-top:8px"><a href="https://www.rhymezone.com/r/rhyme.cgi?Word='+encodeURIComponent(W)+'&typeofrhyme=perfect" target="_blank" rel="noopener" style="color:var(--gold,#f4b740);font:800 .8rem system-ui">Open “'+swEsc(W)+'” in RhymeZone ↗</a></div>':'');
   box.querySelector("[data-x]").onclick=()=>{SW.ideas=null;box.style.display="none";};
+  {const ab=box.querySelector("[data-ai]");if(ab)ab.onclick=()=>swAiLines(song,sec,li,box,W,aim||Math.round((SW_SYL_LO+SW_SYL_HI)/2),above);}
   box.querySelectorAll("[data-tg]").forEach(t=>{t.onmousedown=e=>e.preventDefault();t.onclick=()=>{SW.ideas.w=t.dataset.tg;swIdeas(song,sec,li,el);};});
   if(above.trim()){swSylStress(above).then(sy=>{const e=box.querySelector('[data-p="a"]');if(e)e.textContent="Line "+li+": "+swSpoken(sy);});if(ln.t.trim())swSylStress(ln.t).then(sy=>{const e=box.querySelector('[data-p="b"]');if(e)e.textContent="This line: "+swSpoken(sy);});}
   const R=box.querySelector("[data-r]"),tp=swTheme(song),enc=encodeURIComponent,groups=[];
@@ -4896,6 +4898,27 @@ function swIdeas(song,sec,li,el){const box=el.querySelector(".sw-ideas");if(!box
       if(toNext){while(sec.lines.length<=li+1)sec.lines.push(swLine());const nl=sec.lines[li+1];nl.t=nl.t.trim()?nl.t.replace(/([a-zA-Z']+)([^a-zA-Z']*)$/,nw+"$2"):" "+nw;swSave();SW.ideas=null;SW.active={s:sec.id,l:li+1};swDraw();swFocus(true);return;}
       const m=ln.t.match(/^(.*?)([a-zA-Z']+)([^a-zA-Z']*)$/),empty=!ln.t.trim();
       ln.t=empty?nw:(m?m[1]+nw+m[3]:(ln.t+" "+nw));swSave();SW.ideas=null;SW.active={s:sec.id,l:li};swDraw();swFocus(empty);};});});}
+
+/* ✨ Line ideas: Claude writes a few original options for this line on the server; each is checked here for syllables, rhyme and how it sits on the beat, and the best 3 are shown. */
+function swAiLines(song,sec,li,box,W,aim,above){const el=box.querySelector(".sw-ai");if(!el)return;const ln=sec.lines[li],mel=song.mel[sec.tag];
+  const msg=t=>{el.innerHTML='<div class="sw-sub" style="margin:0 0 4px">'+t+'</div><button class="rchip sm" data-ai="1">✨ Try again</button>';el.querySelector("[data-ai]").onclick=()=>swAiLines(song,sec,li,box,W,aim,above);};
+  if(typeof acctTok!=="function"||!acctTok()){el.innerHTML='<div class="sw-sub">Sign in (top right) to get line ideas.</div>';return;}
+  if(navigator.onLine===false){msg("Line ideas need the internet.");return;}
+  SW.aiSeen=SW.aiSeen&&SW.aiSeen.k===sec.id+":"+li?SW.aiSeen:{k:sec.id+":"+li,l:[]};
+  el.innerHTML='<div class="sw-sub">✨ Writing ideas…</div>';
+  const stressP=above.trim()?swSylStress(above).then(swSpoken).catch(()=>""):Promise.resolve("");
+  const rhP=W?Promise.all([swDM("rel_rhy="+encodeURIComponent(W)+"&max=400").catch(()=>null),swDM("rel_nry="+encodeURIComponent(W)+"&max=200").catch(()=>null)]):Promise.resolve([null,null]);
+  stressP.then(stress=>_api("/api/lyric-lines",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:song.title||"",theme:swTheme(song)||"",section:sec.tag,lines:sec.lines.map(l=>l.t||""),li:li,rhyme:W||"",syl:aim,stress:stress,avoid:SW.aiSeen.l.slice(-12)})}))
+  .then(j=>Promise.all([rhP,Promise.all((j.lines||[]).map(t=>swSylStress(t).then(sy=>({t:t,n:sy.length,f:mel?swFitScore(song,sec,li,t,sy):null})).catch(()=>({t:t,n:llSylN(t),f:null}))))]))
+  .then(([rh,c])=>{if(!el.isConnected)return;const set={};(rh||[]).forEach(L=>(L||[]).forEach(x=>{if(x&&x.word)set[x.word.toLowerCase()]=1;}));const haveRh=W&&Object.keys(set).length>0;
+    c.forEach(o=>{const lw=(lastWord(o.t)||"").toLowerCase();o.rh=!W||!haveRh||!!set[lw];o.k=(o.rh?0:2)+Math.max(0,Math.abs(o.n-aim)-1)*0.5+(o.f?(1-o.f.score)*1.5:0);});
+    c.sort((a,b)=>a.k-b.k);const best=c.slice(0,3);if(!best.length){msg("No ideas came back — try again.");return;}best.forEach(o=>SW.aiSeen.l.push(o.t));
+    el.innerHTML='<h5 style="margin:0 0 4px">✨ Ideas for line '+(li+1)+'</h5>'+best.map((o,k)=>'<div class="sw-pfv"><span>'+swEsc(o.t)+' <small style="opacity:.7">('+o.n+' syl'+(o.f?' · '+Math.round(o.f.score*100)+'% on the beat':'')+(W&&haveRh&&!o.rh?' · near rhyme':'')+')</small></span><button data-av="'+k+'" aria-label="Hear this idea">▶</button><button data-au="'+k+'">Use</button></div>').join("")+
+      '<div style="display:flex;gap:6px;margin-top:4px"><button class="rchip sm" data-ai="1">✨ More ideas</button></div>';
+    el.querySelectorAll("[data-av]").forEach(b=>b.onclick=()=>swHearText(song,sec,li,best[+b.dataset.av].t));
+    el.querySelectorAll("[data-au]").forEach(b=>{b.onmousedown=e=>e.preventDefault();b.onclick=()=>{swSnap(song,"Line "+(li+1)+" changed");ln.t=best[+b.dataset.au].t;swSave();SW.ideas=null;SW.active={s:sec.id,l:li};swStopPlay();swDraw();swUndoToast();};});
+    el.querySelector("[data-ai]").onclick=()=>swAiLines(song,sec,li,box,W,aim,above);})
+  .catch(e=>{if(!el.isConnected)return;const m=String(e&&e.message||"");msg(/Failed to fetch|NetworkError|Load failed|not valid JSON|Something went wrong/i.test(m)?"Line ideas need the app's server, and it isn't reachable right now.":swEsc(m));});}
 
 function renderIdeaLabOld(){
   if(toneRAF)cancelAnimationFrame(toneRAF);home.hidden=true;view.hidden=false;window.scrollTo(0,0);
