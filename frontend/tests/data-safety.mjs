@@ -240,6 +240,25 @@ export async function run() {
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
   });
 
+  await S.test("Jam: quiet phone mic — a meter shows the mic hearing you, the quiet voice is leveled up and its round shows in review; a dead mic gets a plain warning", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "Only One", ["", "", "", ""], { bpm: 170, prog: { Verse: 1 } })], cur: "a1" } });
+    await open(pg);
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); SW.lib = false; swDraw(); const a = ac(); await a.resume();
+      const o = a.createOscillator(), g = a.createGain(); o.frequency.value = 220; g.gain.value = 0.02; o.connect(g); o.start(); let live = g;
+      window.ensureMic = () => { const d = a.createMediaStreamDestination(); live.connect(d); micStream = d.stream; return Promise.resolve(true); };
+      document.getElementById("swJam").click(); await w(1200); const meter = parseFloat((document.getElementById("swJLvl") || { style: {} }).style.width) || 0;
+      document.getElementById("swJRec").click(); await w(Math.round(JAM.round * 1000 * 1.6)); const warn1 = (document.getElementById("swJWarn") || {}).textContent || "";
+      document.getElementById("swRecB").click(); await w(1500); const heads = document.querySelectorAll(".jmHead").length, quietMsg = /didn.t hear any singing/.test(view.textContent), gain = JAM.gain;
+      document.querySelector("#view button.back, #eBack").click(); await w(500); JAM = null; swDraw(); await w(200);
+      live = a.createGain(); live.gain.value = 0; document.getElementById("swJam").click(); await w(600); document.getElementById("swJRec").click(); await w(5200);
+      const warn2 = (document.getElementById("swJWarn") || {}).textContent || ""; swJamStop(); await w(800); try { o.stop(); } catch (e) {}
+      return { meter, warn1, heads, quietMsg, gain, warn2 }; });
+    assert(r.meter > 5, "no live mic meter " + JSON.stringify(r));
+    assert(r.heads >= 1 && !r.quietMsg && r.gain > 5 && !r.warn1, "quiet voice not leveled/shown " + JSON.stringify(r));
+    assert(/isn't hearing anything/.test(r.warn2), "dead mic not flagged " + JSON.stringify(r));
+    assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
+  });
+
   await S.test("Clean takes: a quiet mic take is saved louder (peak ~0.7, no clipping); Timing earlier/later moves only that take's timing and is remembered; lyrics untouched", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "Only One", ["am I the only one"], { bpm: 170, prog: { Verse: 1 } })], cur: "a1" } });
     await open(pg);
