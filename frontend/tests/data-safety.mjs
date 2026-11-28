@@ -268,6 +268,26 @@ export async function run() {
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
   });
 
+  await S.test("A take on lines with no words yet plays: the line's ▶ is on, Play song and the loop play the take (not just the backing), Record line works on a wordless line", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "Untitled", ["", "", "", ""], { bpm: 90, prog: { Verse: 1 } })], cur: "a1" } });
+    await open(pg);
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); SW.lib = false; const sg = swSong(), sr = 44100, n = sr * 12, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf), wr = (o, x) => { for (let i = 0; i < x.length; i++) v.setUint8(o + i, x.charCodeAt(i)); };
+      wr(0, "RIFF"); v.setUint32(4, 36 + n * 2, true); wr(8, "WAVEfmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); wr(36, "data"); v.setUint32(40, n * 2, true);
+      for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.sin(i * 2 * Math.PI * 440 / sr) * 12000, true);
+      const tag = sg.sections[0].tag; sg.takes = { [tag]: 1 }; sg.takeSel = { [tag]: 1 }; sg.takeMeta = { [swTakeKey(sg, tag, 1)]: { bpm: 90, at: { 0: 0.1, 1: 2.8, 2: 5.5, 3: 8.2 } } };
+      await idbPut("swtake:" + swTakeKey(sg, tag, 1), new Blob([buf], { type: "audio/wav" })); SW.takeBlob = {}; SW.voxBuf = {}; SW.voxBad = {}; swData().loop = 1; swSave(); SW.active = { s: sg.sections[0].id, l: 0 }; swDraw(); await w(100);
+      const out = {}; const pb = document.querySelector('.sw-line[data-l="0"] [data-a="play"]'); out.lineBtnOn = !!pb && !pb.disabled;
+      pb.click(); await w(1500); out.lineVox = (SW.voxSrc || []).length; swStopPlay(); await w(200);
+      document.getElementById("swPlay").click(); await w(4000); out.loopVox = (SW.voxSrc || []).length; out.loopLines = (SW.lastLines || []).length; out.backingOnly = !!(BK.on && !SW.stopT); swStopPlay(); await w(200);
+      swData().loop = null; swSave(); swDraw(); document.getElementById("swPlay").click(); await w(4000); out.songVox = (SW.voxSrc || []).length; swStopPlay();
+      out.recBtn = (document.querySelector('.sw-line[data-l="0"] [data-a="redo"]') || {}).disabled === false; out.takes = swSong().takes[tag]; return out; });
+    assert(r.lineBtnOn && r.lineVox >= 1, "wordless line's take did not play from its ▶ " + JSON.stringify(r));
+    assert(r.loopVox >= 1 && !r.backingOnly, "loop played only the backing, not the take " + JSON.stringify(r));
+    assert(r.songVox >= 1, "Play song did not play the take on wordless lines " + JSON.stringify(r));
+    assert(r.recBtn && r.takes === 1, "Record line unavailable or take lost " + JSON.stringify(r));
+    assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
+  });
+
   await S.test("Throw out a Sing-it-in take: the audio AND the melody/words it filled are all removed; Undo brings them back", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "Only One", ["am I the only one", ""], { bpm: 160, prog: { Verse: 1 } })], cur: "a1" } });
     await open(pg); const r = await pg.evaluate(async () => { SW.lib = false; swDraw(); unlockAudio(); const a = ac(); await a.resume();
