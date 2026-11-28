@@ -288,6 +288,30 @@ export async function run() {
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
   });
 
+  await S.test("Prosody in plain words: the line shown as you'd say it, better-fitting versions of YOUR line you can hear and Use (lyrics change only on Use); ▶ 4 bars plays the 4-line phrase with chords, groove and a click", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "Thanks", ["Today a great day to give thanks", "We gather round the table", "Every voice a little song", "Grateful for it all"], { bpm: 90, prog: { Verse: 1 } })], cur: "a1" } });
+    await open(pg);
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); SW.lib = false;
+      const P = { today: "T AH0 D EY1", great: "G R EY1 T", day: "D EY1", give: "G IH1 V", thanks: "TH AE1 NG K S", oh: "OW1", now: "N AW1", yeah: "Y AE1", what: "W AH1 T", such: "S AH1 CH", gather: "G AE1 DH ER0", round: "R AW1 N D", table: "T EY1 B AH0 L", every: "EH1 V R IY0", voice: "V OY1 S", little: "L IH1 T AH0 L", song: "S AO1 NG", grateful: "G R EY1 T F AH0 L", all: "AO1 L" };
+      window.swDM = (q) => { const m = /sp=([^&]+)/.exec(q), wd = m ? decodeURIComponent(m[1]) : ""; return Promise.resolve(P[wd] ? [{ word: wd, tags: ["pron:" + P[wd]] }] : []); };
+      const sg = swSong(); sg.mel.Verse = swCand(sg, "Verse", 0); swSave(); SW.active = { s: sg.sections[0].id, l: 0 }; swDraw(); await w(100);
+      document.querySelector('.sw-line[data-l="0"] [data-a="ideas"]').click(); await w(1500);
+      const fm = document.querySelector(".sw-fitm"), out = { txt: fm ? fm.innerText : "", before: swSong().sections[0].lines.map((l) => l.t) };
+      out.sugg = [...document.querySelectorAll(".sw-pfv span")].map((e) => e.textContent);
+      const hb = document.querySelector("[data-pv]"); if (hb) { hb.click(); await w(400); out.hearOK = !!SW.stopT; swStopPlay(); }
+      out.unchanged = JSON.stringify(swSong().sections[0].lines.map((l) => l.t)) === JSON.stringify(out.before);
+      const ub = document.querySelector("[data-pu]"); if (ub) { ub.click(); await w(200); } out.after = swSong().sections[0].lines.map((l) => l.t);
+      SW.active = { s: swSong().sections[0].id, l: 2 }; swDraw(); await w(100); document.querySelector('.sw-line[data-l="2"] [data-a="play4"]').click(); await w(1200);
+      out.p4 = { full4: !!SW.full4, lines: (SW.lastLines || []).map((x) => x.li), groove: swMixHeard().clk > 0, chords: swMixHeard().ch > 0 }; swStopPlay(); out.after4 = !!SW.full4; return out; });
+    assert(/to-DAY a GREAT DAY to GIVE THANKS/.test(r.txt), "line not shown as spoken: " + r.txt.slice(0, 200));
+    assert(/soft syllable sitting right on beat|falls between beats/.test(r.txt), "no plain explanation: " + r.txt.slice(0, 300));
+    assert(r.sugg.length >= 2 && r.hearOK && r.sugg.some((x) => /^(What|Such) a great day to give thanks/.test(x)), "no good, varied versions of the line: " + JSON.stringify(r.sugg));
+    assert(r.unchanged, "lyrics changed before Use");
+    assert(r.after[0] !== r.before[0] && JSON.stringify(r.after.slice(1)) === JSON.stringify(r.before.slice(1)), "Use changed the wrong lines " + JSON.stringify(r.after));
+    assert(r.p4.full4 && JSON.stringify(r.p4.lines) === "[0,1,2,3]" && r.p4.groove && r.p4.chords && !r.after4, "▶ 4 bars did not play the 4-line phrase with backing " + JSON.stringify(r.p4));
+    assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
+  });
+
   await S.test("Throw out a Sing-it-in take: the audio AND the melody/words it filled are all removed; Undo brings them back", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "Only One", ["am I the only one", ""], { bpm: 160, prog: { Verse: 1 } })], cur: "a1" } });
     await open(pg); const r = await pg.evaluate(async () => { SW.lib = false; swDraw(); unlockAudio(); const a = ac(); await a.resume();
