@@ -240,6 +240,24 @@ export async function run() {
     assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
   });
 
+  await S.test("Clean takes: a quiet mic take is saved louder (peak ~0.7, no clipping); Timing earlier/later moves only that take's timing and is remembered; lyrics untouched", async () => {
+    const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "Only One", ["am I the only one", "I feel so alone"], { bpm: 120, prog: { Verse: 1 } })], cur: "a1" } });
+    await open(pg);
+    const r = await pg.evaluate(async () => { const w = (ms) => new Promise((z) => setTimeout(z, ms)); SW.lib = false; const sg = swSong(); sg.mel.Verse = swCand(sg, "Verse", 0); const lyr0 = sg.sections[0].lines.map((l) => l.t).join("|"); swSave(); swDraw(); unlockAudio(); const a = ac(); await a.resume();
+      const o = a.createOscillator(), g = a.createGain(), dd = a.createMediaStreamDestination(); o.frequency.value = 440; g.gain.value = 0.03; o.connect(g); g.connect(dd); o.start(); micStream = dd.stream; window.ensureMic = () => { micStream = dd.stream; return Promise.resolve(true); };
+      swData().loop = "sec"; swSave(); swDraw(); document.getElementById("swRecB").click(); for (let k = 0; k < 40 && !(swSong().takes && swSong().takes.Verse); k++) await w(500); swData().loop = null; swSave(); await w(400); swStopPlay(); swDraw();
+      const s1 = swSong(), key = swTakeKey(s1, "Verse", 1), blob = await idbGet("swtake:" + key), out = { saved: !!blob };
+      if (blob) { const dv = new DataView(await blob.arrayBuffer()); let pk = 0, clip = 0; for (let i = 44; i + 1 < dv.byteLength; i += 2) { const x = Math.abs(dv.getInt16(i, true)) / 32768; if (x > pk) pk = x; if (x > 0.99) clip++; } out.peak = +pk.toFixed(3); out.clip = clip; }
+      const at0 = JSON.stringify(s1.takeMeta[key].at); out.lbl0 = (document.querySelector(".sw-nudge") || {}).textContent || "";
+      document.querySelector('[data-nudge="1"]').click(); await w(300); swStopPlay();
+      const at1 = swSong().takeMeta[key].at; out.shift = Object.keys(at1).map((k) => +(at1[k] - JSON.parse(at0)[k]).toFixed(3)); out.fix = +load("mjk-swlatfix", 0); out.lbl1 = (document.querySelector(".sw-nudge") || {}).textContent || "";
+      out.lyrSame = swSong().sections[0].lines.map((l) => l.t).join("|") === lyr0; try { o.stop(); } catch (e) {} return out; });
+    assert(r.saved, "take not saved " + JSON.stringify(r));
+    assert(r.peak > 0.5 && r.peak < 0.8 && r.clip === 0, "quiet take not leveled to a clean volume " + JSON.stringify(r));
+    assert(/Timing/.test(r.lbl0) && r.shift.length && r.shift.every((x) => x === 0.02) && r.fix === 0.02 && /20 ms earlier/.test(r.lbl1), "timing nudge wrong " + JSON.stringify(r));
+    assert(r.lyrSame, "lyrics changed"); assert(!pg.__errors.length, pg.__errors.join(" | ")); await ctx.close();
+  });
+
   await S.test("Line takes: Hear toggles mute one layer, selected lines play and record alone, Redo line plays the line before as a run-up and saves a take for that line only (other lines and lyrics untouched)", async () => {
     const ctx = await fresh(); const pg = await profilePage(ctx, url, { [SWKEY]: { v: 2, songs: [song("a1", "Only One", ["am I the only one", "I feel so alone at night", "nobody hears me"], { bpm: 120, prog: { Verse: 1 } })], cur: "a1" } });
     await open(pg);
